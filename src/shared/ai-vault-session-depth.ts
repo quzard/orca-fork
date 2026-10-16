@@ -2,6 +2,7 @@ import {
   createNormalizedPathInsideOrEqualMatcher,
   normalizeRuntimePathForComparison
 } from './cross-platform-path'
+import { forkSessionComparisonCwds } from './fork-hooks/ai-vault-cwd'
 import type { AiVaultListArgs, AiVaultListResult } from './ai-vault-types'
 
 export const DEFAULT_AI_VAULT_SCAN_LIMIT = 1000
@@ -46,9 +47,11 @@ export function truncateAiVaultListResult(
     const scopeMatchers = scopePaths.map(createNormalizedPathInsideOrEqualMatcher)
     let scopedCount = 0
     for (const session of result.sessions) {
-      const cwd = session.cwd
-      const normalizedCwd = cwd ? normalizeRuntimePathForComparison(cwd) : null
-      if (normalizedCwd !== null && scopeMatchers.some((matches) => matches(normalizedCwd))) {
+      // fork: no aliases → the original cwd only.
+      const normalizedCwds = forkSessionComparisonCwds(session).map(
+        normalizeRuntimePathForComparison
+      )
+      if (scopeMatchers.some((matches) => normalizedCwds.some(matches))) {
         selectedIds.add(session.id)
         if (++scopedCount >= depth) {
           break

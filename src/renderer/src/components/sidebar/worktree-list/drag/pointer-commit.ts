@@ -13,6 +13,7 @@ import type {
   WorktreeStatusDropAtIndexArgs
 } from './drop-commit-context'
 import type { WorktreeSidebarStatusDropTarget } from '../../worktree-sidebar-drop-preview'
+import { commitRegisteredWorkspaceGroupDrop } from '../../../../../../shared/fork-hooks/sidebar-chrome'
 import { NO_WORKTREE_SIDEBAR_DROP_TARGET, type WorktreePointerDrag } from './row-state'
 
 type PointerDropCommitArgs = {
@@ -110,6 +111,19 @@ export function commitWorktreePointerDrop(args: PointerDropCommitArgs): void {
           })
         : null
       commitStatusOrPinDrop(args, preferredStatusTarget, statusDrop?.dropIndex ?? null)
+      ctx.clearWorktreeDrag()
+      return
+    }
+    if (
+      commitRegisteredWorkspaceGroupDrop({
+        x: event.clientX,
+        y: event.clientY,
+        sourceGroupKey: drag.sourceGroupKey,
+        draggedIds: drag.draggedIds,
+        groups: ctx.worktreeDragGroups,
+        container: ctx.scrollRef.current
+      })
+    ) {
       ctx.clearWorktreeDrag()
       return
     }

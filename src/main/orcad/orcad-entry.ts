@@ -43,6 +43,7 @@ import { stampRuntimeSourceEnv } from '../../shared/runtime-source-env'
 import { adoptWslHostLoginEnvironment } from './orcad-wsl-host-login-environment'
 import { installOrcadProcessErrorGuards } from './orcad-process-error-guards'
 import { orcadWsPortOptions } from './orcad-ws-port-policy'
+import { registerForkMainModules } from '../../fork/register-main'
 
 export { parseArgs }
 
@@ -77,6 +78,8 @@ export type OrcadHandle = {
  * for byte so the same harnesses can drive either host.
  */
 export async function startOrcad(options: OrcadOptions = {}): Promise<OrcadHandle> {
+  // fork: scan policy, directory symlinks, and folder terminals run in orcad, not only Electron.
+  registerForkMainModules()
   installOrcadHostAdapters()
   // Why: an orcad started from an Orca terminal must not fence its own CLI children to that Orca.
   stampRuntimeSourceEnv(process.env, null)

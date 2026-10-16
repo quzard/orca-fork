@@ -2961,6 +2961,8 @@ private final class PermissionRuntime: NSObject, NSApplicationDelegate {
             terminateWhenDragAssistantCloses: initialPermission != nil
         )
         if let initialPermission {
+            // Keep the authorization window up so the app card can be dragged.
+            windowController?.showWindow(nil)
             windowController?.openPermission(initialPermission)
         } else {
             windowController?.showWindow(nil)
@@ -3173,6 +3175,7 @@ private enum PermissionKind: CaseIterable {
 }
 
 private final class PermissionView: NSView {
+    private static let dragHint = "Drag the app card below into the permission list in System Settings, then enable its switch."
     private let appURL = Bundle.main.bundleURL
     private let showDragAssistant: (PermissionKind) -> Void
     private let close: () -> Void
@@ -3207,13 +3210,9 @@ private final class PermissionView: NSView {
         addSubview(stack)
         contentStack = stack
 
-        let icon = NSImageView(image: NSWorkspace.shared.icon(forFile: appURL.path))
-        icon.imageScaling = .scaleProportionallyUpOrDown
-        icon.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            icon.widthAnchor.constraint(equalToConstant: 58),
-            icon.heightAnchor.constraint(equalToConstant: 58)
-        ])
+        let appTile = DraggableAppTile(appURL: appURL)
+        appTile.translatesAutoresizingMaskIntoConstraints = false
+        appTile.heightAnchor.constraint(equalToConstant: 42).isActive = true
 
         let missingPermissions = permissionStatus.map { snapshot in
             PermissionKind.allCases.filter { !$0.isGranted(in: snapshot) }
@@ -3230,7 +3229,7 @@ private final class PermissionView: NSView {
                 ? "Checking Accessibility and Screenshots."
                 : (ready
                     ? "Orca can use local apps when you ask."
-                    : "Grant permissions so Orca can use apps when you ask."),
+                    : Self.dragHint),
             size: 12,
             weight: .regular
         )
@@ -3238,13 +3237,14 @@ private final class PermissionView: NSView {
         subtitle.alignment = .center
         subtitle.maximumNumberOfLines = 3
 
-        let header = NSStackView(views: [icon, title, subtitle])
+        let header = NSStackView(views: [title, subtitle, appTile])
         header.orientation = .vertical
         header.alignment = .centerX
         header.spacing = 6
         header.translatesAutoresizingMaskIntoConstraints = false
         stack.addArrangedSubview(header)
         header.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+        appTile.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
         subtitle.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -10).isActive = true
 
         if checking {
@@ -3771,6 +3771,14 @@ private final class DraggableAppTile: NSView, NSDraggingSource {
     private let appURL: URL
 
     override var mouseDownCanMoveWindow: Bool { false }
+
+    // System Settings is in front; the card must drag from an inactive window.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    // The icon and title belong to the card, so a drag starts anywhere on it.
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        super.hitTest(point) == nil ? nil : self
+    }
 
     init(appURL: URL) {
         self.appURL = appURL

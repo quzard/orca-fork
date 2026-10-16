@@ -14,6 +14,7 @@ import {
   resolveColocatedJetBrainsGuiExecutable
 } from './jetbrains-windows-gui-launchers'
 import { getCmdExePath, getSpawnArgsForWindows } from './win32-utils'
+import { resolveForkRemoteEditorLaunch } from '../shared/fork-hooks/remote-editor-launch'
 
 export const EXTERNAL_EDITOR_CLI_COMMAND = 'code'
 const WINDOWS_CONSOLE_EDITORS = new Set(['nvim', 'vim'])
@@ -38,9 +39,16 @@ export type ExternalEditorShellLaunchSpec = {
   spawnArgs: string[]
 }
 
-export type ExternalEditorLaunchSpec =
+export type ExternalEditorUrlLaunchSpec = {
+  kind: 'url'
+  url: string
+}
+
+export type ExternalEditorProcessLaunchSpec =
   | ExternalEditorExecutableLaunchSpec
   | ExternalEditorShellLaunchSpec
+
+export type ExternalEditorLaunchSpec = ExternalEditorProcessLaunchSpec | ExternalEditorUrlLaunchSpec
 
 function escapePosixPathForShell(pathValue: string): string {
   if (/^[a-zA-Z0-9_./@:-]+$/.test(pathValue)) {
@@ -167,7 +175,7 @@ function buildShellLaunchSpec(
   command: string,
   pathValue: string,
   platform: NodeJS.Platform
-): ExternalEditorLaunchSpec {
+): ExternalEditorProcessLaunchSpec {
   const shellCommand = `${command} ${escapePathForShell(pathValue, platform)}`
   if (platform === 'win32') {
     // Why: no `start` wrap here. `start` re-parses the line — it swallows the
@@ -194,7 +202,7 @@ export function resolveExternalEditorLaunchSpec(
   command: string | undefined,
   pathValue: string,
   options: { platform?: NodeJS.Platform; fileExists?: (path: string) => boolean } = {}
-): ExternalEditorLaunchSpec {
+): ExternalEditorProcessLaunchSpec {
   const platform = options.platform ?? process.platform
   const fileExists = options.fileExists ?? existsSync
   const trimmed = command?.trim() || EXTERNAL_EDITOR_CLI_COMMAND
@@ -241,7 +249,8 @@ export function resolveVsCodeRemoteSshLaunchSpec(
   }
 
   if (!isVsCodeLauncherExecutable(editorCommand)) {
-    return null
+    // fork: Cursor deep link. Unregistered hook returns null.
+    return resolveForkRemoteEditorLaunch(editorCommand, pathValue, authority)
   }
   return {
     kind: 'executable',
@@ -258,6 +267,9 @@ function resolveExternalEditorSpawn(launchSpec: ExternalEditorLaunchSpec): {
 } {
   // Why: only shims flagged during resolution (JetBrains) take the start /B
   // detach; every other launcher keeps the waiting form so its argv survives.
+  if (launchSpec.kind === 'url') {
+    throw new Error('url launch specs open through launchExternalEditor')
+  }
   if (launchSpec.kind === 'executable') {
     const spawned = getSpawnArgsForWindows(launchSpec.spawnCmd, launchSpec.spawnArgs, {
       detachedGui: launchSpec.detachedGui === true
@@ -272,6 +284,11 @@ function resolveExternalEditorSpawn(launchSpec: ExternalEditorLaunchSpec): {
 }
 
 export async function launchExternalEditor(launchSpec: ExternalEditorLaunchSpec): Promise<void> {
+  if (launchSpec.kind === 'url') {
+    const { shell } = await import('electron')
+    await shell.openExternal(launchSpec.url)
+    return
+  }
   const { spawnCmd, spawnArgs, windowsHide } = resolveExternalEditorSpawn(launchSpec)
   await new Promise<void>((resolvePromise, rejectPromise) => {
     const child = spawn(spawnCmd, spawnArgs, { detached: true, stdio: 'ignore', windowsHide })

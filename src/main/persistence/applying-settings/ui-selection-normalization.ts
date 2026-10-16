@@ -1,18 +1,25 @@
 import type { PersistedState } from '../../../shared/persisted-state-types'
 import { getDefaultUIState } from '../../../shared/constants'
+import {
+  isRegisteredSidebarGroupMode,
+  registeredReplacementForBuiltinGroupBy
+} from '../../../shared/fork-hooks/sidebar-group-mode'
 import { isPluginPanelTabKey } from '../../../shared/plugins/plugin-manifest'
 
 export function normalizeGroupBy(groupBy: unknown): PersistedState['ui']['groupBy'] {
-  if (
-    groupBy === 'none' ||
-    groupBy === 'workspace-status' ||
-    groupBy === 'repo' ||
-    groupBy === 'pr-status'
-  ) {
+  if (groupBy === 'none' || groupBy === 'workspace-status' || groupBy === 'pr-status') {
     return groupBy
+  }
+  // fork: a saved Project value is the host-and-directory view once that mode is registered.
+  if (groupBy === 'repo') {
+    return registeredReplacementForBuiltinGroupBy('repo') ?? 'repo'
   }
   if (groupBy === 'flat') {
     return 'none'
+  }
+  if (typeof groupBy === 'string' && isRegisteredSidebarGroupMode(groupBy)) {
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: only a fork-registered mode id reaches here; built-in ids returned above.
+    return groupBy as PersistedState['ui']['groupBy']
   }
   return getDefaultUIState().groupBy
 }

@@ -54,6 +54,7 @@ import { agentHookServer } from '../agent-hooks/server'
 import { isAgentStatusHooksEnabled } from '../agent-hooks/managed-agent-hook-controls'
 import { reportProfileStateWriteFailure } from './profile-state-write-failure'
 import { reportProfileStateSaveDelay } from './profile-state-save-delay'
+import { applyStartupBrowserSessionProxies } from '../../fork/startup/browser-session-proxy'
 
 export async function initializeReadyFoundation(): Promise<void> {
   logStartupMilestone('app-ready')
@@ -285,10 +286,8 @@ export async function initializeReadyFoundation(): Promise<void> {
       return currentStore.getSshTargets().map((target) => target.id)
     }
   })
-  try {
-    // Why: awaited here so the first guest navigation cannot race the installer's fire-and-forget write.
-    await applyBrowserSessionProxies(browserSessionRegistry.listProfiles(), store.getSettings())
-  } catch {
-    console.warn('[proxy] Failed to apply network proxy settings to browser sessions')
-  }
+  // fork: 登记后不阻塞首窗；未登记时仍等待，避免第一次打开网页抢在代理之前。
+  await applyStartupBrowserSessionProxies(() =>
+    applyBrowserSessionProxies(browserSessionRegistry.listProfiles(), store.getSettings())
+  )
 }

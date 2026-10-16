@@ -13,6 +13,7 @@ import { formatSparseDirectoryPreview, shouldBeginWorktreeRename } from './workt
 import type { WorktreeCardPresentation } from './worktree-card-presentation'
 import { WorktreeCardSshHostControl } from './WorktreeCardSshHostControl'
 import { WorktreeTitleInlineRename } from './WorktreeTitleInlineRename'
+import { DIRECTORY_TITLE_SEPARATOR } from '../../../../fork/sidebar/section-keys'
 import type { WorktreeCardController } from './use-worktree-card-controller'
 
 // Why: pinned repo icon and compact inline badge share this chip shell so both repo cues read as the same affordance.
@@ -67,6 +68,7 @@ export function WorktreeCardHeader({
     isRuntimeDisconnected,
     runtimeHostLabel,
     visibleCardTitle,
+    directoryLabel,
     isDeleting,
     showUnreadEmphasis,
     setTitleRenaming,
@@ -167,6 +169,24 @@ export function WorktreeCardHeader({
         )}
 
         {/* Why: unread alert lives in the left status lane; title-row contrast comes from weight and dimmed read titles. */}
+        {directoryLabel && !titleRenaming ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                dir="rtl"
+                className="max-w-[45%] shrink truncate text-left text-xs text-muted-foreground"
+              >
+                <span dir="ltr">{directoryLabel}</span>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top">{worktree.path}</TooltipContent>
+          </Tooltip>
+        ) : null}
+        {directoryLabel && !titleRenaming ? (
+          <span className="shrink-0 text-xs text-muted-foreground">
+            {DIRECTORY_TITLE_SEPARATOR}
+          </span>
+        ) : null}
         <WorktreeTitleInlineRename
           displayName={visibleCardTitle}
           disabled={isDeleting || affiliateListMode}

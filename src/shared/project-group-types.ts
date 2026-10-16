@@ -46,6 +46,8 @@ export type ProjectGroupImportMode = 'group' | 'separate'
 
 export type ProjectGroupImportProjectResult = {
   path: string
+  /** Git toplevel of `path` when the importing host resolved it. Older hosts omit it. */
+  worktreePath?: string
   projectId?: string
   status: 'imported' | 'already-known' | 'failed'
   error?: string

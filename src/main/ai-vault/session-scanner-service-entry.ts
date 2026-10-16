@@ -24,6 +24,7 @@ import {
 import { readAiVaultSessionTitlesFromFiles } from './session-title-file-reader'
 import { resolveHostReadableAiVaultTitleRequests } from './session-title-request-paths'
 import { listLocalAiVaultSubagentSessions } from './session-subagent-reader'
+import { applyAiVaultForkServicePolicy } from '../../fork/ai-vault/service-policy'
 
 if (!process.send) {
   throw new Error('AI Vault service requires a parent IPC channel.')
@@ -192,6 +193,9 @@ process.on('message', (raw: AiVaultServiceParentMessage) => {
       return
     }
     initialized = true
+    if (raw.fork) {
+      applyAiVaultForkServicePolicy(raw.fork)
+    }
     if (raw.sessionParseCache) {
       initSessionParseCachePersistence(raw.sessionParseCache)
     }

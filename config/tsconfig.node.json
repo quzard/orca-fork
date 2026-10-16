@@ -13,6 +13,7 @@
     "./scripts/happy-dom-mutation-observer-retention.ts",
     "./scripts/vitest-node-runtime-pool.ts",
     "../src/main/**/*",
+    "../src/fork/**/*.ts",
     "../src/renderer/src/lib/skill-freshness-display-status.ts",
     "../src/renderer/src/store/slices/worktrees/create/worktree-create-payload.ts",
     "../src/renderer/src/components/native-chat/native-chat-resolution-receipt.ts",
@@ -27,6 +28,18 @@
     "../src/packages/process-host/src/__fixtures__/**/*",
     "../src/wsl-guest/**/*",
     "../src/types/**/*"
+  ],
+  "exclude": [
+    "../src/fork/sidebar/host-directory-render.ts",
+    "../src/fork/sidebar/host-directory-rows.ts",
+    "../src/fork/sidebar/host-directory-sections.ts",
+    "../src/fork/sidebar/install-row-plan.ts",
+    "../src/fork/sidebar/remove-workspace.ts",
+    "../src/fork/sidebar/workspace-choice.ts",
+    "../src/fork/sidebar/workspace-group-drop.ts",
+    "../src/fork/sidebar/register-composer-seed.ts",
+    "../src/fork/sidebar/host-directory-rows.fork.test.ts",
+    "../src/fork/sidebar/remove-workspace.fork.test.ts"
   ],
   "compilerOptions": {
     "composite": true,

@@ -1,6 +1,9 @@
 import { OrcaRuntimeWithSleepResolvedWorktreeTerminals } from './worktree-terminal-sleep'
 import { setsEqual } from '../../runtime-worktree-binding-index'
-import { runtimeWorktreeIdsEqual } from '../../runtime-worktree-path-identity'
+import {
+  includeTargetResolvedWorktree,
+  runtimeWorktreeIdsEqual
+} from '../../runtime-worktree-path-identity'
 import type { RuntimeLeafRecord } from '../../runtime-terminal-state-records'
 
 export abstract class OrcaRuntimeWithStopExactTerminalsForWorktree extends OrcaRuntimeWithSleepResolvedWorktreeTerminals {
@@ -26,7 +29,11 @@ export abstract class OrcaRuntimeWithStopExactTerminalsForWorktree extends OrcaR
     if (expected.size !== 1) {
       throw new Error('terminal_exact_stop_requires_single_pty')
     }
-    const resolvedWorktrees = [...(await this.getResolvedWorktreeMap()).values()]
+    // fork: folder workspaces are missing from the resolved map, so exact stop includes the selector result.
+    const resolvedWorktrees = includeTargetResolvedWorktree(
+      [...(await this.getResolvedWorktreeMap()).values()],
+      worktree
+    )
     const refreshedPtyLiveness =
       await this.refreshPtyWorktreeRecordsFromController(resolvedWorktrees)
     if (!refreshedPtyLiveness) {

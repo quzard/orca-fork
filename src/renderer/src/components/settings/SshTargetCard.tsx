@@ -12,14 +12,29 @@ import { translate } from '@/i18n/i18n'
 
 // ── Shared status helpers ────────────────────────────────────────────
 
+// fork: connection status names are translated. The English fallback matches the previous literal.
 export const STATUS_LABELS: Record<SshConnectionStatus, string> = {
-  disconnected: 'Disconnected',
-  connecting: 'Connecting\u2026',
-  'auth-failed': 'Auth failed',
-  'deploying-relay': 'Deploying relay\u2026',
-  connected: 'Connected',
-  reconnecting: 'Reconnecting\u2026',
-  'reconnection-failed': 'Reconnection failed',
+  get disconnected() {
+    return translate('sshConnectionStatus.disconnected', 'Disconnected')
+  },
+  get connecting() {
+    return translate('sshConnectionStatus.connecting', 'Connecting\u2026')
+  },
+  get 'auth-failed'() {
+    return translate('sshConnectionStatus.authFailed', 'Auth failed')
+  },
+  get 'deploying-relay'() {
+    return translate('sshConnectionStatus.deployingRelay', 'Deploying relay\u2026')
+  },
+  get connected() {
+    return translate('sshConnectionStatus.connected', 'Connected')
+  },
+  get reconnecting() {
+    return translate('sshConnectionStatus.reconnecting', 'Reconnecting\u2026')
+  },
+  get 'reconnection-failed'() {
+    return translate('sshConnectionStatus.reconnectionFailed', 'Reconnection failed')
+  },
   get error() {
     return translate('auto.components.settings.SshTargetCard.18968ede9e', 'Error')
   }

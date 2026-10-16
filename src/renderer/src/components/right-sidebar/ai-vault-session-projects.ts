@@ -20,6 +20,10 @@ import {
   folderLabel,
   type AiVaultSessionProject
 } from '../../../../shared/ai-vault-session-filters'
+import {
+  forkSessionCwdCacheKey,
+  matchForkCwdCandidates
+} from '../../../../shared/fork-hooks/ai-vault-cwd'
 
 // Preserve renderer imports of the renderer-free descriptor.
 export type { AiVaultSessionProject } from '../../../../shared/ai-vault-session-filters'
@@ -104,10 +108,11 @@ export function buildAiVaultSessionProjectById({
       projectsByCwd = new Map()
       projectsByHostAndCwd.set(host, projectsByCwd)
     }
-    let project = projectsByCwd.get(session.cwd)
+    const cwdKey = forkSessionCwdCacheKey(session)
+    let project = projectsByCwd.get(cwdKey)
     if (!project) {
       project = resolveSessionProject(session, candidates, projectLabelByKey)
-      projectsByCwd.set(session.cwd, project)
+      projectsByCwd.set(cwdKey, project)
     }
     sessionProjectById.set(session.id, { ...project })
   }
@@ -265,8 +270,13 @@ function resolveSessionProject(
     return { kind: 'unknown', key: 'unknown', label: '' }
   }
 
-  const normalizedCwd = normalizeRuntimePathForComparison(cwd)
-  const matches = candidates.filter((candidate) => candidate.ownsNormalizedCwd(normalizedCwd))
+  // fork: symlink aliases pick the more specific path. No aliases keeps the cwd sort.
+  const matches = matchForkCwdCandidates(session, candidates, {
+    normalize: normalizeRuntimePathForComparison,
+    owns: (candidate, path) => candidate.ownsNormalizedCwd(path),
+    pathLength: (candidate) => candidate.normalizedPath.length,
+    tieBreak: compareCandidates
+  })
   const sessionHostId = normalizeExecutionHostId(session.executionHostId)
   const hostMatches = sessionHostId
     ? matches.filter((candidate) => candidate.hostKey === sessionHostId)
@@ -282,7 +292,7 @@ function resolveSessionProject(
     return folderProject(cwd)
   }
 
-  const bestCandidate = hostMatches.sort(compareCandidates)[0]
+  const bestCandidate = hostMatches[0]
   if (!bestCandidate) {
     return folderProject(cwd)
   }

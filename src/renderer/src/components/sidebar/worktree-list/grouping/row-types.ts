@@ -47,6 +47,7 @@ export type WorktreeRow = {
   lineageCollapsed?: boolean
   hostContextLabel?: string
   showProjectName?: boolean
+  directoryLabel?: string
 }
 
 export type ImportedWorktreesCardCandidate = {

@@ -60,7 +60,7 @@ import { setAppEnvironment } from '../../shared/app-environment'
 import { ElectronAppEnvironment } from '../host/electron-app-environment'
 import { installMainProcessTreeKillGate } from '../own-chromium-tree-kill-guard'
 import { setSecretStore } from '../../shared/secret-store'
-import { ElectronSecretStore } from '../host/electron-secret-store'
+import { createInstalledDesktopSecretStore } from '../host/electron-secret-store'
 import { selectLinuxKeyringBackend } from './select-linux-keyring-backend'
 import { setPtyHostBindings } from '../ipc/pty-host-bindings'
 import { electronRuntimeDesktopSurface } from '../host/electron-runtime-desktop-surface'
@@ -297,7 +297,7 @@ function initializeMainProcessPreflight(options: MainProcessPreflightOptions): b
   // so a switch appended after that is ignored and the desktop keeps writing plaintext.
   // Safe here — nothing above resolves a credential, and the probe inside is bounded.
   selectLinuxKeyringBackend()
-  setSecretStore(new ElectronSecretStore())
+  setSecretStore(createInstalledDesktopSecretStore())
   // Why at process level, not per-window: pty.ts registers against injected surfaces so
   // it can load without electron, and an Electron main process always has ipcMain —
   // whether a window exists is irrelevant. Installing this in attachMainWindowServices

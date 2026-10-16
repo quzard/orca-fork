@@ -492,8 +492,11 @@ describe('resolveVsCodeRemoteSshLaunchSpec', () => {
     expect(
       resolveVsCodeRemoteSshLaunchSpec(command, 'C:\\Users\\Ada Lovelace\\project', 'builder', {
         platform: 'win32'
-      })?.spawnArgs
-    ).toEqual(['--remote', 'ssh-remote+builder', 'C:\\Users\\Ada Lovelace\\project'])
+      })
+    ).toMatchObject({
+      kind: 'executable',
+      spawnArgs: ['--remote', 'ssh-remote+builder', 'C:\\Users\\Ada Lovelace\\project']
+    })
   })
 
   it('supports an existing direct POSIX launcher path containing spaces', () => {

@@ -20,6 +20,8 @@ import { worktreeRefreshOptions } from './add-repo-runtime-owner'
 import { completeNestedFolderOpen } from './complete-nested-folder-open'
 import { defaultProjectGroupNameForPath } from './add-repo-dialog-types'
 import type { ExecutionHostId } from '../../../../shared/execution-host'
+import { noteForkPostImportContext } from '../../../../shared/fork-hooks/post-import'
+import { nestedHandoff } from '../../../../fork/import/nested-import-context'
 
 export function useAddRepoNestedImportFlow({
   nestedAttemptId,
@@ -114,10 +116,7 @@ export function useAddRepoNestedImportFlow({
       }
       const foundCount = nestedScan.repos.length
       const selectedCount = nestedSelectedPaths.size
-      const selectedProjectPaths = getSelectedNestedRepoPathsInScanOrder(
-        nestedScan,
-        nestedSelectedPaths
-      )
+      const paths = getSelectedNestedRepoPathsInScanOrder(nestedScan, nestedSelectedPaths)
       const runtimeKind = nestedRuntimeKind ?? getNestedRepoRuntimeKind(nestedConnectionId)
       const gen = ++nestedImportGenRef.current
       setIsAdding(true)
@@ -137,7 +136,7 @@ export function useAddRepoNestedImportFlow({
         const result = await importNestedRepos({
           parentPath: nestedScan.selectedPath,
           groupName: nestedGroupName,
-          projectPaths: selectedProjectPaths,
+          projectPaths: paths,
           ...(nestedConnectionId ? { connectionId: nestedConnectionId } : {}),
           ...(nestedImportScanId ? { scanId: nestedImportScanId } : {}),
           runtimeEnvironmentId: nestedRuntimeEnvironmentId,
@@ -208,6 +207,10 @@ export function useAddRepoNestedImportFlow({
             : activeRuntimeEnvironmentId?.trim()
               ? 'runtime_server_path'
               : 'local_folder_picker'
+          // fork: 把父目录和所选子路径交给随后的交接回调。未登记时立即返回。
+          noteForkPostImportContext(
+            nestedHandoff(nestedScan, paths, result, nestedConnectionId, nestedRuntimeEnvironmentId)
+          )
           await onGitRepoReady(repo.id, source, completionOwnerOptions.executionHostId)
         }
       } catch (err) {

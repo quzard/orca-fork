@@ -36,6 +36,8 @@ export type FolderWorkspace = {
   sortOrder: number
   /** User-authored sidebar ordering. Higher values render earlier in Manual sort. */
   manualOrder?: number
+  /** Sidebar project group. null means ungrouped instead of the owning project group. */
+  sidebarGroupId?: string | null
   workspaceStatus?: WorkspaceStatus
   createdWithAgent?: TuiAgent
   pendingFirstAgentMessageRename?: boolean

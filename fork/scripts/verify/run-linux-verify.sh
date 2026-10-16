@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Linux 验收：软链目录列表 + 后台 Electron 截图。
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+cd "$ROOT"
+export OUT_DIR="${OUT_DIR:-/tmp/orca-fork-verify}"
+mkdir -p "$OUT_DIR"
+
+bash fork/scripts/verify/check-no-internal-refs.sh
+bash fork/scripts/verify/ssh-symlink-listing.sh
+
+if command -v xvfb-run >/dev/null 2>&1; then
+  xvfb-run -a node fork/scripts/verify/screenshot-electron.mjs
+else
+  echo 'xvfb-run is not installed; screenshot skipped' | tee "$OUT_DIR/screenshot-skipped.txt"
+  exit 1
+fi

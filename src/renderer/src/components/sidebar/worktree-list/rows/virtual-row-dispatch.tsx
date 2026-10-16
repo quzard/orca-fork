@@ -230,6 +230,7 @@ export function renderWorktreeVirtualRow(
       data-worktree-virtual-row-key={String(vItem.key)}
       data-worktree-virtual-row-start={vItem.start}
       data-index={vItem.index}
+      data-workspace-sidebar-group={row.sectionKey}
       ref={ctx.measureVirtualRowElement}
       data-workspace-status-drop-target={itemWorkspaceStatus ? '' : undefined}
       data-workspace-status={itemWorkspaceStatus ?? undefined}

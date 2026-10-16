@@ -1,4 +1,5 @@
 import type { UISlice, UISliceGet, UISliceSet } from './ui-slice-contract'
+import { getDefaultRegisteredSidebarGroupBy } from '../../../../../shared/fork-hooks/sidebar-group-mode'
 import { workspaceHostScopeForVisibleHosts } from '../../../../../shared/workspace-view/workspace-host-visibility'
 import { createAgentsViewPreferenceActions } from './ui-slice-agents-view-preference-actions'
 import {
@@ -41,7 +42,7 @@ export function createUiPreferenceActions(set: UISliceSet, get: UISliceGet): Par
     sidebarBody: 'workspaces',
     setSidebarBody: (body) => set({ sidebarBody: body }),
 
-    groupBy: 'repo',
+    groupBy: getDefaultRegisteredSidebarGroupBy(),
     // Why: group keys are mode-specific, so clear collapsed state on mode switch — stale keys are meaningless and accumulate.
     setGroupBy: (g) => {
       window.api.ui.set({ groupBy: g, collapsedGroups: [] }).catch(console.error)

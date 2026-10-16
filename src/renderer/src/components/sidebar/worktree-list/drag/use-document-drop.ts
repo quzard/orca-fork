@@ -4,6 +4,7 @@ import { getFullDropIndexForWorktreeDragUnit } from '../../worktree-drag-units'
 import type { WorktreeSidebarDragSession } from '../../worktree-sidebar-drag-autoscroll'
 import { getPointerDropStatusTarget } from './status-target'
 import type { WorktreeDropCommitContext } from './drop-commit-context'
+import { commitRegisteredWorkspaceGroupDrop } from '../../../../../../shared/fork-hooks/sidebar-chrome'
 import { NO_WORKTREE_SIDEBAR_DROP_TARGET } from './row-state'
 
 // Why: a drop that lands outside the sidebar still belongs to the in-flight session, so the
@@ -64,6 +65,21 @@ export function useWorktreeDocumentDrop(args: {
           clearWorktreeDrag()
           return
         }
+        clearWorktreeDrag()
+        return
+      }
+      if (
+        commitRegisteredWorkspaceGroupDrop({
+          x: event.clientX,
+          y: event.clientY,
+          sourceGroupKey: session.sourceGroupKey,
+          draggedIds: session.draggedIds,
+          groups: ctx.worktreeDragGroups,
+          container: ctx.scrollRef.current
+        })
+      ) {
+        event.preventDefault()
+        event.stopPropagation()
         clearWorktreeDrag()
         return
       }

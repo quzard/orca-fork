@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import {
   AI_VAULT_AGENTS,
+  AI_VAULT_SCOPE_PATHS_MAX_COUNT,
   type AiVaultAgent,
   type AiVaultListResult,
   type AiVaultScanIssue,
@@ -51,6 +52,8 @@ const aiVaultSessionSchema = z.object({
   sessionId: z.string(),
   title: z.string(),
   cwd: z.string().nullable(),
+  // fork: optional symlink aliases. Absent on older hosts.
+  cwdAliases: z.array(z.string()).max(AI_VAULT_SCOPE_PATHS_MAX_COUNT).optional(),
   branch: z.string().nullable(),
   model: z.string().nullable(),
   filePath: z.string(),

@@ -33,6 +33,10 @@ import {
   requestLocalAiVaultScan,
   type LocalAiVaultScanProgressHandle
 } from './ai-vault-local-scan-progress'
+import {
+  readAiVaultForkServicePolicy,
+  readAiVaultServiceHeapMiB
+} from '../../shared/fork-hooks/ai-vault'
 
 export function spawnAiVaultServiceProcess(): ChildProcess {
   const entryPath = getAiVaultServiceEntryPath()
@@ -41,7 +45,7 @@ export function spawnAiVaultServiceProcess(): ChildProcess {
   }
   const child = fork(entryPath, [], {
     stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
-    execArgv: ['--max-old-space-size=384'],
+    execArgv: [`--max-old-space-size=${readAiVaultServiceHeapMiB(384)}`],
     env: buildAiVaultServiceEnv(),
     ...(process.platform === 'win32' ? { windowsHide: true } : {})
   })
@@ -56,10 +60,14 @@ function getSharedClient(): AiVaultScannerServiceClient {
   sharedClient ??= new AiVaultScannerServiceClient({
     processFactory: spawnAiVaultServiceProcess,
     resolveSessionSearchRoots: localAiVaultScanRoots,
-    init: () => ({
-      sessionParseCache: getSessionParseCachePersistenceOptions(),
-      sessionSearch: sessionSearchServiceInit()
-    }),
+    init: () => {
+      const fork = readAiVaultForkServicePolicy()
+      return {
+        sessionParseCache: getSessionParseCachePersistenceOptions(),
+        sessionSearch: sessionSearchServiceInit(),
+        ...(fork ? { fork } : {})
+      }
+    },
     onStderr: (text) => console.error('[ai-vault-service]', text.trimEnd())
   })
   return sharedClient

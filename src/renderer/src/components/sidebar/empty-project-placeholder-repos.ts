@@ -1,5 +1,6 @@
 import type { Repo } from '../../../../shared/repo-types'
 import type { Worktree } from '../../../../shared/worktree/types'
+import { isRegisteredSidebarGroupMode } from '../../../../shared/fork-hooks/sidebar-group-mode'
 import type { WorktreeGroupBy } from './worktree-list/grouping/row-types'
 
 export function getEmptyProjectPlaceholderRepoIds(args: {
@@ -9,7 +10,7 @@ export function getEmptyProjectPlaceholderRepoIds(args: {
   visibleWorktrees: readonly Worktree[]
   filterRepoIds: readonly string[]
 }): Set<string> {
-  if (args.groupBy !== 'repo') {
+  if (args.groupBy !== 'repo' && !isRegisteredSidebarGroupMode(args.groupBy)) {
     return new Set()
   }
 

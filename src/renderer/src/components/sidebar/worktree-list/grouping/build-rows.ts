@@ -55,6 +55,8 @@ import type {
 import { orderMainWorktreeFirst, getRenderedNaturalAnchorRepoIds } from './section-order'
 import { withRepoSectionDisplayLabels } from '../../../../../../shared/project-section-order'
 import { buildOrderedGroups } from './worktree-grouping'
+import { takeRegisteredSidebarRowPlan } from '../../../../../../fork/sidebar/registered-row-plan'
+import type { WorkspaceSortBy } from '../../../../../../shared/workspace-view/workspace-row-sort'
 
 type SidebarOccurrenceSection = WorktreeOccurrenceSection<Worktree> & { group: WorktreeGroupEntry }
 
@@ -84,8 +86,15 @@ export function buildSidebarRowPlan(
   hostLabelById?: ReadonlyMap<string, string>,
   defaultHostId: ExecutionHostId = LOCAL_EXECUTION_HOST_ID,
   pinnedDisplayPolicy: PinnedWorktreeDisplayPolicy = getPinnedWorktreeDisplayPolicy(settings),
-  filterRepoIds: readonly string[] = []
+  filterRepoIds: readonly string[] = [],
+  workspaceSortBy?: WorkspaceSortBy
 ) {
+  // fork: registered modes own the row plan. Built-in ids never match.
+  const registeredPlan = takeRegisteredSidebarRowPlan(arguments, workspaceSortBy)
+  if (registeredPlan) {
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: buildRowPlan returns the same occurrence plan and render pair this function returns.
+    return registeredPlan as ReturnType<typeof buildSidebarRowPlan>
+  }
   const projectIndex = buildProjectGroupingIndex(projectGrouping)
   // Membership is decided once, above the groupBy switch: every mode renders the
   // same set of folder workspaces and only chooses where they land (#15362).

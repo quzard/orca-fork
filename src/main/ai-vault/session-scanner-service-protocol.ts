@@ -16,6 +16,7 @@ import type { ReadAiVaultFirstUserPromptArgs } from './session-first-user-prompt
 import type { SessionParseCachePersistenceOptions } from './session-parse-cache-persistence'
 import type { AiVaultScanOptions } from './session-scanner-types'
 import type { AiVaultScanWork } from '../../shared/ai-vault-scan-progress'
+import type { AiVaultForkServicePolicy } from '../../shared/fork-hooks/ai-vault'
 
 export const AI_VAULT_SERVICE_PROTOCOL_VERSION = 1
 
@@ -67,6 +68,8 @@ export type AiVaultServiceInit = {
   protocol: typeof AI_VAULT_SERVICE_PROTOCOL_VERSION
   sessionParseCache: SessionParseCachePersistenceOptions | null
   sessionSearch: AiVaultSessionSearchInit | null
+  /** Present only when this build registered fork scan policy. Older peers omit it. */
+  fork?: AiVaultForkServicePolicy
 }
 
 export type AiVaultServiceRequestBody =

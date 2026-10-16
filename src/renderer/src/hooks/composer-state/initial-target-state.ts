@@ -24,6 +24,7 @@ type ComposerInitialTargetStateInput = Pick<
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { isWorkspaceStatusId } from '../../../../shared/workspace-statuses'
+import { readComposerSeed } from '../../../../shared/fork-hooks/workspace-composer-seed'
 import { resolveWorkspaceCreationTarget } from '@/lib/project-host-workspace-target'
 import { findActionableFolderProjectGroup } from '@/lib/new-workspace-project-options'
 import type { ProjectGroup } from '../../../../shared/project-group-types'
@@ -86,7 +87,8 @@ export function useComposerInitialTargetState(input: ComposerInitialTargetStateI
     initialRepoId,
     activeRepoId: seedActiveRepoId,
     projectId: initialRunSeed.projectId,
-    hostId: initialRunSeed.hostId,
+    // fork: 登记后带入当前主机。未登记时仍用原来的种子主机。
+    hostId: readComposerSeed()?.hostId ?? initialRunSeed.hostId,
     projectHostSetupId: initialRunSeed.projectHostSetupId,
     projectHostSetupHostId: initialWorkspaceTarget ? initialRunSeed.hostId : null,
     focusedHostScope: workspaceHostScope,

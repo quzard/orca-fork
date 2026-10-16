@@ -9,6 +9,7 @@ import {
 import { compareWorktreeDisplayName } from '@/lib/worktree-display-name-order'
 import { finishProjectAddWithDefaultCheckout } from './project-added-default-checkout'
 import type { ExecutionHostId } from '../../../../shared/execution-host'
+import { runForkPostImport } from '../../../../shared/fork-hooks/post-import'
 
 type CompleteGitRepoAddOptions = {
   closeModal: () => void
@@ -64,17 +65,28 @@ export function useCompleteGitRepoAdd({
         detectedTelemetryTrackedRef.current.add(repoId)
         track('add_repo_existing_workspaces_detected', existingWorkspaceTelemetry)
       }
-      if (finishProjectAdd) {
-        await finishProjectAdd(repoId, source, executionHostId)
-        return
+      try {
+        await (finishProjectAdd
+          ? finishProjectAdd(repoId, source, executionHostId)
+          : finishProjectAddWithDefaultCheckout({
+              repoId,
+              source,
+              executionHostId,
+              closeModal,
+              setHideDefaultBranchWorkspace
+            }))
+      } finally {
+        // fork: 交接之后的回调。未登记时不 await，交接抛错仍向外抛。
+        const pendingPostImport = runForkPostImport({
+          phase: 'handoff',
+          repoId,
+          source,
+          executionHostId
+        })
+        if (pendingPostImport) {
+          await pendingPostImport
+        }
       }
-      await finishProjectAddWithDefaultCheckout({
-        repoId,
-        source,
-        executionHostId,
-        closeModal,
-        setHideDefaultBranchWorkspace
-      })
     },
     [closeModal, finishProjectAdd, setHideDefaultBranchWorkspace]
   )

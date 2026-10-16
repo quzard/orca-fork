@@ -7,6 +7,7 @@ import { discardTerminalOutput } from '@/lib/pane-manager/pane-terminal-output-s
 import { getProviderSessionClaimKey } from '@/lib/sleeping-agent-pane-ownership'
 import { releaseRendererPtyVisibilityClaim } from '../pty-renderer-delivery-claims'
 
+import { notifyTerminalPaneShown } from '../../../../../shared/fork-hooks/terminal-lifecycle'
 import { isRemoteRuntimePtyId } from '../../../../../shared/remote-runtime-pty-id'
 import { SHIFT_ENTER_RECONFIRM_IDLE_MS } from './foreground-output-scan'
 import type { PanePtyBinding } from './pane-pty-binding'
@@ -72,6 +73,15 @@ export function installSessionReconcileDispose(session: ConnectPanePtySession): 
     },
     // Why: visible-resume size readback repairs dropped hidden resizes without refitting against xterm's transient hidden DOM fallback.
     noteVisibilityResume() {
+      // fork: 隐藏期间跳过的重绘只在第一次显示时补上。未登记时函数体为空。
+      const shownPtyId = session.transport.getPtyId()
+      if (shownPtyId) {
+        notifyTerminalPaneShown({
+          ptyId: shownPtyId,
+          cols: session.pane.terminal.cols,
+          rows: session.pane.terminal.rows
+        })
+      }
       session.armVisibleRemoteViewportClaim()
       session.claimPendingVisibleRemoteViewport()
       session.ptySizeReassertion.request({ fit: false })

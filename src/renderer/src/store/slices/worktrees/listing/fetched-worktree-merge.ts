@@ -27,6 +27,7 @@ import {
 } from './detected-worktree-refresh-admission'
 import { buildWorktreePurgeState } from '../teardown/worktree-purge-state'
 import { isDisplayNamePersistencePending } from '../metadata/worktree-meta-persist'
+import { preserveRegisteredSidebarGroupIds } from '../../../../../../shared/fork-hooks/sidebar-group-membership'
 import { branchName } from '@/lib/git-utils'
 import {
   forgetAuthoritativelyRemovedWorktrees,
@@ -163,14 +164,18 @@ export function mergeFetchedWorktrees(
     const currentWorktrees = s.worktreesByRepo[args.repoId]
     const refreshResult = {
       ...args.refresh.result,
-      worktrees: preserveConcurrentDisplayName(
-        preserveConcurrentManualOrder(
-          args.refresh.result.worktrees,
+      worktrees: preserveRegisteredSidebarGroupIds(
+        preserveConcurrentDisplayName(
+          preserveConcurrentManualOrder(
+            args.refresh.result.worktrees,
+            args.requestStartedWorktrees,
+            currentWorktrees,
+            (worktree) => worktreeMatchesHost(worktree, args.hostId, matchOptions)
+          ),
           args.requestStartedWorktrees,
           currentWorktrees,
           (worktree) => worktreeMatchesHost(worktree, args.hostId, matchOptions)
         ),
-        args.requestStartedWorktrees,
         currentWorktrees,
         (worktree) => worktreeMatchesHost(worktree, args.hostId, matchOptions)
       )

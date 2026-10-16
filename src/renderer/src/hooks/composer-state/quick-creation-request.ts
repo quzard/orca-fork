@@ -7,6 +7,7 @@ import type { TuiAgent } from '../../../../shared/tui-agent'
 import type { GitPushTarget } from '../../../../shared/worktree/types'
 import type { SetupDecision } from '../../../../shared/worktree/create-types'
 import { toFolderWorkspaceLinkedTask } from '@/components/sidebar/folder-workspace-composer-helpers'
+import { sidebarGroupIdForCreate } from '../../../../shared/fork-hooks/workspace-composer-seed'
 
 export type QuickCreationRequestInput = {
   repoId: string
@@ -61,8 +62,11 @@ export type QuickSubmitOptions = {
 export function buildQuickCreationRequest(
   input: QuickCreationRequestInput
 ): WorktreeCreationRequest {
+  const sidebarGroupId = sidebarGroupIdForCreate()
   return {
     repoId: input.repoId,
+    // fork: 未登记或没有分组时不写这个字段。
+    ...(sidebarGroupId ? { sidebarGroupId } : {}),
     ...(input.ephemeralVmRecipe ? { ephemeralVmRecipe: input.ephemeralVmRecipe } : {}),
     worktreeCreateProgressMode: input.indeterminateProgress ? 'indeterminate' : 'stepped',
     ...(input.taskSourceContext ? { taskSourceContext: input.taskSourceContext } : {}),

@@ -1,0 +1,22 @@
+# build-skills 对照
+
+对照发布分支的 F002、F036、F038、F040。F024 停用，技能安装和更新保持上游。Linux 上能跑的用测试证明；只能在 Mac 上做的标成未在本环境执行。
+
+| 行为 | 结果 | 证据 |
+| --- | --- | --- |
+| 安装脚本要求固定身份 `Orca Local Signing`，缺失即停 | 脚本在；Mac 上未跑 | `fork/scripts/install-mac-release.sh` 从 `packaging.cjs` 读身份；`bash -n` 通过。钥匙串与 `codesign` 未在 Linux 执行 |
+| 不写钥匙串 partition list；后台启动传 `ORCA_BACKGROUND_LAUNCH=1` | 通过（源码） | 安装脚本无 `security set-key-partition-list`；有 `open -gj --env ORCA_BACKGROUND_LAUNCH=1` |
+| 验收后只清理 `/Applications/.orca-previous.*` 中已退出、bundle id 匹配的副本 | 脚本在；Mac 上未跑 | 与发布分支相同的清理分支。未在 Linux 造 `/Applications` |
+| `--fast` 跳过安装和全量类型检查，签名与原子替换仍在 | 脚本在；Mac 上未跑 | 脚本分支仍调用 `electron-builder` 和 `codesign --verify --deep --strict` |
+| 静态资源签名排除进入 `mac.signIgnore` | 通过 | `packaging.fork.test.ts` 断言 feature-wall 规则在 builder 配置里 |
+| 未设置 `ORCA_ORCAD_TEMPLATE_TARGETS` 时不收窄目标 | 通过 | `orcadTemplateTargets({})` 为 `undefined`，校验函数因此仍用全部目标 |
+| 设置该变量时只要求列出的槽；安装脚本从模板 manifest 打印 | 通过（解析）；Mac 打包未跑 | 单元测试覆盖逗号分隔；脚本调用 `--print-built-targets` |
+| 自用发布只构建 `darwin-arm64,linux-x64-glibc`，且只做本机 check | 通过 | `personal-release-checks` 测试；`python3 fork/scripts/personal-orca-host.test.py` |
+| 发布不自动提交，分支必须是 `ORCA_FORK_RELEASE_BRANCH`，构建期间任何脏路径都阻止安装 | 通过（源码） | `release-personal-orca.mjs` 在安装前读 `git status --porcelain`。未设置分支名就停止。整段发布未在 Linux 执行 |
+| 打包 macOS 用文件密钥；开发 / 非 macOS / 隔离配置不用 | 通过（门闩与加解密） | `desktop-secret-store.fork.test.ts`、`macos-file-secret-store.fork.test.ts`。打包应用里 Safe Storage 调用次数为 0 只能在 Mac 上数 |
+| 密钥 32 字节 AES-256-GCM；并发硬链接不覆盖胜出者；坏密钥不回退明文；目录 0700、文件 0600 | 通过 | 同上文件密钥测试 |
+| 插件和账号会话与桌面密钥库共用文件密钥，不再单独打钥匙串 | 通过（门闩） | 打包 Mac 的文件密钥同时登记为 `guardedSafeStorage` 后端。未登记时仍走钥匙串。`safe-storage-availability.test.ts` |
+| 改 `skill-stubs/_shared/cli-resolution.md` | 不需要 | 上游已在 SSH 终端和子进程导出 `ORCA_CLI_COMMAND`（默认 `~/.orca/cli/bin/orca`）。stub 已优先使用该变量 |
+| F024 自定义技能来源、清单重写、应用升级自动刷新 | 停用 | 安装命令文件与上游一致。没有技能来源钩子，安装脚本不含 `generate:skill-bundle-manifest`。 |
+
+上游文件改动：`src/main/index.ts`（在 preflight 前调用 `registerForkMainModules`）、`src/main/host/safe-storage-availability.ts`（未登记文件密钥时仍是钥匙串）。

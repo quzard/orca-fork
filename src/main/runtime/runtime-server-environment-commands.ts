@@ -4,6 +4,7 @@ import type { Dirent } from 'node:fs'
 import { isAbsolute, join, resolve } from 'node:path'
 import type { DirEntry, FilesystemPathFlavor } from '../../shared/filesystem-entry-types'
 import { sortDirEntries } from '../../shared/file-name-sort'
+import { getRemoteDirectoryListingHook } from '../../shared/fork-hooks/remote-directory'
 import { probeGitAvailability } from '../git/git-availability'
 import { gitExecFileAsync } from '../git/runner'
 import { isServerDriveListRequest, listWindowsDrives } from './windows-drive-listing'
@@ -55,7 +56,7 @@ export class RuntimeServerEnvironmentCommands {
       throw new Error(`${dirPath} is not a directory`)
     }
     const entries = await readdir(dirPath, { withFileTypes: true })
-    const mapped = await Promise.all(
+    let mapped = await Promise.all(
       entries
         .filter((entry) => entry.name !== '.' && entry.name !== '..')
         .map(async (entry) => ({
@@ -64,6 +65,16 @@ export class RuntimeServerEnvironmentCommands {
           isSymlink: entry.isSymbolicLink()
         }))
     )
+    // fork: 目录软链修正。未登记时不改上游已经跟过的软链判断。
+    const listingHook = getRemoteDirectoryListingHook()
+    if (listingHook) {
+      const adjusted = await listingHook(mapped, dirPath)
+      mapped = adjusted.map((entry) => ({
+        name: entry.name,
+        isDirectory: entry.isDirectory,
+        isSymlink: entry.isSymlink === true
+      }))
+    }
     sortDirEntries(mapped)
     return {
       resolvedPath: dirPath,

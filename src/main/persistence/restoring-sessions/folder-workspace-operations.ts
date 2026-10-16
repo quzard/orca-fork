@@ -135,6 +135,7 @@ export class FolderWorkspacePersistenceOperations {
         | 'isPinned'
         | 'sortOrder'
         | 'manualOrder'
+        | 'sidebarGroupId'
         | 'workspaceStatus'
         | 'createdWithAgent'
         | 'pendingFirstAgentMessageRename'
@@ -214,6 +215,9 @@ export class FolderWorkspacePersistenceOperations {
     }
     if (updates.sortOrder !== undefined && Number.isFinite(updates.sortOrder)) {
       workspace.sortOrder = updates.sortOrder
+    }
+    if (updates.sidebarGroupId !== undefined) {
+      workspace.sidebarGroupId = updates.sidebarGroupId
     }
     if (updates.manualOrder !== undefined) {
       if (Number.isFinite(updates.manualOrder)) {

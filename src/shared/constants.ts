@@ -17,6 +17,7 @@ import { DEFAULT_SETUP_AGENT_STARTUP_POLICY } from './setup-agent-startup-policy
 import { DEFAULT_BROWSER_PAGE_ZOOM_LEVEL } from './browser-page-zoom'
 import { getDefaultNotificationSettings } from './notification-settings-defaults'
 import { getDefaultOnboardingState } from './onboarding-defaults'
+import { getDefaultRegisteredSidebarGroupBy } from './fork-hooks/sidebar-group-mode'
 import {
   defaultTerminalFontFamily,
   getDefaultPrimarySelectionMiddleClickPaste,
@@ -198,7 +199,7 @@ export function getDefaultUIState(): PersistedUIState {
     rightSidebarWidth: 350,
     markdownTocPanelWidth: 240,
     combinedDiffFileTreeWidth: 256,
-    groupBy: 'repo',
+    groupBy: getDefaultRegisteredSidebarGroupBy(),
     sortBy: 'recent',
     projectOrderBy: 'manual',
     showActiveOnly: false,

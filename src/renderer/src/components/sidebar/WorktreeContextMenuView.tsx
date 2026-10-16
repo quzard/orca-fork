@@ -10,6 +10,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
+import { renderSidebarContextMenu } from '../../../../shared/fork-hooks/sidebar-chrome'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Copy,
@@ -304,6 +305,7 @@ export default function WorktreeContextMenuView({ model }: { model: WorktreeCont
               <DropdownMenuSeparator />
             </>
           ) : null}
+          {renderSidebarContextMenu(worktree)}
           <WorkspaceSleepMenuItems
             isMultiContext={isMultiContext}
             sleepLabel={sleepLabel}

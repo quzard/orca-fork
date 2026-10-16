@@ -26,6 +26,7 @@ import { revealAiVaultSessionPath } from './ai-vault-session-path-actions'
 import { useAiVaultOriginalPaneActions } from './ai-vault-original-pane-actions'
 import { translate } from '@/i18n/i18n'
 import { AiVaultPanelHeader } from './AiVaultPanelHeader'
+import { ForkAiVaultSlot } from './fork-ai-vault-slot'
 import {
   aiVaultResultCountLabel,
   AiVaultSessionListBar,
@@ -49,8 +50,13 @@ import { AiVaultPanelSearch } from './AiVaultPanelSearch'
 import { useAiVaultPanelSessionResume } from './use-ai-vault-panel-session-resume'
 import { AiVaultScanProgressStrip } from './AiVaultScanProgressStrip'
 import { useAiVaultScanProgress } from './ai-vault-scan-progress-store'
-import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
+import {
+  getWorktreeExecutionHostId,
+  LOCAL_EXECUTION_HOST_ID
+} from '../../../../shared/execution-host'
+import { decorateVaultHostMenu } from '../../../../shared/fork-hooks/ai-vault'
 import { aiVaultLocalScanKey } from '../../../../shared/ai-vault-local-scan-key'
+import { useForkAiVaultGroups } from '../../../../fork/ai-vault/use-list-presentation'
 export default function AiVaultPanel(): React.JSX.Element {
   const activeWorktreeId = useActiveWorktreeId()
   const activeWorktree = useActiveWorktree()
@@ -89,7 +95,6 @@ export default function AiVaultPanel(): React.JSX.Element {
     setAllAgentsEnabled,
     resetViewOptions
   } = usePersistedAiVaultViewOptions()
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set())
   const { executionHostScope, onExecutionHostScopeChange, hostScopeOptions } =
     useAiVaultPanelHostScope(activeWorktreeId ?? null, resumeTargetState)
   const activeWorktreePath = activeWorktree?.path ?? null
@@ -147,6 +152,16 @@ export default function AiVaultPanel(): React.JSX.Element {
   const search = useAiVaultPanelSearch(query, agents, searchWithin, executionHostScope, searchSort)
   const { searching, searchHits } = search
   const sessions = searching ? search.sessions : history
+  const sshConnectionStates = useAppStore((s) => s.sshConnectionStates)
+  const menuHostOptions = decorateVaultHostMenu(hostScopeOptions, {
+    historyHostIds: sessions.map((session) => session.executionHostId),
+    activeHostId: activeWorktree
+      ? getWorktreeExecutionHostId(activeWorktree, activeRepo ?? undefined)
+      : null,
+    connectedSshTargetIds: [...sshConnectionStates]
+      .filter((entry) => entry[1].status === 'connected')
+      .map((entry) => entry[0])
+  })
   const requestedScanKey = aiVaultLocalScanKey({
     scopePaths,
     includeAntigravityIdeSessions: true,
@@ -198,16 +213,25 @@ export default function AiVaultPanel(): React.JSX.Element {
     sessionLimit
   })
 
-  const { filteredSessions, groups } = useAiVaultPanelSessions(sessions, searching, group, {
-    query,
-    agents,
-    scope,
-    sort,
-    activeWorktreePaths,
-    activeProjectKey,
-    sessionProjectById,
-    projectLabelByKey,
-    hideEmptySessions
+  const { filteredSessions, groups: sessionGroups } = useAiVaultPanelSessions(
+    sessions,
+    searching,
+    group,
+    {
+      query,
+      agents,
+      scope,
+      sort,
+      activeWorktreePaths,
+      activeProjectKey,
+      sessionProjectById,
+      projectLabelByKey,
+      hideEmptySessions
+    }
+  )
+  const { groups, collapsedGroups, toggleGroup } = useForkAiVaultGroups(sessionGroups, {
+    loading: searching ? search.loading : loading,
+    sessionCount: sessions.length
   })
 
   const copyText = useCallback(async (text: string, label: string): Promise<void> => {
@@ -223,18 +247,6 @@ export default function AiVaultPanel(): React.JSX.Element {
   const focusSearchRequestId = useAiVaultSearchFocusRequest(
     useCallback(() => handleScopeChange('all'), [handleScopeChange])
   )
-
-  const toggleGroup = useCallback((key: string) => {
-    setCollapsedGroups((current) => {
-      const next = new Set(current)
-      if (next.has(key)) {
-        next.delete(key)
-      } else {
-        next.add(key)
-      }
-      return next
-    })
-  }, [])
 
   const requestDelete = useAiVaultSessionDeleteAction({
     refresh,
@@ -252,7 +264,7 @@ export default function AiVaultPanel(): React.JSX.Element {
         activeProjectKey={activeProjectKey}
         scope={scope}
         executionHostScope={executionHostScope}
-        hostScopeOptions={hostScopeOptions}
+        hostScopeOptions={menuHostOptions}
         agents={agents}
         group={group}
         hideEmptySessions={hideEmptySessions}
@@ -270,6 +282,7 @@ export default function AiVaultPanel(): React.JSX.Element {
         onReset={resetViewOptions}
         onRefresh={() => (searching ? search.retry() : void refresh({ force: true }))}
       />
+      <ForkAiVaultSlot id="below-header" />
 
       {stripProgress ? <AiVaultScanProgressStrip progress={stripProgress} /> : null}
 
@@ -364,6 +377,7 @@ export default function AiVaultPanel(): React.JSX.Element {
           />
         )}
       </AiVaultPanelSearch>
+      <ForkAiVaultSlot id="list-footer" />
       {launchActions.continuationRequest && (
         <AgentSessionContinuationDialog
           open

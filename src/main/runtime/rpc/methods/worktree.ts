@@ -11,7 +11,11 @@ import { displayNameUpdatePinsLabel } from '../../../../shared/worktree/display-
 import { getWorkspaceStatusWarning } from '../../../../shared/workspace-status-warning'
 import { createWorktreeWithStartupAgent } from '../../../agent-launch/startup-agent-worktree-create'
 import { defineMethod } from '../core'
-import { buildManagedWorktreeCreateArgs } from './worktree-create-args'
+import {
+  buildManagedWorktreeCreateArgs,
+  sidebarGroupIdSetPatch,
+  worktreeSetLineage
+} from './worktree-create-args'
 import { resolvePairedCallerHostId } from './paired-caller-host-id'
 import { resolveRuntimeNavigationTarget } from '../../../../shared/runtime-navigation'
 import { resolveRpcWorkspaceCreatorProvenance } from '../workspace-creator-context'
@@ -185,6 +189,7 @@ export const WORKTREE_METHODS = [
         isArchived: params.isArchived,
         isUnread: params.isUnread,
         isPinned: params.isPinned,
+        ...sidebarGroupIdSetPatch(params.sidebarGroupId),
         sortOrder: params.sortOrder,
         manualOrder: params.manualOrder,
         lastActivityAt: params.lastActivityAt,
@@ -197,13 +202,7 @@ export const WORKTREE_METHODS = [
         pushTarget: params.pushTarget,
         diffComments: params.diffComments,
         mobileDiffReview: params.mobileDiffReview,
-        lineage:
-          params.parentWorktree || params.noParent === true
-            ? {
-                parentWorktree: params.parentWorktree,
-                noParent: params.noParent === true
-              }
-            : undefined
+        lineage: worktreeSetLineage(params)
       })
       const warning = getWorkspaceStatusWarning(
         params.workspaceStatus,

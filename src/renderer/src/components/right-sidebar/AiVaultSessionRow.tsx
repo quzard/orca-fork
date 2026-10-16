@@ -27,6 +27,7 @@ import {
 import type { AgentStatusState } from '../../../../shared/agent-status-types'
 import type { AiVaultSearchHit } from '../../../../shared/ai-vault-search-types'
 import { AiVaultSearchEvidence } from './AiVaultSearchEvidence'
+import { Badge } from '@/components/ui/badge'
 import { useAiVaultSessionDisplayTitle } from './use-ai-vault-session-display-title'
 
 export function VaultSessionRow({
@@ -59,7 +60,8 @@ export function VaultSessionRow({
   onRevealLog,
   onOpenCwd,
   onRequestDelete,
-  searchHit
+  searchHit,
+  hostLabel
 }: {
   session: AiVaultSession
   liveState: AgentStatusState | null
@@ -91,6 +93,7 @@ export function VaultSessionRow({
   onOpenCwd?: () => void
   onRequestDelete?: (session: AiVaultSession) => void
   searchHit?: AiVaultSearchHit
+  hostLabel?: string
 }) {
   const resumeLabel = isAntigravityReferenceSession(session)
     ? translate('aiVault.continueInCli', 'Continue in CLI')
@@ -185,6 +188,11 @@ export function VaultSessionRow({
             >
               {title}
             </div>
+            {hostLabel ? (
+              <span className="max-w-24 truncate">
+                <Badge variant="hostContext">{hostLabel}</Badge>
+              </span>
+            ) : null}
             <SessionRowTrailingActions
               session={session}
               detailsExpanded={detailsExpanded}

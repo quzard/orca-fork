@@ -77,6 +77,7 @@ export type FolderWorkspaceUpdates = Partial<
     | 'isPinned'
     | 'sortOrder'
     | 'manualOrder'
+    | 'sidebarGroupId'
     | 'workspaceStatus'
     | 'createdWithAgent'
     | 'pendingFirstAgentMessageRename'

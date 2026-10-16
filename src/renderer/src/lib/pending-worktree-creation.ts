@@ -32,6 +32,8 @@ export type WorktreeCreationProgressMode = 'stepped' | 'indeterminate'
  * after the composer closes. Retained by the pending panel for Retry. */
 export type WorktreeCreationRequest = {
   repoId: string
+  /** Sidebar group captured when the composer opened. Omitted when no seed is registered. */
+  sidebarGroupId?: string
   /** Execution owner retained after script preparation, including retries. */
   executionHostId?: ExecutionHostId
   /** Source host/account that produced the linked task. Kept separate from the

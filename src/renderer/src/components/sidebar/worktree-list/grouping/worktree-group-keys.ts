@@ -10,6 +10,7 @@ import {
   getProjectGroupingForRepo
 } from '../../../../../../shared/project-section-grouping'
 import type { ProjectGroupingModel } from '../../../../../../shared/project-section-grouping'
+import { lookupSidebarGroupMode } from '../../../../../../shared/fork-hooks/sidebar-group-mode'
 import type { WorktreeGroupBy } from './row-types'
 
 export function getGroupKeyForWorktree(
@@ -19,8 +20,16 @@ export function getGroupKeyForWorktree(
   prCache: Record<string, unknown> | null,
   workspaceStatuses: readonly WorkspaceStatusDefinition[] = cloneDefaultWorkspaceStatuses(),
   settings?: AppState['settings'],
-  projectGrouping?: ProjectGroupingModel
+  projectGrouping?: ProjectGroupingModel,
+  projectGroups: readonly ProjectGroup[] = []
 ): string | null {
+  // fork: 自定义分组的定位键。内置模式查不到登记。
+  const forkGroupMode = lookupSidebarGroupMode(groupBy)
+  if (forkGroupMode?.groupKeyForWorktree) {
+    return forkGroupMode.groupKeyForWorktree(worktree, repoMap.get(worktree.repoId), {
+      projectGroups
+    })
+  }
   if (groupBy === 'none') {
     return ALL_GROUP_KEY
   }
@@ -54,7 +63,8 @@ export function getGroupKeysForWorktree(
     prCache,
     workspaceStatuses,
     settings,
-    projectGrouping
+    projectGrouping,
+    projectGroups
   )
   if (!groupKey) {
     return []

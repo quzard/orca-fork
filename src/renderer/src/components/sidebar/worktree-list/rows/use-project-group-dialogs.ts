@@ -9,6 +9,7 @@ import {
   getRepoExecutionHostId,
   type ExecutionHostId
 } from '../../../../../../shared/execution-host'
+import { resolveDeleteProjectGroupRemoveContainedProjects } from '../../../../../../shared/fork-hooks/project-group-delete'
 
 export type ProjectGroupNameDialogState =
   | { type: 'create-from-repo'; repo: Repo }
@@ -181,7 +182,9 @@ export function useProjectGroupDialogs(args: {
     try {
       reportProjectGroupDeleteFailures(
         await deleteProjectGroupWithContainedProjects(deleteDialog.groupId, {
-          removeContainedProjects,
+          // fork: 未登记附加选项时返回原布尔值。
+          removeContainedProjects:
+            resolveDeleteProjectGroupRemoveContainedProjects(removeContainedProjects),
           hostId: deleteDialog.hostId
         })
       )

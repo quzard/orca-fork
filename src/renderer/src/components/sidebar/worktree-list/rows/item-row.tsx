@@ -8,6 +8,7 @@ import {
   getWorktreeHostIdentity
 } from '../../../../../../shared/worktree/host-qualified-identity'
 import WorktreeCard, { type ActiveSurfaceVariant } from '../../WorktreeCard'
+import { lookupSidebarGroupMode } from '../../../../../../shared/fork-hooks/sidebar-group-mode'
 import { PINNED_GROUP_KEY } from '../grouping/group-keys'
 import type { WorktreeGroupBy } from '../grouping/row-types'
 import {
@@ -194,7 +195,11 @@ export function renderWorktreeItemRow(
         onContextMenuSelect={ctx.onContextMenuSelect}
         onCardDragStart={ctx.onCardDragStart}
         onCardDragEnd={ctx.onCardDragEnd}
-        hideRepoBadge={ctx.groupBy === 'repo' && !itemRow.showProjectName}
+        hideRepoBadge={
+          (ctx.groupBy === 'repo' || lookupSidebarGroupMode(ctx.groupBy) !== undefined) &&
+          !itemRow.showProjectName
+        }
+        directoryLabel={itemRow.directoryLabel}
         // Why: pinned worktrees mix repos; cross-repo children opt into the existing project-name badge.
         hostContextLabel={itemRow.hostContextLabel}
         showProjectName={itemRow.showProjectName}

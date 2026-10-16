@@ -24,6 +24,27 @@ const {
 } = require('../../src/shared/orcad-artifacts.ts')
 const { verifyPackagedOrcadTemplate } = require('./verify-packaged-orcad-template.cjs')
 
+// fork: src/fork/packaging.cjs 不存在或没有覆盖项时，签名排除和模板目标保持上游。
+function loadForkPackagingHooks() {
+  const candidate = join(__dirname, '..', '..', 'src', 'fork', 'packaging.cjs')
+  if (!existsSync(candidate)) {
+    return {}
+  }
+  return require(candidate)
+}
+
+const forkPackagingHooks = loadForkPackagingHooks()
+
+function resolveForkOrcadTemplateTargets(explicit) {
+  if (explicit !== undefined) {
+    return explicit
+  }
+  if (typeof forkPackagingHooks.orcadTemplateTargets !== 'function') {
+    return undefined
+  }
+  return forkPackagingHooks.orcadTemplateTargets()
+}
+
 const ORCAD_TEMPLATE_RESOURCE_DIR = 'orcad-template'
 const orcadTemplateExtraResource = { from: 'out/orcad-template', to: ORCAD_TEMPLATE_RESOURCE_DIR }
 // Why a second entry: electron-builder's copy filter always drops a source's root node_modules.
@@ -33,7 +54,10 @@ const orcadTemplateNodeModulesExtraResource = {
 }
 // Why the whole tree: codesign rejects its ELF/PE payloads, and the darwin ones are signed in
 // afterPack so their new hashes can be resealed into the manifest before the app is sealed.
-const orcadTemplateMacSignIgnore = ['/orcad-template/']
+const orcadTemplateMacSignIgnore = [
+  '/orcad-template/',
+  ...(Array.isArray(forkPackagingHooks.extraMacSignIgnore) ? forkPackagingHooks.extraMacSignIgnore : [])
+]
 
 // Mach-O thin (both byte orders, 32/64-bit) and fat headers.
 const MACH_O_MAGICS = new Set(['feedface', 'feedfacf', 'cefaedfe', 'cffaedfe', 'cafebabe'])
@@ -135,7 +159,7 @@ async function finalizePackagedOrcadTemplate(resourcesDir, options) {
     }
     resealOrcadTemplateManifest(templateDir, machO)
   }
-  verifyPackagedOrcadTemplate(resourcesDir)
+  verifyPackagedOrcadTemplate(resourcesDir, resolveForkOrcadTemplateTargets())
 }
 
 /** `inner-signing-list.txt` lines are app-relative Windows paths; keep the template's. */
@@ -155,7 +179,7 @@ function resealSignedWindowsApp(appDir, signedListFile) {
     return
   }
   resealOrcadTemplateManifest(join(resourcesDir, ORCAD_TEMPLATE_RESOURCE_DIR), signed)
-  verifyPackagedOrcadTemplate(resourcesDir)
+  verifyPackagedOrcadTemplate(resourcesDir, resolveForkOrcadTemplateTargets())
   console.log(`[packaged-orcad-template] resealed ${signed.length} signed template file(s)`)
 }
 

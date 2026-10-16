@@ -2,6 +2,7 @@ import type SyncDatabase from '../sqlite/sync-database'
 import type { TranscriptMessage } from '../ai-vault/session-transcript-consumers'
 import { sliceAtCodeUnitLimit } from '../ai-vault/session-scanner-text-normalization'
 import { identifierShadowText } from './session-search-identifier-split'
+import { readAiVaultToolIndexPolicy } from '../../shared/fork-hooks/ai-vault'
 
 const CHUNK_TARGET_CHARS = 8000
 
@@ -79,6 +80,12 @@ export function* searchMessageRows(
 ): Generator<TranscriptMessage> {
   for (const message of messages) {
     if (message.role === 'tool') {
+      if (readAiVaultToolIndexPolicy() === 'chunk') {
+        for (const text of textChunks(message.text)) {
+          yield { ...message, text }
+        }
+        continue
+      }
       yield {
         ...message,
         text: sliceAtCodeUnitLimit(message.text, TOOL_ROW_CHARS)

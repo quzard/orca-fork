@@ -15,6 +15,11 @@ import { Input } from '../ui/input'
 import { SetupGuideProgressRing } from '../setup-guide/SetupGuideProgressRing'
 import { useSettingsSetupGuideProgress } from './settings-setup-guide-progress'
 import type { SettingsSetupGuideProgress } from './settings-setup-guide-progress'
+import {
+  renderSettingsProjectBulkHeader,
+  renderSettingsProjectBulkRowPrefix,
+  settingsProjectBulkActive
+} from '../../../../shared/fork-hooks/sidebar-chrome'
 import { translate } from '@/i18n/i18n'
 import { resolveLeftSidebarStyleVariables } from '@/lib/left-sidebar-appearance'
 import { useSystemPrefersDark } from '../terminal-pane/use-system-prefers-dark'
@@ -267,6 +272,7 @@ export function SettingsSidebar({
             <p className="px-3 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
               {translate('auto.components.settings.SettingsSidebar.5c9669ff9c', 'Projects')}
             </p>
+            {renderSettingsProjectBulkHeader()}
 
             {repoSections.length > 0 ? (
               <div className="space-y-1">
@@ -279,8 +285,12 @@ export function SettingsSidebar({
                       aria-current={isActive ? 'page' : undefined}
                       data-current={isActive ? 'true' : undefined}
                       onClick={() => onSelectSection(section.id)}
-                      className={navItemClassName(isActive)}
+                      className={cn(
+                        navItemClassName(isActive),
+                        settingsProjectBulkActive() && 'group/settings-project'
+                      )}
                     >
+                      {renderSettingsProjectBulkRowPrefix(section.id)}
                       <RepoIconGlyph
                         repoIcon={section.repoIcon}
                         color={section.badgeColor}

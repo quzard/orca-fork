@@ -58,6 +58,8 @@ export type WorktreeMeta = {
   sortOrder: number
   /** User-authored sidebar ordering. Higher values render earlier in Manual sort. */
   manualOrder?: number
+  /** Sidebar project group for this workspace. null means ungrouped. */
+  sidebarGroupId?: string | null
   lastActivityAt: number
   /** See {@link Worktree.createdAt}. Persisted to orca-data.json. */
   createdAt?: number

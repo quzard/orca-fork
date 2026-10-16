@@ -15,6 +15,7 @@ import type {
   WorkspaceStatusDefinition
 } from '../../../../../../shared/worktree/types'
 import type { GroupHeaderRow, WorktreeGroupBy } from '../grouping/row-types'
+import { lookupSidebarGroupMode } from '../../../../../../shared/fork-hooks/sidebar-group-mode'
 import { PINNED_GROUP_KEY } from '../grouping/group-keys'
 import { getWorkspaceStatusFromGroupKey } from '../../workspace-status'
 import { getVirtualRowTransform } from '../viewport/virtual-rows'
@@ -88,8 +89,9 @@ export function renderWorktreeSectionHeaderRow(args: {
 }): React.JSX.Element {
   const { ctx, row, vItem, isActiveStickyHeader } = args
   const { headerDrag } = ctx
-  const isRepoHeader = ctx.groupBy === 'repo' && row.repo !== undefined
-  const isProjectGroupHeader = ctx.groupBy === 'repo' && row.projectGroup !== undefined
+  const repoChrome = ctx.groupBy === 'repo' || lookupSidebarGroupMode(ctx.groupBy) !== undefined
+  const isRepoHeader = repoChrome && row.repo !== undefined
+  const isProjectGroupHeader = repoChrome && row.projectGroup !== undefined
   const projectIdForHeader = isRepoHeader ? row.repo!.id : undefined
   const projectGroupIdForHeader =
     isProjectGroupHeader && !row.repo && typeof row.projectGroup?.id === 'string'
@@ -225,6 +227,7 @@ export function renderWorktreeSectionHeaderRow(args: {
             : undefined
         }
         data-project-group-header-drag-handle={isDraggableProjectGroupHeader ? '' : undefined}
+        data-workspace-sidebar-group={row.key}
         data-workspace-status-drop-target={headerWorkspaceStatus ? '' : undefined}
         data-workspace-status={headerWorkspaceStatus ?? undefined}
         data-workspace-pin-drop-target={isPinnedHeader ? '' : undefined}
@@ -378,7 +381,7 @@ export function renderWorktreeSectionHeaderRow(args: {
             />
           ) : null}
 
-          {row.repo && ctx.groupBy === 'repo' ? (
+          {row.repo && repoChrome ? (
             <RepoHeaderProjectActionsMenu
               repo={row.repo}
               label={row.label}
@@ -387,7 +390,7 @@ export function renderWorktreeSectionHeaderRow(args: {
             />
           ) : null}
 
-          {row.repo && ctx.groupBy === 'repo' ? (
+          {row.repo && repoChrome ? (
             <RepoHeaderCreateWorkspaceButton
               repo={row.repo}
               label={row.label}

@@ -15,6 +15,8 @@ import type { Repo } from '../../../../shared/repo-types'
 import type { Row } from './worktree-list/grouping/row-types'
 import { getFolderWorkspaceHostId } from './folder-workspace-host-id'
 
+export { sidebarModeRetainsHostHeaders } from '../../../../shared/fork-hooks/sidebar-group-mode'
+
 export type HostHeaderRow = {
   type: 'host-header'
   key: string
@@ -55,7 +57,11 @@ function getRepoHostId(
   return defaultHostId
 }
 
-function getRowHostId(row: Row, defaultHostId: ExecutionHostId): ExecutionHostId | null {
+function getRowHostId(
+  row: Row,
+  defaultHostId: ExecutionHostId,
+  preferRowHostId = false
+): ExecutionHostId | null {
   switch (row.type) {
     case 'item':
       return getWorktreeExecutionHostId(row.worktree, row.repo, defaultHostId)
@@ -66,6 +72,10 @@ function getRowHostId(row: Row, defaultHostId: ExecutionHostId): ExecutionHostId
     case 'folder-workspace':
       return getFolderWorkspaceHostId(row.folderWorkspace, row.projectGroup, defaultHostId)
     case 'header':
+      // fork: host-directory headers carry their own host. Other modes leave hostId unset.
+      if (preferRowHostId && row.hostId) {
+        return row.hostId
+      }
       return row.repo ? getRepoHostId(row.repo, defaultHostId) : null
   }
 }
@@ -177,18 +187,24 @@ export function addHostSectionRows(args: {
   // and host is context inside it. Explicit host filters still keep host
   // headers as an operational/troubleshooting view.
   preferProjectGrouping?: boolean
+  // fork: host-directory keeps a host title even when one host is visible.
+  retainSingleHostHeader?: boolean
 }): HostSectionRow[] {
   const visibleHostIds =
     args.visibleWorkspaceHostIds ??
     (args.workspaceHostScope === ALL_EXECUTION_HOSTS_SCOPE ? null : [args.workspaceHostScope])
   if (
+    !args.retainSingleHostHeader &&
     args.preferProjectGrouping &&
     args.workspaceHostScope === ALL_EXECUTION_HOSTS_SCOPE &&
     !args.visibleWorkspaceHostIds
   ) {
     return [...args.rows]
   }
-  if ((visibleHostIds && visibleHostIds.length <= 1) || args.hostOptions.length <= 1) {
+  if (
+    !args.retainSingleHostHeader &&
+    ((visibleHostIds && visibleHostIds.length <= 1) || args.hostOptions.length <= 1)
+  ) {
     return [...args.rows]
   }
 
@@ -226,7 +242,7 @@ export function addHostSectionRows(args: {
   }
 
   for (const row of args.rows) {
-    const rowHostId = getRowHostId(row, args.defaultHostId)
+    const rowHostId = getRowHostId(row, args.defaultHostId, args.retainSingleHostHeader === true)
     if (rowHostId) {
       const hostRows = rowsByHostId.get(rowHostId) ?? []
       if (pendingRows.length > 0) {
@@ -273,7 +289,7 @@ export function addHostSectionRows(args: {
   // Why: a lone host section is pure noise — the grouping only earns its keep
   // when there are at least two host sections to tell apart. Registered-but-
   // empty hosts stay visible in the scope picker, not as headers.
-  if (rowsByHostId.size <= 1) {
+  if (rowsByHostId.size <= 1 && !args.retainSingleHostHeader) {
     return [...args.rows]
   }
 
@@ -300,7 +316,15 @@ export function addHostSectionRows(args: {
       count: countWorkspaceRows(hostRows)
     })
     if (!collapsed) {
-      result.push(...hostRows)
+      result.push(
+        ...(args.retainSingleHostHeader
+          ? hostRows.map((hostRow) =>
+              hostRow.type === 'item' && hostRow.hostContextLabel
+                ? { ...hostRow, hostContextLabel: undefined }
+                : hostRow
+            )
+          : hostRows)
+      )
     }
   }
 

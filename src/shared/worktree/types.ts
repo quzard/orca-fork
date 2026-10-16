@@ -148,6 +148,8 @@ export type Worktree = {
   sortOrder: number
   /** User-authored sidebar ordering. Higher values render earlier in Manual sort. */
   manualOrder?: number
+  /** Sidebar project group for this workspace. null means ungrouped. */
+  sidebarGroupId?: string | null
   lastActivityAt: number
   /** Set once when Orca creates the worktree. Absent for worktrees discovered
    *  on disk or persisted before this field existed. Used by the sidebar to

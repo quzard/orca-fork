@@ -140,6 +140,7 @@ export const WorktreeSet = WorktreeSelector.extend({
   isPinned: OptionalBoolean,
   sortOrder: OptionalFiniteNumber,
   manualOrder: OptionalFiniteNumber,
+  sidebarGroupId: z.string().nullable().optional(),
   lastActivityAt: OptionalFiniteNumber,
   createdAt: OptionalFiniteNumber,
   sparseDirectories: z.array(z.string()).optional(),

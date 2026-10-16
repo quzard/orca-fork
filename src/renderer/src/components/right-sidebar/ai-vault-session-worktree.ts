@@ -13,6 +13,7 @@ import {
   normalizeRuntimePathForComparison
 } from '../../../../shared/cross-platform-path'
 import type { AiVaultSession } from '../../../../shared/ai-vault-types'
+import { matchForkCwdCandidates } from '../../../../shared/fork-hooks/ai-vault-cwd'
 import type { FolderWorkspace } from '../../../../shared/folder-workspace-types'
 import { folderWorkspaceToWorktree } from '../../../../shared/folder-workspace-worktree'
 import type { Repo } from '../../../../shared/repo-types'
@@ -115,13 +116,13 @@ function resolveWorktreeInfoFromCandidates(
   }
 
   const sessionHostId = normalizeExecutionHostId(session.executionHostId)
-  const normalizedCwd = normalizeRuntimePathForComparison(session.cwd)
-  const matched = candidates
-    .filter((candidate) => candidate.ownsNormalizedCwd(normalizedCwd))
-    .filter((candidate) => !sessionHostId || candidate.hostId === sessionHostId)
-    .sort(compareWorktreeCandidates)
-
-  const best = matched[0]
+  // fork: symlink aliases pick the more specific path. No aliases keeps the cwd sort.
+  const best = matchForkCwdCandidates(session, candidates, {
+    normalize: normalizeRuntimePathForComparison,
+    owns: (candidate, normalizedCwd) => candidate.ownsNormalizedCwd(normalizedCwd),
+    pathLength: (candidate) => candidate.normalizedPathLength,
+    tieBreak: compareWorktreeCandidates
+  }).find((candidate) => !sessionHostId || candidate.hostId === sessionHostId)
   if (!best) {
     return {
       status: 'unavailable',

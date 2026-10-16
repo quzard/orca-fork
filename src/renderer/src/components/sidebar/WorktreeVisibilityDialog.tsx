@@ -41,6 +41,7 @@ import {
   buildWorktreeSourcePreferenceUpdate,
   removeCustomWorktreeSourcePreference
 } from '../../../../shared/worktree/visibility-source-preferences'
+import { renderVisibilityArchivedSlot } from '../../../../shared/fork-hooks/sidebar-chrome'
 import HiddenWorktreeRecoveryList from './HiddenWorktreeRecoveryList'
 import { worktreeVisibilityUpdateError } from './worktree-visibility-update-error'
 import { useRepoOwnerVisibilityDefaults } from './use-repo-owner-visibility-defaults'
@@ -383,6 +384,10 @@ export default function WorktreeVisibilityDialog(): React.JSX.Element | null {
           toggling={effectivelyToggling}
           onShow={handleShowWorktree}
         />
+        {renderVisibilityArchivedSlot({
+          repo,
+          hostId: typeof modalData.hostId === 'string' ? modalData.hostId : undefined
+        })}
 
         {actionState?.error ? (
           <p className="text-xs text-destructive" role="alert">

@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { dirname } from 'node:path'
 import SyncDatabase from '../sqlite/sync-database'
 import { removeTreeSync } from '../../shared/windows-transient-lock-removal'
+import { aiVaultSearchSchemaVersion } from '../../shared/fork-hooks/ai-vault'
 
 // The index stores transcript content as written, with no redaction. A secret in
 // a transcript is already plaintext under the user's home directory and is
@@ -138,7 +139,7 @@ function openExisting(path: string): SyncDatabase {
     )
     db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
       'schema_version',
-      String(SESSION_SEARCH_SCHEMA_VERSION)
+      String(aiVaultSearchSchemaVersion(SESSION_SEARCH_SCHEMA_VERSION))
     )
     return db
   } catch (error) {
@@ -210,5 +211,8 @@ function isStaleSchema(db: SyncDatabase): boolean {
   const row = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as
     | { value: string }
     | undefined
-  return (row ? Number(row.value) : Number.NaN) !== SESSION_SEARCH_SCHEMA_VERSION
+  return (
+    (row ? Number(row.value) : Number.NaN) !==
+    aiVaultSearchSchemaVersion(SESSION_SEARCH_SCHEMA_VERSION)
+  )
 }

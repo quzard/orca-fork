@@ -14,6 +14,10 @@ import type { WorkspaceKey } from '../../../shared/folder-workspace-types'
 import type { Repo } from '../../../shared/repo-types'
 import type { RuntimeStore } from '../runtime-store-contract'
 import type { RuntimeWorkspaceCatalog } from './workspace-catalog'
+import {
+  getTerminalWorkspaceResolver,
+  type TerminalWorkspaceHost
+} from '../../../shared/fork-hooks/terminal-lifecycle'
 import { areWorktreePathsEqual, mergeWorktree } from '../../ipc/worktree-logic'
 
 export abstract class RuntimeWorkspaceSelectors extends OrcaRuntimeWithResolveBrowserNetworkExecutionHostForWorktree {
@@ -30,6 +34,16 @@ export abstract class RuntimeWorkspaceSelectors extends OrcaRuntimeWithResolveBr
   ): ReturnType<RuntimeWorkspaceCatalog['listResolvedWorktrees']>
 
   protected async resolveWorktreeSelector(selector: string): Promise<ResolvedWorktree> {
+    // fork: 可选解析器。返回 null/undefined 时继续原匹配，不增加 await。
+    const forkResolver = getTerminalWorkspaceResolver()
+    if (forkResolver) {
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: this is the runtime host; the hook type stays free of the main-process class.
+      const resolved = await forkResolver(selector, this as TerminalWorkspaceHost)
+      if (resolved != null) {
+        // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: a registered resolver returns ResolvedWorktree; null falls through to the upstream matcher.
+        return resolved as ResolvedWorktree
+      }
+    }
     const explicitWorktreeId = this.getValidatedExplicitWorktreeIdSelector(selector)
     // Why only `id:`: every other selector kind is matched across the whole fleet, and their
     // `selector_ambiguous` contract is defined over all repos. Scoping those would silently pick a

@@ -17,6 +17,7 @@ import {
 } from '../project-groups/nested-repo-import'
 import { createNestedRepoImportTargetResolver } from '../project-groups/nested-repo-import-target'
 import type { RuntimeStore } from './runtime-store-contract'
+import { stampImportedWorktreePath } from '../../shared/fork-hooks/imported-worktree-path'
 
 type RuntimeNestedRepoImportDependencies = {
   getStore: () => RuntimeStore | null
@@ -143,7 +144,7 @@ export class RuntimeNestedRepoImport {
     const rootGroup = groupResolver.getRootGroup()
     return {
       ...(rootGroup && importedCount + alreadyKnownCount > 0 ? { group: rootGroup } : {}),
-      projects: results,
+      projects: results.map((project) => stampImportedWorktreePath(project)),
       importedCount,
       alreadyKnownCount,
       failedCount

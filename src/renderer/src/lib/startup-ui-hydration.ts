@@ -2,7 +2,8 @@ import {
   DEFAULT_HIDE_SLEEPING_WORKSPACES,
   DEFAULT_SHOW_SLEEPING_WORKSPACES,
   DEFAULT_STATUS_BAR_ITEMS,
-  DEFAULT_WORKTREE_CARD_PROPERTIES
+  DEFAULT_WORKTREE_CARD_PROPERTIES,
+  getDefaultUIState
 } from '../../../shared/constants'
 import type { PersistedUIState } from '../../../shared/persisted-ui-state-types'
 
@@ -42,7 +43,8 @@ export function getStartupErrorFallbackUI(uiHydrated: boolean): PersistedUIState
     rightSidebarWidth: 350,
     markdownTocPanelWidth: 240,
     combinedDiffFileTreeWidth: 256,
-    groupBy: 'repo',
+    // fork: follow the registered default so a failed read does not open Project headers.
+    groupBy: getDefaultUIState().groupBy,
     sortBy: 'name',
     projectOrderBy: 'manual',
     showActiveOnly: false,

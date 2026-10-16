@@ -4,6 +4,7 @@ import { queueWorkspaceActivationTerminalFocus } from '@/lib/workspace-activatio
 import { seedAgentTabStateAfterWorktreeCreate } from '@/lib/worktree-creation-agent-seeds'
 import type { ActivateAndRevealResult } from '@/lib/worktree-activation'
 import type { WorktreeCreationRequest } from '@/lib/pending-worktree-creation'
+import { applyRegisteredSidebarGroup } from '../../../shared/fork-hooks/workspace-composer-seed'
 
 export async function completeWorktreeCreation(args: {
   creationId: string
@@ -43,6 +44,12 @@ export async function completeWorktreeCreation(args: {
     queueWorkspaceActivationTerminalFocus(args.worktreeId, args.activation)
   }
 
+  // fork: 登记的分组。没有分组或未登记时立即返回。
+  await applyRegisteredSidebarGroup(
+    args.worktreeId,
+    request.sidebarGroupId,
+    request.workspaceRunContext?.hostId ?? request.executionHostId
+  )
   // Why: note persistence is cosmetic and should not delay the visible workspace handoff.
   if (request.note) {
     try {

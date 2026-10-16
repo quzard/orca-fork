@@ -10,12 +10,15 @@ import {
   type ExecutionHostId,
   type ExecutionHostScope
 } from '../../../../shared/execution-host'
+import { readAiVaultDefaultHostScope } from '../../../../shared/fork-hooks/ai-vault'
 import type { PublicKnownRuntimeEnvironment } from '../../../../shared/runtime-environments'
 import type { AiVaultSessionResumeTargetState } from './ai-vault-session-resume'
 
 export type AiVaultHostScopeOption = {
   id: ExecutionHostScope
   label: string
+  /** Set when a registered menu folds this host under "other configured hosts". */
+  secondary?: boolean
 }
 
 export function useAiVaultExecutionHostScope(args: {
@@ -125,9 +128,11 @@ export function resolveAiVaultHostScopeDefaults(
   // for a user whose sessions all live on an SSH host (#13713). Widen to every host instead of
   // asserting one. A local workspace still resolves to `local` and is unaffected.
   const workspaceHostUnresolved = activeWorktreeId !== null && activeExecutionHostId === null
+  const registeredDefault = readAiVaultDefaultHostScope()
   return {
     activeExecutionHostScope,
     defaultExecutionHostScope:
+      registeredDefault ??
       activeExecutionHostScope ??
       (workspaceHostUnresolved ? ALL_EXECUTION_HOSTS_SCOPE : LOCAL_EXECUTION_HOST_ID)
   }

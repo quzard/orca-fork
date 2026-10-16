@@ -101,3 +101,11 @@
 /resources/skills/*.json linguist-generated=true text eol=lf
 # Vitest writes snapshots with LF, so checkout bytes must match on every host.
 **/__snapshots__/*.snap text eol=lf
+# Fork: keep generated catalogs and bundled skills on this branch during an upstream merge.
+# A later line overrides only the merge attribute, so the text eol=lf pins above stay exact.
+/skills/*/SKILL.md merge=ours
+/src/cli/bundled-skill-guides.ts merge=ours
+/src/renderer/src/i18n/en-runtime-required.json merge=ours
+/src/shared/rpc-contract/rpc-params-catalog.generated.ts merge=ours
+/src/main/acp/generated/*.generated.ts merge=ours
+/resources/skills/*.json merge=ours

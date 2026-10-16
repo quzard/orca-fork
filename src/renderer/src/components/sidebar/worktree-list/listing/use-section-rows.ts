@@ -19,7 +19,7 @@ import type { PinnedWorktreeDisplayPolicy, Row, WorktreeGroupBy } from '../group
 import { getLogicalRepoOrderRankById } from '../../../../../../shared/project-section-order'
 import { getEmptyProjectPlaceholderRepoIds } from '../../empty-project-placeholder-repos'
 import { deferHostSectionCollapse, scopeHostSectionCollapse } from '../../host-section-collapse'
-import { addHostSectionRows } from '../../host-section-rows'
+import { addHostSectionRows, sidebarModeRetainsHostHeaders } from '../../host-section-rows'
 import { orderHostSectionOptions } from '../../host-section-order'
 import { buildSidebarHostOptions } from '../../sidebar-host-options'
 import { selectPendingWorktreeCreationKeys } from './pending-worktree-creation-keys'
@@ -153,8 +153,9 @@ export function useSidebarSectionRows(args: SectionRowsArgs) {
     [hostOptions]
   )
 
+  const retainHostHeaders = sidebarModeRetainsHostHeaders(args.groupBy)
   const hostScopedGroups =
-    args.workspaceHostScope !== 'all' || args.visibleWorkspaceHostIds !== null
+    args.workspaceHostScope !== 'all' || args.visibleWorkspaceHostIds !== null || retainHostHeaders
   const rowPlan = useMemo(
     () =>
       buildSidebarRowPlan(
@@ -272,7 +273,8 @@ export function useSidebarSectionRows(args: SectionRowsArgs) {
       collapsedHostKeys: effectiveCollapsedGroups,
       forceCollapseHosts: hostDragActive,
       // Why: projects/workspaces are the primary sidebar object; host sections are only an explicit host-filter view.
-      preferProjectGrouping: true
+      preferProjectGrouping: true,
+      retainSingleHostHeader: retainHostHeaders
     })
     return hostScopedGroups
       ? scopeHostSectionCollapse({
@@ -288,6 +290,7 @@ export function useSidebarSectionRows(args: SectionRowsArgs) {
     hostDragActive,
     hostScopedGroups,
     orderedHostOptions,
+    retainHostHeaders,
     rows
   ])
   const renderedSidebarRowKeys = useMemo(

@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react'
-import { Box, Copy, ExternalLink, Info, Server, Trash2 } from 'lucide-react'
+import { Box, Cable, Copy, ExternalLink, Info, Server, Trash2 } from 'lucide-react'
 import { getPortOpenBrowserTooltipLabel } from '@/lib/workspace-port-actions'
 import { addressForPort } from '@/lib/workspace-port-urls'
 import { Button } from '@/components/ui/button'
@@ -25,13 +25,16 @@ export function LocalPortRow({
   port,
   onStop,
   onShowDetails,
-  onOpenInBrowser
+  onOpenInBrowser,
+  onForward
 }: {
   port: WorkspacePort
   onStop: (port: WorkspacePort) => void
   onShowDetails: (port: WorkspacePort) => void
   /** Absent when this client has no route to the port's host. */
   onOpenInBrowser?: (port: WorkspacePort, event?: React.MouseEvent<HTMLButtonElement>) => void
+  /** Absent unless this workspace can open an SSH forward for the port. */
+  onForward?: (port: WorkspacePort) => void
 }): React.JSX.Element {
   const handleCopy = useCallback(() => {
     void window.api.ui.writeClipboardText(addressForPort(port))
@@ -66,6 +69,10 @@ export function LocalPortRow({
     [handleOpenBrowser]
   )
 
+  const handleForward = useCallback(() => {
+    onForward?.(port)
+  }, [onForward, port])
+
   const handleStopButtonClick = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
       onStop(port)
@@ -88,6 +95,7 @@ export function LocalPortRow({
     'auto.components.right.sidebar.PortsPanel.b22b128b2a',
     'Open in Browser'
   )
+  const forwardLabel = translate('auto.components.right.sidebar.PortsPanel.c9d106547a', 'Forward')
   const confidenceLabel =
     port.kind === 'workspace' ? (port.owner.confidence === 'cwd' ? 'cwd' : 'command') : null
   const canStopProcess =
@@ -128,6 +136,25 @@ export function LocalPortRow({
         </ContextMenuTrigger>
         <TooltipProvider delayDuration={400}>
           <div className="flex items-center gap-0.5 can-hover:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+            {onForward && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={handleForward}
+                    aria-label={forwardLabel}
+                  >
+                    <Cable size={13} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" sideOffset={4}>
+                  {forwardLabel}
+                </TooltipContent>
+              </Tooltip>
+            )}
             {onOpenInBrowser && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -201,6 +228,12 @@ export function LocalPortRow({
         <ContextMenuLabel
           className={LOCAL_PORT_MENU_LABEL_CLASS}
         >{`:${port.port}`}</ContextMenuLabel>
+        {onForward && (
+          <ContextMenuItem className={LOCAL_PORT_MENU_ITEM_CLASS} onSelect={handleForward}>
+            <Cable size={13} />
+            {forwardLabel}
+          </ContextMenuItem>
+        )}
         {onOpenInBrowser && (
           <ContextMenuItem
             className={LOCAL_PORT_MENU_ITEM_CLASS}

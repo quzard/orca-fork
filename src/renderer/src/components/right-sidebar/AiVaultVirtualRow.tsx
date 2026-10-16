@@ -27,6 +27,7 @@ import { resolveAiVaultSessionRowChatActions } from './ai-vault-session-chat-act
 import type { AiVaultResumeInChatEligibility } from './ai-vault-session-resume-in-chat'
 import type { AiVaultSearchHit } from '../../../../shared/ai-vault-search-types'
 import { canResumeAiVaultSearchHit, hasAiVaultSearchHitPath } from './ai-vault-search-session'
+import { readAiVaultSearchHostLabel } from '../../../../shared/fork-hooks/ai-vault'
 
 export type AiVaultListRow =
   | { type: 'group'; group: AiVaultSessionGroup }
@@ -198,6 +199,9 @@ export function AiVaultVirtualRow({
         <VaultSessionRow
           session={row.session}
           searchHit={searchHit}
+          hostLabel={
+            searchHit ? readAiVaultSearchHostLabel(row.session.executionHostId) : undefined
+          }
           liveState={getSessionLiveState(row.session)}
           resumeStartup={resumeStartup}
           realHomeResumeStartup={

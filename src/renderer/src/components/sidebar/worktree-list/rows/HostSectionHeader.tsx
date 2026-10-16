@@ -99,6 +99,7 @@ export function HostSectionHeader({
         role="button"
         tabIndex={0}
         data-host-header-drag-id={row.hostId}
+        data-workspace-sidebar-group={`hd:${JSON.stringify([row.hostId, null])}`}
         aria-expanded={!row.collapsed}
         className={cn(
           'group/host-header flex h-8 w-full cursor-pointer items-center gap-2 rounded-md border px-2 text-left transition-all',

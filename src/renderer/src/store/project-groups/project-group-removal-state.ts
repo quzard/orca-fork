@@ -3,6 +3,7 @@ import { getProjectGroupSubtreeIds } from '../../../../shared/project-groups'
 import { getRepoExecutionHostId, type ExecutionHostId } from '../../../../shared/execution-host'
 import { catalogOwnsHost, getProjectGroupHostId } from '../slices/project-group-owner-routing'
 import type { RepoSlice } from '../repos/repo-state'
+import { projectGroupDeleteKeepsFolderWorkspaces } from '../../../../shared/fork-hooks/project-group-delete'
 import { getFolderWorkspaceHostId } from '../folder-workspaces/folder-workspace-catalog'
 
 // Why: a group id can exist on several hosts; only the deleted owner's rows may be cascaded away.
@@ -24,6 +25,7 @@ export function applyProjectGroupDeleteCascade(
     folderWorkspaces: state.folderWorkspaces.filter(
       (workspace) =>
         !deletedGroupIds.has(workspace.projectGroupId) ||
+        projectGroupDeleteKeepsFolderWorkspaces() ||
         // Why: resolve the workspace's host against the pre-delete group list, which still holds its owner row.
         !ownsRowHost(getFolderWorkspaceHostId(workspace, state.projectGroups))
     ),

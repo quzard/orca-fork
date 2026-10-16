@@ -11,6 +11,7 @@ import {
   Trash2
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { renderHostSectionMenuExtra } from '../../../../shared/fork-hooks/sidebar-chrome'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -253,6 +254,7 @@ export function HostSectionHeaderMenu({ row }: { row: HostHeaderRow }): React.JS
             )}
           </DropdownMenuItem>
         )}
+        {renderHostSectionMenuExtra(row.hostId)}
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={handleManage}>
           <Settings2 className="size-3.5" />

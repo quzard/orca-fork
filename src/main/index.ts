@@ -9,6 +9,9 @@ import {
 } from './startup/main-window-actions'
 import { openMainWindow as openMainWindowController } from './startup/main-window-controller'
 import { mainProcessState as state } from './startup/main-process-state'
+import { registerForkModules } from '../fork/register'
+import { registerForkElectronModules } from '../fork/register-electron'
+import { registerForkMainModules } from '../fork/register-main'
 import { runMainProcessPreflight } from './startup/main-process-preflight'
 import { registerMainProcessIpcHandlers } from './startup/main-process-ipc-bootstrap'
 import { initializeMainProcessReady } from './startup/main-process-ready'
@@ -97,6 +100,11 @@ const handleMacAppActivation = createMacAppActivationHandler({
   getWindow: () => state.mainWindow,
   requestActivation: requestDesktopActivation
 })
+
+// fork: the file secret store must be registered before preflight installs the desktop SecretStore.
+registerForkModules()
+registerForkElectronModules()
+registerForkMainModules()
 
 const preflightReady = runMainProcessPreflight({
   focusExistingWindow,

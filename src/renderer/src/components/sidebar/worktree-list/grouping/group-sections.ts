@@ -6,6 +6,7 @@ import {
   getWorkspaceStatusFromGroupKey,
   getWorkspaceStatusVisualMeta
 } from '../../workspace-status'
+import { lookupSidebarGroupMode } from '../../../../../../shared/fork-hooks/sidebar-group-mode'
 import { PROJECT_GROUP_META, PR_GROUP_META } from './group-keys'
 import type { PRGroupKey } from './group-keys'
 import type { NoticeHostContext } from './host-labels'
@@ -14,7 +15,7 @@ import {
   getLaneHostWorktreeIds,
   getMixedHostContextLabels
 } from './host-labels'
-import type { OrderedGroupEntry } from './worktree-group-entry'
+import type { OrderedGroupEntry, WorktreeGroupEntry } from './worktree-group-entry'
 import type { ProjectGroupingIndex } from '../../../../../../shared/project-section-grouping'
 import {
   appendWorktreeRows,
@@ -27,9 +28,32 @@ import type {
   ImportedWorktreesCardCandidate,
   NewExternalWorktreesInboxCandidate,
   PendingCreationRef,
+  GroupHeaderRow,
   Row,
   WorktreeGroupBy
 } from './row-types'
+
+// fork: 自定义分组用 section 自己的 label，避免被画成 PR 标题。
+function registeredGroupHeader(
+  mode: { headerTone?: string },
+  key: string,
+  group: WorktreeGroupEntry,
+  folderPairs: NonNullable<WorktreeGroupEntry['folderWorkspaces']>,
+  repoMap: Map<string, Repo>,
+  defaultHostId: ExecutionHostId
+): GroupHeaderRow {
+  return {
+    type: 'header',
+    key,
+    label: group.label,
+    count: group.items.length + folderPairs.length,
+    tone: mode.headerTone ?? 'neutral',
+    icon: PROJECT_GROUP_META.icon,
+    hostWorktreeCounts: getLaneHostWorktreeCounts(group.items, folderPairs, repoMap, defaultHostId),
+    hostWorktreeIds: getLaneHostWorktreeIds(group.items, folderPairs, repoMap, defaultHostId),
+    worktreeIds: group.items.map((worktree) => worktree.id)
+  }
+}
 
 /** Everything section emission reads that stays fixed for one buildRows call. */
 export type SectionAppendContext = {
@@ -69,12 +93,15 @@ export function appendOrderedGroups(
     mixedWorktreeHostContextLabels,
     occurrencePlan
   } = ctx
+  // fork: 内置 groupBy 查不到模式，标题分支与原来一致。
+  const forkGroupMode = lookupSidebarGroupMode(groupBy)
   for (const [key, group] of groupsToAppend) {
     const isCollapsed = collapsedGroups.has(key)
     const repo = group.repo
     const folderPairs = group.folderWorkspaces ?? []
-    const header =
-      groupBy === 'repo'
+    const header = forkGroupMode
+      ? registeredGroupHeader(forkGroupMode, key, group, folderPairs, repoMap, defaultHostId)
+      : groupBy === 'repo'
         ? {
             type: 'header' as const,
             key,

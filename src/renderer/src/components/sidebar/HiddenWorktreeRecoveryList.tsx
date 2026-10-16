@@ -11,6 +11,10 @@ import {
   getVisibleNonOrcaWorktrees
 } from '../../../../shared/external-worktree-inbox'
 import { relativePathInsideRoot } from '../../../../shared/cross-platform-path'
+import {
+  hiddenWorktreeMatchesQuery,
+  hiddenWorktreeSearchMinimum
+} from '../../../../shared/fork-hooks/sidebar-chrome'
 
 type Props = {
   repo: Repo
@@ -35,11 +39,7 @@ export default function HiddenWorktreeRecoveryList({
   const hidden = getHiddenImportableExternalWorktrees(detected)
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const filtered = normalizedQuery
-    ? hidden.filter(
-        (worktree) =>
-          worktree.displayName.toLocaleLowerCase().includes(normalizedQuery) ||
-          worktree.path.toLocaleLowerCase().includes(normalizedQuery)
-      )
+    ? hidden.filter((worktree) => hiddenWorktreeMatchesQuery(worktree, normalizedQuery))
     : hidden
   const discoveredCount = hidden.length + getVisibleNonOrcaWorktrees(detected).length
   const virtualizer = useVirtualizer({
@@ -73,7 +73,7 @@ export default function HiddenWorktreeRecoveryList({
             )}
           </p>
         </div>
-        {hidden.length >= 10 ? (
+        {hidden.length >= hiddenWorktreeSearchMinimum() ? (
           <div className="relative w-48 shrink-0">
             <Search className="pointer-events-none absolute left-2.5 top-2 size-3.5 text-muted-foreground" />
             <Input

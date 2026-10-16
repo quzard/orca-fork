@@ -6,6 +6,7 @@ import { translate } from '@/i18n/i18n'
 import type { AiVaultAgent, AiVaultGroup, AiVaultScope } from '../../../../shared/ai-vault-types'
 import type { ExecutionHostScope } from '../../../../shared/execution-host'
 import { VaultHostScopeMenu, VaultScopeSwitch, VaultViewMenu } from './AiVaultPanelControls'
+import { ForkAiVaultSlot } from './fork-ai-vault-slot'
 import type { AiVaultHostScopeOption } from './ai-vault-host-scope'
 import type { AiVaultSessionLimit } from './ai-vault-session-limit'
 
@@ -136,6 +137,7 @@ export function AiVaultPanelHeader({
               <RefreshCw className="size-3" />
             )}
           </Button>
+          <ForkAiVaultSlot id="header-actions" />
         </div>
       </div>
 

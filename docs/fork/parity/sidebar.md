@@ -1,0 +1,50 @@
+# Sidebar host-directory parity
+
+Generic fixtures only: hosts `devbox` and `mini`, paths under `/srv/wt/project`.
+
+The mode id is `host-directory`. Built-in Status, PR, and None grouping are unchanged. `buildRows('repo')` still emits a repository header. A profile that already saved `groupBy: repo` is the Project view on the reference app: host headers, directory cards, and no repository header. After this mode is registered, that saved value is read as `host-directory`. A profile with no saved mode hydrates to `host-directory`. Tests that never register still read `repo` as project headers.
+
+The Project toggle is hidden while this mode is registered, because that saved value is this view. Status, PR, None, and Host stay available.
+
+## Checklist
+
+| Item | Expected | Result |
+| --- | --- | --- |
+| F009 two hosts | The same path on two hosts stays in two sections and keeps the short name `project`. | Pass. `host-directory-rows.fork.test.ts` |
+| F009 group under host | A group header is nested under its host. A group that belongs to another host is ignored. An empty group stays visible. | Pass. Same file. |
+| F011 no repo header | Host-directory rows have no repo header. Built-in `repo` mode still emits one while this mode is registered. | Pass. Same file. |
+| F012 ungroup on delete | The extra "Ungroup only" option is checked by default and forces the contained-project flag off. Folder workspaces stay; the repo's group id is cleared; the group is removed. The upstream checkbox is still in the dialog. | Pass for the flag and cascade. Dialog chrome is the existing upstream control plus the registered option. |
+| F012 same-host drag | A drop onto another host is rejected. The insertion index is the card whose midpoint is below the pointer, otherwise the end of the visible group. Collapsed members stay in the manual-order rank. | Pass for the host check and the index helper. The pointer path uses the existing sidebar drag rects. |
+| F012 old remote group id | A refresh that omits `sidebarGroupId` keeps the current id. An explicit `null` clears it. A provided string replaces it. A row on another host is left alone. | Pass. `preserve-sidebar-group.fork.test.ts` |
+| F013 remove from Orca | Shut down browsers, then terminals with identifiers kept, then archive. Do not delete the directory. More than one owner host aborts before either shutdown. | Pass. `remove-workspace.fork.test.ts` |
+| F014 search and restore | Search appears from the first archived workspace and also matches the branch. The picker label shows directory, branch, group, and path. Restore clears `isArchived`. | Pass for the registered minimum, branch matcher, and visible picker label. |
+| F034 directory prefix | Colliding basenames on one host become `work/api` and `oss/api`. A unique name stays short. The prefix is its own faded span. Under a host header the card does not repeat the host label. | Pass for the label strings. Host-label stripping is `retainSingleHostHeader` in `host-section-rows.ts`. |
+| F034 parent prefix | One checkout in a group drops the group's parent directory when the repo path is outside that parent (`/srv/wt/group/checkout` renders `checkout`). A repo inside the parent keeps the disambiguated name. Two checkouts, or a pending create, keep the disambiguated name. | Pass. Same fork test file. |
+| F034 SSH status line | The host-type label and the connection status do not wrap. Status names are translated, with the previous English text as the fallback. | Ported on `SshTargetStatusRow` and `SshTargetCard`. |
+| F034 sync conflict | The reference app no longer shows a remote workspace sync conflict, and it no longer exposes a discard action for unplaced tabs. Old per-target sync fields are dropped when an SSH target is loaded. | Not reintroduced. Putting the button back would require the relay sync stack the reference removed. |
+| F034 single host header | One visible host still gets a host header when the flag is set, and does not when the flag is absent. | Pass. |
+| F037 bulk remove | The settings list can select rows, arm Remove, and clear the selection. Removal calls the existing unregister helper and does not delete directories. | Pass for arming and clearing. The unregister call is the existing `removeSettingsProjectFromAllHosts`. |
+| F012 create dialog | Opening from a group prefills that group's host and group id. A blank sidebar create prefills the active workspace host and group. A status board or a named repo is unchanged. The created git workspace is assigned that group. | Pass. `composer-seed.fork.test.ts` |
+| Saved Project view | `normalizeGroupBy('repo')` and hydration of `repo` or legacy `parent` return `host-directory` after registration. Without registration they stay `repo`. | Pass. `host-directory-rows.fork.test.ts` and `default-group-by.fork.test.ts` |
+| Sort | `name` reorders inside the section. `smart` keeps the incoming order. | Pass. |
+| Pinned | A real `pinned` section is emitted and then split per host by the existing host-section pass. | Pass for the section key. |
+| Open in | The existing Open-in menu is unchanged. | Pass. That menu is not in this diff. |
+| Unregistered default | Tests that never register still get `groupBy: repo`. | Pass. `default-group-by.fork.test.ts` |
+
+## Linux screenshot
+
+`fork/scripts/verify/screenshot-sidebar.mjs` builds `electron-vite --mode e2e` with the store exposed, launches Electron hidden (`ORCA_BACKGROUND_LAUNCH=1`, `ORCA_E2E_HEADLESS=1`, no `show()`), and seeds two SSH hosts.
+
+The captured window shows:
+
+- Host `devbox` (disconnected), count 3, group `Services` with cards `work/api · main` and `oss/api · main`, then an ungrouped `project · main`.
+- Host `mini` (disconnected), count 1, ungrouped `project · main`.
+- No repository header between the host and the cards.
+
+## Full suite on this Linux machine
+
+`src/main/runtime/automation-change-publication.test.ts` fails while opening the profile-state database: `cannot start a transaction within a transaction` from `node:sqlite` (`SyncDatabase.exec` during schema verification inside a write transaction). The same file fails the same way on a clean checkout of `fork/base` at `3310892228`, using the same Node 22.14.0. A single UI-state store test that does not hit that nested begin passes on both trees. This is the machine's SQLite runtime, not a sidebar change.
+
+## Checks only a Mac can do
+
+Signing, keychain, `electron-builder` for mac, the computer-use card, and Cursor or VS Code Remote SSH deep links stay listed in `docs/fork/VERIFY.md`. They were not run here.

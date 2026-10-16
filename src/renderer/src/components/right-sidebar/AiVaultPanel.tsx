@@ -153,14 +153,21 @@ export default function AiVaultPanel(): React.JSX.Element {
   const { searching, searchHits } = search
   const sessions = searching ? search.sessions : history
   const sshConnectionStates = useAppStore((s) => s.sshConnectionStates)
+  const connectedSshTargetIds: string[] = []
+  // Partial stores in upstream panel tests omit the map. A missing map is no connected host.
+  if (sshConnectionStates) {
+    for (const [targetId, state] of sshConnectionStates) {
+      if (state.status === 'connected') {
+        connectedSshTargetIds.push(targetId)
+      }
+    }
+  }
   const menuHostOptions = decorateVaultHostMenu(hostScopeOptions, {
     historyHostIds: sessions.map((session) => session.executionHostId),
     activeHostId: activeWorktree
       ? getWorktreeExecutionHostId(activeWorktree, activeRepo ?? undefined)
       : null,
-    connectedSshTargetIds: [...sshConnectionStates]
-      .filter((entry) => entry[1].status === 'connected')
-      .map((entry) => entry[0])
+    connectedSshTargetIds
   })
   const requestedScanKey = aiVaultLocalScanKey({
     scopePaths,

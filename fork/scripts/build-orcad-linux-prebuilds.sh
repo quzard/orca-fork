@@ -5,7 +5,8 @@
 # Do not pnpm install here: that would replace the Mac node_modules.
 set -euo pipefail
 
-readonly REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
+readonly REPO_ROOT
 cd "$REPO_ROOT"
 
 # Digests are the workflow image lines. packaging.fork.test.ts compares them.
@@ -15,18 +16,26 @@ readonly IMAGE_LINUX_X64_GLIBC217='quay.io/pypa/manylinux2014_x86_64@sha256:6f74
 
 # 家里的 Mac 把缓存放在仓库外（~/Projects/orca-verify/node-runtime-cache），避免 git clean 删掉。
 # 容器只挂仓库。仓库外的缓存要另外挂到 /node-runtime-cache，并改写 Node 路径。
+# pwd -P 消掉 ..、重复斜杠和符号链接，避免把仓库外的目录当成 /work 里的路径。
+physical_dir() {
+  mkdir -p -- "$1"
+  (cd -- "$1" && pwd -P)
+}
+
+physical_file() {
+  local dir base
+  dir="$(dirname -- "$1")"
+  base="$(basename -- "$1")"
+  printf '%s/%s\n' "$(physical_dir "$dir")" "$base"
+}
+
 cache_dir="${ORCA_NODE_RUNTIME_CACHE_DIR:-${REPO_ROOT}/out/node-runtime-cache}"
-cache_dir="${cache_dir%/}"
-if [[ "$cache_dir" != /* ]]; then
-  cache_dir="${REPO_ROOT}/${cache_dir}"
-fi
+cache_dir="$(physical_dir "$cache_dir")"
 
 # 把宿主机上的 pinned Node 改写成容器里的路径。--print-container-node 只给测试用。
 translate_runtime_path() {
-  local runtime="$1"
-  if [[ "$runtime" != /* ]]; then
-    runtime="${REPO_ROOT}/${runtime}"
-  fi
+  local runtime
+  runtime="$(physical_file "$1")"
   case "$runtime" in
     "$REPO_ROOT"/*)
       printf '%s\n' "/work/${runtime#"$REPO_ROOT"/}"
@@ -71,8 +80,11 @@ run_slot() {
   container_node="$(translate_runtime_path "$runtime")"
   container_cache="$(container_cache_path)"
   # macOS 自带 bash 3.2。set -u 时不能展开空数组，可选的 docker 参数放在 $@。
+  # --mount 的 source= 不会把路径里的冒号当成分隔符。
   if [[ "$container_cache" == /node-runtime-cache ]]; then
-    set -- -v "${cache_dir}:/node-runtime-cache" -e ORCA_NODE_RUNTIME_CACHE_DIR=/node-runtime-cache
+    set -- \
+      --mount "type=bind,source=${cache_dir},target=/node-runtime-cache" \
+      -e ORCA_NODE_RUNTIME_CACHE_DIR=/node-runtime-cache
   elif [[ "$container_cache" != /work/out/node-runtime-cache ]]; then
     set -- -e "ORCA_NODE_RUNTIME_CACHE_DIR=${container_cache}"
   else
@@ -91,7 +103,7 @@ run_slot() {
     -e CXX=g++ \
     -e PYTHON=/opt/python/cp312-cp312/bin/python3 \
     "$@" \
-    -v "$REPO_ROOT":/work \
+    --mount "type=bind,source=${REPO_ROOT},target=/work" \
     -w /work \
     "$image" bash -s <<'SLOT'
 set -eu
@@ -120,9 +132,9 @@ for dir in out/orcad-prebuilds out/orcad-prebuild-work out/node-runtime-cache; d
     chown -R "$HOST_UID:$HOST_GID" "$dir"
   fi
 done
-# 仓库外的缓存挂在别处。容器里以 root 写入的头文件要交回宿主机用户。
+# 只交回容器里 root 新建的文件。宿主机事先放进缓存的 Node 包不要整棵改所有者。
 if [ -n "${ORCA_NODE_RUNTIME_CACHE_DIR:-}" ] && [ -d "$ORCA_NODE_RUNTIME_CACHE_DIR" ]; then
-  chown -R "$HOST_UID:$HOST_GID" "$ORCA_NODE_RUNTIME_CACHE_DIR"
+  find "$ORCA_NODE_RUNTIME_CACHE_DIR" -uid 0 -exec chown "$HOST_UID:$HOST_GID" {} +
 fi
 SLOT
 }
@@ -145,8 +157,16 @@ if ! command -v docker >/dev/null 2>&1; then
     fi
   done
 fi
-if ! docker info >/dev/null 2>&1; then
-  echo '未找到可用的 Docker。Linux SSH 槽需要本机 Docker 运行上游的 manylinux 镜像。' >&2
+if ! command -v docker >/dev/null 2>&1; then
+  echo '未找到 docker 可执行文件。Linux SSH 槽需要本机 Docker 运行上游的 manylinux 镜像。' >&2
+  exit 1
+fi
+docker_err=""
+if ! docker_err="$(docker info 2>&1 >/dev/null)"; then
+  echo 'Docker 守护进程没有在运行。Linux SSH 槽需要本机 Docker 运行上游的 manylinux 镜像。' >&2
+  if [[ -n "$docker_err" ]]; then
+    printf '%s\n' "$docker_err" >&2
+  fi
   exit 1
 fi
 

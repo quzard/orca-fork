@@ -1,7 +1,17 @@
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs'
 import { createRequire } from 'node:module'
-import { resolve } from 'node:path'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const require = createRequire(import.meta.url)
@@ -100,13 +110,17 @@ describe('fork packaging', () => {
     expect(script).toContain("dnf --disablerepo='epel*' install -y git procps-ng unzip which xz")
     expect(script).toContain('/Applications/OrbStack.app/Contents/MacOS/xbin')
     expect(script).toContain('ORCA_NODE_RUNTIME_CACHE_DIR=/node-runtime-cache')
+    expect(script).toContain('type=bind,source=')
+    expect(script).toContain('find "$ORCA_NODE_RUNTIME_CACHE_DIR" -uid 0')
+    expect(script).toContain('未找到 docker 可执行文件')
+    expect(script).toContain('Docker 守护进程没有在运行')
     expect(script).not.toMatch(/^\s*pnpm\b/m)
     execFileSync('bash', ['-n', resolve('fork/scripts/build-orcad-linux-prebuilds.sh')])
   })
 
   it('rewrites a pinned Node path outside the repo into the cache mount', () => {
     const script = resolve('fork/scripts/build-orcad-linux-prebuilds.sh')
-    const repoRoot = resolve('.')
+    const repoRoot = realpathSync(resolve('.'))
     const env = { ...process.env }
     delete env.ORCA_NODE_RUNTIME_CACHE_DIR
     const print = (args: string[], extra: NodeJS.ProcessEnv = {}) =>
@@ -115,32 +129,116 @@ describe('fork packaging', () => {
         env: { ...env, ...extra },
         stdio: ['ignore', 'pipe', 'pipe']
       }).trim()
-    expect(print(['--print-container-cache'])).toBe('/work/out/node-runtime-cache')
-    expect(
-      print(['--print-container-node', `${repoRoot}/out/node-runtime-cache/node-v/bin/node`])
-    ).toBe('/work/out/node-runtime-cache/node-v/bin/node')
-    expect(print(['--print-container-node', 'out/node-runtime-cache/node-v/bin/node'])).toBe(
-      '/work/out/node-runtime-cache/node-v/bin/node'
-    )
-    const outside = '/tmp/orca-node-runtime-cache'
-    expect(print(['--print-container-cache'], { ORCA_NODE_RUNTIME_CACHE_DIR: outside })).toBe(
-      '/node-runtime-cache'
-    )
-    expect(
-      print(['--print-container-node', `${outside}/node-v24.21.0-linux-x64/bin/node`], {
-        ORCA_NODE_RUNTIME_CACHE_DIR: outside
-      })
-    ).toBe('/node-runtime-cache/node-v24.21.0-linux-x64/bin/node')
-    expect(
-      print(['--print-container-cache'], {
-        ORCA_NODE_RUNTIME_CACHE_DIR: `${repoRoot}/out/custom-node-cache`
-      })
-    ).toBe('/work/out/custom-node-cache')
-    expect(() =>
-      print(['--print-container-node', '/tmp/cache-other/bin/node'], {
-        ORCA_NODE_RUNTIME_CACHE_DIR: '/tmp/cache'
-      })
-    ).toThrow(/outside the workspace and the runtime cache/)
+    const outside = '/tmp/orca-fork-cache-outside'
+    const dotdot = `${repoRoot}/../tmp/orca-fork-cache-x`
+    const doubled = '/tmp//orca-fork-cache-slash'
+    try {
+      expect(print(['--print-container-cache'])).toBe('/work/out/node-runtime-cache')
+      expect(
+        print(['--print-container-node', `${repoRoot}/out/node-runtime-cache/node-v/bin/node`])
+      ).toBe('/work/out/node-runtime-cache/node-v/bin/node')
+      expect(print(['--print-container-node', 'out/node-runtime-cache/node-v/bin/node'])).toBe(
+        '/work/out/node-runtime-cache/node-v/bin/node'
+      )
+      expect(print(['--print-container-cache'], { ORCA_NODE_RUNTIME_CACHE_DIR: outside })).toBe(
+        '/node-runtime-cache'
+      )
+      expect(
+        print(['--print-container-node', `${outside}/node-v24.21.0-linux-x64/bin/node`], {
+          ORCA_NODE_RUNTIME_CACHE_DIR: outside
+        })
+      ).toBe('/node-runtime-cache/node-v24.21.0-linux-x64/bin/node')
+      // ../x 在字符串上以仓库为前缀，物理路径在仓库外，必须单独挂载。
+      expect(print(['--print-container-cache'], { ORCA_NODE_RUNTIME_CACHE_DIR: dotdot })).toBe(
+        '/node-runtime-cache'
+      )
+      expect(
+        print(['--print-container-node', `${dotdot}/node-v/bin/node`], {
+          ORCA_NODE_RUNTIME_CACHE_DIR: dotdot
+        })
+      ).toBe('/node-runtime-cache/node-v/bin/node')
+      expect(
+        print(['--print-container-cache'], {
+          ORCA_NODE_RUNTIME_CACHE_DIR: '../tmp/orca-fork-cache-x'
+        })
+      ).toBe('/node-runtime-cache')
+      // 重复斜杠收成同一物理目录后再判断在不在仓库里。
+      expect(print(['--print-container-cache'], { ORCA_NODE_RUNTIME_CACHE_DIR: doubled })).toBe(
+        '/node-runtime-cache'
+      )
+      expect(
+        print(['--print-container-node', `${doubled}/node-v/bin/node`], {
+          ORCA_NODE_RUNTIME_CACHE_DIR: doubled
+        })
+      ).toBe('/node-runtime-cache/node-v/bin/node')
+      expect(
+        print(['--print-container-node', '/tmp/orca-fork-cache-slash/node-v/bin/node'], {
+          ORCA_NODE_RUNTIME_CACHE_DIR: doubled
+        })
+      ).toBe('/node-runtime-cache/node-v/bin/node')
+      expect(
+        print(['--print-container-cache'], {
+          ORCA_NODE_RUNTIME_CACHE_DIR: `${repoRoot}/out/custom-node-cache`
+        })
+      ).toBe('/work/out/custom-node-cache')
+      expect(() =>
+        print(['--print-container-node', '/tmp/orca-fork-cache-other/bin/node'], {
+          ORCA_NODE_RUNTIME_CACHE_DIR: '/tmp/orca-fork-cache-neither'
+        })
+      ).toThrow(/outside the workspace and the runtime cache/)
+    } finally {
+      rmSync(join(repoRoot, 'out/custom-node-cache'), { recursive: true, force: true })
+      rmSync(join(repoRoot, 'out/node-runtime-cache/node-v'), { recursive: true, force: true })
+      for (const dir of [
+        outside,
+        '/tmp/orca-fork-cache-x',
+        '/tmp/orca-fork-cache-slash',
+        '/tmp/orca-fork-cache-other',
+        '/tmp/orca-fork-cache-neither'
+      ]) {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    }
+  })
+
+  it('separates a missing docker binary from a stopped daemon', () => {
+    const script = resolve('fork/scripts/build-orcad-linux-prebuilds.sh')
+    const home = mkdtempSync(join(tmpdir(), 'orca-fork-docker-home-'))
+    const cache = join(home, 'cache')
+    const env = { ...process.env, HOME: home, ORCA_NODE_RUNTIME_CACHE_DIR: cache }
+    const hostDocker = [
+      '/opt/homebrew/bin/docker',
+      '/usr/local/bin/docker',
+      '/Applications/OrbStack.app/Contents/MacOS/xbin/docker'
+    ].some((candidate) => existsSync(candidate))
+    try {
+      // 本机这些路径上已有 docker 时，脚本会找到它，这条断言只在没有这些文件时成立。
+      if (!hostDocker) {
+        expect(() =>
+          execFileSync('bash', [script], {
+            encoding: 'utf8',
+            env: { ...env, PATH: '/usr/bin:/bin' },
+            stdio: ['ignore', 'pipe', 'pipe']
+          })
+        ).toThrow(/未找到 docker 可执行文件/)
+      }
+      const bin = join(home, 'bin')
+      mkdirSync(bin)
+      writeFileSync(
+        join(bin, 'docker'),
+        '#!/bin/sh\necho "Cannot connect to the Docker daemon" >&2\nexit 1\n'
+      )
+      chmodSync(join(bin, 'docker'), 0o755)
+      expect(() =>
+        execFileSync('bash', [script], {
+          encoding: 'utf8',
+          env: { ...env, PATH: `${bin}:/usr/bin:/bin` },
+          stdio: ['ignore', 'pipe', 'pipe']
+        })
+      ).toThrow(/Docker 守护进程没有在运行[\s\S]*Cannot connect to the Docker daemon/)
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
   })
 
   it('bundles fork registration into the orcad template entry', () => {

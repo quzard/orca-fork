@@ -488,7 +488,6 @@ build_develop_release() {
 }
 
 use_node24
-export PATH="${MAC_TOOL_PATH}:${PATH}"
 if [[ "${ORCA_BUILD_RELEASES:-}" != 1 ]]; then
   RESULT="skipped"
   ERROR="set ORCA_BUILD_RELEASES=1 and ORCA_PUBLISH_RELEASE=1 in sync.env"

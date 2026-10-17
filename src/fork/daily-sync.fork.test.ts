@@ -93,7 +93,7 @@ describe('fork daily sync split', () => {
     expect(script).not.toContain('unofficial-builds.nodejs.org')
     expect(script).not.toContain('git push')
     expect(script).toContain('/Applications/OrbStack.app/Contents/MacOS/xbin')
-    expect(script.match(/export PATH="\$\{MAC_TOOL_PATH\}:\$\{PATH\}"/g)).toHaveLength(2)
+    expect(script).toContain('export PATH="${MAC_TOOL_PATH}:${PATH}"')
     expect(script).toContain('${STATUS_DIR}/node-runtime-cache')
     const plist = readFileSync(
       resolve('fork/scripts/launchd/com.orca.fork.mac-auto-update.plist'),

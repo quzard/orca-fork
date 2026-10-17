@@ -21,7 +21,7 @@
     <key>ORCA_REPO</key>
     <string>__REPO__</string>
     <key>PATH</key>
-    <string>/opt/homebrew/bin:/usr/local/bin:__HOME__/.orbstack/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <string>/opt/homebrew/bin:/usr/local/bin:__HOME__/.orbstack/bin:/Applications/OrbStack.app/Contents/MacOS/xbin:/usr/bin:/bin:/usr/sbin:/sbin</string>
   </dict>
   <key>StandardOutPath</key>
   <string>__HOME__/Projects/orca-verify/mac-auto-update.out.log</string>

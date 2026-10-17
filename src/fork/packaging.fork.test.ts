@@ -98,8 +98,49 @@ describe('fork packaging', () => {
     expect(script).toContain('--slot="$ORCAD_SLOT"')
     expect(script).toContain('env -u LD_LIBRARY_PATH')
     expect(script).toContain("dnf --disablerepo='epel*' install -y git procps-ng unzip which xz")
+    expect(script).toContain('/Applications/OrbStack.app/Contents/MacOS/xbin')
+    expect(script).toContain('ORCA_NODE_RUNTIME_CACHE_DIR=/node-runtime-cache')
     expect(script).not.toMatch(/^\s*pnpm\b/m)
     execFileSync('bash', ['-n', resolve('fork/scripts/build-orcad-linux-prebuilds.sh')])
+  })
+
+  it('rewrites a pinned Node path outside the repo into the cache mount', () => {
+    const script = resolve('fork/scripts/build-orcad-linux-prebuilds.sh')
+    const repoRoot = resolve('.')
+    const env = { ...process.env }
+    delete env.ORCA_NODE_RUNTIME_CACHE_DIR
+    const print = (args: string[], extra: NodeJS.ProcessEnv = {}) =>
+      execFileSync('bash', [script, ...args], {
+        encoding: 'utf8',
+        env: { ...env, ...extra },
+        stdio: ['ignore', 'pipe', 'pipe']
+      }).trim()
+    expect(print(['--print-container-cache'])).toBe('/work/out/node-runtime-cache')
+    expect(
+      print(['--print-container-node', `${repoRoot}/out/node-runtime-cache/node-v/bin/node`])
+    ).toBe('/work/out/node-runtime-cache/node-v/bin/node')
+    expect(print(['--print-container-node', 'out/node-runtime-cache/node-v/bin/node'])).toBe(
+      '/work/out/node-runtime-cache/node-v/bin/node'
+    )
+    const outside = '/tmp/orca-node-runtime-cache'
+    expect(print(['--print-container-cache'], { ORCA_NODE_RUNTIME_CACHE_DIR: outside })).toBe(
+      '/node-runtime-cache'
+    )
+    expect(
+      print(['--print-container-node', `${outside}/node-v24.21.0-linux-x64/bin/node`], {
+        ORCA_NODE_RUNTIME_CACHE_DIR: outside
+      })
+    ).toBe('/node-runtime-cache/node-v24.21.0-linux-x64/bin/node')
+    expect(
+      print(['--print-container-cache'], {
+        ORCA_NODE_RUNTIME_CACHE_DIR: `${repoRoot}/out/custom-node-cache`
+      })
+    ).toBe('/work/out/custom-node-cache')
+    expect(() =>
+      print(['--print-container-node', '/tmp/cache-other/bin/node'], {
+        ORCA_NODE_RUNTIME_CACHE_DIR: '/tmp/cache'
+      })
+    ).toThrow(/outside the workspace and the runtime cache/)
   })
 
   it('bundles fork registration into the orcad template entry', () => {

@@ -182,6 +182,9 @@ stop_build_group() {
 acquire_lock
 trap 'stop_build_group "${BUILD_PGID:-}"; rm -f "$LOCK_FILE" "${ORCA_AUTO_UPDATE_SCRIPT_COPY:-}"' EXIT
 
+# launchd 没有登录 shell 的 PATH。~/.orbstack/bin 可能不存在，OrbStack 的 docker 在应用包的 xbin。
+readonly MAC_TOOL_PATH="/opt/homebrew/bin:/usr/local/bin:${HOME}/.orbstack/bin:/Applications/OrbStack.app/Contents/MacOS/xbin"
+
 use_node24() {
   export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
   if [[ -s "$NVM_DIR/nvm.sh" ]]; then
@@ -198,7 +201,7 @@ use_node24() {
     corepack enable
     corepack prepare pnpm@12.8.1 --activate
   fi
-  export PATH="/opt/homebrew/bin:/usr/local/bin:${HOME}/.orbstack/bin:${PATH}"
+  export PATH="${MAC_TOOL_PATH}:${PATH}"
 }
 
 seed_glibc217() {
@@ -485,7 +488,7 @@ build_develop_release() {
 }
 
 use_node24
-export PATH="/opt/homebrew/bin:/usr/local/bin:${HOME}/.orbstack/bin:${PATH}"
+export PATH="${MAC_TOOL_PATH}:${PATH}"
 if [[ "${ORCA_BUILD_RELEASES:-}" != 1 ]]; then
   RESULT="skipped"
   ERROR="set ORCA_BUILD_RELEASES=1 and ORCA_PUBLISH_RELEASE=1 in sync.env"

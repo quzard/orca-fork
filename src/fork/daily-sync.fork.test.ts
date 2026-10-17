@@ -92,6 +92,9 @@ describe('fork daily sync split', () => {
     expect(script).not.toContain('--publish')
     expect(script).not.toContain('unofficial-builds.nodejs.org')
     expect(script).not.toContain('git push')
+    expect(script).toContain('/Applications/OrbStack.app/Contents/MacOS/xbin')
+    expect(script.match(/export PATH="\$\{MAC_TOOL_PATH\}:\$\{PATH\}"/g)).toHaveLength(2)
+    expect(script).toContain('${STATUS_DIR}/node-runtime-cache')
     const plist = readFileSync(
       resolve('fork/scripts/launchd/com.orca.fork.mac-auto-update.plist'),
       'utf8'
@@ -102,6 +105,7 @@ describe('fork daily sync split', () => {
     expect(plist).toContain('<key>StartInterval</key>')
     expect(plist).toContain('<integer>1800</integer>')
     expect(plist).toContain('<key>RunAtLoad</key>')
+    expect(plist).toContain('/Applications/OrbStack.app/Contents/MacOS/xbin')
     for (const path of [
       'fork/scripts/mac-auto-update.sh',
       'fork/scripts/install-mac-auto-update-agent.sh',

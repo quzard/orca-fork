@@ -40,7 +40,6 @@ import {
   armForkBackgroundDownload,
   consumeForkBackgroundDownloadFailure,
   forkAutoInstallOnQuit,
-  forkRestartPromptedVersion,
   forkStagedUpdateVersion,
   noteForkUpdateDownloaded,
   planForkCheckFailure,
@@ -189,7 +188,6 @@ describe('fork background download decisions', () => {
 
     noteForkUpdateDownloaded('2.0.0', false)
     expect(forkStagedUpdateVersion()).toBe('2.0.0')
-    expect(forkRestartPromptedVersion()).toBe('2.0.0')
     expect(
       shouldHoldForkUpdateCheck({
         userInitiated: false,
@@ -266,6 +264,17 @@ describe('fork background download decisions', () => {
         downloadingVersion: null
       })
     ).toBe('passthrough')
+  })
+
+  it('does not swallow local-build or pinned-version check errors', () => {
+    useReadyFeed()
+    noteForkUpdateDownloaded('2.0.0', false)
+    expect(planForkCheckFailure('checking', true, { localBuild: true })).toEqual({ kind: 'none' })
+    expect(planForkCheckFailure('downloaded', false, { pinned: true })).toEqual({ kind: 'none' })
+    expect(planForkCheckFailure('error', true, { localBuild: true, pinned: true })).toEqual({
+      kind: 'none'
+    })
+    expect(planForkCheckFailure('checking', true)).toEqual({ kind: 'restart', version: '2.0.0' })
   })
 
   it('logs a fixed download-failure line and falls back to the manual offer', () => {
@@ -378,7 +387,7 @@ describe('fork updater handler wiring', () => {
     status = { state: 'downloading', percent: 40, version: '2.0.0' }
     emit('update-downloaded', { version: '2.0.0', downloadedFile: '/tmp/Orca.zip' })
     expect(sent.at(-1)).toMatchObject({ state: 'downloaded', version: '2.0.0' })
-    expect(forkRestartPromptedVersion()).toBe('2.0.0')
+    expect(forkStagedUpdateVersion()).toBe('2.0.0')
 
     sendStatus.mockClear()
     beginForkBackgroundDownload.mockClear()

@@ -25,7 +25,10 @@ export abstract class UpdaterCheckFailure extends UpdaterReleaseFeed {
   }
 
   protected keepForkStagedUpdate(userInitiated?: boolean): boolean {
-    const plan = planForkCheckFailure(this.currentStatus.state, Boolean(userInitiated))
+    const plan = planForkCheckFailure(this.currentStatus.state, Boolean(userInitiated), {
+      localBuild: this.activeUpdateSource === 'local',
+      pinned: this.isPinnedBuildActive
+    })
     if (plan.kind === 'none') {
       return false
     }

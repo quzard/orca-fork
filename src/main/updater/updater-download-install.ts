@@ -12,7 +12,10 @@ import { UpdaterRemoteStatus } from './updater-remote-status'
 import { prepareThisProcessShipItStaging } from './shipit-leftover-recovery'
 import {
   armForkBackgroundDownload,
-  consumeForkBackgroundDownloadFailure
+  consumeForkBackgroundDownloadFailure,
+  disarmForkBackgroundDownload,
+  forkBackgroundDownloadFollowUp,
+  isForkBackgroundDownloadArmed
 } from '../../fork/private-github-background-download'
 
 /** Coordinates renderer-facing download/install actions and their duplicate guards. */
@@ -102,13 +105,29 @@ export abstract class UpdaterDownloadInstall extends UpdaterRemoteStatus {
     }
     this.downloadInFlight = true
     const localBuildDownload = this.activeUpdateSource === 'local'
+    // fork: 后台下载和手动下载共用这条路径，后台失败不能把请求错误写进状态。
+    const backgroundDownload = isForkBackgroundDownloadArmed()
     beginMacUpdateDownload()
     // Why: setup can take seconds before progress emits; surface acceptance now so the action never looks inert.
     this.sendStatus({ state: 'downloading', percent: 0, version })
+    const settleBackgroundDownloadFailure = (): boolean => {
+      if (!backgroundDownload) {
+        return false
+      }
+      this.downloadInFlight = false
+      const manualFallback = consumeForkBackgroundDownloadFailure(version)
+      if (manualFallback) {
+        this.sendStatus(manualFallback)
+      }
+      return true
+    }
     const startDownload = (): void => {
       this.getAutoUpdater()
         .downloadUpdate()
         .catch((err) => {
+          if (settleBackgroundDownloadFailure()) {
+            return
+          }
           this.downloadInFlight = false
           const message = String(err?.message ?? err)
           if (localBuildDownload) {
@@ -123,69 +142,29 @@ export abstract class UpdaterDownloadInstall extends UpdaterRemoteStatus {
       ? null
       : prepareThisProcessShipItStaging()
     if (preparingStaging) {
-      void preparingStaging.then(startDownload)
+      void preparingStaging.then(startDownload, (error: unknown) => {
+        if (!settleBackgroundDownloadFailure()) {
+          throw error
+        }
+      })
     } else {
       startDownload()
     }
   }
 
-  /** 私有源后台下载。失败时回到可手动点的更新，不把请求错误写进日志。 */
+  /** 私有源后台下载：先标成可下载再走 downloadUpdate，失败时不把请求错误写进日志。 */
   protected downloadForkBackgroundUpdate(version: string): void {
-    if (
-      this.localBuildSelectionInProgress ||
-      this.pinnedBuildSelectionInProgress ||
-      this.pendingQuitAndInstallTimer ||
-      this.quitAndInstallInProgress ||
-      isMacInstallRequested() ||
-      this.downloadInFlight
-    ) {
-      this.sendStatus({ state: 'available', version, changelog: null })
-      return
-    }
-    if (isExternallyManagedLinuxInstall()) {
-      recordUpdaterLifecycle('linux_package_externally_managed_download_blocked', { version })
-      this.clearAvailableUpdateContext()
-      this.restoreReleaseUpdateSource()
-      this.sendStatus({
-        state: 'error',
-        message: LINUX_PACKAGE_EXTERNALLY_MANAGED_MESSAGE,
-        version,
-        retryable: false
-      })
-      return
-    }
-    if (this.deferHeadlessServeInstall('download', version)) {
-      return
-    }
     this.availableVersion = version
+    this.currentStatus = { state: 'available', version, changelog: null }
     armForkBackgroundDownload(version)
-    this.downloadInFlight = true
-    beginMacUpdateDownload()
-    this.sendStatus({ state: 'downloading', percent: 0, version })
-    const startDownload = (): void => {
-      this.getAutoUpdater()
-        .downloadUpdate()
-        .catch(() => {
-          this.downloadInFlight = false
-          const manualFallback = consumeForkBackgroundDownloadFailure(version)
-          if (manualFallback) {
-            this.sendStatus(manualFallback)
-          }
-        })
+    this.downloadUpdate()
+    const followUp = forkBackgroundDownloadFollowUp(this.currentStatus)
+    if (followUp === 'started') {
+      return
     }
-    const preparingStaging = this.isMacStagingDeferredToInstall()
-      ? null
-      : prepareThisProcessShipItStaging()
-    if (preparingStaging) {
-      void preparingStaging.then(startDownload, () => {
-        this.downloadInFlight = false
-        const manualFallback = consumeForkBackgroundDownloadFailure(version)
-        if (manualFallback) {
-          this.sendStatus(manualFallback)
-        }
-      })
-    } else {
-      startDownload()
+    disarmForkBackgroundDownload()
+    if (followUp === 'show-offer') {
+      this.sendStatus(this.currentStatus)
     }
   }
 

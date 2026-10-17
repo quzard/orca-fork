@@ -3,6 +3,8 @@ import type { ForkUpdateAdapter } from '../fork/private-github-background-downlo
 import type { UpdaterHandlerContext } from './updater-handler-context'
 import { resetMacInstallState } from './updater-mac-install'
 
+export type { ForkUpdateAdapter }
+
 export function bindForkBackgroundUpdates(ctx: UpdaterHandlerContext): ForkUpdateAdapter {
   return createForkUpdateAdapter({
     localOrPinned: () => ctx.isLocalBuildCheck() || ctx.isPinnedBuildCheck(),

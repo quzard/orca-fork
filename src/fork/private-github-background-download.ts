@@ -37,13 +37,11 @@ export type ForkCheckFailurePlan =
   | { kind: 'restart'; version: string }
 
 let downloadedVersion: string | null = null
-let promptedVersion: string | null = null
 let activeDownloadVersion: string | null = null
 let backgroundActive = false
 
 export function resetForkBackgroundDownloadState(): void {
   downloadedVersion = null
-  promptedVersion = null
   activeDownloadVersion = null
   backgroundActive = false
 }
@@ -54,10 +52,6 @@ export function isForkGithubUpdateReady(): boolean {
 
 export function forkStagedUpdateVersion(): string | null {
   return downloadedVersion
-}
-
-export function forkRestartPromptedVersion(): string | null {
-  return promptedVersion
 }
 
 /** 上游仍只在 Linux 非 root 包上退出即装。私有源的交互会话在 Mac/Windows 上也退出即装。 */
@@ -120,16 +114,29 @@ export function noteForkUpdateDownloaded(version: string, localOrPinned: boolean
   downloadedVersion = version
   activeDownloadVersion = null
   backgroundActive = false
-  promptedVersion = version
 }
 
 export function armForkBackgroundDownload(version: string): void {
   if (downloadedVersion !== version) {
     downloadedVersion = null
-    promptedVersion = null
   }
   activeDownloadVersion = version
   backgroundActive = true
+}
+
+export function isForkBackgroundDownloadArmed(): boolean {
+  return backgroundActive
+}
+
+/** downloadUpdate 返回后：已开始下载就保持武装，仍是可下载就交给手动卡片，其它状态保持原样。 */
+export function forkBackgroundDownloadFollowUp(
+  status: UpdateStatus
+): 'started' | 'show-offer' | 'leave' {
+  return status.state === 'downloading'
+    ? 'started'
+    : status.state === 'available'
+      ? 'show-offer'
+      : 'leave'
 }
 
 export function consumeForkBackgroundDownloadFailure(
@@ -145,6 +152,11 @@ export function consumeForkBackgroundDownloadFailure(
     return null
   }
   return { state: 'available', version, changelog: null }
+}
+
+export function disarmForkBackgroundDownload(): void {
+  backgroundActive = false
+  activeDownloadVersion = null
 }
 
 export type ForkUpdateEffects = {
@@ -199,9 +211,17 @@ export function takeForkMissingUpdate(
 
 export function planForkCheckFailure(
   status: ForkUpdatePhase,
-  userInitiated: boolean
+  userInitiated: boolean,
+  source: { localBuild?: boolean; pinned?: boolean } = {}
 ): ForkCheckFailurePlan {
-  if (!isForkGithubUpdateReady() || !downloadedVersion || backgroundActive) {
+  // 本地构建和固定版本失败必须走原来的恢复，不能被私有源的已下载版本吞掉。
+  if (
+    source.localBuild ||
+    source.pinned ||
+    !isForkGithubUpdateReady() ||
+    !downloadedVersion ||
+    backgroundActive
+  ) {
     return { kind: 'none' }
   }
   if (status === 'downloading') {

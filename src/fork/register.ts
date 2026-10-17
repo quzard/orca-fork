@@ -4,8 +4,10 @@
 import { registerSidebarGroupIdPreserve } from '../shared/fork-hooks/sidebar-group-membership'
 import { registerHostDirectoryMode } from './sidebar/register-mode'
 import { preserveOmittedSidebarGroupIds } from './sidebar/preserve-sidebar-group'
+import { registerForkSkillSource } from './skills-source-commit'
 
 export function registerForkModules(): void {
+  registerForkSkillSource()
   registerHostDirectoryMode()
   registerSidebarGroupIdPreserve(preserveOmittedSidebarGroupIds)
 }

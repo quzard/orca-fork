@@ -16,9 +16,11 @@ import { cursorRemoteSshLaunchSpec } from './open-in/cursor-remote-launch'
 import { resolveFolderTerminalWorkspace } from './terminal/folder-workspace-resolver'
 import { getGitRepoRoot } from '../main/git/repo-detection'
 import { registerImportedWorktreePath } from '../shared/fork-hooks/imported-worktree-path'
+import { registerForkSkillSource } from './skills-source-commit'
 
 /** Desktop and orcad. The renderer must not import this file. */
 export function registerForkMainModules(): void {
+  registerForkSkillSource()
   installAiVaultForkServicePolicy()
   registerAiVaultServiceHeap(() => aiVaultServiceHeapMiB())
   registerDeferBrowserSessionProxy(true)

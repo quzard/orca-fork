@@ -21,6 +21,7 @@ import {
   SKILLS_CLI_ENV_OVERRIDES
 } from '../../shared/agent-feature-install-commands'
 import { readOrcaCliBuildCommit } from '../cli-version'
+import { resolveSkillSourceCommit } from '../../shared/fork-hooks/skill-source-commit'
 
 function resolveSelectedSkillNames(
   flags: Map<string, string | boolean>,
@@ -168,7 +169,8 @@ function resolveAgentKeys(verb: SkillMutationVerb, flags: Map<string, string | b
 }
 
 function buildNpxSkillsArgs(skillNames: string[], global: boolean, agents: string[]): string[] {
-  const sourceCommit = readOrcaCliBuildCommit()
+  // fork: registered builds clone the upstream base instead of this fork's commit.
+  const sourceCommit = resolveSkillSourceCommit(readOrcaCliBuildCommit())
   if (!sourceCommit) {
     throw new RuntimeClientError(
       'invalid_environment',

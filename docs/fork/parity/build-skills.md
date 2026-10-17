@@ -1,6 +1,6 @@
 # build-skills 对照
 
-对照发布分支的 F002、F036、F038、F040。F024 停用，技能安装和更新保持上游。Linux 上能跑的用测试证明；只能在 Mac 上做的标成未在本环境执行。
+对照发布分支的 F002、F036、F038、F040。F024 停用自定义仓库，技能仍从上游仓库安装，clone ref 用上游基线提交。Linux 上能跑的用测试证明；只能在 Mac 上做的标成未在本环境执行。
 
 | 行为 | 结果 | 证据 |
 | --- | --- | --- |
@@ -17,6 +17,6 @@
 | 密钥 32 字节 AES-256-GCM；并发硬链接不覆盖胜出者；坏密钥不回退明文；目录 0700、文件 0600 | 通过 | 同上文件密钥测试 |
 | 插件和账号会话与桌面密钥库共用文件密钥，不再单独打钥匙串 | 通过（门闩） | 打包 Mac 的文件密钥同时登记为 `guardedSafeStorage` 后端。未登记时仍走钥匙串。`safe-storage-availability.test.ts` |
 | 改 `skill-stubs/_shared/cli-resolution.md` | 不需要 | 上游已在 SSH 终端和子进程导出 `ORCA_CLI_COMMAND`（默认 `~/.orca/cli/bin/orca`）。stub 已优先使用该变量 |
-| F024 自定义技能来源、清单重写、应用升级自动刷新 | 停用 | 安装命令文件与上游一致。没有技能来源钩子，安装脚本不含 `generate:skill-bundle-manifest`。 |
+| F024 自定义技能来源、清单重写、应用升级自动刷新 | 停用仓库改写 | 仓库仍是上游。fork 构建的 clone ref 是上游基线提交（`src/fork/skills-source-commit.ts`），不是本次构建提交。没有 `ORCA_FORK_SKILLS_SOURCE`，安装脚本不含 `generate:skill-bundle-manifest`。 |
 
 上游文件改动：`src/main/index.ts`（在 preflight 前调用 `registerForkMainModules`）、`src/main/host/safe-storage-availability.ts`（未登记文件密钥时仍是钥匙串）。

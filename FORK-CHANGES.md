@@ -76,7 +76,9 @@
 
 ## F024 Skill 安装来源（已放弃）
 
-不再移植。上游已在 SSH 终端导出 `ORCA_CLI_COMMAND`，skills 继续用上游的官方来源和更新流程。`src/shared/agent-feature-install-commands.ts` 与上游一致，没有 skill 仓库钩子，也没有 `ORCA_FORK_SKILLS_SOURCE`。
+不再移植自定义仓库。skills 仍从 `https://github.com/stablyai/orca` 安装，内容与上游相同。fork 构建不能把本次构建提交当作 clone ref：该提交不在上游，`npx skills add` 会报 Failed to clone repository。
+
+安装、更新和 CLI 用的 ref 是 `src/fork/skills-source-commit.ts` 里的上游基线提交（当前 `17a2bced1115f064e834e397c2b949d9e150d275`）。同步后运行 `node fork/scripts/sync-skills-source-commit.mjs` 重写它：先 `merge-base` `fork/base-upstream`，没有该引用就用 `upstream/main`，再没有就保留已写入的值。`src/shared/agent-feature-install-commands.ts` 与上游一致，没有 skill 仓库钩子，也没有 `ORCA_FORK_SKILLS_SOURCE`。
 
 ## F036 本机 orcad 模板目标
 

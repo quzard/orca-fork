@@ -11,6 +11,7 @@ import {
 } from './LinearAgentSkillSetupPrompt'
 import type { LinearAgentSkillPromptSettings } from './linear-agent-skill-runtime'
 import { SKILLS_CLI_VERSION } from '../../../../shared/agent-feature-install-commands'
+import { FORK_SKILLS_SOURCE_COMMIT } from '../../../../fork/skills-source-commit'
 
 const HOST_DISMISS_STORAGE_KEY = 'orca.linearTicketsSkill.setupDismissed.host'
 const FEDORA_DISMISS_STORAGE_KEY = 'orca.linearTicketsSkill.setupDismissed.wsl.Fedora'
@@ -353,7 +354,7 @@ describe('LinearAgentSkillSetupPrompt', () => {
     expect(document.body.textContent).toContain(`npx skills@${SKILLS_CLI_VERSION} add`)
     expect(mocks.panelProps.at(-1)).toEqual(
       expect.objectContaining({
-        installedCommand: `npx skills@${SKILLS_CLI_VERSION} add https://github.com/stablyai/orca/tree/${ORCA_BUILD_COMMIT} --skill orca-linear --global`,
+        installedCommand: `npx skills@${SKILLS_CLI_VERSION} add https://github.com/stablyai/orca/tree/${FORK_SKILLS_SOURCE_COMMIT} --skill orca-linear --global`,
         terminalShellOverride: 'powershell.exe',
         terminalRuntime: expect.objectContaining({ runtime: 'wsl', wslDistro: 'Fedora' })
       })

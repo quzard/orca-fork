@@ -2,7 +2,7 @@
 
 本 fork 不改技能安装来源，不改 `skills/`、`skill-guides/`、`skill-stubs/`，也不在应用升级时自动刷新已安装技能。
 
-安装命令与上游相同：`https://github.com/stablyai/orca` 加上本次构建提交。更新仍由用户从上游的更新对话框发起，主进程 `SkillUpdateRunner` 执行同一条 `skills add`。没有版本戳，也没有启动时自动更新。
+安装命令与上游同一个仓库：`https://github.com/stablyai/orca`。ref 是上游基线提交，不是本次 fork 构建提交。更新仍由用户从上游的更新对话框发起，主进程 `SkillUpdateRunner` 执行同一条 `skills add`。没有版本戳，也没有启动时自动更新。
 
 ## 为什么不再改 SSH 技能说明
 

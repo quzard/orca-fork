@@ -25,6 +25,7 @@
     "../src/fork/personal-release-checks.fork.test.ts",
     "../src/fork/desktop-secret-store.fork.test.ts",
     "../src/fork/macos-file-secret-store.fork.test.ts",
+    "../src/fork/skills-source-commit.fork.test.ts",
     "../src/fork/**/*.fork.test.tsx",
     "../src/fork/register-main.ts",
     "../src/fork/register-electron.ts",

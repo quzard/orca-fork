@@ -12,9 +12,10 @@ import { OrchestrationPane } from './OrchestrationPane'
 import { getOrchestrationPaneSearchEntries } from './orchestration-search'
 import { matchesSettingsSearch } from './settings-search'
 import { SKILLS_CLI_VERSION } from '../../../../shared/agent-feature-install-commands'
+import { FORK_SKILLS_SOURCE_COMMIT } from '../../../../fork/skills-source-commit'
 
-const INSTALL_COMMAND = `npx skills@${SKILLS_CLI_VERSION} add https://github.com/stablyai/orca/tree/${ORCA_BUILD_COMMIT} --skill orchestration --global`
-const WINDOWS_INSTALL_COMMAND = `cmd.exe /d /s /c "where.exe npx >nul 2>nul & if errorlevel 1 (echo ERROR: npx was not found. Install Node.js LTS from https://nodejs.org/ to get npx. & echo Then close this terminal and start skill setup again - a new terminal picks up the updated PATH. & exit /b 1) else (npx skills@${SKILLS_CLI_VERSION} add https://github.com/stablyai/orca/tree/${ORCA_BUILD_COMMIT} --skill orchestration --global)"`
+const INSTALL_COMMAND = `npx skills@${SKILLS_CLI_VERSION} add https://github.com/stablyai/orca/tree/${FORK_SKILLS_SOURCE_COMMIT} --skill orchestration --global`
+const WINDOWS_INSTALL_COMMAND = `cmd.exe /d /s /c "where.exe npx >nul 2>nul & if errorlevel 1 (echo ERROR: npx was not found. Install Node.js LTS from https://nodejs.org/ to get npx. & echo Then close this terminal and start skill setup again - a new terminal picks up the updated PATH. & exit /b 1) else (npx skills@${SKILLS_CLI_VERSION} add https://github.com/stablyai/orca/tree/${FORK_SKILLS_SOURCE_COMMIT} --skill orchestration --global)"`
 
 const mocks = vi.hoisted(() => ({
   dialogProps: [] as Record<string, unknown>[],

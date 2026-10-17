@@ -19,6 +19,7 @@ import { UNIT_INCLUDE } from './ci-unit-files.mjs'
 import { runProcessSync } from '@orca/process-host'
 import { describeProcessFailure } from './process-failure-message.mjs'
 import { resolveBuildSourceCommit } from './build-source-commit.mjs'
+import { resolveForkSkillsSourceCommit } from '../../fork/scripts/sync-skills-source-commit.mjs'
 import {
   CROSS_RUNTIME_TEST_PATHS,
   nodeServerTestPaths,
@@ -82,7 +83,11 @@ if (artifact) {
   )
   process.stdout.write(`${JSON.stringify({ target, ...response })}\n`)
 
-  const source = `https://github.com/stablyai/orca/tree/${resolveBuildSourceCommit()}`
+  const sourceCommit = resolveForkSkillsSourceCommit(resolveBuildSourceCommit())
+  if (!sourceCommit) {
+    throw new Error('Could not resolve the upstream commit skill installs clone.')
+  }
+  const source = `https://github.com/stablyai/orca/tree/${sourceCommit}`
   const cli = runProcessSync({
     program: runtimePath,
     args: [

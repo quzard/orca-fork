@@ -21,6 +21,7 @@ import {
 } from '../skills/skill-discovery-target'
 import { registerSkillCloudIpcHandlers } from './skill-cloud-ipc-handlers'
 import { handleMainWindowSkillIpc } from './skill-ipc-main-window'
+import { resolveSkillSourceCommit } from '../../shared/fork-hooks/skill-source-commit'
 
 export function registerSkillsHandlers(store: Store, runtime?: OrcaRuntimeService): void {
   const discover = async (target?: SkillDiscoveryTarget): Promise<SkillDiscoveryResult> => {
@@ -37,7 +38,8 @@ export function registerSkillsHandlers(store: Store, runtime?: OrcaRuntimeServic
     inventorySkillFreshness({ repos: store.getRepos() })
 
   const runner = new SkillUpdateRunner({
-    sourceCommit: ORCA_BUILD_COMMIT,
+    // fork: skill updates clone the upstream base when one is registered.
+    sourceCommit: resolveSkillSourceCommit(ORCA_BUILD_COMMIT) ?? ORCA_BUILD_COMMIT,
     // Why: per-skill outcomes come from re-hashing what is actually on disk, not
     // from scraping stdout.
     rescanOutdatedNames: async (names) => {

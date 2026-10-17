@@ -40,3 +40,11 @@ git rebase --continue
 ```
 
 Then regenerate catalogs and skills from the scripts in `package.json` (`verify:rpc-params-catalog`, `verify:bundled-skill-guides`, `verify:skill-bundle-manifest`, `verify:localization-runtime-catalog`) and run the checks in [VERIFY.md](./VERIFY.md).
+
+Rewrite the skill clone ref and commit that file with the sync:
+
+```bash
+node fork/scripts/sync-skills-source-commit.mjs
+```
+
+The script writes `src/fork/skills-source-commit.ts`. It uses `git merge-base HEAD fork/base-upstream`, then `origin/fork/base-upstream`. If that ref is missing, it uses `upstream/main`, then `origin/upstream/main`. If those are missing too, it keeps the checked-in pin. A fork build must not clone `stablyai/orca` at its own commit.

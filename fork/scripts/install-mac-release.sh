@@ -78,12 +78,11 @@ if ! security find-identity -v -p codesigning | awk -v identity="$LOCAL_SIGNING_
   echo "未找到有效的代码签名身份：${LOCAL_SIGNING_IDENTITY}；请在登录钥匙串中创建并信任该证书。" >&2
   exit 1
 fi
-readonly ARCH="$(node -p 'process.arch')"
-if [[ "$ARCH" == 'arm64' ]]; then
-  readonly BUILT_APP="$OUTPUT_DIR/mac-arm64/$APP_NAME"
-else
-  readonly BUILT_APP="$OUTPUT_DIR/mac/$APP_NAME"
+if [[ "$(node -p 'process.arch')" != 'arm64' ]]; then
+  echo '本机需要 Apple Silicon（arm64）。' >&2
+  exit 1
 fi
+readonly BUILT_APP="$OUTPUT_DIR/mac-arm64/$APP_NAME"
 
 assert_packaged_artifacts() {
   local resources="$BUILT_APP/Contents/Resources"
@@ -118,8 +117,8 @@ assert_packaged_artifacts() {
 
 if [[ -z "$INSTALL_BUILT_VERSION" ]]; then
   if [[ "$FAST" == false ]]; then
-    # release-mac-build.yml installs both CPUs because electron-builder packs x64 and arm64.
-    pnpm install --frozen-lockfile --cpu=current,x64,arm64
+    # These Macs are Apple Silicon. The release job also installs x64 for the other package.
+    pnpm install --frozen-lockfile --cpu=arm64
     pnpm --dir mobile install --frozen-lockfile
     git diff --exit-code -- mobile/package.json mobile/pnpm-lock.yaml mobile/pnpm-workspace.yaml
   else
@@ -163,9 +162,13 @@ if [[ -z "$INSTALL_BUILT_VERSION" ]]; then
 
   # Local packager. It sets the version suffix and runs electron-builder for macOS.
   # Apple notarization and GitHub artifact upload stay off.
-  node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON config/scripts/pinned-node-downloads.mjs darwin-arm64 darwin-x64
+  # A bare --arm64 flag does not drop the x64 package: the config lists both arches,
+  # and an empty target list keeps them. Naming dmg:arm64 and zip:arm64 builds one arch,
+  # so afterPack never runs the x64 PTY check. That check starts the interactive shell
+  # under Rosetta and timed out waiting for OK 42.
+  node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON config/scripts/pinned-node-downloads.mjs darwin-arm64
   pnpm run ensure:electron-runtime
-  node config/scripts/build-mac-local.mjs
+  node config/scripts/build-mac-local.mjs dmg:arm64 zip:arm64
 fi
 
 ORCA_LOCAL_BUILD_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$BUILT_APP/Contents/Info.plist")"

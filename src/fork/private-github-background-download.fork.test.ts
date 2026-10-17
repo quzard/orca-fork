@@ -1,15 +1,36 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { UpdateStatus } from '../shared/update-status-types'
 import type { registerAutoUpdaterHandlers } from '../main/updater-events'
+import { beginMacUpdateDownload } from '../main/updater-mac-install'
+
+const nativeAutoUpdater = vi.hoisted(() => {
+  const handlers = new Map<string, ((...args: unknown[]) => void)[]>()
+  return {
+    on(event: string, handler: (...args: unknown[]) => void) {
+      handlers.set(event, [...(handlers.get(event) ?? []), handler])
+      return this
+    },
+    emit(event: string, ...args: unknown[]) {
+      const list = handlers.get(event) ?? []
+      for (const handler of list) {
+        handler(...args)
+      }
+    },
+    removeAllListeners(): void {
+      handlers.clear()
+    }
+  }
+})
 
 vi.mock('electron', () => ({
   app: {
     isPackaged: true,
     getVersion: () => '1.0.0',
     on: vi.fn(),
-    prependListener: vi.fn()
+    prependListener: vi.fn(),
+    quit: vi.fn()
   },
-  autoUpdater: { on: vi.fn() }
+  autoUpdater: nativeAutoUpdater
 }))
 
 vi.mock('../main/linux-update-package-type', () => ({
@@ -51,6 +72,11 @@ import {
 } from './private-github-background-download'
 
 const TOKEN = 'super-secret-token'
+const hostPlatform = process.platform
+
+function usePlatform(platform: NodeJS.Platform): void {
+  Object.defineProperty(process, 'platform', { configurable: true, value: platform })
+}
 
 function useReadyFeed(): void {
   registerForkUpdateFeed(() => ({
@@ -65,6 +91,9 @@ function useReadyFeed(): void {
 afterEach(() => {
   registerForkUpdateFeed(null)
   resetForkBackgroundDownloadState()
+  usePlatform(hostPlatform)
+  nativeAutoUpdater.removeAllListeners()
+  beginMacUpdateDownload()
 })
 
 describe('fork background download decisions', () => {
@@ -320,8 +349,15 @@ function testAutoUpdater(): {
 }
 
 describe('fork updater handler wiring', () => {
-  it('auto-downloads, prompts once, and shows the restart card from a manual check', async () => {
-    useReadyFeed()
+  async function wireHandlers(): Promise<{
+    emit: (event: string, ...args: unknown[]) => void
+    sent: UpdateStatus[]
+    sendStatus: ReturnType<typeof vi.fn>
+    beginForkBackgroundDownload: ReturnType<typeof vi.fn>
+    finishActiveUpdateCheckAttempt: ReturnType<typeof vi.fn>
+    setStatus: (next: UpdateStatus) => void
+    setUserInitiated: (value: boolean) => void
+  }> {
     let status: UpdateStatus = { state: 'idle' }
     let userInitiated = false
     const sent: UpdateStatus[] = []
@@ -377,6 +413,33 @@ describe('fork updater handler wiring', () => {
     }
     const { registerAutoUpdaterHandlers } = await import('../main/updater-events')
     registerAutoUpdaterHandlers(context)
+    return {
+      emit,
+      sent,
+      sendStatus,
+      beginForkBackgroundDownload,
+      finishActiveUpdateCheckAttempt,
+      setStatus: (next) => {
+        status = next
+      },
+      setUserInitiated: (value) => {
+        userInitiated = value
+      }
+    }
+  }
+
+  it('on linux, shows the restart card once when the download finishes', async () => {
+    usePlatform('linux')
+    useReadyFeed()
+    const {
+      emit,
+      sent,
+      sendStatus,
+      beginForkBackgroundDownload,
+      finishActiveUpdateCheckAttempt,
+      setStatus,
+      setUserInitiated
+    } = await wireHandlers()
 
     emit('checking-for-update')
     emit('update-available', { version: '2.0.0' })
@@ -384,21 +447,21 @@ describe('fork updater handler wiring', () => {
     expect(sent.some((item) => item.state === 'available')).toBe(false)
     expect(sent.some((item) => item.state === 'checking')).toBe(true)
 
-    status = { state: 'downloading', percent: 40, version: '2.0.0' }
+    setStatus({ state: 'downloading', percent: 40, version: '2.0.0' })
     emit('update-downloaded', { version: '2.0.0', downloadedFile: '/tmp/Orca.zip' })
     expect(sent.at(-1)).toMatchObject({ state: 'downloaded', version: '2.0.0' })
     expect(forkStagedUpdateVersion()).toBe('2.0.0')
 
     sendStatus.mockClear()
     beginForkBackgroundDownload.mockClear()
-    status = { state: 'downloaded', version: '2.0.0' }
+    setStatus({ state: 'downloaded', version: '2.0.0' })
     emit('checking-for-update')
     emit('update-available', { version: '2.0.0' })
     expect(sendStatus).not.toHaveBeenCalled()
     expect(beginForkBackgroundDownload).not.toHaveBeenCalled()
     expect(finishActiveUpdateCheckAttempt).toHaveBeenCalled()
 
-    userInitiated = true
+    setUserInitiated(true)
     sendStatus.mockClear()
     emit('checking-for-update')
     emit('update-available', { version: '2.0.0' })
@@ -410,12 +473,55 @@ describe('fork updater handler wiring', () => {
     ])
     expect(beginForkBackgroundDownload).not.toHaveBeenCalled()
 
-    userInitiated = false
-    status = { state: 'downloaded', version: '2.0.0' }
+    setUserInitiated(false)
+    setStatus({ state: 'downloaded', version: '2.0.0' })
     beginForkBackgroundDownload.mockClear()
     emit('checking-for-update')
     emit('update-available', { version: '3.0.0' })
     expect(beginForkBackgroundDownload).toHaveBeenCalledExactlyOnceWith('3.0.0')
+  })
+
+  it('on darwin, shows the restart card once after Squirrel stages', async () => {
+    usePlatform('darwin')
+    useReadyFeed()
+    beginMacUpdateDownload()
+    const { emit, sent, sendStatus, beginForkBackgroundDownload, setStatus, setUserInitiated } =
+      await wireHandlers()
+
+    emit('checking-for-update')
+    emit('update-available', { version: '2.0.0' })
+    expect(beginForkBackgroundDownload).toHaveBeenCalledExactlyOnceWith('2.0.0')
+    expect(sent.some((item) => item.state === 'available')).toBe(false)
+
+    setStatus({ state: 'downloading', percent: 40, version: '2.0.0' })
+    emit('update-downloaded', { version: '2.0.0', downloadedFile: '/tmp/Orca.zip' })
+    expect(sent.at(-1)).toMatchObject({ state: 'downloading', percent: 100, version: '2.0.0' })
+    expect(sent.some((item) => item.state === 'downloaded')).toBe(false)
+    expect(forkStagedUpdateVersion()).toBe('2.0.0')
+
+    sendStatus.mockClear()
+    beginForkBackgroundDownload.mockClear()
+    emit('checking-for-update')
+    emit('update-available', { version: '2.0.0' })
+    expect(sendStatus).not.toHaveBeenCalled()
+    expect(beginForkBackgroundDownload).not.toHaveBeenCalled()
+
+    nativeAutoUpdater.emit('update-downloaded')
+    expect(sent.filter((item) => item.state === 'downloaded')).toEqual([
+      expect.objectContaining({ state: 'downloaded', version: '2.0.0' })
+    ])
+
+    sendStatus.mockClear()
+    emit('checking-for-update')
+    emit('update-available', { version: '2.0.0' })
+    expect(sendStatus).not.toHaveBeenCalled()
+
+    setUserInitiated(true)
+    sendStatus.mockClear()
+    emit('checking-for-update')
+    emit('update-available', { version: '2.0.0' })
+    expect(sent.slice(-2).map((item) => item.state)).toEqual(['checking', 'downloaded'])
+    expect(sent.filter((item) => item.state === 'downloaded')).toHaveLength(2)
   })
 
   it('keeps the manual offer when no private feed is registered', async () => {

@@ -11,10 +11,12 @@
 
 ## F002 macOS 本地安装
 
-- 脚本：[fork/scripts/install-mac-release.sh](fork/scripts/install-mac-release.sh)
-- 固定签名身份 `Orca Local Signing`（`src/fork/packaging.cjs` 的 `localSigningIdentity`）。钥匙串里没有该证书就停止，不退回临时签名。
-- 打包追加整个 `dist/` 排除；`--cleanup-verified-backups <版本号>` 只清理 `/Applications/.orca-previous.*` 里已退出的旧应用。
-- `--fast` 跳过依赖安装和全量类型检查，原生与 Swift 产物未过期时不重编。签名、打包和原子替换不变。
+- 脚本：[fork/scripts/install-mac-release.sh](fork/scripts/install-mac-release.sh)。它只包一层上游发布命令，不再维护单独的 electron-builder 配置。
+- 依赖安装与上游 Mac 发布相同：`pnpm install --frozen-lockfile --cpu=current,x64,arm64`，以及 mobile 的 `pnpm install --frozen-lockfile`。应用构建是 `pnpm run build:release`。本机 orcad 槽按发布车道来：`pnpm build:orcad-prebuilds`、`--require-slots`、`--smoke`，再 `node config/scripts/build-orcad-template.mjs --targets <本机槽>`。然后是文件监视隔离检查、`pinned-node-downloads.mjs darwin-arm64 darwin-x64`、`ensure:electron-runtime`，最后 `node config/scripts/build-mac-local.mjs`。
+- 只覆盖三件事。签名身份是 `Orca Local Signing`（`CSC_NAME` 和 `ORCA_COMPUTER_MACOS_SIGN_IDENTITY`，`CSC_IDENTITY_AUTO_DISCOVERY=false`）；钥匙串里没有该证书就停止。版本后缀由 `build-mac-local.mjs` 写入，脚本不自己算。安装、备份和回退仍在这个脚本里。
+- 不公证。`ORCA_MAC_RELEASE` 等保持 0。需要 Apple 密钥、GitHub 发布或全矩阵 orcad 产物的步骤跳过，原因写在 [docs/fork/SYNC.md](docs/fork/SYNC.md)。
+- 打包后必须有 `Contents/Resources/orcad-template/orcad-template.json` 和 `app.asar.unpacked/out/cli/skills-source-commit.js`，并再跑一次上游的 CLI 闭包检查。
+- `--fast` 只跳过两次依赖安装。`--cleanup-verified-backups <版本号>` 只清理 `/Applications/.orca-previous.*` 里已退出的旧应用。
 - 静态资源签名排除通过 `extraMacSignIgnore` 进入现有 `mac.signIgnore`。不再写钥匙串 partition list；后台安装传递 `ORCA_BACKGROUND_LAUNCH=1`。
 
 ## 侧栏 host-directory
@@ -78,13 +80,11 @@
 
 不再移植自定义仓库。skills 仍从 `https://github.com/stablyai/orca` 安装，内容与上游相同。fork 构建不能把本次构建提交当作 clone ref：该提交不在上游，`npx skills add` 会报 Failed to clone repository。
 
-安装、更新和 CLI 用的 ref 是 `src/fork/skills-source-commit.ts` 里的上游基线提交（当前 `17a2bced1115f064e834e397c2b949d9e150d275`）。同步后运行 `node fork/scripts/sync-skills-source-commit.mjs` 重写它：先 `merge-base` `fork/base-upstream`，没有该引用就用 `upstream/main`，再没有就保留已写入的值。`src/shared/agent-feature-install-commands.ts` 与上游一致，没有 skill 仓库钩子，也没有 `ORCA_FORK_SKILLS_SOURCE`。
+安装、更新和 CLI 用的 ref 是上游基线提交（当前 `17a2bced1115f064e834e397c2b949d9e150d275`）。同一份模块写在两处：`src/cli/skills-source-commit.ts` 随 `out/cli/**` 打进包，供 CLI 使用；`src/fork/skills-source-commit.ts` 登记桌面和渲染进程。`src/cli/index.ts` 不引用 `src/fork`。同步后运行 `node fork/scripts/sync-skills-source-commit.mjs` 重写这两个文件：先 `merge-base` `fork/base-upstream`，没有该引用就用 `upstream/main`，再没有就保留已写入的值。`src/shared/agent-feature-install-commands.ts` 与上游一致，没有 skill 仓库钩子，也没有 `ORCA_FORK_SKILLS_SOURCE`。
 
 ## F036 本机 orcad 模板目标
 
-`ORCA_ORCAD_TEMPLATE_TARGETS`（逗号分隔）设置时，打包清单校验收窄到该子集。未设置则仍要求全部目标，发布 CI 行为不变。安装脚本用 `node src/fork/packaging.cjs --print-built-targets` 从已构建模板 manifest 导出该变量。
-
-自用发布固定构建 `darwin-arm64,linux-x64-glibc`（本机 ARM Mac 与 glibc Linux）。
+`ORCA_ORCAD_TEMPLATE_TARGETS`（逗号分隔）设置时，打包清单校验收窄到该子集。未设置则仍要求全部目标，发布 CI 行为不变。安装脚本把它设成 `build-orcad-prebuilds.mjs --print-slot` 打印的本机槽，并设置 `ORCA_REQUIRE_ORCAD_TEMPLATE=1`。一台机器编不了其它系统、架构或 libc 的槽；完整矩阵仍由 CI 的 `desktop_template` 合并。SSH 到未编进模板的主机仍会失败。
 
 ## F038 macOS 本地文件密钥
 
@@ -95,7 +95,7 @@
 - 入口：[fork/scripts/release-personal-orca.mjs](fork/scripts/release-personal-orca.mjs)
 - 本机任务检查：[fork/scripts/personal-orca-host.py](fork/scripts/personal-orca-host.py)（只保留 `local check`）
 - 发布分支由 `ORCA_FORK_RELEASE_BRANCH` 指定。未设置就停止。先推送，再确认已包含 `upstream/main`，不自动提交。有存活终端或不可确认任务时停止。
-- 构建含上面两个 orcad 槽，安装、ready 验收、清理旧应用，失败时按本批备份回退。
+- 构建交给安装脚本：上游发布步骤、本机 orcad 槽、`dist/mac-arm64/Orca.app`。安装、ready 验收、清理旧应用，失败时按本批备份回退。
 - 构建期间工作区出现任何脏路径都阻止安装。
 
 ## 内部标识

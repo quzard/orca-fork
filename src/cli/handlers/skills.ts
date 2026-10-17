@@ -22,6 +22,9 @@ import {
 } from '../../shared/agent-feature-install-commands'
 import { readOrcaCliBuildCommit } from '../cli-version'
 import { resolveSkillSourceCommit } from '../../shared/fork-hooks/skill-source-commit'
+import { registerForkSkillSource } from '../skills-source-commit'
+
+registerForkSkillSource()
 
 function resolveSelectedSkillNames(
   flags: Map<string, string | boolean>,

@@ -1,4 +1,6 @@
 import { execFileSync } from 'node:child_process'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { buildAgentFeatureSkillInstallCommand } from '../shared/agent-feature-install-commands'
 import { resolveSkillSourceCommit } from '../shared/fork-hooks/skill-source-commit'
@@ -7,6 +9,26 @@ import { resolveForkSkillsSourceCommit } from '../../fork/scripts/sync-skills-so
 
 function git(args: string[]): string {
   return execFileSync('git', args, { cwd: process.cwd(), encoding: 'utf8' }).trim()
+}
+
+function cliProductionSources(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name)
+    if (entry.isDirectory()) {
+      return cliProductionSources(path)
+    }
+    if (!entry.isFile() || !path.endsWith('.ts') || path.endsWith('.test.ts')) {
+      return []
+    }
+    return [path]
+  })
+}
+
+function runtimeSpecifiers(source: string): string[] {
+  const code = source.replace(/import\s+type\s+[\s\S]*?\sfrom\s+['"][^'"]+['"]/g, '')
+  return [...code.matchAll(/(?:from|import|require)\s*\(?\s*['"]([^'"]+)['"]/g)].map(
+    (match) => match[1] ?? ''
+  )
 }
 
 describe('fork skill source commit', () => {
@@ -41,6 +63,31 @@ describe('fork skill source commit', () => {
       upstream
     )
   })
+
+  it('ships the same pin inside the CLI tree and does not import src/fork from production CLI', () => {
+    expect(readFileSync('src/cli/skills-source-commit.ts', 'utf8')).toBe(
+      readFileSync('src/fork/skills-source-commit.ts', 'utf8')
+    )
+    expect(readFileSync('src/cli/handlers/skills.ts', 'utf8')).toContain(
+      "from '../skills-source-commit'"
+    )
+    expect(readFileSync('src/cli/index.ts', 'utf8')).not.toContain('../fork/')
+    const leaks = cliProductionSources('src/cli').flatMap((path) =>
+      runtimeSpecifiers(readFileSync(path, 'utf8'))
+        .filter((specifier) => /(?:^|\/)fork(?:\/|$)/.test(specifier))
+        .map((specifier) => `${path} -> ${specifier}`)
+    )
+    expect(leaks).toEqual([])
+  })
+
+  it.skipIf(!existsSync('out/cli/index.js'))(
+    'resolves the packaged CLI closure without src/fork',
+    () => {
+      execFileSync(process.execPath, ['fork/scripts/verify-packaged-cli-closure.mjs'], {
+        stdio: 'inherit'
+      })
+    }
+  )
 
   it('keeps the checked-in pin when no upstream ref is available', () => {
     const pinned = 'c'.repeat(40)

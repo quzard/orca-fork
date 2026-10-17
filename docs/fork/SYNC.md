@@ -47,4 +47,30 @@ Rewrite the skill clone ref and commit that file with the sync:
 node fork/scripts/sync-skills-source-commit.mjs
 ```
 
-The script writes `src/fork/skills-source-commit.ts`. It uses `git merge-base HEAD fork/base-upstream`, then `origin/fork/base-upstream`. If that ref is missing, it uses `upstream/main`, then `origin/upstream/main`. If those are missing too, it keeps the checked-in pin. A fork build must not clone `stablyai/orca` at its own commit.
+The script writes the same module to `src/cli/skills-source-commit.ts` and `src/fork/skills-source-commit.ts`. The CLI copy is the one `out/cli/**` unpacks; `src/cli/index.ts` does not import `src/fork`. It uses `git merge-base HEAD fork/base-upstream`, then `origin/fork/base-upstream`. If that ref is missing, it uses `upstream/main`, then `origin/upstream/main`. If those are missing too, it keeps the checked-in pin. A fork build must not clone `stablyai/orca` at its own commit.
+
+## Local Mac package
+
+`fork/scripts/install-mac-release.sh` runs the macOS release job's commands. It does not keep a second electron-builder config. The only overrides are the signing identity (`CSC_NAME` and `ORCA_COMPUTER_MACOS_SIGN_IDENTITY` set to `Orca Local Signing`, `CSC_IDENTITY_AUTO_DISCOVERY=false`), the version suffix from `config/scripts/build-mac-local.mjs`, and the backup/install/rollback at the end of the script.
+
+Commands it runs, in order:
+
+1. `pnpm install --frozen-lockfile --cpu=current,x64,arm64` and `pnpm --dir mobile install --frozen-lockfile` (`--fast` skips both).
+2. `pnpm run build:release`.
+3. Host orcad lane: `pnpm build:orcad-prebuilds`, `--require-slots` of `node config/scripts/build-orcad-prebuilds.mjs --print-slot`, `--smoke`, then `node config/scripts/build-orcad-template.mjs --targets <that slot>`. `ORCA_ORCAD_TEMPLATE_TARGETS` is that slot and `ORCA_REQUIRE_ORCAD_TEMPLATE=1`.
+4. `node config/scripts/runtime-file-watcher-fault-harness.mjs`, then the same file under `ELECTRON_RUN_AS_NODE=1` via `pnpm exec electron`.
+5. `node config/scripts/pinned-node-downloads.mjs darwin-arm64 darwin-x64`, `pnpm run ensure:electron-runtime`, and `node config/scripts/build-mac-local.mjs`.
+
+After packaging, the script fails unless `Contents/Resources/orcad-template/orcad-template.json` and `Contents/Resources/app.asar.unpacked/out/cli/skills-source-commit.js` exist, then runs `verify-skills-cli-runtime` on that unpacked tree.
+
+Skipped, because the upstream step needs a CI secret or an artifact this machine cannot produce:
+
+- `node config/scripts/verify-macos-release-env.mjs`. It requires `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`, `CSC_LINK`, and `CSC_KEY_PASSWORD`. The script forces `ORCA_MAC_RELEASE`, `ORCA_MAC_HOURLY`, `ORCA_MAC_DAILY`, and `ORCA_MAC_ADHOC` to `0` and unsets `CSC_LINK` plus the Apple variables, so notarization stays off. Upstream's own message for this case is to use the local packager (`build-mac-local.mjs`) instead of the notarized release command.
+- Downloading the `orcad-template` artifact from the parent release-cut run. That needs `release_run_id` and `GITHUB_TOKEN`. One machine cannot compile the other OS, arch, or libc slots (`build-orcad-prebuilds` only builds the current one). The full matrix remains the `desktop_template` job: download every lane, `merge-orcad-prebuilds.mjs`, `pnpm build:orcad-prebuilds --require-slots`, the glibc 2.17 compat slot, then `pnpm build:orcad-template` with no `--targets`. A local app therefore has a template directory, and SSH to a host whose slot was not built still fails later.
+- The parent-run conclusion check (`gh api .../actions/runs/<id>`). It needs `GH_TOKEN` and a parent run, and it only guards a GitHub publish.
+- `electron-builder --mac` with GitHub publish. That would upload to `stablyai/orca` and needs `GH_TOKEN`. `build-mac-local.mjs` is the upstream command that packages `--mac` without publishing and stamps `ORCA_LOCAL_BUILD_VERSION`. Do not set that variable in the shell; the script reads `CFBundleShortVersionString` from the built app.
+- `assert-github-release-is-draft.mjs`. There is no GitHub release.
+- `verify-telemetry-constants.mjs`. It needs `ORCA_POSTHOG_WRITE_KEY` compiled into the app. That secret is not set, so a local build has no PostHog write key. `ORCA_DIAGNOSTICS_TOKEN_URL` is the public release URL and is set.
+- Restoring `release-javascript` from a parent run (`ORCA_RELEASE_JAVASCRIPT_SOURCE_SHA`). The wrapper always takes the workflow's other branch, `pnpm run build:release`.
+
+`pnpm build:mac` is not used. It typechecks and rebuilds the desktop assets that `build:release` already built, and it does not build the orcad template.

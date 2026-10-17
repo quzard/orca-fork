@@ -6,9 +6,7 @@ function personalReleaseBranch(env = process.env) {
 }
 
 const PERSONAL_RELEASE_BRANCH = personalReleaseBranch()
-const PERSONAL_ORCAD_TEMPLATE_TARGETS = 'darwin-arm64,linux-x64-glibc'
 
 module.exports = {
-  PERSONAL_RELEASE_BRANCH,
-  PERSONAL_ORCAD_TEMPLATE_TARGETS
+  PERSONAL_RELEASE_BRANCH
 }

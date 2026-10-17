@@ -1,19 +1,18 @@
 #!/bin/bash
 # Usage: ./fork/scripts/install-mac-release.sh [--fast] [--build-only] | --install-built <version>
 # After acceptance: ./fork/scripts/install-mac-release.sh --cleanup-verified-backups <accepted-version>
-# Local production build and install. The previous app is kept until acceptance, then removed.
-# --fast is for repeat local checks: skip install and the full typecheck, and skip native/Swift
-# rebuilds whose outputs are still newer than their sources. Signing, packaging, and the atomic
-# swap stay the same. Do not use --fast when dependencies or types changed.
+# Thin wrapper around the macOS release job. Build commands match
+# .github/workflows/release-mac-build.yml. Signing identity, the local version
+# suffix, and backup/install/rollback are the only overrides. Skipped CI steps
+# are listed in docs/fork/SYNC.md.
+# --fast skips the two dependency installs. The build commands stay the same.
 set -euo pipefail
 
 readonly REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 readonly APP_NAME='Orca.app'
 readonly INSTALL_ROOT='/Applications'
 readonly INSTALL_APP="$INSTALL_ROOT/$APP_NAME"
-readonly BUILDER_CONFIG='config/electron-builder.config.cjs'
-readonly OUTPUT_DIR='dist/local-release'
-readonly LOCAL_BUILDER_CONFIG="$OUTPUT_DIR/electron-builder.local.cjs"
+readonly OUTPUT_DIR='dist'
 readonly CLEANUP_VERIFIED_BACKUPS='--cleanup-verified-backups'
 readonly APP_BUNDLE_ID='com.stablyai.orca'
 
@@ -86,83 +85,75 @@ else
   readonly BUILT_APP="$OUTPUT_DIR/mac/$APP_NAME"
 fi
 
-if [[ -z "$INSTALL_BUILT_VERSION" ]]; then
-if [[ "$FAST" == false ]]; then
-  pnpm install --frozen-lockfile
-  # Desktop builds include the mobile web app. Its own install matches CI.
-  pnpm --dir mobile install --frozen-lockfile
-  pnpm tc
-else
-  echo '快速安装：跳过依赖安装和全量类型检查。'
-fi
-
-# Production optimizations are unrelated to Apple distribution signing.
-# The personal package reuses the fixed local certificate and does not need a Developer ID.
-export NODE_ENV=production
-export ORCA_MAC_RELEASE=0 ORCA_MAC_HOURLY=0 ORCA_MAC_DAILY=0 ORCA_MAC_ADHOC=0
-export CSC_IDENTITY_AUTO_DISCOVERY=false
-export CSC_NAME="$LOCAL_SIGNING_IDENTITY" ORCA_COMPUTER_MACOS_SIGN_IDENTITY="$LOCAL_SIGNING_IDENTITY"
-ORCA_LOCAL_BUILD_VERSION="$(node --input-type=module -e \
-  'import { getLocalBuildIdentity } from "./config/scripts/build-mac-local.mjs"; console.log(getLocalBuildIdentity().version)')"
-ORCA_BUILD_COMMIT="$(git rev-parse --short=12 HEAD)"
-export ORCA_LOCAL_BUILD_VERSION ORCA_BUILD_COMMIT
-
-# Local orcad templates only contain the slots this machine built. Release CI leaves the
-# variable unset and still checks every target.
-if [[ -f out/orcad-template/orcad-template.json ]]; then
-  ORCA_ORCAD_TEMPLATE_TARGETS="$(node src/fork/packaging.cjs --print-built-targets)"
-  export ORCA_ORCAD_TEMPLATE_TARGETS
-fi
-
-if [[ "$FAST" == false ]]; then
-  pnpm run build:release
-else
-  # Rebuild only outputs older than their sources.
-  pnpm run build:release:javascript
-  # Directory browse for Add Project runs inside the managed server. Rebuild the template
-  # when that source is newer than the template.
-  if [[ ! -f out/orcad-template/orcad.js || src/main/runtime -nt out/orcad-template/orcad.js || src/main/orcad -nt out/orcad-template/orcad.js ]]; then
-    pnpm run build:orcad-template
-  fi
-  if [[ native -nt out/orcad-template/orcad-template.json ]]; then
-    pnpm run build:native
-  fi
-  computer_app='native/computer-use-macos/.build/release/Orca Computer Use.app'
-  if [[ ! -d "$computer_app" || native/computer-use-macos/Sources -nt "$computer_app" ]]; then
-    pnpm run build:computer-macos
-  fi
-  keyboard_helper='native/keyboard-layout-macos/.build/release/orca-keyboard-layout'
-  if [[ ! -x "$keyboard_helper" || native/keyboard-layout-macos/Sources -nt "$keyboard_helper" ]]; then
-    pnpm run build:keyboard-layout-macos
-  fi
-  notification_helper='native/notification-status-macos/.build/release/orca-notification-status'
-  if [[ ! -x "$notification_helper" || native/notification-status-macos/Sources -nt "$notification_helper" ]]; then
-    pnpm run build:notification-status-macos
-  fi
-fi
-pnpm run ensure:electron-runtime
-# Earlier trial packages can leave other dist children. Ignore the whole dist tree.
-node - "$REPO_ROOT/$BUILDER_CONFIG" "$LOCAL_BUILDER_CONFIG" <<'JS'
-const { mkdirSync, writeFileSync } = require('node:fs')
-const { dirname } = require('node:path')
-const [baseConfig, outputConfig] = process.argv.slice(2)
-mkdirSync(dirname(outputConfig), { recursive: true })
-writeFileSync(outputConfig,
-  `const base = require(${JSON.stringify(baseConfig)})\n` +
-  `module.exports = { ...base, files: [...base.files, '!dist{,/**/*}'] }\n`)
-JS
-# Current architecture only. Skip DMG/ZIP and the other architecture.
-pnpm exec electron-builder --config "$LOCAL_BUILDER_CONFIG" --mac --dir "--$ARCH" \
-  --publish never --config.mac.identity="$LOCAL_SIGNING_IDENTITY" --config.forceCodeSigning=true \
-  --config.directories.output="$OUTPUT_DIR"
-else
-  # A multi-machine release builds first. Install checks the exact version so another batch cannot be swapped in.
-  ORCA_LOCAL_BUILD_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$BUILT_APP/Contents/Info.plist")"
-  if [[ "$ORCA_LOCAL_BUILD_VERSION" != "$INSTALL_BUILT_VERSION" ]]; then
-    echo '已构建应用版本与本批发布不一致。' >&2
+assert_packaged_artifacts() {
+  local resources="$BUILT_APP/Contents/Resources"
+  local template="$resources/orcad-template/orcad-template.json"
+  local pin="$resources/app.asar.unpacked/out/cli/skills-source-commit.js"
+  if [[ ! -f "$template" ]]; then
+    echo "打包结果缺少 orcad-template：$template" >&2
     exit 1
   fi
+  if [[ ! -f "$pin" ]]; then
+    echo "打包结果缺少技能 pin：$pin" >&2
+    exit 1
+  fi
+  # Same check electron-builder afterPack runs. The host slice can execute it.
+  ORCA_PACKAGED_RESOURCES="$resources" node --input-type=commonjs -e '
+    const { verifySkillsCliRuntime } = require("./config/scripts/verify-skills-cli-runtime.cjs")
+    const resources = process.env.ORCA_PACKAGED_RESOURCES
+    verifySkillsCliRuntime(`${resources}/app.asar.unpacked/out`, resources)
+  '
+}
+
+if [[ -z "$INSTALL_BUILT_VERSION" ]]; then
+  if [[ "$FAST" == false ]]; then
+    # release-mac-build.yml installs both CPUs because electron-builder packs x64 and arm64.
+    pnpm install --frozen-lockfile --cpu=current,x64,arm64
+    pnpm --dir mobile install --frozen-lockfile
+    git diff --exit-code -- mobile/package.json mobile/pnpm-lock.yaml mobile/pnpm-workspace.yaml
+  else
+    echo '快速安装：跳过依赖安装。'
+  fi
+
+  # Production optimizations are unrelated to Apple distribution signing.
+  export NODE_ENV=production
+  export NODE_OPTIONS='--max-old-space-size=4096'
+  export ORCA_DIAGNOSTICS_TOKEN_URL='https://www.onorca.dev/diagnostics/token'
+  # Notarization stays off. verify-macos-release-env.mjs needs Apple secrets; do not run it.
+  export ORCA_MAC_RELEASE=0 ORCA_MAC_HOURLY=0 ORCA_MAC_DAILY=0 ORCA_MAC_ADHOC=0
+  unset CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID
+  export CSC_IDENTITY_AUTO_DISCOVERY=false
+  export CSC_NAME="$LOCAL_SIGNING_IDENTITY" ORCA_COMPUTER_MACOS_SIGN_IDENTITY="$LOCAL_SIGNING_IDENTITY"
+
+  # release-mac-build.yml "Build app" when no prebuilt JavaScript artifact is downloaded.
+  pnpm run build:release
+
+  # The release job downloads the merged orcad-template artifact. This machine can compile
+  # only its own slot, which is the lane command those artifacts are built from.
+  pnpm build:orcad-prebuilds
+  SLOT="$(node config/scripts/build-orcad-prebuilds.mjs --print-slot)"
+  pnpm build:orcad-prebuilds --require-slots "$SLOT"
+  pnpm build:orcad-prebuilds --smoke
+  node config/scripts/build-orcad-template.mjs --targets "$SLOT"
+  export ORCA_ORCAD_TEMPLATE_TARGETS="$SLOT"
+  export ORCA_REQUIRE_ORCAD_TEMPLATE=1
+
+  node config/scripts/runtime-file-watcher-fault-harness.mjs
+  ELECTRON_RUN_AS_NODE=1 pnpm exec electron config/scripts/runtime-file-watcher-fault-harness.mjs
+
+  # Local packager. It sets the version suffix and runs electron-builder for macOS.
+  # Apple notarization and GitHub artifact upload stay off.
+  node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON config/scripts/pinned-node-downloads.mjs darwin-arm64 darwin-x64
+  pnpm run ensure:electron-runtime
+  node config/scripts/build-mac-local.mjs
 fi
+
+ORCA_LOCAL_BUILD_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$BUILT_APP/Contents/Info.plist")"
+if [[ -n "$INSTALL_BUILT_VERSION" && "$ORCA_LOCAL_BUILD_VERSION" != "$INSTALL_BUILT_VERSION" ]]; then
+  echo '已构建应用版本与本批发布不一致。' >&2
+  exit 1
+fi
+assert_packaged_artifacts
 codesign --verify --deep --strict "$BUILT_APP"
 if [[ "$BUILD_ONLY" == true ]]; then
   echo "构建已完成，尚未安装：$BUILT_APP（$ORCA_LOCAL_BUILD_VERSION）"

@@ -5,9 +5,13 @@ import { pathToFileURL } from 'node:url'
 
 const FULL_COMMIT = /^[0-9a-f]{40}$/
 const root = join(import.meta.dirname, '..', '..')
-const pinPath = join(root, 'src/fork/skills-source-commit.ts')
+// Same bytes. The CLI copy is what `out/cli/**` unpacks; the fork copy registers the desktop app.
+const pinPaths = [
+  join(root, 'src/cli/skills-source-commit.ts'),
+  join(root, 'src/fork/skills-source-commit.ts')
+]
 
-export function readCheckedInSkillsSourceCommit(source = readFileSync(pinPath, 'utf8')) {
+export function readCheckedInSkillsSourceCommit(source = readFileSync(pinPaths[0], 'utf8')) {
   const match = source.match(/FORK_SKILLS_SOURCE_COMMIT = '([0-9a-f]{40})'/)
   return match ? match[1] : null
 }
@@ -73,11 +77,14 @@ function main() {
     return
   }
   const next = renderSkillsSourceCommitModule(sha)
-  if (readFileSync(pinPath, 'utf8') === next) {
+  const stale = pinPaths.filter((pinPath) => readFileSync(pinPath, 'utf8') !== next)
+  if (stale.length === 0) {
     console.log(`skills source commit unchanged ${sha}`)
     return
   }
-  writeFileSync(pinPath, next)
+  for (const pinPath of stale) {
+    writeFileSync(pinPath, next)
+  }
   console.log(`skills source commit -> ${sha}`)
 }
 

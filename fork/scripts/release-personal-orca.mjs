@@ -4,15 +4,12 @@ import { lstat, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
-import {
-  PERSONAL_ORCAD_TEMPLATE_TARGETS,
-  PERSONAL_RELEASE_BRANCH
-} from './personal-release-checks.cjs'
+import { PERSONAL_RELEASE_BRANCH } from './personal-release-checks.cjs'
 
 const ROOT = resolve(import.meta.dirname, '../..')
 const MAC_APP = '/Applications/Orca.app'
 const LOCAL_CLI = join(MAC_APP, 'Contents/Resources/bin/orca')
-const BUILT_APP = join(ROOT, 'dist/local-release/mac-arm64/Orca.app')
+const BUILT_APP = join(ROOT, 'dist/mac-arm64/Orca.app')
 const INSTALLER = join(ROOT, 'fork/scripts/install-mac-release.sh')
 const HOST_SCRIPT = join(ROOT, 'fork/scripts/personal-orca-host.py')
 const RELEASE_ROOT = join(homedir(), 'Library/Logs/OrcaReleases')
@@ -186,11 +183,6 @@ async function main() {
     await execute('pnpm', ['install', '--frozen-lockfile'], { inherit: true })
     await execute('pnpm', ['verify:bundled-skill-guides'], { inherit: true })
     await execute('pnpm', ['verify:skill-bundle-manifest'], { inherit: true })
-    await execute(
-      'pnpm',
-      ['run', 'build:orcad-template', '--targets', PERSONAL_ORCAD_TEMPLATE_TARGETS],
-      { inherit: true }
-    )
     await execute('bash', [INSTALLER, '--build-only'], { inherit: true })
     const version = await execute('/usr/libexec/PlistBuddy', [
       '-c',

@@ -88,11 +88,35 @@ describe('fork daily sync split', () => {
     expect(script).toContain('RELEASE="$PREVIOUS_RELEASE"')
     expect(script).toContain('ORCA_CODESIGN_TIMEOUT_SECONDS')
     expect(script).toContain('Always Allow')
-    expect(script).toContain('gh release create')
+    expect(script).toContain('fork/scripts/publish-mac-release.sh')
     expect(script).toContain('latest-mac.yml')
-    expect(script).toContain('--repo quzard/orca')
-    expect(script).toContain('--prerelease')
+    expect(script).toContain('RELEASE_DMG_PENDING="published-dmg-pending"')
+    expect(script).toContain('PUBLISH_DMG_PENDING_EXIT=20')
+    expect(script).not.toContain('gh release create')
     expect(script).not.toContain('--publish')
+    const publish = readFileSync(resolve('fork/scripts/publish-mac-release.sh'), 'utf8')
+    expect(publish).toContain('release create')
+    expect(publish).toContain('release edit')
+    expect(publish).toContain('release download')
+    expect(publish).toContain('--repo "$GH_REPO"')
+    expect(publish).toContain('readonly GH_REPO="quzard/orca"')
+    expect(publish).toContain('--prerelease')
+    expect(publish).toContain('--draft=false')
+    expect(publish).toContain('--clobber')
+    expect(publish).toContain('EXIT_DMG_PENDING=20')
+    expect(publish).toContain('latest-mac.yml')
+    expect(publish).not.toContain('stablyai')
+    expect(publish).not.toContain('github-update-token')
+    expect(publish).not.toContain('safeStorage')
+    expect(publish.indexOf('release upload')).toBeGreaterThan(0)
+    const publishCall = script.slice(script.indexOf('publish_release()'))
+    expect(publishCall.indexOf('publish-mac-release.sh')).toBeLessThan(
+      publishCall.indexOf('git reset --hard')
+    )
+    const failedTail = script.slice(script.lastIndexOf('if ! build_develop_release'))
+    expect(failedTail.indexOf('RESULT="$RELEASE_DMG_PENDING"')).toBeLessThan(
+      failedTail.indexOf('RESULT="failed"')
+    )
     expect(script).not.toContain('unofficial-builds.nodejs.org')
     expect(script).not.toContain('git push')
     expect(script).toContain('/Applications/OrbStack.app/Contents/MacOS/xbin')
@@ -111,10 +135,14 @@ describe('fork daily sync split', () => {
     expect(plist).toContain('/Applications/OrbStack.app/Contents/MacOS/xbin')
     for (const path of [
       'fork/scripts/mac-auto-update.sh',
+      'fork/scripts/publish-mac-release.sh',
       'fork/scripts/install-mac-auto-update-agent.sh',
       'fork/scripts/uninstall-mac-auto-update-agent.sh'
     ]) {
       execFileSync('bash', ['-n', resolve(path)])
     }
+    execFileSync('bash', [resolve('fork/scripts/publish-mac-release.test.sh')], {
+      stdio: 'inherit'
+    })
   })
 })

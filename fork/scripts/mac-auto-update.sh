@@ -10,6 +10,9 @@ readonly STATUS_JSON="${STATUS_DIR}/sync-status.json"
 readonly LOCK_FILE="${STATUS_DIR}/mac-auto-update.lock"
 readonly GLIBC217_ARCHIVE="node-v24.21.0-linux-x64-glibc-217.tar.gz"
 readonly GLIBC217_SHA256="b1d164136d4b218d663e664f40ba5e260ebc07f90e2bd784c63a57d8c0e6aa8a"
+readonly RELEASE_COMPLETE="published"
+readonly RELEASE_DMG_PENDING="published-dmg-pending"
+readonly PUBLISH_DMG_PENDING_EXIT=20
 
 if [[ "$(uname -s)" != Darwin ]]; then
   echo "mac-auto-update: this script runs on macOS" >&2
@@ -144,8 +147,15 @@ refresh_installed_script() {
 }
 
 finish() {
-  local code="$1"
-  if [[ "$code" -eq 0 && "$RESULT" != skipped ]]; then
+  local code="$1" refresh=0
+  # dmg 还在补传时也换上脚本。这一轮已经把更新公开了，下一轮要靠这份脚本继续传 dmg。
+  if [[ "$RESULT" != skipped && "$code" -eq 0 ]]; then
+    refresh=1
+  fi
+  if [[ "$RESULT" != skipped && "$RELEASE" == "$RELEASE_DMG_PENDING" ]]; then
+    refresh=1
+  fi
+  if [[ "$refresh" -eq 1 ]]; then
     refresh_installed_script || true
   fi
   write_status
@@ -340,66 +350,44 @@ publish_release() {
     RELEASE="skipped"
     return 0
   fi
-  local yml="${REPO}/dist/latest-mac.yml"
-  if [[ ! -f "$yml" ]]; then
-    RELEASE="failed"
-    ERROR="dist/latest-mac.yml is missing"
-    return 1
-  fi
-  local list version
-  list="$(python3 - "$yml" <<'PY'
-import pathlib, sys
-text = pathlib.Path(sys.argv[1]).read_text()
-version = ""
-names = []
-for line in text.splitlines():
-    if line.startswith("version:"):
-        version = line.split(":", 1)[1].strip().strip("'\"")
-    stripped = line.strip()
-    if stripped.startswith("- "):
-        stripped = stripped[2:].strip()
-    if stripped.startswith("url:") or stripped.startswith("path:"):
-        name = stripped.split(":", 1)[1].strip().strip("'\"")
-        if name:
-            names.append(name)
-print(version)
-for name in dict.fromkeys(names):
-    print(name)
-PY
-)"
-  version="$(printf '%s\n' "$list" | head -n 1)"
-  if [[ -z "$version" ]]; then
-    RELEASE="failed"
-    ERROR="latest-mac.yml has no version"
-    return 1
-  fi
-  local tag="v${version}"
-  if gh release view "$tag" --repo quzard/orca >/dev/null 2>&1; then
-    RELEASE="published"
+  local out code=0 line value
+  # zip 和 latest-mac.yml 先公开，dmg 失败只记 pending，不把这次构建标成没发布。
+  out="$(bash "${REPO}/fork/scripts/publish-mac-release.sh" --dist "${REPO}/dist" --sha "$SHA")" || code=$?
+  while IFS= read -r line; do
+    case "$line" in
+      release=*) RELEASE="${line#release=}" ;;
+      version=*)
+        value="${line#version=}"
+        if [[ -n "$value" ]]; then
+          VERSION="$value"
+        fi
+        ;;
+      error=*) ERROR="${line#error=}" ;;
+    esac
+  done <<<"$out"
+  if [[ "$code" -eq 0 ]]; then
+    ERROR=""
+    if [[ -z "$RELEASE" || "$RELEASE" == skipped ]]; then
+      RELEASE="$RELEASE_COMPLETE"
+    fi
     return 0
   fi
-  local assets=("$yml")
-  local name path
-  while IFS= read -r name; do
-    [[ -z "$name" || "$name" == "$version" ]] && continue
-    path="${REPO}/dist/${name}"
-    if [[ ! -f "$path" ]]; then
-      RELEASE="failed"
-      ERROR="release asset missing: ${name}"
-      return 1
+  if [[ "$code" -eq "$PUBLISH_DMG_PENDING_EXIT" ]]; then
+    if [[ -z "$RELEASE" || "$RELEASE" == skipped ]]; then
+      RELEASE="$RELEASE_DMG_PENDING"
     fi
-    assets+=("$path")
-    if [[ -f "${path}.blockmap" ]]; then
-      assets+=("${path}.blockmap")
+    if [[ -z "$ERROR" ]]; then
+      ERROR="published, dmg pending"
     fi
-  done < <(printf '%s\n' "$list" | tail -n +2)
-  if ! gh release create "$tag" --repo quzard/orca --prerelease --target "$SHA" \
-    --title "$tag" --notes "Fork build ${version} (${SHA})" "${assets[@]}"; then
-    RELEASE="failed"
-    ERROR="gh release create failed"
     return 1
   fi
-  RELEASE="published"
+  if [[ -z "$RELEASE" || "$RELEASE" == skipped ]]; then
+    RELEASE="failed"
+  fi
+  if [[ -z "$ERROR" ]]; then
+    ERROR="publish failed"
+  fi
+  return 1
 }
 
 # dist 里的版本后缀带 12 位 sha，且 yml 点名的文件都在，才算这次构建还在。
@@ -454,7 +442,8 @@ build_develop_release() {
   fi
   git fetch --no-tags origin refs/heads/develop:refs/remotes/origin/develop
   SHA="$(git rev-parse origin/develop)"
-  if [[ "$SHA" == "$BUILT_SHA" && "$PREVIOUS_RELEASE" == published ]]; then
+  # pending 不能走这条。下一轮还要补 dmg，不能因为 sha 相同就跳过。
+  if [[ "$SHA" == "$BUILT_SHA" && "$PREVIOUS_RELEASE" == "$RELEASE_COMPLETE" ]]; then
     echo "mac-auto-update: ${SHA} is already published"
     ALREADY_PUBLISHED=1
     RELEASE="published"
@@ -494,7 +483,11 @@ if [[ "${ORCA_BUILD_RELEASES:-}" != 1 ]]; then
   finish 0
 fi
 if ! build_develop_release; then
-  RESULT="failed"
+  if [[ "$RELEASE" == "$RELEASE_DMG_PENDING" ]]; then
+    RESULT="$RELEASE_DMG_PENDING"
+  else
+    RESULT="failed"
+  fi
   echo "mac-auto-update: ${ERROR}" >&2
   finish 1
 fi

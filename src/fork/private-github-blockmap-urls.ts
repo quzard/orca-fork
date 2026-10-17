@@ -6,6 +6,7 @@
 // 令牌只能出现在 api.github.com 上；签名下载域名不带 Authorization。
 
 export const GITHUB_API_HOSTNAME = 'api.github.com'
+export const GITHUB_API_PROTOCOL = 'https:'
 export const GITHUB_RELEASE_ASSET_ACCEPT = 'application/octet-stream'
 export const GITHUB_RELEASE_JSON_ACCEPT = 'application/vnd.github+json'
 export const GITHUB_RELEASE_TAG_PREFIX = 'v'
@@ -141,18 +142,44 @@ function deleteAuthorization(headers: HeaderMap): void {
   }
 }
 
-// 令牌只发给 api.github.com。签名文件域名，以及没有主机名的请求，都去掉 Authorization。
+function parsedRequestUrl(
+  protocol: string | undefined,
+  hostname: string | undefined,
+  port: string | undefined,
+  requestPath: string | undefined
+): URL | null {
+  if (!protocol || !hostname) {
+    return null
+  }
+  const path = requestPath && requestPath.length > 0 ? requestPath : '/'
+  const pathWithSlash = path.startsWith('/') ? path : `/${path}`
+  const portSuffix = port ? `:${port}` : ''
+  try {
+    return new URL(`${protocol}//${hostname}${portSuffix}${pathWithSlash}`)
+  } catch {
+    return null
+  }
+}
+
+function allowsGithubAuthorization(parsed: URL | null): boolean {
+  return parsed?.protocol === GITHUB_API_PROTOCOL && parsed.host === GITHUB_API_HOSTNAME
+}
+
+// 令牌只在解析后的 https://api.github.com 上保留。其它协议、主机和端口都去掉 Authorization。
 export function headersForGithubHost(
+  protocol: string | undefined,
   hostname: string | undefined,
   requestPath: string | undefined,
-  headers: HeaderMap | null | undefined
+  headers: HeaderMap | null | undefined,
+  port?: string
 ): HeaderMap {
-  if (hostname?.toLowerCase() !== GITHUB_API_HOSTNAME) {
+  const parsed = parsedRequestUrl(protocol, hostname, port, requestPath)
+  if (!allowsGithubAuthorization(parsed)) {
     const next = copyHeaders(headers)
     deleteAuthorization(next)
     return next
   }
-  return githubAssetAcceptHeaders(hostname, requestPath, headers) ?? copyHeaders(headers)
+  return githubAssetAcceptHeaders(parsed?.hostname, requestPath, headers) ?? copyHeaders(headers)
 }
 
 function assetApiUrl(assetUrl: string, apiHostname: string): URL | null {

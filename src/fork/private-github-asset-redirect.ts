@@ -5,6 +5,7 @@ import {
   DIFFERENTIAL_REDIRECT_HOP_LIMIT,
   DIFFERENTIAL_REDIRECT_STOPPED,
   GITHUB_API_HOSTNAME,
+  GITHUB_API_PROTOCOL,
   headersForGithubHost
 } from './private-github-blockmap-urls'
 
@@ -13,7 +14,6 @@ type HeaderMap = Record<string, string | string[] | undefined>
 const REDIRECT_EVENT = 'redirect'
 const ERROR_EVENT = 'error'
 const ABORT_EVENT = 'abort'
-const HTTPS_REDIRECT_PROTOCOL = 'https:'
 
 export type AssetRequestOptions = {
   protocol?: string
@@ -63,7 +63,7 @@ function redirectTarget(redirectUrl: string | undefined): URL | null {
   }
   try {
     const target = new URL(redirectUrl)
-    if (target.protocol !== HTTPS_REDIRECT_PROTOCOL) {
+    if (target.protocol !== GITHUB_API_PROTOCOL) {
       return null
     }
     return target
@@ -83,7 +83,13 @@ function applyRedirectTarget(options: AssetRequestOptions, target: URL): void {
   }
   const requestPath = `${target.pathname}${target.search}`
   options.path = requestPath
-  options.headers = headersForGithubHost(target.hostname, requestPath, options.headers)
+  options.headers = headersForGithubHost(
+    target.protocol,
+    target.hostname,
+    requestPath,
+    options.headers,
+    target.port || undefined
+  )
 }
 
 // 中止前先摘掉 error/abort，避免差分下载把这次主动中止当成失败。
@@ -100,15 +106,25 @@ function detachFailureListeners(request: RedirectableRequest): {
   return { errorListeners, abortListeners }
 }
 
+// abort 可能再抛 error。先挂上空监听，避免变成未处理的 error 事件。
+function ignoreCancelError(request: RedirectableRequest): void {
+  request.on(ERROR_EVENT, () => undefined)
+}
+
+function cancelRequest(request: RedirectableRequest): void {
+  ignoreCancelError(request)
+  if (typeof request.abort === 'function') {
+    request.abort()
+  }
+}
+
 function stopRedirect(request: RedirectableRequest): void {
   const { errorListeners } = detachFailureListeners(request)
   const error = new Error(DIFFERENTIAL_REDIRECT_STOPPED)
   for (const listener of errorListeners) {
     listener(error)
   }
-  if (typeof request.abort === 'function') {
-    request.abort()
-  }
+  cancelRequest(request)
 }
 
 function endRequest(request: unknown): void {
@@ -128,9 +144,7 @@ function reissueWithoutToken(
 ): void {
   applyRedirectTarget(options, target)
   const { errorListeners, abortListeners } = detachFailureListeners(request)
-  if (typeof request.abort === 'function') {
-    request.abort()
-  }
+  cancelRequest(request)
   // 必须保持原来的 this，ElectronHttpExecutor 用它取 net session。
   const next = guardPrivateGithubAssetRequest(
     createRequest.call(executor, options, callback),

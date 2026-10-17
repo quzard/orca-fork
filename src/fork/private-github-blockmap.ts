@@ -127,7 +127,13 @@ function patchExecutor(prototype: HttpExecutorState): void {
     options: AssetRequestOptions,
     callback: unknown
   ) {
-    options.headers = headersForGithubHost(options.hostname, options.path, options.headers)
+    options.headers = headersForGithubHost(
+      options.protocol,
+      options.hostname,
+      options.path,
+      options.headers,
+      options.port
+    )
     const request = originalCreateRequest.call(this, options, callback)
     return guardPrivateGithubAssetRequest(request, options, callback, originalCreateRequest, this)
   }

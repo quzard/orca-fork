@@ -338,7 +338,12 @@ describe('private GitHub blockmap urls', () => {
   it('keeps application/octet-stream on asset requests and strips the token on the signed redirect', () => {
     const seen: HeaderMap[] = []
     const executor = {
-      createRequest(options: { hostname?: string; path?: string; headers?: HeaderMap | null }) {
+      createRequest(options: {
+        protocol?: string
+        hostname?: string
+        path?: string
+        headers?: HeaderMap | null
+      }) {
         if (options.headers) {
           seen.push(options.headers)
         }
@@ -354,14 +359,22 @@ describe('private GitHub blockmap urls', () => {
       httpExecutorPrototype: executor
     })
     executor.createRequest({
-      hostname: GITHUB_API_HOSTNAME,
+      protocol: 'https:',
+      hostname: 'API.GITHUB.COM',
       path: new URL(assetUrl(NEW_BLOCKMAP_ID)).pathname,
       headers: { accept: '*/*', Accept: 'application/json', authorization: `token ${TOKEN}` }
     })
     executor.createRequest({
+      protocol: 'https:',
       hostname: GITHUB_API_HOSTNAME,
       path: `/repos/${FORK_GITHUB_UPDATE_OWNER}/${FORK_GITHUB_UPDATE_REPO}/releases`,
-      headers: { accept: GITHUB_RELEASE_JSON_ACCEPT }
+      headers: { accept: GITHUB_RELEASE_JSON_ACCEPT, authorization: `token ${TOKEN}` }
+    })
+    executor.createRequest({
+      protocol: 'http:',
+      hostname: GITHUB_API_HOSTNAME,
+      path: new URL(assetUrl(NEW_BLOCKMAP_ID)).pathname,
+      headers: { accept: GITHUB_RELEASE_ASSET_ACCEPT, Authorization: `token ${TOKEN}` }
     })
 
     executor.createRequest({
@@ -378,9 +391,13 @@ describe('private GitHub blockmap urls', () => {
       accept: GITHUB_RELEASE_ASSET_ACCEPT,
       authorization: `token ${TOKEN}`
     })
-    expect(seen[1]).toEqual({ accept: GITHUB_RELEASE_JSON_ACCEPT })
-    expect(seen[2]).toEqual({ range: 'bytes=0-1', accept: '*/*' })
-    expect(seen[3]).toEqual({})
+    expect(seen[1]).toEqual({
+      accept: GITHUB_RELEASE_JSON_ACCEPT,
+      authorization: `token ${TOKEN}`
+    })
+    expect(seen[2]).toEqual({ accept: GITHUB_RELEASE_ASSET_ACCEPT })
+    expect(seen[3]).toEqual({ range: 'bytes=0-1', accept: '*/*' })
+    expect(seen[4]).toEqual({})
     expect(JSON.stringify(seen.slice(2))).not.toContain(TOKEN)
     expect(
       githubAssetAcceptHeaders(GITHUB_API_HOSTNAME, new URL(BUG_BLOCKMAP_URL).pathname, {})
@@ -568,6 +585,7 @@ describe('private GitHub blockmap urls', () => {
 
   it('rejects a non-https redirect for differential, blockmap, and full downloads', () => {
     const insecureTargets = [
+      'HTTP://release-assets.githubusercontent.com/file?X-Amz-Signature=abc',
       'http://release-assets.githubusercontent.com/file?X-Amz-Signature=abc',
       `http://${GITHUB_API_HOSTNAME}${new URL(assetUrl(NEW_BLOCKMAP_ID)).pathname}`,
       'file:///tmp/update.zip'
@@ -629,6 +647,74 @@ describe('private GitHub blockmap urls', () => {
     expect(
       recorded.some((entry) => entry.hostname === 'release-assets.githubusercontent.com')
     ).toBe(false)
+  })
+
+  it('rejects a second-hop http redirect and does not send the token', () => {
+    const httpsSigned =
+      'https://release-assets.githubusercontent.com/github-production-release-asset/1/2?X-Amz-Signature=abc'
+    const httpHop = 'HTTP://objects.githubusercontent.com/github-production-release-asset/9'
+    const failures: unknown[] = []
+    const recorded: {
+      hostname?: string
+      headers: HeaderMap
+      request: ReturnType<typeof createRedirectableRequest>
+    }[] = []
+    const executor = {
+      createRequest(options: { hostname?: string; headers?: HeaderMap | null }) {
+        const headers: HeaderMap = {}
+        if (options.headers) {
+          Object.assign(headers, options.headers)
+        }
+        const request = createRedirectableRequest()
+        recorded.push({ hostname: options.hostname, headers, request })
+        return request
+      }
+    }
+    installPrivateGithubDifferentialDownload({
+      privateGithubPrototype: createProvider(async () => '{}'),
+      httpExecutorPrototype: executor
+    })
+    const options = {
+      protocol: 'https:',
+      hostname: GITHUB_API_HOSTNAME,
+      path: new URL(assetUrl(NEW_BLOCKMAP_ID)).pathname,
+      headers: {
+        accept: '*/*',
+        authorization: `token ${TOKEN}`,
+        range: 'bytes=0-10'
+      }
+    }
+    const request = executor.createRequest(options)
+    request.on('redirect', (...args: unknown[]) => {
+      const redirectUrl = args[2]
+      if (typeof redirectUrl !== 'string') {
+        throw new Error('redirect url missing')
+      }
+      const target = new URL(redirectUrl)
+      options.protocol = target.protocol
+      options.hostname = target.hostname
+      options.path = `${target.pathname}${target.search}`
+      request.followRedirect()
+    })
+    request.on('error', (error: unknown) => {
+      failures.push(error)
+    })
+    request.emit('redirect', 302, 'GET', httpsSigned)
+    recorded[1]?.request.emit('redirect', 302, 'GET', httpHop)
+
+    expect(recorded).toHaveLength(2)
+    expect(recorded[0]?.hostname).toBe(GITHUB_API_HOSTNAME)
+    expect(recorded[0]?.headers.authorization).toBe(`token ${TOKEN}`)
+    expect(recorded[1]?.hostname).toBe('release-assets.githubusercontent.com')
+    expect(recorded[1]?.headers.authorization).toBeUndefined()
+    expect(recorded[1]?.headers.range).toBe('bytes=0-10')
+    expect(recorded[1]?.request.followRedirectCalls).toBe(0)
+    expect(recorded[1]?.request.aborted).toBe(true)
+    expect(failures).toHaveLength(1)
+    expect(String(failures[0])).toBe(`Error: ${DIFFERENTIAL_REDIRECT_STOPPED}`)
+    expect(String(failures[0])).not.toContain(TOKEN)
+    expect(String(failures[0])).not.toContain(httpHop)
+    expect(JSON.stringify(recorded[1])).not.toContain(TOKEN)
   })
 
   it('fails if electron-updater stops using manual followRedirect for differential downloads', () => {
@@ -710,12 +796,18 @@ function createRedirectableRequest() {
       for (const listener of listeners.get('abort') ?? []) {
         listener()
       }
+      request.emit('error', new Error('aborted'))
     },
     end() {
       request.ended = true
     },
     emit(event: string, ...args: unknown[]) {
-      for (const listener of listeners.get(event) ?? []) {
+      const list = listeners.get(event) ?? []
+      if (event === 'error' && list.length === 0) {
+        const failure = args[0] instanceof Error ? args[0] : new Error('Unhandled error')
+        throw failure
+      }
+      for (const listener of list) {
         listener(...args)
       }
     }

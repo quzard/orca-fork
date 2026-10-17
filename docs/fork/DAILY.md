@@ -24,9 +24,13 @@ A dirty worktree, or a check failure when `HEAD` is still `origin/develop`, exit
 
 ## Home Mac: build, sign, publish
 
-`fork/scripts/mac-auto-update.sh` fetches `origin/develop`. When that sha is not the last published sha, it resets a clean `develop` checkout to the remote tip (reflog keeps the previous tip), seeds the glibc 2.17 Node archive, and runs `fork/scripts/install-mac-release.sh --build-only`. Signing stays `Orca Local Signing`. It does not install the app and it does not download a release with `gh`.
+LaunchAgent `com.orca.fork.mac-auto-update` runs `~/Projects/orca-verify/bin/mac-auto-update.sh`, a copy outside the checkout. The installer refreshes that copy. The script also re-executes itself from a temp file before any git command, so `git reset --hard origin/develop` cannot rewrite the file that is running. After a successful run (not a `skipped` run) it refreshes the installed copy with `cp` to `.next` and `mv`. A failed run leaves the previous copy in place.
 
-`~/Projects/orca-verify/sync.env` must set `ORCA_BUILD_RELEASES=1` and `ORCA_PUBLISH_RELEASE=1`. Publish uploads `dist/latest-mac.yml`, the arm64 zip, dmg, and blockmaps as a prerelease on `quzard/orca`, tagged at the built commit (`v<version>`). The private GitHub provider asks for `latest-mac.yml`, not `local-mac.yml`. The script defaults the proxy to `http://127.0.0.1:6152` and Node's `NODE_USE_ENV_PROXY=1`.
+That script fetches `origin/develop`. When that sha is not the last published sha, it resets a clean `develop` checkout to the remote tip (reflog keeps the previous tip), seeds the glibc 2.17 Node archive, and runs `fork/scripts/install-mac-release.sh --build-only`. Signing stays `Orca Local Signing`. It does not install the app and it does not download a release with `gh`.
+
+`~/Projects/orca-verify/sync.env` must set `ORCA_BUILD_RELEASES=1` and `ORCA_PUBLISH_RELEASE=1`. Publish uses `gh release create` and uploads `dist/latest-mac.yml`, the arm64 zip, dmg, and blockmaps as a prerelease on `quzard/orca`, tagged at the built commit (`v<version>`). The home Mac needs `gh` logged in with write access to `quzard/orca`. If `gh` is missing or `gh auth status` fails, the script exits before the build and writes that reason into `sync-status.json`. Client Macs do not need `gh`. The private GitHub provider asks for `latest-mac.yml`, not `local-mac.yml`. The script defaults the proxy to `http://127.0.0.1:6152` and Node's `NODE_USE_ENV_PROXY=1`.
+
+A background `codesign` under launchd can stop on a keychain prompt for the `Orca Local Signing` private key and never finish. After install, and before `--bootstrap`, run the installed script once from Terminal and click Always Allow. The script watches child `codesign` processes. One that runs longer than `ORCA_CODESIGN_TIMEOUT_SECONDS` (default 600) is killed, and a denial (`errSecInternalComponent`, `errSecAuthFailed`, `errSecInteractionNotAllowed`, or "User interaction is not allowed") is recorded in `sync-status.json` instead of leaving the job hung.
 
 Status file: `~/Projects/orca-verify/sync-status.json` (`sha`, `installedSha`, `builtSha`, `version`, `result`, `startedAt`, `finishedAt`, `error`, `release`). `result` is `published`, `up-to-date`, `built`, `skipped`, or `failed`.
 
@@ -38,16 +42,20 @@ LaunchAgent `com.orca.fork.mac-auto-update` runs the script at login and every 3
 mkdir -p ~/Projects/orca-verify/node-runtime-cache
 # copy the glibc 2.17 archive into that directory
 printf '%s\n' 'ORCA_BUILD_RELEASES=1' 'ORCA_PUBLISH_RELEASE=1' > ~/Projects/orca-verify/sync.env
+# gh auth status must succeed, with write access to quzard/orca
+bash fork/scripts/install-mac-auto-update-agent.sh
+ORCA_REPO="$PWD" ~/Projects/orca-verify/bin/mac-auto-update.sh
+# click Always Allow on the Orca Local Signing prompt, then:
 bash fork/scripts/install-mac-auto-update-agent.sh --bootstrap
 ```
 
-Remove it with `bash fork/scripts/uninstall-mac-auto-update-agent.sh`. Installing the plist does not load the agent until `--bootstrap`.
+Run that first command from the checkout. The installed copy cannot infer the repo, so the manual run sets `ORCA_REPO`. Do this before `--bootstrap`: `RunAtLoad` would otherwise show the keychain prompt under launchd, where it cannot be clicked. Remove the agent with `bash fork/scripts/uninstall-mac-auto-update-agent.sh`. Installing the plist does not load the agent until `--bootstrap`.
 
 ## In-app updates
 
 Settings → Updates has a GitHub token field. The token is a fine-grained PAT with read-only Contents on `quzard/orca`. It is stored as the contents of `~/.orca/github-update-token` with mode `0600`, via `writeSecureFile`. It is not put in the macOS Keychain and not put in `safeStorage`. The settings page can save or clear it. The saved value is not sent back to the window.
 
-With a token, release checks call electron-updater's private GitHub provider for `quzard/orca` only. `allowPrerelease` is on, because every fork release is a prerelease and `/releases/latest` would 404. Without a token there is no update check, and both the settings row and Check for Updates say so. Unregistered (upstream) builds still use the public `stablyai/orca` feed.
+With a token, release checks call electron-updater's private GitHub provider for `quzard/orca` only. `allowPrerelease` is on, because every fork release is a prerelease and `/releases/latest` would 404. Without a token there is no update check, and both the settings row and Check for Updates say so. A registered fork build does not list upstream versions, pin a specific upstream tag, or open `stablyai/orca` release notes. Unregistered (upstream) builds still use the public `stablyai/orca` feed.
 
 The app already installed on each Mac still requests `https://github.com/stablyai/orca/releases/latest/download` until one manual install of a build that contains this hook. After that, both Macs update from the published prerelease. `1.4.228` sorts above `1.4.228-local.<timestamp>.<sha>`, so an unhooked build can still be offered the upstream stable release. A later local timestamp sorts above an earlier one under the `semver` package electron-updater uses.
 

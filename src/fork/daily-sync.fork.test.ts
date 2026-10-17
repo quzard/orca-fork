@@ -10,7 +10,7 @@ describe('fork daily sync split', () => {
     const menu = readFileSync(resolve('src/main/updater/updater-menu-checks.ts'), 'utf8')
     const download = readFileSync(resolve('src/main/updater/updater-download-install.ts'), 'utf8')
     const feed = readFileSync(resolve('src/fork/update-feed.ts'), 'utf8')
-    expect(setup).toContain('forkUpdateFeedRegistered()')
+    expect(setup).toContain('forkUpstreamReleaseReadsBlocked()')
     expect(pin).toContain('forkReleaseFeedDecision()')
     expect(pin.indexOf('forkReleaseFeedDecision()')).toBeLessThan(
       pin.indexOf('fetchNewerReleaseTagsWithReadiness(')
@@ -47,6 +47,14 @@ describe('fork daily sync split', () => {
     expect(script).not.toContain('gh release download')
     expect(script).toContain('Projects/orca-verify/sync-status.json')
     expect(script).toContain('ORCA_PUBLISH_RELEASE')
+    expect(script).toContain('ORCA_AUTO_UPDATE_REEXECED')
+    expect(script.indexOf('ORCA_AUTO_UPDATE_REEXECED')).toBeLessThan(
+      script.indexOf('git reset --hard')
+    )
+    expect(script).toContain('refresh_installed_script')
+    expect(script).toContain('gh auth status')
+    expect(script).toContain('ORCA_CODESIGN_TIMEOUT_SECONDS')
+    expect(script).toContain('Always Allow')
     expect(script).toContain('gh release create')
     expect(script).toContain('latest-mac.yml')
     expect(script).toContain('--repo quzard/orca')
@@ -58,6 +66,9 @@ describe('fork daily sync split', () => {
       resolve('fork/scripts/launchd/com.orca.fork.mac-auto-update.plist'),
       'utf8'
     )
+    expect(plist).toContain('__BIN__/mac-auto-update.sh')
+    expect(plist).not.toContain('__REPO__/fork/scripts/mac-auto-update.sh')
+    expect(plist).toContain('<key>ORCA_REPO</key>')
     expect(plist).toContain('<key>StartInterval</key>')
     expect(plist).toContain('<integer>1800</integer>')
     expect(plist).toContain('<key>RunAtLoad</key>')

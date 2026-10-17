@@ -6,7 +6,7 @@
   <string>com.orca.fork.mac-auto-update</string>
   <key>ProgramArguments</key>
   <array>
-    <string>__REPO__/fork/scripts/mac-auto-update.sh</string>
+    <string>__BIN__/mac-auto-update.sh</string>
   </array>
   <key>WorkingDirectory</key>
   <string>__REPO__</string>
@@ -18,6 +18,8 @@
   <dict>
     <key>HOME</key>
     <string>__HOME__</string>
+    <key>ORCA_REPO</key>
+    <string>__REPO__</string>
     <key>PATH</key>
     <string>/opt/homebrew/bin:/usr/local/bin:__HOME__/.orbstack/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
   </dict>

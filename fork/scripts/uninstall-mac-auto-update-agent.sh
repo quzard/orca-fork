@@ -7,5 +7,7 @@ readonly DEST="${HOME}/Library/LaunchAgents/${LABEL}.plist"
 if [[ "$(uname -s)" == Darwin ]]; then
   launchctl bootout "gui/$(id -u)/${LABEL}" >/dev/null 2>&1 || true
 fi
-rm -f "$DEST"
+rm -f "$DEST" \
+  "${HOME}/Projects/orca-verify/bin/mac-auto-update.sh" \
+  "${HOME}/Projects/orca-verify/bin/mac-auto-update.sh.next"
 echo "已移除 ${LABEL}"

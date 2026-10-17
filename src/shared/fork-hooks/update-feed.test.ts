@@ -4,13 +4,16 @@ import {
   FORK_GITHUB_UPDATE_REPO,
   forkReleaseFeedDecision,
   forkUpdateFeedRegistered,
+  forkUpstreamReleaseReadsBlocked,
   registerForkUpdateFeed,
+  registerForkUpstreamReleaseReadsBlocked,
   resolveForkUpdateFeed
 } from './update-feed'
 
 describe('fork update feed hook', () => {
   afterEach(() => {
     registerForkUpdateFeed(null)
+    registerForkUpstreamReleaseReadsBlocked(false)
   })
 
   it('stays on the upstream feed until a fork registers', () => {
@@ -41,5 +44,6 @@ describe('fork update feed hook', () => {
       token: 'stub-token'
     })
     expect(forkReleaseFeedDecision().kind).toBe('ready')
+    expect(forkUpstreamReleaseReadsBlocked()).toBe(true)
   })
 })

@@ -15,6 +15,10 @@ export const FORK_GITHUB_UPDATE_TOKEN_SET_CHANNEL = 'fork:github-update-token:se
 
 export const FORK_GITHUB_TOKEN_FIELD_TITLE = 'GitHub token'
 
+/** 版本列表、指定版本和发行说明都用这一句，不请求上游仓库。 */
+export const FORK_UPSTREAM_RELEASE_BLOCKED =
+  'Fork builds do not list or download upstream releases.'
+
 export type ForkGithubUpdateFeed = {
   provider: 'github'
   owner: string
@@ -29,6 +33,7 @@ export type ForkReleaseFeedDecision =
   | { kind: 'ready'; feed: ForkGithubUpdateFeed }
 
 let resolver: (() => ForkGithubUpdateFeed | null) | null = null
+let upstreamReadsBlocked = false
 
 export function registerForkUpdateFeed(next: (() => ForkGithubUpdateFeed | null) | null): void {
   resolver = next
@@ -36,6 +41,15 @@ export function registerForkUpdateFeed(next: (() => ForkGithubUpdateFeed | null)
 
 export function forkUpdateFeedRegistered(): boolean {
   return resolver !== null
+}
+
+/** 主进程和渲染进程都登记。有私有源时同样视为挡住上游读取。 */
+export function registerForkUpstreamReleaseReadsBlocked(blocked = true): void {
+  upstreamReadsBlocked = blocked
+}
+
+export function forkUpstreamReleaseReadsBlocked(): boolean {
+  return upstreamReadsBlocked || resolver !== null
 }
 
 /** 已登记的私有发布源。没有令牌时返回 null，调用方不得改去打上游。 */

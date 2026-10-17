@@ -1,5 +1,9 @@
 import { net } from 'electron'
 import {
+  FORK_UPSTREAM_RELEASE_BLOCKED,
+  forkUpstreamReleaseReadsBlocked
+} from '../shared/fork-hooks/update-feed'
+import {
   findInstallerAssetName,
   getReleaseRepoForChannel,
   getVersionChannel,
@@ -11,8 +15,8 @@ import {
 } from '../shared/release-channel'
 import { parseRetryAfterHeaderMs } from '../shared/retry-after-header'
 import { getGhRateLimitBlockedUntilMs, recordGhPrimaryRateLimit } from './git/gh-rate-limit-breaker'
-import { isValidVersion } from './updater-fallback'
 import { rejectReleaseApiToken, resolveReleaseApiToken } from './updater-release-api-token'
+import { isValidVersion } from './updater-fallback'
 
 const FETCH_TIMEOUT_MS = 8000
 const MAX_LISTED_BUILDS = 100
@@ -182,6 +186,10 @@ export async function listReleaseBuilds(
   channel: ReleaseChannel,
   platform: NodeJS.Platform = process.platform
 ): Promise<ReleaseBuild[]> {
+  // fork: 版本列表不请求上游仓库。
+  if (forkUpstreamReleaseReadsBlocked()) {
+    return []
+  }
   const repo = getReleaseRepoForChannel(channel)
   // Why: while the gh breaker has the token's core bucket marked spent, an
   // authenticated request is a guaranteed 403 — go straight to the per-IP bucket.
@@ -230,6 +238,10 @@ export type ResolvedTargetBuild = {
 
 /** Resolves a tag the user picked into a pinned generic feed URL. */
 export function resolveTargetBuild(channel: ReleaseChannel, tag: string): ResolvedTargetBuild {
+  // fork: 指定版本不能拼出上游下载地址。
+  if (forkUpstreamReleaseReadsBlocked()) {
+    throw new Error(FORK_UPSTREAM_RELEASE_BLOCKED)
+  }
   const version = normalizeTagToVersion(tag)
   if (!isValidVersion(version)) {
     throw new Error(`"${tag}" is not a valid release tag.`)

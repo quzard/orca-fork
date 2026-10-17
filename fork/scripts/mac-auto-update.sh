@@ -4,8 +4,8 @@
 # 状态写到 ~/Projects/orca-verify/sync-status.json。
 set -euo pipefail
 
-readonly SCRIPT_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 readonly STATUS_DIR="${HOME}/Projects/orca-verify"
+readonly INSTALLED_SCRIPT="${STATUS_DIR}/bin/mac-auto-update.sh"
 readonly STATUS_JSON="${STATUS_DIR}/sync-status.json"
 readonly LOCK_FILE="${STATUS_DIR}/mac-auto-update.lock"
 readonly GLIBC217_ARCHIVE="node-v24.21.0-linux-x64-glibc-217.tar.gz"
@@ -13,6 +13,29 @@ readonly GLIBC217_SHA256="b1d164136d4b218d663e664f40ba5e260ebc07f90e2bd784c63a57
 
 if [[ "$(uname -s)" != Darwin ]]; then
   echo "mac-auto-update: this script runs on macOS" >&2
+  exit 1
+fi
+
+# 仓库内的副本在 git reset 时会被换掉。先导出仓库路径，再从临时文件重新执行。
+if [[ -z "${ORCA_REPO:-}" ]]; then
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  if [[ -f "${script_dir}/install-mac-release.sh" ]]; then
+    ORCA_REPO="$(cd "${script_dir}/../.." && pwd)"
+  fi
+fi
+if [[ "${ORCA_AUTO_UPDATE_REEXECED:-}" != 1 ]]; then
+  copy="$(mktemp "${TMPDIR:-/tmp}/orca-auto-update.XXXXXX")"
+  cp "${BASH_SOURCE[0]}" "$copy"
+  chmod 700 "$copy"
+  export ORCA_AUTO_UPDATE_REEXECED=1
+  export ORCA_AUTO_UPDATE_SCRIPT_COPY="$copy"
+  if [[ -n "${ORCA_REPO:-}" ]]; then
+    export ORCA_REPO
+  fi
+  exec /bin/bash "$copy" "$@"
+fi
+if [[ -z "${ORCA_REPO:-}" ]]; then
+  echo "mac-auto-update: ORCA_REPO is not set" >&2
   exit 1
 fi
 
@@ -24,7 +47,7 @@ if [[ -f "${STATUS_DIR}/sync.env" ]]; then
   set +a
 fi
 
-REPO="${ORCA_REPO:-$SCRIPT_REPO}"
+REPO="$ORCA_REPO"
 export http_proxy="${http_proxy:-http://127.0.0.1:6152}"
 export https_proxy="${https_proxy:-http://127.0.0.1:6152}"
 export ALL_PROXY="${ALL_PROXY:-http://127.0.0.1:6152}"
@@ -98,8 +121,23 @@ with open(path, "w", encoding="utf-8") as handle:
 PY
 }
 
+# 成功之后才用 mv 换掉安装副本。正在跑的是临时文件，mv 不会截断它。
+refresh_installed_script() {
+  local source="${REPO}/fork/scripts/mac-auto-update.sh"
+  if [[ ! -f "$source" || "$source" -ef "$INSTALLED_SCRIPT" ]]; then
+    return 0
+  fi
+  mkdir -p "$(dirname "$INSTALLED_SCRIPT")"
+  cp "$source" "${INSTALLED_SCRIPT}.next"
+  chmod 755 "${INSTALLED_SCRIPT}.next"
+  mv -f "${INSTALLED_SCRIPT}.next" "$INSTALLED_SCRIPT"
+}
+
 finish() {
   local code="$1"
+  if [[ "$code" -eq 0 && "$RESULT" != skipped ]]; then
+    refresh_installed_script || true
+  fi
   write_status
   exit "$code"
 }
@@ -112,7 +150,7 @@ if [[ -f "$LOCK_FILE" ]]; then
   fi
 fi
 echo $$ >"$LOCK_FILE"
-trap 'rm -f "$LOCK_FILE"' EXIT
+trap 'rm -f "$LOCK_FILE" "${ORCA_AUTO_UPDATE_SCRIPT_COPY:-}"' EXIT
 
 use_node24() {
   export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
@@ -156,6 +194,96 @@ seed_glibc217() {
     finish 1
   fi
   mv "${dest}.partial" "$dest"
+}
+
+etime_to_seconds() {
+  local raw="$1" rest days=0 h m s
+  raw="${raw#"${raw%%[![:space:]]*}"}"
+  if [[ "$raw" == *-* ]]; then
+    days="${raw%%-*}"
+    rest="${raw#*-}"
+  else
+    rest="$raw"
+  fi
+  IFS=: read -r h m s <<<"$rest"
+  if [[ -z "${s:-}" ]]; then
+    s="$m"
+    m="$h"
+    h=0
+  fi
+  echo $((10#$days * 86400 + 10#$h * 3600 + 10#$m * 60 + 10#$s))
+}
+
+# 这次构建拉起的 codesign 才算。系统里别的签名进程不计入。
+codesign_belongs_to() {
+  local pid="$1" root="$2" ppid hops=0
+  while [[ "$pid" != "$root" && "$pid" != 0 && "$pid" != 1 && "$hops" -lt 40 ]]; do
+    ppid="$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d '[:space:]')"
+    [[ -z "$ppid" ]] && return 1
+    pid="$ppid"
+    hops=$((hops + 1))
+  done
+  [[ "$pid" == "$root" ]]
+}
+
+# launchd 里 codesign 等钥匙串确认时会停住。单个 codesign 超过时限就结束这次构建。
+watch_codesign_children() {
+  local root="$1"
+  local limit="$2"
+  local marker="$3"
+  local pid etime seconds
+  while kill -0 "$root" 2>/dev/null; do
+    while read -r pid etime; do
+      [[ -z "$pid" || -z "$etime" ]] && continue
+      codesign_belongs_to "$pid" "$root" || continue
+      seconds="$(etime_to_seconds "$etime")"
+      if [[ "$seconds" -ge "$limit" ]]; then
+        printf '%s\n' "codesign timed out after ${limit}s waiting for the Orca Local Signing key. Run ${INSTALLED_SCRIPT} once in Terminal and click Always Allow." >"$marker"
+        kill "$pid" "$root" 2>/dev/null || true
+        return 0
+      fi
+    done < <(ps -axo pid=,etime=,command= | awk '/codesign/ && $0 !~ /awk/ { print $1, $2 }')
+    sleep 5
+  done
+}
+
+run_build_with_codesign_watch() {
+  local log="${STATUS_DIR}/mac-build.log"
+  local marker="${STATUS_DIR}/codesign-failure.txt"
+  local limit="${ORCA_CODESIGN_TIMEOUT_SECONDS:-600}"
+  local build_pid watch_pid code=0
+  rm -f "$marker"
+  : >"$log"
+  bash fork/scripts/install-mac-release.sh --build-only >"$log" 2>&1 &
+  build_pid=$!
+  watch_codesign_children "$build_pid" "$limit" "$marker" &
+  watch_pid=$!
+  wait "$build_pid" || code=$?
+  kill "$watch_pid" 2>/dev/null || true
+  wait "$watch_pid" 2>/dev/null || true
+  if [[ -f "$marker" ]]; then
+    ERROR="$(cat "$marker")"
+    return 1
+  fi
+  if [[ "$code" -ne 0 ]]; then
+    if grep -E -q 'errSecInternalComponent|errSecAuthFailed|errSecInteractionNotAllowed|User interaction is not allowed' "$log"; then
+      ERROR="codesign was denied keychain access for Orca Local Signing. Run ${INSTALLED_SCRIPT} once in Terminal and click Always Allow."
+    else
+      ERROR="build failed"
+    fi
+    return 1
+  fi
+}
+
+require_gh_auth() {
+  if [[ "${ORCA_PUBLISH_RELEASE:-}" != 1 ]]; then
+    return 0
+  fi
+  if ! command -v gh >/dev/null 2>&1 || ! gh auth status >/dev/null 2>&1; then
+    ERROR="gh auth status failed. The home Mac needs gh logged in with write access to quzard/orca. Clients do not need gh."
+    RESULT="failed"
+    finish 1
+  fi
 }
 
 publish_release() {
@@ -252,8 +380,7 @@ build_develop_release() {
   echo "mac-auto-update: develop $(git rev-parse --short HEAD) -> $(git rev-parse --short origin/develop)"
   git reset --hard origin/develop
   seed_glibc217
-  if ! bash fork/scripts/install-mac-release.sh --build-only; then
-    ERROR="build failed"
+  if ! run_build_with_codesign_watch; then
     return 1
   fi
   VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "dist/mac-arm64/Orca.app/Contents/Info.plist")"
@@ -263,6 +390,7 @@ build_develop_release() {
 
 use_node24
 export PATH="/opt/homebrew/bin:/usr/local/bin:${HOME}/.orbstack/bin:${PATH}"
+require_gh_auth
 if [[ "${ORCA_BUILD_RELEASES:-}" != 1 ]]; then
   RESULT="skipped"
   ERROR="set ORCA_BUILD_RELEASES=1 and ORCA_PUBLISH_RELEASE=1 in sync.env"

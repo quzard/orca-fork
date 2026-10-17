@@ -23,10 +23,12 @@ physical_dir() {
 }
 
 physical_file() {
-  local dir base
+  local dir base resolved
   dir="$(dirname -- "$1")"
   base="$(basename -- "$1")"
-  printf '%s/%s\n' "$(physical_dir "$dir")" "$base"
+  # 目录不存在就失败。错误路径不要先 mkdir 出空目录。
+  resolved="$(cd -- "$dir" && pwd -P)" || return 1
+  printf '%s/%s\n' "$resolved" "$base"
 }
 
 cache_dir="${ORCA_NODE_RUNTIME_CACHE_DIR:-${REPO_ROOT}/out/node-runtime-cache}"
@@ -134,7 +136,7 @@ for dir in out/orcad-prebuilds out/orcad-prebuild-work out/node-runtime-cache; d
 done
 # 只交回容器里 root 新建的文件。宿主机事先放进缓存的 Node 包不要整棵改所有者。
 if [ -n "${ORCA_NODE_RUNTIME_CACHE_DIR:-}" ] && [ -d "$ORCA_NODE_RUNTIME_CACHE_DIR" ]; then
-  find "$ORCA_NODE_RUNTIME_CACHE_DIR" -uid 0 -exec chown "$HOST_UID:$HOST_GID" {} +
+  find "$ORCA_NODE_RUNTIME_CACHE_DIR" -uid 0 -exec chown -h "$HOST_UID:$HOST_GID" {} +
 fi
 SLOT
 }
@@ -163,7 +165,7 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 docker_err=""
 if ! docker_err="$(docker info 2>&1 >/dev/null)"; then
-  echo 'Docker 守护进程没有在运行。Linux SSH 槽需要本机 Docker 运行上游的 manylinux 镜像。' >&2
+  echo 'Docker 不可用。Linux SSH 槽需要本机 Docker 运行上游的 manylinux 镜像。' >&2
   if [[ -n "$docker_err" ]]; then
     printf '%s\n' "$docker_err" >&2
   fi

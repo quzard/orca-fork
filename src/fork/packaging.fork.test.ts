@@ -111,9 +111,9 @@ describe('fork packaging', () => {
     expect(script).toContain('/Applications/OrbStack.app/Contents/MacOS/xbin')
     expect(script).toContain('ORCA_NODE_RUNTIME_CACHE_DIR=/node-runtime-cache')
     expect(script).toContain('type=bind,source=')
-    expect(script).toContain('find "$ORCA_NODE_RUNTIME_CACHE_DIR" -uid 0')
+    expect(script).toContain('find "$ORCA_NODE_RUNTIME_CACHE_DIR" -uid 0 -exec chown -h')
     expect(script).toContain('未找到 docker 可执行文件')
-    expect(script).toContain('Docker 守护进程没有在运行')
+    expect(script).toContain('Docker 不可用')
     expect(script).not.toMatch(/^\s*pnpm\b/m)
     execFileSync('bash', ['-n', resolve('fork/scripts/build-orcad-linux-prebuilds.sh')])
   })
@@ -131,8 +131,14 @@ describe('fork packaging', () => {
       }).trim()
     const outside = '/tmp/orca-fork-cache-outside'
     const dotdot = `${repoRoot}/../tmp/orca-fork-cache-x`
+    const dotdotDir = resolve(repoRoot, '../tmp/orca-fork-cache-x')
     const doubled = '/tmp//orca-fork-cache-slash'
+    const missingRuntime = '/tmp/orca-fork-cache-other/bin/node'
     try {
+      mkdirSync(join(repoRoot, 'out/node-runtime-cache/node-v/bin'), { recursive: true })
+      mkdirSync(join(outside, 'node-v24.21.0-linux-x64/bin'), { recursive: true })
+      mkdirSync(join(dotdotDir, 'node-v/bin'), { recursive: true })
+      mkdirSync('/tmp/orca-fork-cache-slash/node-v/bin', { recursive: true })
       expect(print(['--print-container-cache'])).toBe('/work/out/node-runtime-cache')
       expect(
         print(['--print-container-node', `${repoRoot}/out/node-runtime-cache/node-v/bin/node`])
@@ -181,17 +187,25 @@ describe('fork packaging', () => {
           ORCA_NODE_RUNTIME_CACHE_DIR: `${repoRoot}/out/custom-node-cache`
         })
       ).toBe('/work/out/custom-node-cache')
+      expect(existsSync(missingRuntime)).toBe(false)
       expect(() =>
-        print(['--print-container-node', '/tmp/orca-fork-cache-other/bin/node'], {
+        print(['--print-container-node', missingRuntime], {
+          ORCA_NODE_RUNTIME_CACHE_DIR: '/tmp/orca-fork-cache-neither'
+        })
+      ).toThrow()
+      expect(existsSync('/tmp/orca-fork-cache-other')).toBe(false)
+      mkdirSync('/tmp/orca-fork-cache-other/bin', { recursive: true })
+      expect(() =>
+        print(['--print-container-node', missingRuntime], {
           ORCA_NODE_RUNTIME_CACHE_DIR: '/tmp/orca-fork-cache-neither'
         })
       ).toThrow(/outside the workspace and the runtime cache/)
     } finally {
       rmSync(join(repoRoot, 'out/custom-node-cache'), { recursive: true, force: true })
       rmSync(join(repoRoot, 'out/node-runtime-cache/node-v'), { recursive: true, force: true })
+      rmSync(dotdotDir, { recursive: true, force: true })
       for (const dir of [
         outside,
-        '/tmp/orca-fork-cache-x',
         '/tmp/orca-fork-cache-slash',
         '/tmp/orca-fork-cache-other',
         '/tmp/orca-fork-cache-neither'
@@ -235,7 +249,7 @@ describe('fork packaging', () => {
           env: { ...env, PATH: `${bin}:/usr/bin:/bin` },
           stdio: ['ignore', 'pipe', 'pipe']
         })
-      ).toThrow(/Docker 守护进程没有在运行[\s\S]*Cannot connect to the Docker daemon/)
+      ).toThrow(/Docker 不可用[\s\S]*Cannot connect to the Docker daemon/)
     } finally {
       rmSync(home, { recursive: true, force: true })
     }

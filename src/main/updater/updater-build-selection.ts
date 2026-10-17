@@ -4,7 +4,6 @@ import {
   FORK_UPSTREAM_RELEASE_BLOCKED,
   forkUpstreamReleaseReadsBlocked
 } from '../../shared/fork-hooks/update-feed'
-import { profileStateBuildCompatibilityError } from '../../shared/profile-state-build-compatibility'
 import {
   DEV_CHANNEL_PLATFORM_LABEL,
   getVersionChannel,
@@ -16,6 +15,7 @@ import {
   type ReleaseChannel
 } from '../../shared/release-channel'
 import { compareVersions } from '../updater-fallback'
+import { profileStateBuildCompatibilityError } from '../../shared/profile-state-build-compatibility'
 import { listReleaseBuilds, resolveTargetBuild } from '../updater-release-builds'
 import { ReleaseBuildListCache, type ReleaseBuildListOptions } from '../updater-release-build-cache'
 import { UpdaterMenuChecks } from './updater-menu-checks'

@@ -94,9 +94,11 @@ GitHub 令牌写在 `~/.orca/github-update-token`。`writeSecureFile` 把文件�
 
 已登记且文件里有令牌时，发布检查只指向 `quzard/orca` 的私有 GitHub Releases，并打开 `allowPrerelease`，元数据文件是 `latest-mac.yml`。没有令牌就不检查，设置和「Check for Updates」给出同一句提示。未登记时仍是上游公开源。
 
-家里的 LaunchAgent 只在 `develop` 前进时构建、签名并发布。它跑的是 `~/Projects/orca-verify/bin/mac-auto-update.sh`，安装脚本负责复制。脚本在 git 操作之前从临时文件重新执行，成功结束后才用 mv 换掉这份副本。发布用 `gh release create`：家里的 Mac 要 `gh auth status` 成功，并且对 quzard/orca 有写权限，否则立刻把原因写入 `sync-status.json`。客户机不需要 gh，也不再用 `gh release download` 安装。
+家里的 LaunchAgent 只在 `develop` 前进时构建、签名并发布。它跑的是 `~/Projects/orca-verify/bin/mac-auto-update.sh`，安装脚本负责复制。已经装过、仍指向仓库内脚本的代理，要重跑安装脚本，再在终端手动跑一次并点 Always Allow，然后 `--bootstrap`。脚本在 git 操作之前从临时文件重新执行，退出时删掉该副本；成功结束后才用 mv 换掉稳定副本。构建在独立进程组里，锁文件挡住第二次同时构建。codesign 超时会 `kill` 整个进程组。
 
-launchd 里签名可能停在 Orca Local Signing 的钥匙串确认上。`--bootstrap` 之前先在终端跑一次稳定副本，点 Always Allow。codesign 超时或被拒绝会写入 `sync-status.json`，默认 600 秒（`ORCA_CODESIGN_TIMEOUT_SECONDS`）。已登记的 fork 构建不列出、不钉、也不打开上游 stablyai 的发行说明。
+发布用 `gh release create`。`gh auth status` 放在「这个 sha 已发布」之后。失败时 `release` 保持原值，`ghAuth` 记为 `failed`，不写成 skipped。`dist/` 里版本后缀已经对上该 sha 时，gh 恢复后只补发，不重新签名。客户机不需要 gh，也不再用 `gh release download` 安装。
+
+launchd 里签名可能停在 Orca Local Signing 的钥匙串确认上。`--bootstrap` 之前先在终端跑一次稳定副本，点 Always Allow。超时或拒绝写入 `sync-status.json`，默认 600 秒（`ORCA_CODESIGN_TIMEOUT_SECONDS`）。已登记的 fork 构建不列出、不钉、也不打开上游 stablyai 的发行说明。
 
 ## F038 macOS 本地文件密钥
 

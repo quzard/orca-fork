@@ -18,6 +18,14 @@ describe('fork daily sync split', () => {
     expect(schedule).toContain("kind === 'skip'")
     expect(menu).toContain('FORK_GITHUB_UPDATE_TOKEN_HINT')
     expect(download).not.toContain('forkBuiltinUpdateNotifyOnly')
+    const builds = readFileSync(resolve('src/main/updater-release-builds.ts'), 'utf8')
+    expect(builds.indexOf("from './updater-fallback'")).toBeLessThan(
+      builds.indexOf("from './updater-release-api-token'")
+    )
+    const selection = readFileSync(resolve('src/main/updater/updater-build-selection.ts'), 'utf8')
+    expect(selection.indexOf("from '../updater-fallback'")).toBeLessThan(
+      selection.indexOf('profileStateBuildCompatibilityError')
+    )
     expect(feed).toContain('readGithubUpdateToken')
     expect(feed).not.toContain('safeStorage')
     expect(feed).not.toContain('auth token')
@@ -51,8 +59,30 @@ describe('fork daily sync split', () => {
     expect(script.indexOf('ORCA_AUTO_UPDATE_REEXECED')).toBeLessThan(
       script.indexOf('git reset --hard')
     )
+    expect(script.indexOf('${ORCA_AUTO_UPDATE_SCRIPT_COPY:-}')).toBeLessThan(
+      script.indexOf('already running')
+    )
     expect(script).toContain('refresh_installed_script')
-    expect(script).toContain('gh auth status')
+    expect(script).toContain('noclobber')
+    expect(script).toContain('setpgrp(0,0)')
+    expect(script).toContain('kill -- -')
+    const buildBody = script.slice(script.indexOf('build_develop_release()'))
+    expect(buildBody.indexOf('already published')).toBeLessThan(
+      buildBody.indexOf('require_gh_auth')
+    )
+    expect(buildBody.indexOf('dist_matches_sha')).toBeLessThan(
+      buildBody.indexOf('git reset --hard')
+    )
+    expect(buildBody.indexOf('require_gh_auth')).toBeLessThan(buildBody.indexOf('git reset --hard'))
+    expect(script.slice(script.lastIndexOf('\nuse_node24'))).not.toContain('require_gh_auth')
+    const ghAuth = script.slice(
+      script.indexOf('require_gh_auth()'),
+      script.indexOf('record_gh_auth_failure()')
+    )
+    expect(ghAuth).toContain('gh auth status')
+    expect(ghAuth).not.toContain('finish')
+    expect(script).toContain('GH_AUTH="failed"')
+    expect(script).toContain('RELEASE="$PREVIOUS_RELEASE"')
     expect(script).toContain('ORCA_CODESIGN_TIMEOUT_SECONDS')
     expect(script).toContain('Always Allow')
     expect(script).toContain('gh release create')

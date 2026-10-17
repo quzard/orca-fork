@@ -15,8 +15,8 @@ import {
 } from '../shared/release-channel'
 import { parseRetryAfterHeaderMs } from '../shared/retry-after-header'
 import { getGhRateLimitBlockedUntilMs, recordGhPrimaryRateLimit } from './git/gh-rate-limit-breaker'
-import { rejectReleaseApiToken, resolveReleaseApiToken } from './updater-release-api-token'
 import { isValidVersion } from './updater-fallback'
+import { rejectReleaseApiToken, resolveReleaseApiToken } from './updater-release-api-token'
 
 const FETCH_TIMEOUT_MS = 8000
 const MAX_LISTED_BUILDS = 100

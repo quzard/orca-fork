@@ -28,11 +28,13 @@ LaunchAgent `com.orca.fork.mac-auto-update` runs `~/Projects/orca-verify/bin/mac
 
 That script fetches `origin/develop`. When that sha is not the last published sha, it resets a clean `develop` checkout to the remote tip (reflog keeps the previous tip), seeds the glibc 2.17 Node archive, and runs `fork/scripts/install-mac-release.sh --build-only`. Signing stays `Orca Local Signing`. It does not install the app and it does not download a release with `gh`.
 
-`~/Projects/orca-verify/sync.env` must set `ORCA_BUILD_RELEASES=1` and `ORCA_PUBLISH_RELEASE=1`. Publish uses `gh release create` and uploads `dist/latest-mac.yml`, the arm64 zip, dmg, and blockmaps as a prerelease on `quzard/orca`, tagged at the built commit (`v<version>`). The home Mac needs `gh` logged in with write access to `quzard/orca`. If `gh` is missing or `gh auth status` fails, the script exits before the build and writes that reason into `sync-status.json`. Client Macs do not need `gh`. The private GitHub provider asks for `latest-mac.yml`, not `local-mac.yml`. The script defaults the proxy to `http://127.0.0.1:6152` and Node's `NODE_USE_ENV_PROXY=1`.
+`~/Projects/orca-verify/sync.env` must set `ORCA_BUILD_RELEASES=1` and `ORCA_PUBLISH_RELEASE=1`. Publish uses `gh release create` and uploads `dist/latest-mac.yml`, the arm64 zip, dmg, and blockmaps as a prerelease on `quzard/orca`, tagged at the built commit (`v<version>`). The home Mac needs `gh` logged in with write access to `quzard/orca`. Client Macs do not need `gh`. The private GitHub provider asks for `latest-mac.yml`, not `local-mac.yml`. The script defaults the proxy to `http://127.0.0.1:6152` and Node's `NODE_USE_ENV_PROXY=1`.
 
-A background `codesign` under launchd can stop on a keychain prompt for the `Orca Local Signing` private key and never finish. After install, and before `--bootstrap`, run the installed script once from Terminal and click Always Allow. The script watches child `codesign` processes. One that runs longer than `ORCA_CODESIGN_TIMEOUT_SECONDS` (default 600) is killed, and a denial (`errSecInternalComponent`, `errSecAuthFailed`, `errSecInteractionNotAllowed`, or "User interaction is not allowed") is recorded in `sync-status.json` instead of leaving the job hung.
+`gh auth status` runs only after the "already published" check. A sha that is already published does not contact `gh`. If auth fails, `sync-status.json` keeps the previous `release` value and sets `ghAuth` to `failed` with the reason in `error`. It does not mark that sha `skipped`. When `dist/` still contains that sha (the local version suffix embeds the 12-character commit), the next successful auth publishes those files and does not build or sign again.
 
-Status file: `~/Projects/orca-verify/sync-status.json` (`sha`, `installedSha`, `builtSha`, `version`, `result`, `startedAt`, `finishedAt`, `error`, `release`). `result` is `published`, `up-to-date`, `built`, `skipped`, or `failed`.
+A background `codesign` under launchd can stop on a keychain prompt for the `Orca Local Signing` private key and never finish. After install, and before `--bootstrap`, run the installed script once from Terminal and click Always Allow. The build runs in its own process group. A `codesign` in that group that runs longer than `ORCA_CODESIGN_TIMEOUT_SECONDS` (default 600) causes the whole group to be killed, so electron-builder and node do not keep writing `dist/`. A denial (`errSecInternalComponent`, `errSecAuthFailed`, `errSecInteractionNotAllowed`, or "User interaction is not allowed") is recorded in `sync-status.json` instead of leaving the job hung. A lock file stops a second run from building while the first is alive.
+
+Status file: `~/Projects/orca-verify/sync-status.json` (`sha`, `installedSha`, `builtSha`, `version`, `result`, `startedAt`, `finishedAt`, `error`, `release`, `ghAuth`). `result` is `published`, `up-to-date`, `built`, `skipped`, or `failed`. The build log is `~/Projects/orca-verify/mac-build.log`; each run truncates it.
 
 The glibc 2.17 tarball is not downloaded from the unofficial Node host. Place `node-v24.21.0-linux-x64-glibc-217.tar.gz` (sha256 `b1d164136d4b218d663e664f40ba5e260ebc07f90e2bd784c63a57d8c0e6aa8a`) in `~/Projects/orca-verify/node-runtime-cache/`, or set `ORCA_NODE_UNOFFICIAL_MIRROR` in `sync.env` to a URL or base that serves that exact archive.
 
@@ -49,7 +51,11 @@ ORCA_REPO="$PWD" ~/Projects/orca-verify/bin/mac-auto-update.sh
 bash fork/scripts/install-mac-auto-update-agent.sh --bootstrap
 ```
 
-Run that first command from the checkout. The installed copy cannot infer the repo, so the manual run sets `ORCA_REPO`. Do this before `--bootstrap`: `RunAtLoad` would otherwise show the keychain prompt under launchd, where it cannot be clicked. Remove the agent with `bash fork/scripts/uninstall-mac-auto-update-agent.sh`. Installing the plist does not load the agent until `--bootstrap`.
+Run the installer from the checkout. The installed copy cannot infer the repo, so the manual run sets `ORCA_REPO`. Do that manual run before `--bootstrap`: `RunAtLoad` would otherwise show the keychain prompt under launchd, where it cannot be clicked.
+
+An agent installed earlier still points its plist at `fork/scripts/mac-auto-update.sh` inside the checkout. That copy re-executes from a temp file, so `git reset` does not cut it off mid-run, but it is not the stable path. Re-run `bash fork/scripts/install-mac-auto-update-agent.sh`, run `ORCA_REPO="$PWD" ~/Projects/orca-verify/bin/mac-auto-update.sh` once and click Always Allow, then `bash fork/scripts/install-mac-auto-update-agent.sh --bootstrap`.
+
+Remove the agent with `bash fork/scripts/uninstall-mac-auto-update-agent.sh`. Installing the plist does not load the agent until `--bootstrap`.
 
 ## In-app updates
 

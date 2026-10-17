@@ -34,6 +34,8 @@ if [[ "${ORCA_AUTO_UPDATE_REEXECED:-}" != 1 ]]; then
   fi
   exec /bin/bash "$copy" "$@"
 fi
+# 重新执行后立刻登记。拿锁之前退出（缺少 ORCA_REPO、已有实例）也要删掉临时副本。
+trap 'rm -f "${ORCA_AUTO_UPDATE_SCRIPT_COPY:-}"' EXIT
 if [[ -z "${ORCA_REPO:-}" ]]; then
   echo "mac-auto-update: ORCA_REPO is not set" >&2
   exit 1
@@ -64,11 +66,15 @@ SHA=""
 VERSION=""
 ERROR=""
 RELEASE="skipped"
+GH_AUTH=""
 INSTALLED_SHA=""
 BUILT_SHA=""
+PREVIOUS_SHA=""
+PREVIOUS_VERSION=""
 PREVIOUS_RESULT=""
 PREVIOUS_RELEASE=""
 ALREADY_PUBLISHED=0
+BUILD_PGID=""
 
 if [[ -f "$STATUS_JSON" ]]; then
   eval "$(python3 - "$STATUS_JSON" <<'PY'
@@ -78,6 +84,7 @@ try:
 except Exception:
     data = {}
 for key, name in (
+    ("sha", "PREVIOUS_SHA"),
     ("installedSha", "INSTALLED_SHA"),
     ("builtSha", "BUILT_SHA"),
     ("result", "PREVIOUS_RESULT"),
@@ -87,6 +94,7 @@ for key, name in (
     print(f"{name}={shlex.quote(str(data.get(key) or ''))}")
 PY
 )"
+  PREVIOUS_VERSION="$VERSION"
 fi
 
 write_status() {
@@ -99,6 +107,7 @@ write_status() {
     STATUS_FINISHED="$FINISHED" \
     STATUS_ERROR="$ERROR" \
     STATUS_RELEASE="$RELEASE" \
+    STATUS_GH_AUTH="$GH_AUTH" \
     STATUS_INSTALLED="$INSTALLED_SHA" \
     STATUS_BUILT="${BUILT_SHA:-}" \
     python3 - <<'PY'
@@ -113,6 +122,7 @@ doc = {
     "finishedAt": os.environ.get("STATUS_FINISHED", ""),
     "error": os.environ.get("STATUS_ERROR", ""),
     "release": os.environ.get("STATUS_RELEASE", ""),
+    "ghAuth": os.environ.get("STATUS_GH_AUTH", ""),
     "builtSha": os.environ.get("STATUS_BUILT", ""),
 }
 with open(path, "w", encoding="utf-8") as handle:
@@ -142,15 +152,35 @@ finish() {
   exit "$code"
 }
 
-if [[ -f "$LOCK_FILE" ]]; then
-  old="$(cat "$LOCK_FILE" 2>/dev/null || true)"
-  if [[ -n "$old" ]] && kill -0 "$old" 2>/dev/null; then
-    echo "mac-auto-update: already running (${old})"
-    exit 0
-  fi
-fi
-echo $$ >"$LOCK_FILE"
-trap 'rm -f "$LOCK_FILE" "${ORCA_AUTO_UPDATE_SCRIPT_COPY:-}"' EXIT
+# 原子锁：两次运行不能同时写 dist/。进程还在就退出，不改状态文件。
+acquire_lock() {
+  local tries=0 old
+  while [[ "$tries" -lt 5 ]]; do
+    if (set -o noclobber; echo $$ >"$LOCK_FILE") 2>/dev/null; then
+      return 0
+    fi
+    old="$(cat "$LOCK_FILE" 2>/dev/null || true)"
+    if [[ -n "$old" ]] && kill -0 "$old" 2>/dev/null; then
+      echo "mac-auto-update: already running (${old})"
+      exit 0
+    fi
+    rm -f "$LOCK_FILE"
+    tries=$((tries + 1))
+  done
+  echo "mac-auto-update: lock busy" >&2
+  exit 0
+}
+
+# 结束独立进程组里的 electron-builder/node，避免孤儿进程占着 dist/。
+stop_build_group() {
+  local pgid="$1"
+  [[ -z "$pgid" ]] && return 0
+  kill -- -"$pgid" 2>/dev/null || true
+  kill -KILL -- -"$pgid" 2>/dev/null || true
+}
+
+acquire_lock
+trap 'stop_build_group "${BUILD_PGID:-}"; rm -f "$LOCK_FILE" "${ORCA_AUTO_UPDATE_SCRIPT_COPY:-}"' EXIT
 
 use_node24() {
   export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
@@ -214,32 +244,27 @@ etime_to_seconds() {
   echo $((10#$days * 86400 + 10#$h * 3600 + 10#$m * 60 + 10#$s))
 }
 
-# 这次构建拉起的 codesign 才算。系统里别的签名进程不计入。
-codesign_belongs_to() {
-  local pid="$1" root="$2" ppid hops=0
-  while [[ "$pid" != "$root" && "$pid" != 0 && "$pid" != 1 && "$hops" -lt 40 ]]; do
-    ppid="$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d '[:space:]')"
-    [[ -z "$ppid" ]] && return 1
-    pid="$ppid"
-    hops=$((hops + 1))
-  done
-  [[ "$pid" == "$root" ]]
+# 只看这次构建进程组里的 codesign。
+codesign_in_group() {
+  local pid="$1" group="$2" pgid
+  pgid="$(ps -o pgid= -p "$pid" 2>/dev/null | tr -d '[:space:]')"
+  [[ -n "$pgid" && "$pgid" == "$group" ]]
 }
 
-# launchd 里 codesign 等钥匙串确认时会停住。单个 codesign 超过时限就结束这次构建。
+# launchd 里 codesign 等钥匙串确认时会停住。超时则结束整个构建进程组。
 watch_codesign_children() {
-  local root="$1"
+  local group="$1"
   local limit="$2"
   local marker="$3"
   local pid etime seconds
-  while kill -0 "$root" 2>/dev/null; do
+  while kill -0 "$group" 2>/dev/null; do
     while read -r pid etime; do
       [[ -z "$pid" || -z "$etime" ]] && continue
-      codesign_belongs_to "$pid" "$root" || continue
+      codesign_in_group "$pid" "$group" || continue
       seconds="$(etime_to_seconds "$etime")"
       if [[ "$seconds" -ge "$limit" ]]; then
         printf '%s\n' "codesign timed out after ${limit}s waiting for the Orca Local Signing key. Run ${INSTALLED_SCRIPT} once in Terminal and click Always Allow." >"$marker"
-        kill "$pid" "$root" 2>/dev/null || true
+        stop_build_group "$group"
         return 0
       fi
     done < <(ps -axo pid=,etime=,command= | awk '/codesign/ && $0 !~ /awk/ { print $1, $2 }')
@@ -254,13 +279,17 @@ run_build_with_codesign_watch() {
   local build_pid watch_pid code=0
   rm -f "$marker"
   : >"$log"
-  bash fork/scripts/install-mac-release.sh --build-only >"$log" 2>&1 &
+  # macOS 没有 setsid。perl setpgrp 让这次构建独占一个进程组。
+  perl -e 'setpgrp(0,0) or die $!; exec @ARGV or die $!' /bin/bash fork/scripts/install-mac-release.sh --build-only >"$log" 2>&1 &
   build_pid=$!
+  BUILD_PGID="$build_pid"
   watch_codesign_children "$build_pid" "$limit" "$marker" &
   watch_pid=$!
   wait "$build_pid" || code=$?
   kill "$watch_pid" 2>/dev/null || true
   wait "$watch_pid" 2>/dev/null || true
+  stop_build_group "$build_pid"
+  BUILD_PGID=""
   if [[ -f "$marker" ]]; then
     ERROR="$(cat "$marker")"
     return 1
@@ -275,14 +304,31 @@ run_build_with_codesign_watch() {
   fi
 }
 
+# 不在这里 finish。失败时保留已有的 release，另记 ghAuth。
 require_gh_auth() {
   if [[ "${ORCA_PUBLISH_RELEASE:-}" != 1 ]]; then
     return 0
   fi
-  if ! command -v gh >/dev/null 2>&1 || ! gh auth status >/dev/null 2>&1; then
-    ERROR="gh auth status failed. The home Mac needs gh logged in with write access to quzard/orca. Clients do not need gh."
-    RESULT="failed"
-    finish 1
+  if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+    GH_AUTH="ok"
+    return 0
+  fi
+  return 1
+}
+
+record_gh_auth_failure() {
+  local tried="$SHA"
+  ERROR="gh auth status failed. The home Mac needs gh logged in with write access to quzard/orca. Clients do not need gh."
+  if [[ -n "$tried" ]]; then
+    ERROR="${ERROR} Not publishing ${tried}."
+  fi
+  RESULT="failed"
+  GH_AUTH="failed"
+  # 保留上一次的 release。没构建过的新 sha 不继承 published。
+  RELEASE="$PREVIOUS_RELEASE"
+  if [[ "$BUILT_SHA" != "$tried" ]]; then
+    SHA="$PREVIOUS_SHA"
+    VERSION="$PREVIOUS_VERSION"
   fi
 }
 
@@ -353,6 +399,41 @@ PY
   RELEASE="published"
 }
 
+# dist 里的版本后缀带 12 位 sha，且 yml 点名的文件都在，才算这次构建还在。
+dist_matches_sha() {
+  local sha="$1" yml="${REPO}/dist/latest-mac.yml" short list version name
+  [[ -f "$yml" && -d "${REPO}/dist/mac-arm64/Orca.app" ]] || return 1
+  short="$(printf '%.12s' "$sha")"
+  list="$(python3 - "$yml" <<'PY'
+import pathlib, sys
+text = pathlib.Path(sys.argv[1]).read_text()
+version = ""
+names = []
+for line in text.splitlines():
+    if line.startswith("version:"):
+        version = line.split(":", 1)[1].strip().strip("'\"")
+    stripped = line.strip()
+    if stripped.startswith("- "):
+        stripped = stripped[2:].strip()
+    if stripped.startswith("url:") or stripped.startswith("path:"):
+        name = stripped.split(":", 1)[1].strip().strip("'\"")
+        if name:
+            names.append(name)
+print(version)
+for name in dict.fromkeys(names):
+    print(name)
+PY
+)"
+  version="$(printf '%s\n' "$list" | head -n 1)"
+  [[ "$version" == *-local.*."$short" ]] || return 1
+  while IFS= read -r name; do
+    [[ -z "$name" || "$name" == "$version" ]] && continue
+    [[ -f "${REPO}/dist/${name}" ]] || return 1
+  done < <(printf '%s\n' "$list" | tail -n +2)
+  VERSION="$version"
+  return 0
+}
+
 # ORCA_BUILD_RELEASES=1 才构建。发布由 ORCA_PUBLISH_RELEASE=1 控制。
 build_develop_release() {
   if [[ "${ORCA_BUILD_RELEASES:-}" != 1 ]]; then
@@ -376,6 +457,21 @@ build_develop_release() {
     RELEASE="published"
     return 0
   fi
+  # 同一 sha 的产物还在就只补发，不再签名。gh 失败不把 release 改成 skipped。
+  if dist_matches_sha "$SHA"; then
+    echo "mac-auto-update: reusing dist for ${SHA}"
+    if ! require_gh_auth; then
+      record_gh_auth_failure
+      return 1
+    fi
+    BUILT_SHA="$SHA"
+    publish_release || return 1
+    return 0
+  fi
+  if ! require_gh_auth; then
+    record_gh_auth_failure
+    return 1
+  fi
   # 变基后的 develop 不能快进。干净的 develop 检出对齐 origin，旧 HEAD 留在 reflog。
   echo "mac-auto-update: develop $(git rev-parse --short HEAD) -> $(git rev-parse --short origin/develop)"
   git reset --hard origin/develop
@@ -385,12 +481,11 @@ build_develop_release() {
   fi
   VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "dist/mac-arm64/Orca.app/Contents/Info.plist")"
   BUILT_SHA="$SHA"
-  publish_release
+  publish_release || return 1
 }
 
 use_node24
 export PATH="/opt/homebrew/bin:/usr/local/bin:${HOME}/.orbstack/bin:${PATH}"
-require_gh_auth
 if [[ "${ORCA_BUILD_RELEASES:-}" != 1 ]]; then
   RESULT="skipped"
   ERROR="set ORCA_BUILD_RELEASES=1 and ORCA_PUBLISH_RELEASE=1 in sync.env"

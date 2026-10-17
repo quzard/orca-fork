@@ -13,6 +13,7 @@ type HeaderMap = Record<string, string | string[] | undefined>
 const REDIRECT_EVENT = 'redirect'
 const ERROR_EVENT = 'error'
 const ABORT_EVENT = 'abort'
+const HTTPS_REDIRECT_PROTOCOL = 'https:'
 
 export type AssetRequestOptions = {
   protocol?: string
@@ -55,13 +56,14 @@ function copyListeners(request: RedirectableRequest, event: string): RequestList
   return request.listeners(event).slice()
 }
 
+// 只跟随 https。http 和其它协议直接失败，差分和 blockmap 会退回整包，令牌不会发出去。
 function redirectTarget(redirectUrl: string | undefined): URL | null {
   if (!redirectUrl) {
     return null
   }
   try {
     const target = new URL(redirectUrl)
-    if (target.protocol !== 'https:' && target.protocol !== 'http:') {
+    if (target.protocol !== HTTPS_REDIRECT_PROTOCOL) {
       return null
     }
     return target
@@ -191,7 +193,12 @@ export function guardPrivateGithubAssetRequest(
     return originalOn(event, (...args: unknown[]) => {
       const redirectUrl = args[2]
       pendingRedirectUrl = typeof redirectUrl === 'string' ? redirectUrl : undefined
-      listener(...args)
+      // 整包和 blockmap 的监听会按跳转地址重发。非 https 时不能让它执行。
+      if (!redirectTarget(pendingRedirectUrl)) {
+        stopRedirect(request)
+        return undefined
+      }
+      return listener(...args)
     })
   }
   if (hop > 0) {

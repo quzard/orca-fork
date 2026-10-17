@@ -8,6 +8,7 @@ import {
   BLOCKMAP_ASSETS_NOT_LOADED,
   BLOCKMAP_FILE_SUFFIX,
   BLOCKMAP_INSTALLER_NOT_ASSET,
+  DIFFERENTIAL_REDIRECT_STOPPED,
   GITHUB_API_HOSTNAME,
   GITHUB_RELEASE_ASSET_ACCEPT,
   GITHUB_RELEASE_ASSET_PATH_MARK,
@@ -565,6 +566,71 @@ describe('private GitHub blockmap urls', () => {
     expect(recorded).toHaveLength(4)
   })
 
+  it('rejects a non-https redirect for differential, blockmap, and full downloads', () => {
+    const insecureTargets = [
+      'http://release-assets.githubusercontent.com/file?X-Amz-Signature=abc',
+      `http://${GITHUB_API_HOSTNAME}${new URL(assetUrl(NEW_BLOCKMAP_ID)).pathname}`,
+      'file:///tmp/update.zip'
+    ]
+    const recorded: { hostname?: string; headers: HeaderMap }[] = []
+    const executor = {
+      createRequest(options: { hostname?: string; headers?: HeaderMap | null }) {
+        const headers: HeaderMap = {}
+        if (options.headers) {
+          Object.assign(headers, options.headers)
+        }
+        recorded.push({ hostname: options.hostname, headers })
+        return createRedirectableRequest()
+      }
+    }
+    installPrivateGithubDifferentialDownload({
+      privateGithubPrototype: createProvider(async () => '{}'),
+      httpExecutorPrototype: executor
+    })
+
+    for (const redirectUrl of insecureTargets) {
+      const options = {
+        protocol: 'https:',
+        hostname: GITHUB_API_HOSTNAME,
+        path: new URL(assetUrl(NEW_BLOCKMAP_ID)).pathname,
+        headers: {
+          authorization: `token ${TOKEN}`,
+          range: 'bytes=0-10'
+        }
+      }
+      const request = executor.createRequest(options)
+      let reissued = false
+      const errors: unknown[] = []
+      request.on('redirect', () => {
+        reissued = true
+        options.protocol = 'http:'
+        options.hostname = 'release-assets.githubusercontent.com'
+        request.followRedirect()
+      })
+      request.on('error', (error: unknown) => {
+        errors.push(error)
+      })
+      const before = recorded.length
+      request.emit('redirect', 302, 'GET', redirectUrl)
+
+      expect(reissued).toBe(false)
+      expect(request.followRedirectCalls).toBe(0)
+      expect(request.aborted).toBe(true)
+      expect(options.hostname).toBe(GITHUB_API_HOSTNAME)
+      expect(options.protocol).toBe('https:')
+      expect(recorded).toHaveLength(before)
+      expect(errors).toHaveLength(1)
+      expect(String(errors[0])).toBe(`Error: ${DIFFERENTIAL_REDIRECT_STOPPED}`)
+      expect(String(errors[0])).not.toContain(TOKEN)
+      expect(String(errors[0])).not.toContain(redirectUrl)
+    }
+
+    expect(recorded.every((entry) => entry.hostname === GITHUB_API_HOSTNAME)).toBe(true)
+    expect(
+      recorded.some((entry) => entry.hostname === 'release-assets.githubusercontent.com')
+    ).toBe(false)
+  })
+
   it('fails if electron-updater stops using manual followRedirect for differential downloads', () => {
     const source = readFileSync(
       require.resolve('electron-updater/out/differentialDownloader/DifferentialDownloader.js'),
@@ -572,6 +638,23 @@ describe('private GitHub blockmap urls', () => {
     )
     expect(source).toContain('requestOptions.redirect = "manual"')
     expect(source).toContain('request.followRedirect()')
+
+    const appUpdaterSource = readFileSync(
+      require.resolve('electron-updater/out/AppUpdater.js'),
+      'utf8'
+    )
+    const providerSource = readFileSync(
+      require.resolve('electron-updater/out/providers/Provider.js'),
+      'utf8'
+    )
+    expect(appUpdaterSource).toContain(
+      'getBlockMapFiles(fileInfo.url, this.app.version, downloadUpdateOptions.updateInfoAndProvider.info.version'
+    )
+    expect(appUpdaterSource).toContain(
+      'Download block maps (old: "${blockmapFileUrls[0]}", new: ${blockmapFileUrls[1]})'
+    )
+    expect(providerSource).toContain('getBlockMapFiles(baseUrl, oldVersion, newVersion')
+    expect(providerSource).toContain('return [oldBlockMapUrl, newBlockMapUrl]')
 
     const providerModule: unknown = require('electron-updater/out/providers/PrivateGitHubProvider')
     const executorModule: unknown = require('electron-updater/out/electronHttpExecutor')

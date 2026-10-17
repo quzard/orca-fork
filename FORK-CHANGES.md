@@ -12,11 +12,11 @@
 ## F002 macOS 本地安装
 
 - 脚本：[fork/scripts/install-mac-release.sh](fork/scripts/install-mac-release.sh)。它只包一层上游发布命令，不再维护单独的 electron-builder 配置。
-- 依赖安装与上游 Mac 发布相同：`pnpm install --frozen-lockfile --cpu=current,x64,arm64`，以及 mobile 的 `pnpm install --frozen-lockfile`。应用构建是 `pnpm run build:release`。本机 orcad 槽按发布车道来：`pnpm build:orcad-prebuilds`、`--require-slots`、`--smoke`，再 `node config/scripts/build-orcad-template.mjs --targets <本机槽>`。然后是文件监视隔离检查、`pinned-node-downloads.mjs darwin-arm64 darwin-x64`、`ensure:electron-runtime`，最后 `node config/scripts/build-mac-local.mjs`。
+- 依赖安装与上游 Mac 发布相同：`pnpm install --frozen-lockfile --cpu=current,x64,arm64`，以及 mobile 的 `pnpm install --frozen-lockfile`。应用构建是 `pnpm run build:release`。本机 `darwin-arm64` 槽仍是 `pnpm build:orcad-prebuilds`、`--require-slots`、`--smoke`。Linux 槽由 [fork/scripts/build-orcad-linux-prebuilds.sh](fork/scripts/build-orcad-linux-prebuilds.sh) 按 `node-server-tests.yml` 的 manylinux 镜像编译：`linux-x64-glibc`、`linux-arm64-glibc`、`linux-x64-glibc217`。模板命令是 `node config/scripts/build-orcad-template.mjs --targets darwin-arm64,linux-x64-glibc,linux-arm64-glibc`。然后是文件监视隔离检查、`pinned-node-downloads.mjs darwin-arm64 darwin-x64`、`ensure:electron-runtime`，最后 `node config/scripts/build-mac-local.mjs`。
 - 只覆盖三件事。签名身份是 `Orca Local Signing`（`CSC_NAME` 和 `ORCA_COMPUTER_MACOS_SIGN_IDENTITY`，`CSC_IDENTITY_AUTO_DISCOVERY=false`）；钥匙串里没有该证书就停止。版本后缀由 `build-mac-local.mjs` 写入，脚本不自己算。安装、备份和回退仍在这个脚本里。
-- 不公证。`ORCA_MAC_RELEASE` 等保持 0。需要 Apple 密钥、GitHub 发布或全矩阵 orcad 产物的步骤跳过，原因写在 [docs/fork/SYNC.md](docs/fork/SYNC.md)。
-- 打包后必须有 `Contents/Resources/orcad-template/orcad-template.json` 和 `app.asar.unpacked/out/cli/skills-source-commit.js`，并再跑一次上游的 CLI 闭包检查。
-- `--fast` 只跳过两次依赖安装。`--cleanup-verified-backups <版本号>` 只清理 `/Applications/.orca-previous.*` 里已退出的旧应用。
+- 不公证。`ORCA_MAC_RELEASE` 等保持 0。需要 Apple 密钥、GitHub 发布，以及 musl、win32、`darwin-x64` 这些本机编不了的槽，仍然跳过，原因写在 [docs/fork/SYNC.md](docs/fork/SYNC.md)。
+- 打包后必须有 `Contents/Resources/orcad-template/orcad-template.json`，且 `targets` 含 `linux-x64-glibc`、`linux-arm64-glibc`、`linux-x64-glibc217`、`darwin-arm64`，以及 `app.asar.unpacked/out/cli/skills-source-commit.js`，并再跑一次上游的 CLI 闭包检查。
+- `--fast` 跳过两次依赖安装；Linux 槽若已通过 `--require-slots` 也不重编。签名、模板和安装仍会做。`--cleanup-verified-backups <版本号>` 只清理 `/Applications/.orca-previous.*` 里已退出的旧应用。
 - 静态资源签名排除通过 `extraMacSignIgnore` 进入现有 `mac.signIgnore`。不再写钥匙串 partition list；后台安装传递 `ORCA_BACKGROUND_LAUNCH=1`。
 
 ## 侧栏 host-directory
@@ -84,7 +84,7 @@
 
 ## F036 本机 orcad 模板目标
 
-`ORCA_ORCAD_TEMPLATE_TARGETS`（逗号分隔）设置时，打包清单校验收窄到该子集。未设置则仍要求全部目标，发布 CI 行为不变。安装脚本把它设成 `build-orcad-prebuilds.mjs --print-slot` 打印的本机槽，并设置 `ORCA_REQUIRE_ORCAD_TEMPLATE=1`。一台机器编不了其它系统、架构或 libc 的槽；完整矩阵仍由 CI 的 `desktop_template` 合并。SSH 到未编进模板的主机仍会失败。
+`ORCA_ORCAD_TEMPLATE_TARGETS`（逗号分隔）设置时，打包清单校验收窄到该子集。未设置则仍要求全部目标，发布 CI 行为不变。安装脚本把它设成 `darwin-arm64,linux-x64-glibc,linux-arm64-glibc`，并设置 `ORCA_REQUIRE_ORCAD_TEMPLATE=1`。`linux-x64-glibc217` 不写进这个变量：模板脚本在基座槽 `linux-x64-glibc` 已请求且预编译存在时自动放进清单，上游校验又会把清单里的兼容槽加进期望集合，写两次会对不上。打包后的检查另外要求这四个名字都在 `targets` 里。不能改用上游发布的 orcad 模板：`orcad.js` 打包的是 `src/main/orcad/main.ts`，它引入 `orcad-entry.ts` 并调用 `registerForkMainModules`。musl、win32、`darwin-x64` 仍不在本地包里；Apple Silicon 编不出 `darwin-x64`。SSH 到未编进模板的主机仍会失败。
 
 ## F038 macOS 本地文件密钥
 
@@ -95,7 +95,7 @@
 - 入口：[fork/scripts/release-personal-orca.mjs](fork/scripts/release-personal-orca.mjs)
 - 本机任务检查：[fork/scripts/personal-orca-host.py](fork/scripts/personal-orca-host.py)（只保留 `local check`）
 - 发布分支由 `ORCA_FORK_RELEASE_BRANCH` 指定。未设置就停止。先推送，再确认已包含 `upstream/main`，不自动提交。有存活终端或不可确认任务时停止。
-- 构建交给安装脚本：上游发布步骤、本机 orcad 槽、`dist/mac-arm64/Orca.app`。安装、ready 验收、清理旧应用，失败时按本批备份回退。
+- 构建交给安装脚本：上游发布步骤、`darwin-arm64` 与 Linux glibc orcad 槽、`dist/mac-arm64/Orca.app`。安装、ready 验收、清理旧应用，失败时按本批备份回退。
 - 构建期间工作区出现任何脏路径都阻止安装。
 
 ## 内部标识

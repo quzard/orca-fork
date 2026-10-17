@@ -28,7 +28,7 @@ These need macOS, a logged-in GUI session, or a Mac-only binary. Linux does not 
 
 - Code signing with the local `Orca Local Signing` identity, and the signed-app install/rollback in the Mac install script (F002).
 - macOS keychain prompts versus the file secret store, including a packaged app that must not call Safe Storage (F038). The file backend is registered for packaged macOS; Linux cannot prove the zero Safe Storage count.
-- `electron-builder --mac` through `fork/scripts/install-mac-release.sh`, `mac.signIgnore`, and the host orcad template slot (F002, F036). Linux runs `bash -n` on that script and, after `pnpm build:cli`, `node fork/scripts/verify-packaged-cli-closure.mjs`.
+- `electron-builder --mac` through `fork/scripts/install-mac-release.sh`, `mac.signIgnore`, and the Docker manylinux orcad slots (F002, F036). Linux runs `bash -n` on that script and on `fork/scripts/build-orcad-linux-prebuilds.sh`, and, after `pnpm build:cli`, `node fork/scripts/verify-packaged-cli-closure.mjs`. A checkout without a Docker daemon does not compile the manylinux slots.
 - Dragging the computer-use app card into System Settings (`pnpm build:computer-macos`, F006). Linux only checks that the Swift source contains the card, `acceptsFirstMouse`, and `hitTest`.
 - Opening a workspace from the Cursor `cursor://vscode-remote` link, and from a VS Code Remote SSH row on a managed-server workspace (F021, F043). That needs the editor installed and a reachable SSH host.
 - A signed Mac app. The deep link and the permission card are not a substitute for that check.

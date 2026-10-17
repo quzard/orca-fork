@@ -93,6 +93,17 @@ assert_packaged_artifacts() {
     echo "打包结果缺少 orcad-template：$template" >&2
     exit 1
   fi
+  node --input-type=commonjs -e '
+    const { readFileSync } = require("node:fs")
+    const manifest = JSON.parse(readFileSync(process.argv[1], "utf8"))
+    const names = manifest.targets ?? {}
+    const required = ["linux-x64-glibc", "linux-arm64-glibc", "linux-x64-glibc217", "darwin-arm64"]
+    const missing = required.filter((name) => !Object.hasOwn(names, name))
+    if (missing.length > 0) {
+      console.error(`打包的 orcad-template 缺少目标：${missing.join(", ")}`)
+      process.exit(1)
+    }
+  ' "$template"
   if [[ ! -f "$pin" ]]; then
     echo "打包结果缺少技能 pin：$pin" >&2
     exit 1
@@ -128,14 +139,23 @@ if [[ -z "$INSTALL_BUILT_VERSION" ]]; then
   # release-mac-build.yml "Build app" when no prebuilt JavaScript artifact is downloaded.
   pnpm run build:release
 
-  # The release job downloads the merged orcad-template artifact. This machine can compile
-  # only its own slot, which is the lane command those artifacts are built from.
+  # The release job downloads a merged template. This fork's orcad.js bundles
+  # registerForkMainModules, so an upstream template cannot be reused.
+  # darwin-arm64 is compiled here. Linux glibc slots use the CI manylinux images.
   pnpm build:orcad-prebuilds
   SLOT="$(node config/scripts/build-orcad-prebuilds.mjs --print-slot)"
+  if [[ "$SLOT" != darwin-arm64 ]]; then
+    echo "本机 orcad 槽是 $SLOT；Linux SSH 包需要在 Apple Silicon 上编 darwin-arm64。" >&2
+    exit 1
+  fi
   pnpm build:orcad-prebuilds --require-slots "$SLOT"
   pnpm build:orcad-prebuilds --smoke
-  node config/scripts/build-orcad-template.mjs --targets "$SLOT"
-  export ORCA_ORCAD_TEMPLATE_TARGETS="$SLOT"
+  FAST="$FAST" bash fork/scripts/build-orcad-linux-prebuilds.sh
+  # linux-x64-glibc217 is staged by the template script when that prebuild exists.
+  # Leave it out of this list so the packager does not count the compat target twice.
+  TEMPLATE_TARGETS='darwin-arm64,linux-x64-glibc,linux-arm64-glibc'
+  node config/scripts/build-orcad-template.mjs --targets "$TEMPLATE_TARGETS"
+  export ORCA_ORCAD_TEMPLATE_TARGETS="$TEMPLATE_TARGETS"
   export ORCA_REQUIRE_ORCAD_TEMPLATE=1
 
   node config/scripts/runtime-file-watcher-fault-harness.mjs

@@ -1,8 +1,9 @@
 // fork: 私有 GitHub Release 的 blockmap 资产地址。
 // PrivateGitHubProvider 会把安装包解析成 /releases/assets/<id>，
-// 用令牌和 application/octet-stream 下载，并在跳到签名地址时去掉 Authorization。
+// 用令牌和 application/octet-stream 下载。
 // 基类 getBlockMapFiles 把 .blockmap 拼到这条地址后面，路径里又没有版本号，
 // 新旧 blockmap 就变成同一个不存在的地址。
+// 令牌只能出现在 api.github.com 上；签名下载域名不带 Authorization。
 
 export const GITHUB_API_HOSTNAME = 'api.github.com'
 export const GITHUB_RELEASE_ASSET_ACCEPT = 'application/octet-stream'
@@ -14,6 +15,9 @@ export const MISSING_OLD_BLOCKMAP_ASSET_ID = 'unavailable'
 export const BLOCKMAP_ASSETS_NOT_LOADED = 'private release assets are not loaded'
 export const BLOCKMAP_INSTALLER_NOT_ASSET = 'update file is not a private GitHub release asset'
 export const BLOCKMAP_ASSET_MISSING_PREFIX = 'release is missing blockmap asset '
+export const AUTHORIZATION_HEADER_NAME = 'authorization'
+export const DIFFERENTIAL_REDIRECT_HOP_LIMIT = 10
+export const DIFFERENTIAL_REDIRECT_STOPPED = 'private github asset redirect was not followed'
 export const OLD_BLOCKMAP_UNAVAILABLE_LOG =
   '[updater] old private release blockmap is unavailable; using the cached blockmap or a full download'
 export const DIFFERENTIAL_LOOKUP_NOT_INSTALLED_LOG =
@@ -119,6 +123,36 @@ export function githubAssetAcceptHeaders(
   delete next.Accept
   next.accept = GITHUB_RELEASE_ASSET_ACCEPT
   return next
+}
+
+function copyHeaders(headers: HeaderMap | null | undefined): HeaderMap {
+  const next: HeaderMap = {}
+  if (headers) {
+    Object.assign(next, headers)
+  }
+  return next
+}
+
+function deleteAuthorization(headers: HeaderMap): void {
+  for (const key of Object.keys(headers)) {
+    if (key.toLowerCase() === AUTHORIZATION_HEADER_NAME) {
+      delete headers[key]
+    }
+  }
+}
+
+// 令牌只发给 api.github.com。签名文件域名，以及没有主机名的请求，都去掉 Authorization。
+export function headersForGithubHost(
+  hostname: string | undefined,
+  requestPath: string | undefined,
+  headers: HeaderMap | null | undefined
+): HeaderMap {
+  if (hostname?.toLowerCase() !== GITHUB_API_HOSTNAME) {
+    const next = copyHeaders(headers)
+    deleteAuthorization(next)
+    return next
+  }
+  return githubAssetAcceptHeaders(hostname, requestPath, headers) ?? copyHeaders(headers)
 }
 
 function assetApiUrl(assetUrl: string, apiHostname: string): URL | null {

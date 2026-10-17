@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FORK_GITHUB_UPDATE_OWNER, FORK_GITHUB_UPDATE_REPO } from '../shared/fork-hooks/update-feed'
@@ -26,6 +27,7 @@ const require = createRequire(import.meta.url)
 const TOKEN = 'super-secret-value'
 const OLD_VERSION = '1.4.228-local.1792224556040'
 const NEW_VERSION = '1.4.228-local.1792227870418'
+const INSTALLED_VERSION = '1.4.228-local.1792227870418.929410e1870e'
 const ZIP_ID = '650040345'
 const NEW_BLOCKMAP_ID = '650040346'
 const DMG_BLOCKMAP_ID = '650040348'
@@ -168,18 +170,23 @@ describe('private GitHub blockmap urls', () => {
       resolvePrivateGithubBlockmapUrls(resolutionInput({ installerUrl: new URL(BUG_BLOCKMAP_URL) }))
     ).toThrow(BLOCKMAP_INSTALLER_NOT_ASSET)
 
-    try {
+    const resolveMissingBlockmap = () =>
       resolvePrivateGithubBlockmapUrls(
         resolutionInput({
           latestAssets: [asset(ZIP_ID, ZIP_NAME)],
           oldAssets: null
         })
       )
+    expect(resolveMissingBlockmap).toThrow(BLOCKMAP_ASSET_MISSING_PREFIX)
+    let thrown: unknown
+    try {
+      resolveMissingBlockmap()
     } catch (error) {
-      expect(error).toBeInstanceOf(Error)
-      expect(String(error)).not.toContain(TOKEN)
-      expect(String(error)).not.toContain(BUG_BLOCKMAP_URL)
+      thrown = error
     }
+    expect(thrown).toBeInstanceOf(Error)
+    expect(String(thrown)).not.toContain(TOKEN)
+    expect(String(thrown)).not.toContain(BUG_BLOCKMAP_URL)
   })
 
   it('does not use a blockmap url on another host, and uses a distinct placeholder when the old asset is missing', async () => {
@@ -247,6 +254,32 @@ describe('private GitHub blockmap urls', () => {
     )
     expect(provider.calls[0].url).not.toContain(TOKEN)
     expect(info).not.toHaveBeenCalled()
+
+    const installed = createProvider(async () => {
+      throw new Error('404')
+    })
+    installPrivateGithubDifferentialDownload({
+      privateGithubPrototype: installed,
+      httpExecutorPrototype: { createRequest: () => undefined }
+    })
+    await installed.getLatestVersion()
+    const urls = await installed.getBlockMapFiles(
+      new URL(assetUrl(ZIP_ID)),
+      INSTALLED_VERSION,
+      NEW_VERSION
+    )
+    expect(installed.calls[0].url).toBe(
+      githubReleaseTagUrl(installed.baseApiUrl, installed.basePath, INSTALLED_VERSION).href
+    )
+    expect(installed.calls[0].url).toBe(
+      `https://${GITHUB_API_HOSTNAME}/repos/${FORK_GITHUB_UPDATE_OWNER}/${FORK_GITHUB_UPDATE_REPO}/releases/tags/${GITHUB_RELEASE_TAG_PREFIX}${INSTALLED_VERSION}`
+    )
+    expect(urls[0].href).toBe(
+      unavailableOldBlockmapUrl(FORK_GITHUB_UPDATE_OWNER, FORK_GITHUB_UPDATE_REPO).href
+    )
+    expect(urls[1].href).toBe(assetUrl(NEW_BLOCKMAP_ID))
+    expect(installed.calls[0].url).not.toContain(TOKEN)
+    expect(installed.calls[0].authorization).toBe(`token ${TOKEN}`)
   })
 
   it('patches electron-updater so the private provider resolves asset ids', async () => {
@@ -330,11 +363,24 @@ describe('private GitHub blockmap urls', () => {
       headers: { accept: GITHUB_RELEASE_JSON_ACCEPT }
     })
 
+    executor.createRequest({
+      hostname: 'release-assets.githubusercontent.com',
+      path: '/github-production-release-asset/1/2?X-Amz-Signature=abc',
+      headers: { Authorization: `token ${TOKEN}`, range: 'bytes=0-1', accept: '*/*' }
+    })
+    executor.createRequest({
+      path: '/github-production-release-asset/1/2',
+      headers: { authorization: `token ${TOKEN}` }
+    })
+
     expect(seen[0]).toEqual({
       accept: GITHUB_RELEASE_ASSET_ACCEPT,
       authorization: `token ${TOKEN}`
     })
     expect(seen[1]).toEqual({ accept: GITHUB_RELEASE_JSON_ACCEPT })
+    expect(seen[2]).toEqual({ range: 'bytes=0-1', accept: '*/*' })
+    expect(seen[3]).toEqual({})
+    expect(JSON.stringify(seen.slice(2))).not.toContain(TOKEN)
     expect(
       githubAssetAcceptHeaders(GITHUB_API_HOSTNAME, new URL(BUG_BLOCKMAP_URL).pathname, {})
     ).toBeNull()
@@ -367,4 +413,229 @@ describe('private GitHub blockmap urls', () => {
     expect(String(prepared.path)).toContain('X-Amz-Signature=abc')
     expect(JSON.stringify(prepared)).not.toContain(TOKEN)
   })
+
+  it('replaces a stale release asset list when a later check returns none', async () => {
+    let currentAssets: GithubReleaseAsset[] = latestAssets()
+    const provider = createProvider(async () => '{}')
+    provider.getLatestVersion = async () => ({ assets: currentAssets })
+    installPrivateGithubDifferentialDownload({
+      privateGithubPrototype: provider,
+      httpExecutorPrototype: { createRequest: () => undefined }
+    })
+    await provider.getLatestVersion()
+    currentAssets = []
+    await provider.getLatestVersion()
+    await expect(
+      provider.getBlockMapFiles(new URL(assetUrl(ZIP_ID)), OLD_VERSION, NEW_VERSION)
+    ).rejects.toThrow(BLOCKMAP_INSTALLER_NOT_ASSET)
+  })
+
+  it('follows a differential range redirect without sending the token to the signed host', () => {
+    const signed =
+      'https://release-assets.githubusercontent.com/github-production-release-asset/1/2?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Signature=abc'
+    const signedAgain =
+      'https://objects.githubusercontent.com/github-production-release-asset/9?X-Amz-Signature=def'
+    const failures: string[] = []
+    const delivered: unknown[] = []
+    const recorded: {
+      hostname?: string
+      path?: string
+      headers: HeaderMap
+      callback: unknown
+      request: ReturnType<typeof createRedirectableRequest>
+    }[] = []
+    const executor = {
+      createRequest(
+        options: {
+          protocol?: string
+          hostname?: string
+          host?: string
+          path?: string
+          headers?: HeaderMap | null
+        },
+        callback: unknown
+      ) {
+        const headers: HeaderMap = {}
+        if (options.headers) {
+          Object.assign(headers, options.headers)
+        }
+        const request = createRedirectableRequest()
+        recorded.push({
+          hostname: options.hostname,
+          path: options.path,
+          headers,
+          callback,
+          request
+        })
+        return request
+      }
+    }
+    installPrivateGithubDifferentialDownload({
+      privateGithubPrototype: createProvider(async () => '{}'),
+      httpExecutorPrototype: executor
+    })
+    const options: {
+      protocol: string
+      hostname: string
+      host?: string
+      path: string
+      headers: HeaderMap
+    } = {
+      protocol: 'https:',
+      hostname: GITHUB_API_HOSTNAME,
+      path: new URL(assetUrl(NEW_BLOCKMAP_ID)).pathname,
+      headers: {
+        accept: '*/*',
+        authorization: `token ${TOKEN}`,
+        range: 'bytes=0-10'
+      }
+    }
+    const request = executor.createRequest(options, (response: unknown) => {
+      delivered.push(response)
+    })
+    request.on('redirect', (...args: unknown[]) => {
+      const redirectUrl = args[2]
+      if (typeof redirectUrl !== 'string') {
+        throw new Error('redirect url missing')
+      }
+      const target = new URL(redirectUrl)
+      options.protocol = target.protocol
+      options.hostname = target.hostname
+      options.host = target.host
+      options.path = `${target.pathname}${target.search}`
+      request.followRedirect()
+    })
+    request.on('error', () => {
+      failures.push('error')
+    })
+    request.on('abort', () => {
+      failures.push('abort')
+    })
+    request.end()
+    request.emit('redirect', 302, 'GET', signed)
+
+    expect(recorded[0].hostname).toBe(GITHUB_API_HOSTNAME)
+    expect(recorded[0].headers).toEqual({
+      accept: GITHUB_RELEASE_ASSET_ACCEPT,
+      authorization: `token ${TOKEN}`,
+      range: 'bytes=0-10'
+    })
+    expect(recorded[1].hostname).toBe('release-assets.githubusercontent.com')
+    expect(recorded[1].headers.authorization).toBeUndefined()
+    expect(recorded[1].headers.range).toBe('bytes=0-10')
+    expect(recorded[1].path).toContain('X-Amz-Signature=abc')
+    expect(recorded[1].request.ended).toBe(true)
+    expect(recorded[1].request.followRedirectCalls).toBe(0)
+    expect(request.aborted).toBe(true)
+    expect(request.followRedirectCalls).toBe(0)
+    expect(failures).toEqual([])
+    expect(JSON.stringify(recorded[1])).not.toContain(TOKEN)
+
+    const response = { statusCode: 206 }
+    if (typeof recorded[1].callback !== 'function') {
+      throw new Error('redirected range request has no response callback')
+    }
+    recorded[1].callback(response)
+    expect(delivered).toEqual([response])
+
+    recorded[1].request.emit('redirect', 302, 'GET', signedAgain)
+    expect(recorded[2].hostname).toBe('objects.githubusercontent.com')
+    expect(recorded[2].headers.authorization).toBeUndefined()
+    expect(recorded[2].headers.range).toBe('bytes=0-10')
+    expect(recorded[2].path).toContain('X-Amz-Signature=def')
+    expect(recorded[2].request.ended).toBe(true)
+    expect(recorded[1].request.followRedirectCalls).toBe(0)
+    expect(JSON.stringify(recorded[2])).not.toContain(TOKEN)
+
+    const apiRequest = executor.createRequest(
+      {
+        protocol: 'https:',
+        hostname: GITHUB_API_HOSTNAME,
+        path: new URL(assetUrl(NEW_BLOCKMAP_ID)).pathname,
+        headers: { authorization: `token ${TOKEN}`, range: 'bytes=11-20' }
+      },
+      () => undefined
+    )
+    apiRequest.on('redirect', () => {
+      apiRequest.followRedirect()
+    })
+    apiRequest.emit('redirect', 302, 'GET', assetUrl(OLD_BLOCKMAP_ID))
+    expect(apiRequest.followRedirectCalls).toBe(1)
+    expect(apiRequest.aborted).toBe(false)
+    expect(recorded).toHaveLength(4)
+  })
+
+  it('fails if electron-updater stops using manual followRedirect for differential downloads', () => {
+    const source = readFileSync(
+      require.resolve('electron-updater/out/differentialDownloader/DifferentialDownloader.js'),
+      'utf8'
+    )
+    expect(source).toContain('requestOptions.redirect = "manual"')
+    expect(source).toContain('request.followRedirect()')
+
+    const providerModule: unknown = require('electron-updater/out/providers/PrivateGitHubProvider')
+    const executorModule: unknown = require('electron-updater/out/electronHttpExecutor')
+    if (!isRecord(providerModule) || typeof providerModule.PrivateGitHubProvider !== 'function') {
+      throw new Error('PrivateGitHubProvider is unavailable')
+    }
+    if (!isRecord(executorModule) || typeof executorModule.ElectronHttpExecutor !== 'function') {
+      throw new Error('ElectronHttpExecutor is unavailable')
+    }
+    const prototype: unknown = providerModule.PrivateGitHubProvider.prototype
+    const executorPrototype: unknown = executorModule.ElectronHttpExecutor.prototype
+    if (!isRecord(prototype) || !isRecord(executorPrototype)) {
+      throw new Error('updater prototypes are unavailable')
+    }
+    expect(typeof prototype.getBlockMapFiles).toBe('function')
+    expect(typeof prototype.configureHeaders).toBe('function')
+    expect(typeof executorPrototype.createRequest).toBe('function')
+
+    const provider = Object.assign(Object.create(prototype), { token: TOKEN })
+    if (provider.fileExtraDownloadHeaders === undefined) {
+      throw new Error('fileExtraDownloadHeaders is unavailable')
+    }
+    expect(provider.fileExtraDownloadHeaders).toEqual({
+      accept: GITHUB_RELEASE_ASSET_ACCEPT,
+      authorization: `token ${TOKEN}`
+    })
+  })
 })
+
+function createRedirectableRequest() {
+  const listeners = new Map<string, ((...args: unknown[]) => void)[]>()
+  const request = {
+    followRedirectCalls: 0,
+    aborted: false,
+    ended: false,
+    on(event: string, listener: (...args: unknown[]) => void) {
+      const list = listeners.get(event) ?? []
+      list.push(listener)
+      listeners.set(event, list)
+      return request
+    },
+    listeners(event: string) {
+      return (listeners.get(event) ?? []).slice()
+    },
+    removeAllListeners(event: string) {
+      listeners.delete(event)
+    },
+    followRedirect() {
+      request.followRedirectCalls += 1
+    },
+    abort() {
+      request.aborted = true
+      for (const listener of listeners.get('abort') ?? []) {
+        listener()
+      }
+    },
+    end() {
+      request.ended = true
+    },
+    emit(event: string, ...args: unknown[]) {
+      for (const listener of listeners.get(event) ?? []) {
+        listener(...args)
+      }
+    }
+  }
+  return request
+}

@@ -2,12 +2,16 @@
 // 装不上时不抛给更新检查，整包下载仍然可用。
 
 import {
+  guardPrivateGithubAssetRequest,
+  type AssetRequestOptions
+} from './private-github-asset-redirect'
+import {
   BLOCKMAP_ASSETS_NOT_LOADED,
   DIFFERENTIAL_LOOKUP_NOT_INSTALLED_LOG,
   GITHUB_RELEASE_JSON_ACCEPT,
   OLD_BLOCKMAP_UNAVAILABLE_LOG,
-  githubAssetAcceptHeaders,
   githubReleaseTagUrl,
+  headersForGithubHost,
   readGithubReleaseAssetPayload,
   readGithubReleaseAssets,
   resolvePrivateGithubBlockmapUrls,
@@ -16,12 +20,6 @@ import {
 } from './private-github-blockmap-urls'
 
 type HeaderMap = Record<string, string | string[] | undefined>
-
-type AssetRequestOptions = {
-  hostname?: string
-  path?: string
-  headers?: HeaderMap | null
-}
 
 type PrivateGithubProviderState = {
   options: { owner: string; repo: string }
@@ -104,10 +102,8 @@ function patchProvider(prototype: PrivateGithubProviderState): void {
   const originalGetLatestVersion = prototype.getLatestVersion
   prototype.getLatestVersion = async function (this: PrivateGithubProviderState) {
     const info = await originalGetLatestVersion.call(this)
-    const assets = readGithubReleaseAssets(releaseAssetsField(info))
-    if (assets.length > 0) {
-      this.forkLatestReleaseAssets = assets
-    }
+    // 空列表也要覆盖。否则下一次检查会继续用上一份 release 的资产。
+    this.forkLatestReleaseAssets = readGithubReleaseAssets(releaseAssetsField(info))
     return info
   }
   prototype.getBlockMapFiles = function (
@@ -131,11 +127,9 @@ function patchExecutor(prototype: HttpExecutorState): void {
     options: AssetRequestOptions,
     callback: unknown
   ) {
-    const headers = githubAssetAcceptHeaders(options.hostname, options.path, options.headers)
-    if (headers) {
-      options.headers = headers
-    }
-    return originalCreateRequest.call(this, options, callback)
+    options.headers = headersForGithubHost(options.hostname, options.path, options.headers)
+    const request = originalCreateRequest.call(this, options, callback)
+    return guardPrivateGithubAssetRequest(request, options, callback, originalCreateRequest, this)
   }
   prototype.forkPrivateGithubBlockmapPatched = true
 }

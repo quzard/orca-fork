@@ -1,4 +1,5 @@
 import { useAppStore } from '@/store'
+import { registerForkGithubUpdateSettings } from '../shared/fork-hooks/github-update-settings'
 import {
   registerOpenInLauncher,
   registerOpenInRouteAdjuster
@@ -19,6 +20,7 @@ import {
 } from './open-in/cursor-remote-url'
 import { adjustRemoteOpenRoute } from './open-in/remote-open-route'
 import { enableWorkspacePortForward } from './ports/workspace-port-forward-flag'
+import { GithubUpdateTokenField } from './settings/github-update-token-field'
 import { registerArchivedWorkspaceSlot } from './sidebar/archived-workspaces'
 import { installHostDirectoryRowPlan } from './sidebar/install-row-plan'
 import { registerHostDirectorySortReader } from './sidebar/section-keys'
@@ -81,4 +83,5 @@ export function registerForkRendererModules(): void {
   )
   enableWorkspacePortForward()
   registerAiVaultRendererModules()
+  registerForkGithubUpdateSettings(() => <GithubUpdateTokenField />)
 }

@@ -1,10 +1,11 @@
-# Fork 维护（fork/base）
+# Fork 维护（develop）
 
-本分支从上游 `17a2bced1115f064e834e397c2b949d9e150d275` 起，只加扩展点。行为登记在 `src/fork/`。未登记时上游行为保持不变。上游 main 的 `package.json` 仍是 `1.4.214`（稳定版号只在发布分支上改）。本 fork 写成 `1.4.228`，比已发布的 `1.4.227` 和本机正在用的 `1.4.224` 都新，本地构建不会被当成降级。
+集成分支是 `develop`。它从上游 `17a2bced1115f064e834e397c2b949d9e150d275` 起，只加扩展点。`fork/base` 保留为切到 `develop` 时的那个提交，每日任务不移动它。`fork/base-upstream` 仍是人工推上去的上游指针。行为登记在 `src/fork/`。未登记时上游行为保持不变。上游 main 的 `package.json` 仍是 `1.4.214`（稳定版号只在发布分支上改）。本 fork 写成 `1.4.228`，比已发布的 `1.4.227` 和本机正在用的 `1.4.224` 都新，本地构建不会被当成降级。
 
 - 扩展点说明：[docs/fork/HOOKS.md](docs/fork/HOOKS.md)
 - 行为清单：[docs/fork/parity/ssh-import.md](docs/fork/parity/ssh-import.md)、[docs/fork/parity/build-skills.md](docs/fork/parity/build-skills.md)、[docs/fork/parity/ai-vault.md](docs/fork/parity/ai-vault.md)、[docs/fork/parity/sidebar.md](docs/fork/parity/sidebar.md)
 - 同步上游：[docs/fork/SYNC.md](docs/fork/SYNC.md)
+- 每日云端变基和家里的 Mac 发布：[docs/fork/DAILY.md](docs/fork/DAILY.md)
 - Linux 验收：[docs/fork/VERIFY.md](docs/fork/VERIFY.md)
 - F024 停用说明：[docs/fork/skill-update-flow.md](docs/fork/skill-update-flow.md)
 - 登记入口：`src/fork/register.ts`（两边都会调用，登记 host-directory）、`src/fork/register-main.ts`（桌面主进程和 orcad）、`src/fork/register-renderer.tsx`（仅界面）
@@ -86,6 +87,14 @@
 ## F036 本机 orcad 模板目标
 
 `ORCA_ORCAD_TEMPLATE_TARGETS`（逗号分隔）设置时，打包清单校验收窄到该子集。未设置则仍要求全部目标，发布 CI 行为不变。安装脚本把它设成 `darwin-arm64,linux-x64-glibc,linux-arm64-glibc`，并设置 `ORCA_REQUIRE_ORCAD_TEMPLATE=1`。`linux-x64-glibc217` 不写进这个变量：模板脚本在基座槽 `linux-x64-glibc` 已请求且预编译存在时自动放进清单，上游校验又会把清单里的兼容槽加进期望集合，写两次会对不上。打包后的检查另外要求这四个名字都在 `targets` 里。不能改用上游发布的 orcad 模板：`orcad.js` 打包的是 `src/main/orcad/main.ts`，它引入 `orcad-entry.ts` 并调用 `registerForkMainModules`。musl、win32、`darwin-x64` 仍不在本地包里；Apple Silicon 编不出 `darwin-x64`。SSH 到未编进模板的主机仍会失败。
+
+## 应用内更新
+
+GitHub 令牌写在 `~/.orca/github-update-token`。`writeSecureFile` 把文件收成 0600，父目录 0700。不进钥匙串，也不进 safeStorage。设置里的 GitHub token 只能保存或清除，已保存的内容不回到界面。
+
+已登记且文件里有令牌时，发布检查只指向 `quzard/orca` 的私有 GitHub Releases，并打开 `allowPrerelease`，元数据文件是 `latest-mac.yml`。没有令牌就不检查，设置和「Check for Updates」给出同一句提示。未登记时仍是上游公开源。
+
+家里的 LaunchAgent 只在 `develop` 前进时构建、签名并发布。客户机不再用 `gh release download` 安装。
 
 ## F038 macOS 本地文件密钥
 

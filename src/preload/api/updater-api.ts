@@ -26,4 +26,9 @@ export type UpdaterApi = {
 
   onStatus: (callback: (status: UpdateStatus) => void) => () => void
   onClearDismissal: (callback: () => void) => () => void
+
+  /** Fork desktop. Status only; the saved token is not returned. */
+  getForkGithubTokenStatus?: () => Promise<{ configured: boolean }>
+  /** Fork desktop. Empty string clears the token file. */
+  setForkGithubToken?: (token: string) => Promise<{ configured: boolean }>
 }

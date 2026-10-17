@@ -1,6 +1,8 @@
-# Syncing fork/base with upstream
+# Syncing develop with upstream
 
-`fork/base` starts at the upstream commit last merged (`17a2bced1115f064e834e397c2b949d9e150d275`). Feature work lands in `src/fork/` and should not rewrite upstream files beyond the hooks in [HOOKS.md](./HOOKS.md). The patch stack is one commit on that upstream head: the earlier history was four branches merged together, and replaying those merges onto a new main reordered the same hook files.
+`develop` is the integration branch. It currently starts from upstream `17a2bced1115f064e834e397c2b949d9e150d275` plus the fork commits on that head. `fork/base` remains an alias of the commit that was moved onto `develop`; the daily jobs do not move it. `fork/base-upstream` remains the upstream pointer a human last pushed. The daily cloud job creates that ref locally from `upstream/main` before rewriting the skill pin, and does not push it. Feature work lands in `src/fork/` and should not rewrite upstream files beyond the hooks in [HOOKS.md](./HOOKS.md).
+
+The unattended jobs are documented in [DAILY.md](./DAILY.md). GitHub Actions on this fork stay disabled.
 
 ## One-time git config
 
@@ -26,7 +28,7 @@ Generated paths marked `merge=ours`:
 
 ```bash
 git fetch https://github.com/stablyai/orca.git main
-git checkout fork/base
+git checkout develop
 git rebase <upstream-main-sha>
 ```
 

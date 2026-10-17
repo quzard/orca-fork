@@ -29,6 +29,9 @@ export function createUpdaterApi(): NonNullable<Partial<PreloadApi>['updater']> 
         )
       }),
     onStatus: () => noopUnsubscribe,
-    onClearDismissal: () => noopUnsubscribe
+    onClearDismissal: () => noopUnsubscribe,
+    getForkGithubTokenStatus: () => Promise.resolve({ configured: false }),
+    setForkGithubToken: () =>
+      Promise.reject(new Error('GitHub update token is only available in the desktop app.'))
   }
 }

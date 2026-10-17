@@ -2,7 +2,7 @@
 
 Node 24 is required. `package.json` sets `"engines": { "node": "24" }`. Node 22.14 cannot import the `.ts` build plugins (`ERR_UNKNOWN_FILE_EXTENSION`), and `pnpm lint` / `pnpm test` / `pnpm build` must run on Node 24. Bun 1.4.3 (`config/.bun-version`) is what `pnpm test` uses to launch Vitest.
 
-Run this on a Linux checkout of `fork/base` before treating a hook change as behavior-neutral. The scripts stay on this branch.
+Run this on a Linux checkout of `develop` before treating a hook change as behavior-neutral. The scripts stay on this branch.
 
 ```bash
 bash fork/scripts/verify/run-linux-verify.sh

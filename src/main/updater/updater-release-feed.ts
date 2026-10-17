@@ -1,4 +1,5 @@
 import { app } from 'electron'
+import { forkReleaseFeedDecision } from '../../shared/fork-hooks/update-feed'
 import {
   fetchNewerReleaseTagsWithReadiness,
   getReleaseDownloadUrl
@@ -116,6 +117,16 @@ export abstract class UpdaterReleaseFeed extends UpdaterInstallExecution {
   ): Promise<'ready' | 'not-available'> {
     const attemptId = this.activeUpdateCheckAttemptId
     const autoUpdater = this.getAutoUpdater()
+    // fork: 已登记时不拉上游 atom。有令牌才钉 quzard/orca；没有令牌就停，避免落到 app-update.yml。
+    const forkFeed = forkReleaseFeedDecision()
+    if (forkFeed.kind === 'skip') {
+      return 'not-available'
+    }
+    if (forkFeed.kind === 'ready') {
+      autoUpdater.allowPrerelease = true
+      autoUpdater.setFeedURL(forkFeed.feed)
+      return 'ready'
+    }
     // Why: the latest/download redirect can move between check and download, so pin the concrete tag (prerelease users resolve any channel, stable only stable).
     const currentVersion = app.getVersion()
     const isPerfCheck = variant === 'perf'

@@ -1,8 +1,12 @@
 import { app } from 'electron'
 import { is } from '@electron-toolkit/utils'
-import { isMacInstallRequested } from '../updater-mac-install'
-import type { UpdateCheckOptions } from '../../shared/update-status-types'
+import {
+  FORK_GITHUB_UPDATE_TOKEN_HINT,
+  forkReleaseFeedDecision
+} from '../../shared/fork-hooks/update-feed'
 import type { ReleaseChannel } from '../../shared/release-channel'
+import type { UpdateCheckOptions } from '../../shared/update-status-types'
+import { isMacInstallRequested } from '../updater-mac-install'
 import { UpdaterScheduling } from './updater-scheduling'
 
 /** Handles checks initiated from the desktop menu and modifier-key variants. */
@@ -25,6 +29,16 @@ export abstract class UpdaterMenuChecks extends UpdaterScheduling {
     }
     if (options?.targetTag && options.channel) {
       void this.checkForPinnedBuild(options.channel, options.targetTag)
+      return
+    }
+    // fork: 没有令牌时说明原因，不进入上游检查。有令牌则继续，pin 会改到 quzard/orca。
+    if (forkReleaseFeedDecision().kind === 'skip') {
+      this.sendStatus({
+        state: 'error',
+        message: FORK_GITHUB_UPDATE_TOKEN_HINT,
+        retryable: false,
+        userInitiated: true
+      })
       return
     }
     if (this.localBuildSelectionInProgress || this.pinnedBuildSelectionInProgress) {

@@ -1,4 +1,5 @@
 import { app } from 'electron'
+import { installPrivateGithubDifferentialDownload } from '../../fork/private-github-blockmap'
 import {
   forkReleaseFeedDecision,
   forkUpstreamReleaseReadsBlocked
@@ -124,6 +125,8 @@ export abstract class UpdaterReleaseFeed extends UpdaterInstallExecution {
     const forkFeed = forkReleaseFeedDecision()
     if (forkFeed.kind === 'ready') {
       autoUpdater.allowPrerelease = true
+      // 私有仓库的 blockmap 要在 provider 创建前解析资产 ID。装不上时仍 setFeedURL，更新退回整包。
+      installPrivateGithubDifferentialDownload()
       autoUpdater.setFeedURL(forkFeed.feed)
       return 'ready'
     }

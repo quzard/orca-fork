@@ -15,6 +15,9 @@ describe('fork daily sync split', () => {
     expect(pin.indexOf('forkReleaseFeedDecision()')).toBeLessThan(
       pin.indexOf('fetchNewerReleaseTagsWithReadiness(')
     )
+    expect(pin.indexOf('installPrivateGithubDifferentialDownload()')).toBeLessThan(
+      pin.indexOf('autoUpdater.setFeedURL(forkFeed.feed)')
+    )
     expect(schedule).toContain("kind === 'skip'")
     expect(menu).toContain('FORK_GITHUB_UPDATE_TOKEN_HINT')
     expect(download).not.toContain('forkBuiltinUpdateNotifyOnly')

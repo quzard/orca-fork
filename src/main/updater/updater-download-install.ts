@@ -10,6 +10,10 @@ import { LINUX_PACKAGE_EXTERNALLY_MANAGED_MESSAGE } from '../linux-package-downl
 import { QUIT_AND_INSTALL_DELAY_MS } from './updater-state'
 import { UpdaterRemoteStatus } from './updater-remote-status'
 import { prepareThisProcessShipItStaging } from './shipit-leftover-recovery'
+import {
+  armForkBackgroundDownload,
+  consumeForkBackgroundDownloadFailure
+} from '../../fork/private-github-background-download'
 
 /** Coordinates renderer-facing download/install actions and their duplicate guards. */
 export abstract class UpdaterDownloadInstall extends UpdaterRemoteStatus {
@@ -120,6 +124,66 @@ export abstract class UpdaterDownloadInstall extends UpdaterRemoteStatus {
       : prepareThisProcessShipItStaging()
     if (preparingStaging) {
       void preparingStaging.then(startDownload)
+    } else {
+      startDownload()
+    }
+  }
+
+  /** 私有源后台下载。失败时回到可手动点的更新，不把请求错误写进日志。 */
+  protected downloadForkBackgroundUpdate(version: string): void {
+    if (
+      this.localBuildSelectionInProgress ||
+      this.pinnedBuildSelectionInProgress ||
+      this.pendingQuitAndInstallTimer ||
+      this.quitAndInstallInProgress ||
+      isMacInstallRequested() ||
+      this.downloadInFlight
+    ) {
+      this.sendStatus({ state: 'available', version, changelog: null })
+      return
+    }
+    if (isExternallyManagedLinuxInstall()) {
+      recordUpdaterLifecycle('linux_package_externally_managed_download_blocked', { version })
+      this.clearAvailableUpdateContext()
+      this.restoreReleaseUpdateSource()
+      this.sendStatus({
+        state: 'error',
+        message: LINUX_PACKAGE_EXTERNALLY_MANAGED_MESSAGE,
+        version,
+        retryable: false
+      })
+      return
+    }
+    if (this.deferHeadlessServeInstall('download', version)) {
+      return
+    }
+    this.availableVersion = version
+    armForkBackgroundDownload(version)
+    this.downloadInFlight = true
+    beginMacUpdateDownload()
+    this.sendStatus({ state: 'downloading', percent: 0, version })
+    const startDownload = (): void => {
+      this.getAutoUpdater()
+        .downloadUpdate()
+        .catch(() => {
+          this.downloadInFlight = false
+          const manualFallback = consumeForkBackgroundDownloadFailure(version)
+          if (manualFallback) {
+            this.sendStatus(manualFallback)
+          }
+        })
+    }
+    const preparingStaging = this.isMacStagingDeferredToInstall()
+      ? null
+      : prepareThisProcessShipItStaging()
+    if (preparingStaging) {
+      void preparingStaging.then(startDownload, () => {
+        this.downloadInFlight = false
+        const manualFallback = consumeForkBackgroundDownloadFailure(version)
+        if (manualFallback) {
+          this.sendStatus(manualFallback)
+        }
+      })
     } else {
       startDownload()
     }

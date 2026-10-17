@@ -16,51 +16,54 @@ import {
 import { isExternallyManagedLinuxInstall } from './linux-update-package-type'
 import * as linuxPackageRecovery from './linux-package-update-recovery'
 import { preExtractDownloadedAppImageUpdate } from './cli/appimage-copy-pre-extraction'
+import { bindForkBackgroundUpdates } from './updater-fork-background'
 
 const AUTO_UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000
 const AUTO_UPDATE_RETRY_INTERVAL_MS = 60 * 60 * 1000
 
-export function registerAutoUpdaterHandlers({
-  autoUpdater,
-  clearBackgroundCheckLaunchPending,
-  clearAvailableUpdateContext,
-  consumeMissingManifestPrereleaseFallbackResult,
-  getPublishingWindowLastGoodCheck,
-  getMissingManifestPrereleaseFallbackUserInitiated,
-  getCurrentStatus,
-  getActiveUpdateCheckEventAttemptId,
-  getKnownReleaseUrl,
-  getPendingInstallVersion,
-  getUserInitiatedCheck,
-  handleQuitAndInstallFailure,
-  isQuitAndInstallHandoffActive,
-  hasInstallableDownloadedVersion,
-  isLocalBuildCheck,
-  isPinnedBuildCheck,
-  shouldHandleUpdaterErrorEvent,
-  clearUpdateAvailableEventPending,
-  isActiveUpdateCheckAttempt,
-  markUpdateCheckEventAttempt,
-  markUpdateAvailableEventPending,
-  markMissingManifestPrereleaseFallbackChecking,
-  performQuitAndInstall,
-  commitStagedMacInstall,
-  failMacStaging,
-  isAwaitingMacStaging,
-  isMacStagingDeferredToInstall,
-  shouldDeferMacQuitForInstall,
-  recordCompletedUpdateCheck,
-  restoreReleaseUpdateSource,
-  sendCheckFailureStatus,
-  sendErrorStatus,
-  sendStatus,
-  scheduleAutomaticUpdateCheck,
-  shouldSuppressMissingManifestPrereleaseFallbackEvent,
-  suppressMissingManifestPrereleaseFallbackPromiseFailure,
-  setAvailableReleaseUrl,
-  setAvailableVersion,
-  setUserInitiatedCheck
-}: UpdaterHandlerContext): void {
+export function registerAutoUpdaterHandlers(ctx: UpdaterHandlerContext): void {
+  const forkUpdate = bindForkBackgroundUpdates(ctx)
+  const {
+    autoUpdater,
+    clearBackgroundCheckLaunchPending,
+    clearAvailableUpdateContext,
+    consumeMissingManifestPrereleaseFallbackResult,
+    getPublishingWindowLastGoodCheck,
+    getMissingManifestPrereleaseFallbackUserInitiated,
+    getCurrentStatus,
+    getActiveUpdateCheckEventAttemptId,
+    getKnownReleaseUrl,
+    getPendingInstallVersion,
+    getUserInitiatedCheck,
+    handleQuitAndInstallFailure,
+    isQuitAndInstallHandoffActive,
+    hasInstallableDownloadedVersion,
+    isLocalBuildCheck,
+    isPinnedBuildCheck,
+    shouldHandleUpdaterErrorEvent,
+    clearUpdateAvailableEventPending,
+    isActiveUpdateCheckAttempt,
+    markUpdateCheckEventAttempt,
+    markUpdateAvailableEventPending,
+    markMissingManifestPrereleaseFallbackChecking,
+    performQuitAndInstall,
+    commitStagedMacInstall,
+    failMacStaging,
+    isAwaitingMacStaging,
+    isMacStagingDeferredToInstall,
+    shouldDeferMacQuitForInstall,
+    recordCompletedUpdateCheck,
+    restoreReleaseUpdateSource,
+    sendCheckFailureStatus,
+    sendErrorStatus,
+    sendStatus,
+    scheduleAutomaticUpdateCheck,
+    shouldSuppressMissingManifestPrereleaseFallbackEvent,
+    suppressMissingManifestPrereleaseFallbackPromiseFailure,
+    setAvailableReleaseUrl,
+    setAvailableVersion,
+    setUserInitiatedCheck
+  } = ctx
   registerMacUpdaterEvents({
     getCurrentStatus,
     hasInstallableDownloadedVersion,
@@ -78,11 +81,12 @@ export function registerAutoUpdaterHandlers({
       return
     }
     clearBackgroundCheckLaunchPending()
-    resetMacInstallState()
-    clearAvailableUpdateContext()
     markMissingManifestPrereleaseFallbackChecking()
     const fallbackUserInitiated = getMissingManifestPrereleaseFallbackUserInitiated()
     const wasUserInitiated = fallbackUserInitiated ?? getUserInitiatedCheck()
+    if (forkUpdate.onChecking(Boolean(wasUserInitiated))) {
+      return
+    }
     sendStatus({ state: 'checking', userInitiated: wasUserInitiated || undefined })
   })
 
@@ -96,6 +100,7 @@ export function registerAutoUpdaterHandlers({
     const missingManifestFallback = consumeMissingManifestPrereleaseFallbackResult()
     const publishingWindowLastGoodCheck = getPublishingWindowLastGoodCheck()
     const wasUserInitiated = missingManifestFallback?.userInitiated ?? getUserInitiatedCheck()
+    const forkRetrySoon = Boolean(missingManifestFallback || publishingWindowLastGoodCheck)
     setUserInitiatedCheck(false)
 
     // Release checks remain newer-only; validated local builds and pinned dev jumps may intentionally downgrade.
@@ -104,6 +109,9 @@ export function registerAutoUpdaterHandlers({
       !isPinnedBuildCheck() &&
       compareVersions(info.version, app.getVersion()) <= 0
     ) {
+      if (forkUpdate.takeMissing(Boolean(wasUserInitiated), forkRetrySoon)) {
+        return
+      }
       clearAvailableUpdateContext()
       if (missingManifestFallback || publishingWindowLastGoodCheck) {
         // Why: a current-version fallback manifest means the primary is transiently missing; keep the short retry cadence.
@@ -126,6 +134,9 @@ export function registerAutoUpdaterHandlers({
     // Why: only a genuinely newer offer supersedes the retained package; a publishing-window blip that
     // momentarily resolves an older tag must not destroy a still-valid recovery path.
     linuxPackageRecovery.clearTrackedLinuxPackageArtifactForOtherVersion(info.version)
+    if (forkUpdate.takeFound(info.version, Boolean(wasUserInitiated), forkRetrySoon)) {
+      return
+    }
 
     // Why: fetch the changelog in main to avoid renderer-side CORS on onorca.dev.
     markUpdateAvailableEventPending(attemptId)
@@ -182,11 +193,19 @@ export function registerAutoUpdaterHandlers({
       return
     }
     clearBackgroundCheckLaunchPending()
-    resetMacInstallState()
     const retainedStatus = getRetainedLinuxPackageManualInstallStatus()
     const missingManifestFallback = consumeMissingManifestPrereleaseFallbackResult()
     const publishingWindowLastGoodCheck = getPublishingWindowLastGoodCheck()
     const wasUserInitiated = missingManifestFallback?.userInitiated ?? getUserInitiatedCheck()
+    if (
+      forkUpdate.takeMissing(
+        Boolean(wasUserInitiated),
+        Boolean(missingManifestFallback || publishingWindowLastGoodCheck)
+      )
+    ) {
+      return
+    }
+    resetMacInstallState()
     const localBuildCheck = isLocalBuildCheck()
     // Why: an unpinned outcome must hand the feed back, else the pin blocks every
     // later background check for the process lifetime.
@@ -248,6 +267,7 @@ export function registerAutoUpdaterHandlers({
       sendStatus({ state: 'not-available' })
       return
     }
+    forkUpdate.noteDownloaded(info.version)
     const macInstallerReady = process.platform === 'darwin' ? isMacInstallerReady() : true
     recordUpdaterLifecycle('update_downloaded', { version: info.version, macInstallerReady })
     // Why: the first daemon after this update should run from its unpacked copy, not the mount.
@@ -296,6 +316,9 @@ export function registerAutoUpdaterHandlers({
     const missingManifestFallback = consumeMissingManifestPrereleaseFallbackResult()
     const wasUserInitiated = missingManifestFallback?.userInitiated ?? getUserInitiatedCheck()
     setUserInitiatedCheck(false)
+    if (forkUpdate.onUpdaterError(getPendingInstallVersion(), wasUserInitiated || undefined)) {
+      return
+    }
     if (getCurrentStatus().state === 'checking') {
       void sendCheckFailureStatus(message, wasUserInitiated || undefined, 'event', err)
       return

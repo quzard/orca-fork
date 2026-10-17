@@ -1,4 +1,8 @@
 import { isBenignCheckFailure } from '../updater-fallback'
+import {
+  FORK_BACKGROUND_CHECK_FAILURE_LOG,
+  planForkCheckFailure
+} from '../../fork/private-github-background-download'
 import { ReleaseFeedPreflightError } from './updater-state'
 import type { CheckFailureSource } from './updater-state'
 import { UpdaterReleaseFeed } from './updater-release-feed'
@@ -20,12 +24,38 @@ export abstract class UpdaterCheckFailure extends UpdaterReleaseFeed {
     )
   }
 
+  protected keepForkStagedUpdate(userInitiated?: boolean): boolean {
+    const plan = planForkCheckFailure(this.currentStatus.state, Boolean(userInitiated))
+    if (plan.kind === 'none') {
+      return false
+    }
+    console.info(FORK_BACKGROUND_CHECK_FAILURE_LOG)
+    this.backgroundCheckLaunchPending = false
+    this.userInitiatedCheck = false
+    this.finishActiveUpdateCheckAttempt()
+    this.availableVersion = plan.version
+    if (plan.kind === 'restart') {
+      this.sendStatus({
+        state: 'downloaded',
+        version: plan.version,
+        releaseUrl: this.getKnownReleaseUrl()
+      })
+    }
+    if (!userInitiated) {
+      this.scheduleAutomaticUpdateCheck(this.getAutomaticRetryInterval())
+    }
+    return true
+  }
+
   protected async sendCheckFailureStatus(
     message: string,
     userInitiated?: boolean,
     source: CheckFailureSource = 'promise',
     sourceError?: unknown
   ): Promise<void> {
+    if (this.keepForkStagedUpdate(userInitiated)) {
+      return
+    }
     if (this.activeUpdateSource === 'local') {
       this.sendLocalBuildErrorAndRestore(message, userInitiated)
       return

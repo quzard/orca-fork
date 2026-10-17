@@ -47,4 +47,7 @@ export type UpdaterHandlerContext = {
   setAvailableReleaseUrl: (releaseUrl: string | null) => void
   setAvailableVersion: (version: string | null) => void
   setUserInitiatedCheck: (value: boolean) => void
+  beginForkBackgroundDownload?: (version: string) => void
+  finishActiveUpdateCheckAttempt?: () => void
+  recoverForkStagedCheckFailure?: (userInitiated?: boolean) => boolean
 }

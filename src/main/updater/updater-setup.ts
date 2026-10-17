@@ -1,7 +1,11 @@
 import { app, powerMonitor } from 'electron'
 import type { BrowserWindow } from 'electron'
 import { is } from '@electron-toolkit/utils'
-import { forkUpstreamReleaseReadsBlocked } from '../../shared/fork-hooks/update-feed'
+import {
+  forkReleaseFeedDecision,
+  forkUpstreamReleaseReadsBlocked
+} from '../../shared/fork-hooks/update-feed'
+import { forkAutoInstallOnQuit } from '../../fork/private-github-background-download'
 import type { ReleaseBuild, ReleaseChannel } from '../../shared/release-channel'
 import type { ReleaseBuildListOptions } from '../updater-release-build-cache'
 import type {
@@ -152,8 +156,12 @@ export class UpdaterSetup extends UpdaterDownloadInstall {
     }
     // Why: supervised serve installs require an explicit handoff; ordinary service quits must never install implicitly.
     // Only an explicit AppImage/non-root marker may opt into electron-updater's implicit quit install.
-    autoUpdater.autoInstallOnAppQuit =
-      this.updateInstallMode === 'interactive' && getLinuxPackageType() === 'non-root'
+    autoUpdater.autoInstallOnAppQuit = forkAutoInstallOnQuit({
+      forkReady: forkReleaseFeedDecision().kind === 'ready',
+      interactive: this.updateInstallMode === 'interactive',
+      linuxNonRootImplicitQuit: getLinuxPackageType() === 'non-root',
+      platform: process.platform
+    })
     // Why: MacUpdater ignores quitAndInstall arguments; the surviving CLI supervisor must be the only serve relaunch owner.
     autoUpdater.autoRunAppAfterInstall = this.updateInstallMode === 'interactive'
     // Why: our only on-machine window into electron-updater; otherwise an unexpected update-not-available or failed fetch is invisible.
@@ -226,7 +234,10 @@ export class UpdaterSetup extends UpdaterDownloadInstall {
       },
       setUserInitiatedCheck: (value) => {
         this.userInitiatedCheck = value
-      }
+      },
+      beginForkBackgroundDownload: (version) => this.downloadForkBackgroundUpdate(version),
+      finishActiveUpdateCheckAttempt: () => this.finishActiveUpdateCheckAttempt(),
+      recoverForkStagedCheckFailure: (userInitiated) => this.keepForkStagedUpdate(userInitiated)
     })
 
     void this.checkForUpdateNudge()

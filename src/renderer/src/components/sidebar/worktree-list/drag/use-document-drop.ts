@@ -26,6 +26,23 @@ export function useWorktreeDocumentDrop(args: {
         clearWorktreeDrag()
         return
       }
+      // fork: a cross-group drop wins over lineage and status targets, so a card never becomes
+      // a parent by accident.
+      if (
+        commitRegisteredWorkspaceGroupDrop({
+          x: event.clientX,
+          y: event.clientY,
+          sourceGroupKey: session.sourceGroupKey,
+          draggedIds: session.draggedIds,
+          groups: ctx.worktreeDragGroups,
+          container: ctx.scrollRef.current
+        })
+      ) {
+        event.preventDefault()
+        event.stopPropagation()
+        clearWorktreeDrag()
+        return
+      }
       const drop = ctx.computeWorktreeDrop(event.clientY)
       if (!drop) {
         const container = ctx.scrollRef.current
@@ -65,21 +82,6 @@ export function useWorktreeDocumentDrop(args: {
           clearWorktreeDrag()
           return
         }
-        clearWorktreeDrag()
-        return
-      }
-      if (
-        commitRegisteredWorkspaceGroupDrop({
-          x: event.clientX,
-          y: event.clientY,
-          sourceGroupKey: session.sourceGroupKey,
-          draggedIds: session.draggedIds,
-          groups: ctx.worktreeDragGroups,
-          container: ctx.scrollRef.current
-        })
-      ) {
-        event.preventDefault()
-        event.stopPropagation()
         clearWorktreeDrag()
         return
       }

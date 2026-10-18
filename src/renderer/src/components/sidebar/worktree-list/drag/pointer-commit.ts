@@ -81,6 +81,21 @@ export function commitWorktreePointerDrop(args: PointerDropCommitArgs): void {
       groups: getWorkspaceKanbanSidebarDropGroups()
     })
   } else {
+    // fork: a cross-group drop wins over lineage and status targets, so a card never becomes a
+    // parent by accident.
+    if (
+      commitRegisteredWorkspaceGroupDrop({
+        x: event.clientX,
+        y: event.clientY,
+        sourceGroupKey: drag.sourceGroupKey,
+        draggedIds: drag.draggedIds,
+        groups: ctx.worktreeDragGroups,
+        container: ctx.scrollRef.current
+      })
+    ) {
+      ctx.clearWorktreeDrag()
+      return
+    }
     const preferredStatusTarget = ctx.getEligibleLineageDropTarget(
       ctx.scrollRef.current
         ? getPointerDropStatusTarget({
@@ -111,19 +126,6 @@ export function commitWorktreePointerDrop(args: PointerDropCommitArgs): void {
           })
         : null
       commitStatusOrPinDrop(args, preferredStatusTarget, statusDrop?.dropIndex ?? null)
-      ctx.clearWorktreeDrag()
-      return
-    }
-    if (
-      commitRegisteredWorkspaceGroupDrop({
-        x: event.clientX,
-        y: event.clientY,
-        sourceGroupKey: drag.sourceGroupKey,
-        draggedIds: drag.draggedIds,
-        groups: ctx.worktreeDragGroups,
-        container: ctx.scrollRef.current
-      })
-    ) {
       ctx.clearWorktreeDrag()
       return
     }

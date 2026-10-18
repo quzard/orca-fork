@@ -67,7 +67,7 @@ OVR={
 'src/renderer/src/components/sidebar/worktree-drag-units.ts':('keep','PR F：同 groups.ts，拖放单元组按分区键切分'),
 'src/renderer/src/components/sidebar/worktree-list/drag/pointer-commit.ts':('keep','跨组拖放钩子；PR F：先于设父级和状态目标判断'),
 'src/renderer/src/components/sidebar/worktree-list/drag/use-document-drop.ts':('keep','跨组拖放钩子；PR F：先于设父级和状态目标判断'),
-'src/renderer/src/components/sidebar/WorktreeContextMenuView.tsx':('keep','右键菜单槽位；PR F：分组项改读 worktreeMenuGroups（未登记时为上游原值）'),
+'src/renderer/src/components/sidebar/WorktreeContextMenuView.tsx':('keep','右键菜单槽位；PR F：分组项改读 worktreeMenuGroups（未登记时为上游原值）；多选的批量菜单不渲染 fork 单行槽位'),
 'src/renderer/src/components/settings/SshTargetDestructiveActions.tsx':('keep','PR F：Remove/Removing 经 sshTargetRemoveLabels，未登记时原样英文'),
 'src/shared/fork-hooks/worktree-menu-groups.ts':('keep','PR F 新增：右键菜单分组项的列表、当前分组和处理函数'),
 'src/shared/fork-hooks/ssh-target-remove-labels.ts':('keep','PR F 新增：删除 SSH 目标对话框按钮文案'),

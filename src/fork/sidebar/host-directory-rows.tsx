@@ -95,10 +95,20 @@ export function buildHostDirectoryRowPlan(input: SidebarPlanArgs): {
         list.push(worktree)
         byKey.set(key, list)
       }
+      const now = Date.now()
       for (const [key, items] of byKey) {
         sections.push({
           key,
-          items,
+          // Sorted as drawn, so a parent's lineage children come in the same order.
+          items: orderWorkspaces(
+            items.map((worktree) => ({
+              kind: 'worktree' as const,
+              worktree,
+              repo: repoMap.get(worktree.repoId)
+            })),
+            sortBy,
+            now
+          ).flatMap((member) => (member.kind === 'worktree' ? [member.worktree] : [])),
           placement: 'natural' as const,
           revealPath: { key }
         })

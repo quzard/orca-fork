@@ -161,12 +161,20 @@ function appendMemberRows(
   depth: number,
   group?: ProjectGroup
 ): void {
-  const byId = new Map<string, WorktreeOccurrence<Worktree>>()
+  // A lineage child is drawn right under its parent (indented), never at its own sorted place, or
+  // it would sit indented under an unrelated row. The plan lists each parent's subtree in order.
+  const subtreeById = new Map<string, WorktreeOccurrence<Worktree>[]>()
+  let currentRoot: WorktreeOccurrence<Worktree>[] | undefined
   for (const occurrence of getExpandedWorktreeOccurrences(
     args.occurrencePlan.bySection.get(sectionKey) ?? [],
     (worktree) => args.collapsedGroups.has(lineageKey(worktree))
   )) {
-    byId.set(occurrence.row.id, occurrence)
+    if (occurrence.parent && currentRoot) {
+      currentRoot.push(occurrence)
+    } else {
+      currentRoot = [occurrence]
+      subtreeById.set(occurrence.row.id, currentRoot)
+    }
   }
   const groupsById = groupsByIdOf(args)
   const repoCounts = new Map<string, number>()
@@ -176,6 +184,14 @@ function appendMemberRows(
     }
   }
   const pendingRepoIds = new Set(args.pendingCreations.map((creation) => creation.repoId))
+  const context: ItemRowContext = {
+    args,
+    labels,
+    repoCounts,
+    pendingRepoIds,
+    groupDepth: depth,
+    group
+  }
   for (const member of members) {
     if (member.kind === 'folder') {
       rows.push({
@@ -200,38 +216,56 @@ function appendMemberRows(
       })
       continue
     }
-    const occurrence = byId.get(member.worktree.id)
-    if (!occurrence) {
-      continue
+    for (const occurrence of subtreeById.get(member.worktree.id) ?? []) {
+      pushItemRow(rows, context, occurrence)
     }
-    const directoryLabel = groupedCardDirectoryLabel({
-      repo: member.repo,
-      worktreePath: member.worktree.path,
-      labels,
-      hostId: workspaceHost(member.worktree, args),
-      parentPath: group?.parentPath,
-      sameRepoCount: repoCounts.get(member.worktree.repoId) ?? 0,
-      pending: pendingRepoIds.has(member.worktree.repoId)
-    })
-    rows.push({
-      type: 'item',
-      occurrence,
-      rowKey: occurrence.key,
-      sectionKey: occurrence.sectionKey,
-      worktree: member.worktree,
-      repo: member.repo,
-      depth: occurrence.depth,
-      groupDepth: depth,
-      isLastLineageChild: occurrence.isLastChild,
-      lineageChildCount: occurrence.childCount,
-      showProjectName: occurrence.showProjectName,
-      ...(directoryLabel ? { directoryLabel } : {}),
-      ...(occurrence.childCount > 0
-        ? {
-            lineageGroupKey: lineageKey(member.worktree),
-            lineageCollapsed: args.collapsedGroups.has(lineageKey(member.worktree))
-          }
-        : {})
-    })
   }
+}
+
+type ItemRowContext = {
+  args: HostDirectoryRenderArgs
+  labels: Map<string, string>
+  repoCounts: ReadonlyMap<string, number>
+  pendingRepoIds: ReadonlySet<string>
+  groupDepth: number
+  group: ProjectGroup | undefined
+}
+
+function pushItemRow(
+  rows: Row[],
+  context: ItemRowContext,
+  occurrence: WorktreeOccurrence<Worktree>
+): void {
+  const { args } = context
+  const worktree = occurrence.row
+  const repo = args.repoMap.get(worktree.repoId)
+  const directoryLabel = groupedCardDirectoryLabel({
+    repo,
+    worktreePath: worktree.path,
+    labels: context.labels,
+    hostId: workspaceHost(worktree, args),
+    parentPath: context.group?.parentPath,
+    sameRepoCount: context.repoCounts.get(worktree.repoId) ?? 0,
+    pending: context.pendingRepoIds.has(worktree.repoId)
+  })
+  rows.push({
+    type: 'item',
+    occurrence,
+    rowKey: occurrence.key,
+    sectionKey: occurrence.sectionKey,
+    worktree,
+    repo,
+    depth: occurrence.depth,
+    groupDepth: context.groupDepth,
+    isLastLineageChild: occurrence.isLastChild,
+    lineageChildCount: occurrence.childCount,
+    showProjectName: occurrence.showProjectName,
+    ...(directoryLabel ? { directoryLabel } : {}),
+    ...(occurrence.childCount > 0
+      ? {
+          lineageGroupKey: lineageKey(worktree),
+          lineageCollapsed: args.collapsedGroups.has(lineageKey(worktree))
+        }
+      : {})
+  })
 }

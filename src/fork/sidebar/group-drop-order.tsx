@@ -16,6 +16,18 @@ function effectiveOrderKeys(rows: readonly Worktree[]): Map<string, number> {
   return new Map(rows.map((row) => [row.id, manualOrderKey(row)]))
 }
 
+/** True when the keys explain the order: never rising from one row to the next. */
+function keysFollowOrder(order: readonly string[], keys: ReadonlyMap<string, number>): boolean {
+  for (let index = 1; index < order.length; index += 1) {
+    const previous = keys.get(order[index - 1]!)
+    const current = keys.get(order[index]!)
+    if (previous === undefined || current === undefined || !(previous >= current)) {
+      return false
+    }
+  }
+  return true
+}
+
 // A step this small would round away or tie at the size of these keys (doubles near 1.7e12, a
 // Date.now() rank, are only about 2e-4 apart), so it is not a real "strictly between".
 function minStep(before: number, after: number): number {
@@ -192,8 +204,9 @@ function renumberWithinList(
  * dragged rows are written, placed between their new neighbours' manual-sort keys: upstream's
  * group-drop ranking renumbers every row as soon as one still sorts by sortOrder, which reshuffled
  * the whole ungrouped list. When the neighbours tie, the gap between them has no room left for a
- * value strictly between, the target section's rows around the drop are renumbered in their shown
- * order, the moved rows at the drop point. Those values stay inside the gap left by rows of other sections,
+ * value strictly between, or the keys do not explain the shown order (a lineage child drawn under
+ * its parent), the target section's rows around the drop are renumbered in their shown order, the
+ * moved rows at the drop point. Those values stay inside the gap left by rows of other sections,
  * so the order across the full list is kept; only when that gap has no room either is the whole
  * section renumbered from its own top. Only the returned rows change.
  */
@@ -245,6 +258,9 @@ export function buildGroupDropOrder(
     return new Map(
       moved.map((id, index) => [id, { manualOrder: now - index * GROUP_DROP_ORDER_STRIDE }])
     )
+  }
+  if (!keysFollowOrder(section, keys)) {
+    return renumber()
   }
   if (before === undefined) {
     return new Map(

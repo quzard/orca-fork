@@ -12,9 +12,9 @@ import {
   resolveDeleteProjectGroupRemoveContainedProjects
 } from '../../shared/fork-hooks/project-group-delete'
 import { applyProjectGroupDeleteCascade } from '../../renderer/src/store/project-groups/project-group-removal-state'
-import { buildRows } from '../../renderer/src/components/sidebar/worktree-list/grouping/build-rows'
-import { addHostSectionRows } from '../../renderer/src/components/sidebar/host-section-rows'
-import type { WorktreeGroupBy } from '../../renderer/src/components/sidebar/worktree-list/grouping/row-types'
+import { buildRows } from '../../renderer/src/components/sidebar/worktree-list/grouping/build-rows.test-fixture'
+import { addHostSectionRows } from '../../shared/sidebar-list/host-section-rows'
+import type { WorktreeGroupBy } from '../../shared/sidebar-list/row-types'
 import { registerForkModules } from '../register'
 import { installHostDirectoryRowPlan } from './install-row-plan'
 import { workspaceGroupDropBlocked, workspaceGroupInsertionIndex } from './workspace-group-drop'
@@ -198,9 +198,10 @@ describe('host-directory sidebar rows', () => {
         workspace('wt-oss', 'oss', '/srv/wt/oss/api', 'main', DEVBOX)
       ]
     })
+    // 两个工作区显示名都是 api。上游用主机限定 id 打破平局，wt-oss 排在 wt-work 前面。
     expect(rows.filter((row) => row.type === 'item').map((row) => row.directoryLabel)).toEqual([
-      'work/api',
-      'oss/api'
+      'oss/api',
+      'work/api'
     ])
   })
 
@@ -233,9 +234,10 @@ describe('host-directory sidebar rows', () => {
         })
       ]
     })
+    // 同名时按主机限定 id 排序，目录标签本身仍是消歧后的 work/api 与 oss/api。
     expect(rows.filter((row) => row.type === 'item').map((row) => row.directoryLabel)).toEqual([
-      'work/api',
-      'oss/api'
+      'oss/api',
+      'work/api'
     ])
   })
 

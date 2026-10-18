@@ -1,5 +1,5 @@
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import type { WorktreeGroupBy } from './worktree-list/grouping/row-types'
+import type { WorktreeGroupBy } from '../../../../shared/sidebar-list/row-types'
 import {
   listSidebarGroupModes,
   registeredReplacementForBuiltinGroupBy
@@ -25,7 +25,7 @@ export function SidebarGroupByToggle({ groupBy, setGroupBy }: SidebarGroupByTogg
       size="sm"
       className="h-6 w-full justify-stretch"
     >
-      {/* fork: a registered mode that replaces Project is the saved Project view. */}
+      {/* fork: 替换 Project 的已登记模式就是保存下来的 Project 视图。 */}
       {[
         ...GROUP_BY_OPTIONS.filter((option) => !registeredReplacementForBuiltinGroupBy(option.id)),
         ...listSidebarGroupModes()

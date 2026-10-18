@@ -119,6 +119,13 @@ export function hydrateSidebarGroupBy(groupBy: string): PersistedUIState['groupB
   return registeredReplacementForBuiltinGroupBy(stored) ?? (stored as PersistedUIState['groupBy'])
 }
 
+export function takeRegisteredSidebarRowPlan(
+  inputs: { groupBy: string } & SidebarPlanArgs
+): SidebarRowPlan | undefined {
+  // 调用方把整份行计划传进来。内置 id 查不到模式，这里返回 undefined。
+  return delegateRegisteredSidebarRowPlan(inputs.groupBy, inputs)
+}
+
 export function delegateRegisteredSidebarRowPlan(
   groupBy: string,
   input: SidebarPlanArgs

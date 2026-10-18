@@ -14,7 +14,6 @@ import {
   type AntigravityWorkspaceResolver
 } from './session-scanner-antigravity-history'
 import { sessionCandidatesFromDiscoveries } from './session-scanner-candidates'
-import { ensureSessionParseCacheLoaded } from './session-parse-cache-persistence'
 import {
   createSessionParseStats,
   parseListedSessionFile,
@@ -40,6 +39,7 @@ import { noteAiVaultScanFilesRead, noteAiVaultScanReading } from './ai-vault-sca
 import { DEFAULT_AI_VAULT_SCAN_LIMIT } from '../../shared/ai-vault-session-depth'
 import { runForkAiVaultScan } from '../../shared/fork-hooks/ai-vault'
 import { withDevinSessionsDbScan } from './session-scanner-devin-db'
+import { isConversationNameRequestSession } from './conversation-name-request-sessions'
 import { withOpenCodeSqliteScanScope } from './session-scanner-opencode-sqlite-scan-scope'
 
 const SESSION_PARSE_CONCURRENCY = 8
@@ -85,10 +85,7 @@ async function scanAiVaultSessionStores(options: AiVaultScanOptions): Promise<Ai
         const antigravityWorkspaceResolver = createAntigravityWorkspaceResolver((path) =>
           readLocalAntigravityHistory(path, options.signal)
         )
-        // Why: persisted entries must be seeded before any candidate is parsed, or
-        // the cold scan gains nothing from the cache file (#9210).
         throwIfAiVaultScanCancelled(options.signal)
-        await ensureSessionParseCacheLoaded()
         const discoveries = await discoverAiVaultSessionSources({
           options,
           limitPerAgent,
@@ -264,7 +261,7 @@ async function parseSessionCandidates(args: {
       if (result.issue) {
         recordSessionScanIssue(args.issues, result.issue)
       }
-      if (result.session) {
+      if (result.session && !isConversationNameRequestSession(result.session)) {
         sessions.add(result.session)
       }
     }

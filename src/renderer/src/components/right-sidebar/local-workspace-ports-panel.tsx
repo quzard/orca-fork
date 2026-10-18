@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react'
 import { RefreshCw, Server } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAppStore } from '@/store'
-import { useActiveWorktree, useRepoById } from '@/store/selectors'
+import { useActiveWorktree } from '@/store/selectors'
 import { cn } from '@/lib/utils'
 import type { RuntimeClientTarget } from '../../../../shared/runtime-client-target'
 import {
@@ -41,7 +41,8 @@ export function LocalWorkspacePortsPanel({
   sshForwardTargetId?: string | null
 }): React.JSX.Element {
   const activeWorktree = useActiveWorktree()
-  const activeRepo = useRepoById(activeWorktree?.repoId ?? null)
+  // Why the workspace's repoId, not a repo row: a folder workspace has no repo, only a synthetic id.
+  const activeRepoId = activeWorktree?.repoId ?? null
   const settings = useAppStore((s) => s.settings)
   const createBrowserTab = useAppStore((s) => s.createBrowserTab)
   const setRemoteBrowserPageHandle = useAppStore((s) => s.setRemoteBrowserPageHandle)
@@ -62,7 +63,7 @@ export function LocalWorkspacePortsPanel({
   const scanKey = runtimeTarget ? `${workspacePortRuntimeTargetKey(runtimeTarget)}:all` : null
 
   const refresh = useCallback(() => {
-    if (!activeRepo || !runtimeTarget || !scanKey) {
+    if (!activeRepoId || !runtimeTarget || !scanKey) {
       return Promise.resolve()
     }
     setWorkspacePortScanRefreshing(true)
@@ -97,7 +98,7 @@ export function LocalWorkspacePortsPanel({
       })
     return promise
   }, [
-    activeRepo,
+    activeRepoId,
     runtimeTarget,
     scanKey,
     replaceWorkspacePortScans,
@@ -114,11 +115,11 @@ export function LocalWorkspacePortsPanel({
 
   const handleStopPort = useCallback(
     async (port: WorkspacePort) => {
-      if (!activeRepo || !port.pid) {
+      if (!activeRepoId || !port.pid) {
         return
       }
       const result = await killWorkspacePortForTarget(runtimeTarget, {
-        repoId: activeRepo.id,
+        repoId: activeRepoId,
         pid: port.pid,
         port: port.port
       })
@@ -151,7 +152,7 @@ export function LocalWorkspacePortsPanel({
         )
       }
     },
-    [activeRepo, runtimeTarget, replaceWorkspacePortScans, setWorkspacePortScanRefreshing]
+    [activeRepoId, runtimeTarget, replaceWorkspacePortScans, setWorkspacePortScanRefreshing]
   )
 
   const handleOpenPortInBrowser = useCallback(
@@ -183,8 +184,8 @@ export function LocalWorkspacePortsPanel({
   )
 
   const { activePorts, otherWorkspacePorts, externalPorts } = useMemo(
-    () => getLocalWorkspacePortSections(displayScan, activeRepo?.id, activeWorktree?.id),
-    [activeRepo?.id, activeWorktree?.id, displayScan]
+    () => getLocalWorkspacePortSections(displayScan, activeRepoId, activeWorktree?.id),
+    [activeRepoId, activeWorktree?.id, displayScan]
   )
 
   const showPortSections = shouldShowLocalWorkspacePortSections(displayScan, {
@@ -193,7 +194,7 @@ export function LocalWorkspacePortsPanel({
     externalPorts
   })
 
-  if (!activeRepo) {
+  if (!activeRepoId) {
     return (
       <div className="flex flex-col items-center justify-center h-full px-4 text-center text-muted-foreground">
         <Server size={32} className="mb-3 opacity-50" />

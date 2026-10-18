@@ -27,8 +27,17 @@ import { installBrowserClientPageRenderer } from './components/browser-pane/brow
 import { installOsFileDropCancellationGuard } from './lib/os-file-drop-cancellation-guard'
 import { registerForkModules } from '../../fork/register'
 import { registerForkRendererModules } from '../../fork/register-renderer'
+import { installSidebarShadowComparison } from './lib/sidebar-shadow/sidebar-shadow-comparison'
+import { ORCA_SIDEBAR_INPUTS_IS_MAIN } from '../../shared/sidebar-inputs-switch'
+import { workspaceActivityShadow } from './lib/sidebar-shadow/workspace-activity-shadow'
+import {
+  pairedServerHostsShadow,
+  pairedServerRowsShadow
+} from './lib/sidebar-shadow/paired-server-rows-shadow'
+import { desktopFactsShadow } from './lib/sidebar-shadow/desktop-facts-shadow'
+import { workspaceReviewShadow } from './lib/sidebar-shadow/workspace-review-shadow'
 
-// fork: group mode, then renderer slots. Main-process registrations stay in register-main.
+// fork: 先登记分组模式，再登记渲染槽。主进程登记留在 register-main。
 registerForkModules()
 registerForkRendererModules()
 
@@ -38,6 +47,17 @@ recordRendererCrashBreadcrumb('renderer_bootstrap_started', { dev: import.meta.e
 installRendererCrashDiagnostics()
 installTypingLatencyDiagnostic()
 installAutomationHostDiagnostic()
+// Switch point: only a build where main produces the sidebar's inputs compares them.
+if (ORCA_SIDEBAR_INPUTS_IS_MAIN) {
+  const disposeSidebarShadow = installSidebarShadowComparison([
+    workspaceActivityShadow,
+    pairedServerRowsShadow,
+    pairedServerHostsShadow,
+    desktopFactsShadow,
+    workspaceReviewShadow
+  ])
+  import.meta.hot?.dispose(disposeSidebarShadow)
+}
 
 if (
   import.meta.env.DEV &&

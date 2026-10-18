@@ -13,8 +13,8 @@ import {
   type WorktreeOccurrenceSection
 } from '../../shared/worktree-occurrence-plan'
 import type { WorkspaceSortBy } from '../../shared/workspace-view/workspace-row-sort'
-import { getSidebarLineageChildren } from '../../renderer/src/components/sidebar/pinned-section-worktrees'
-import type { Row } from '../../renderer/src/components/sidebar/worktree-list/grouping/row-types'
+import { getSidebarLineageChildren } from '../../shared/sidebar-list/pinned-section-worktrees'
+import type { Row } from '../../shared/sidebar-list/row-types'
 import { sectionKeyForWorkspace } from './membership'
 import {
   PINNED_SECTION_KEY,

@@ -1,5 +1,4 @@
 // Turns a host-directory occurrence plan into sidebar rows.
-import { FolderTree, Pin } from 'lucide-react'
 import { translate } from '../../renderer/src/i18n/i18n'
 import type { ExecutionHostId } from '../../shared/execution-host'
 import type { ProjectGroup } from '../../shared/project-group-types'
@@ -9,7 +8,7 @@ import {
   getExpandedWorktreeOccurrences,
   type WorktreeOccurrence
 } from '../../shared/worktree-occurrence-plan'
-import type { Row } from '../../renderer/src/components/sidebar/worktree-list/grouping/row-types'
+import type { Row } from '../../shared/sidebar-list/row-types'
 import { directoryLabelsForHost, groupedCardDirectoryLabel } from './directory-label'
 import type { HostDirectoryRenderArgs } from './host-directory-render-args'
 import { projectGroupHostId } from './membership'
@@ -63,8 +62,7 @@ function appendPinned(rows: Row[], args: HostDirectoryRenderArgs): void {
     key: PINNED_SECTION_KEY,
     label: translate('auto.components.sidebar.worktree.list.groups.4aeefc5996', 'Pinned'),
     count: pinned.items.length,
-    tone: 'text-foreground',
-    icon: Pin,
+    icon: { kind: 'pinned' },
     hostWorktreeCounts,
     hostWorktreeIds,
     worktreeIds: pinned.items.map((worktree) => worktree.id)
@@ -134,8 +132,7 @@ function appendGroup(
     key,
     label: group.name,
     count: members.length,
-    tone: 'text-foreground',
-    icon: FolderTree,
+    icon: { kind: 'project' },
     projectGroup: group,
     projectGroupDepth: depth,
     hostId,

@@ -5,7 +5,7 @@ import type { FolderWorkspace } from '../../shared/folder-workspace-types'
 import type { ProjectGroup } from '../../shared/project-group-types'
 import type { Repo } from '../../shared/repo-types'
 import type { Worktree } from '../../shared/worktree/types'
-import type { Row } from '../../renderer/src/components/sidebar/worktree-list/grouping/row-types'
+import type { Row } from '../../shared/sidebar-list/row-types'
 import { folderWorkspaceHostId, projectGroupHostId, resolveSidebarGroupId } from './membership'
 import { emptyProjectSectionKey, hostDirectorySectionKey } from './section-keys'
 import type { HostDirectoryRenderArgs } from './host-directory-render-args'
@@ -178,7 +178,7 @@ export function appendLooseAndPlaceholders(
       key: emptyProjectSectionKey(hostId, repoId),
       label: repo.displayName,
       count: 0,
-      tone: 'text-foreground',
+      icon: { kind: 'project' },
       repo,
       hostId
     })

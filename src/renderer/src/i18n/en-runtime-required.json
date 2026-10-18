@@ -1,4 +1,9 @@
 {
+  "accounts": {
+    "claude": {
+      "profileSwitching": "Switching applies to the next Claude you start in any tab."
+    }
+  },
   "agentsSidebarIntro": {
     "migrated": {
       "action": "Open Agents"
@@ -2709,7 +2714,9 @@
         },
         "space": {
           "WorkspaceSpacePage": {
-            "8d0048e1cb": "Workspace disk usage and reclaimable worktree storage."
+            "45f6302dbc": "Space",
+            "8d0048e1cb": "Workspace disk usage and reclaimable worktree storage.",
+            "e8d6ba11ab": "Beta"
           }
         }
       }
@@ -2987,6 +2994,10 @@
       },
       "question": {
         "other": "Other…"
+      },
+      "queuedMessages": {
+        "imageCount_one": "{{count}} image",
+        "imageCount_other": "{{count}} images"
       },
       "receipt": {
         "cancelled": "Cancelled",

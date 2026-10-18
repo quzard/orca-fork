@@ -194,6 +194,9 @@ esac
 run_check "orcad prebuild" pnpm build:orcad-prebuilds
 run_check "orcad require slot" pnpm build:orcad-prebuilds --require-slots "$slot"
 run_check "orcad smoke" pnpm build:orcad-prebuilds --smoke
+# 上游打包 orcad 时会装入手机页面。mobile 是独立锁文件，根安装不会带上它。
+run_check "mobile install" pnpm install --frozen-lockfile --dir mobile
+run_check "mobile web" pnpm build:mobile-web
 template_targets="$slot"
 # 跨架构槽由家里的 Mac 打包。云端默认只编当前 Linux 槽并打进模板。
 if [[ "${ORCA_SYNC_DOCKER_SLOTS:-}" == 1 ]]; then

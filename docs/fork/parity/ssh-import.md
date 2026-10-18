@@ -2,12 +2,9 @@
 
 Paths below are generic. Each item is the behavior a registered build must show.
 
-## F007 Directory symlinks
+## F007 Directory symlinks (removed; upstream covers it)
 
-- [ ] SSH browse of a directory that contains `real-dir/`, `link-dir` -> `real-dir`, and `dangling` -> missing, lists `real-dir/` and `link-dir/` with one trailing slash, and lists `dangling` with no slash.
-- [ ] The same listing through local `sshd` on `127.0.0.1` matches. `fork/scripts/verify/ssh-symlink-directory-follow.sh` is the proof.
-- [ ] A managed-server browse `stat`s a symlink and marks it a directory only when the target is a directory. A dangling symlink stays a file.
-- [ ] Before registration, the POSIX command is upstream's `pwd &&` listing. That listing follows a directory symlink with `[ -d ]` and leaves a dangling link as a file.
+- [ ] SSH browse and managed-server browse list `link-dir` -> `real-dir` as a directory, `dangling` as a file, an empty directory as empty, and fail on a directory that cannot be read. `src/fork/directory-browse.fork.test.ts` runs upstream's code for this.
 
 ## F022 Symlinked Cursor sessions
 

@@ -3,10 +3,6 @@ import type { SshExecOptions } from './ssh-connection-utils'
 import { powerShellCommand, powerShellLiteral } from './ssh-remote-powershell'
 import type { FilesystemPathFlavor } from '../../shared/filesystem-entry-types'
 import { sortDirEntries } from '../../shared/file-name-sort'
-import {
-  getRemoteDirectoryListingHook,
-  resolvePosixBrowseCommandTail
-} from '../../shared/fork-hooks/remote-directory'
 import { buildPosixStdoutFence } from '../../shared/posix-stdout-fence'
 
 export type RemoteDirEntry = {
@@ -78,11 +74,9 @@ function browseWithPosixShell(
 ): Promise<RemoteBrowseResult> {
   // Why: `command ls` skips aliases; capturing it keeps a failing ls exiting non-zero (not looking empty).
   // The trailing / comes from `[ -d ]`, which follows symlinks (ls -p doesn't); broken links and loops test false.
-  // fork: 未登记时用上面这条上游命令。登记后只替换 cd 之后的后半段。
-  const browseTail = resolvePosixBrowseCommandTail() ?? `pwd && ${POSIX_LIST_WITH_DIR_MARKERS}`
   return runBrowseCommand(
     conn,
-    `cd ${shellEscape(dirPath)} && ${browseTail}`,
+    `cd ${shellEscape(dirPath)} && pwd && ${POSIX_LIST_WITH_DIR_MARKERS}`,
     'posix'
   )
 }
@@ -241,23 +235,9 @@ async function runBrowseCommand(
       }
 
       // Sort: directories first, then natural name order (matches the Explorer)
-      // fork: 目录软链修正。未登记时同步排序并返回，不插入微任务。
-      const listingHook = getRemoteDirectoryListingHook()
-      if (!listingHook) {
-        sortDirEntries(entries)
-        resolveOnce({ entries, resolvedPath, pathFlavor })
-        return
-      }
-      void Promise.resolve(listingHook(entries, resolvedPath)).then(
-        (listed) => {
-          const next = listed.map((entry) => ({ name: entry.name, isDirectory: entry.isDirectory }))
-          sortDirEntries(next)
-          resolveOnce({ entries: next, resolvedPath, pathFlavor })
-        },
-        (error: unknown) => {
-          rejectOnce(error instanceof Error ? error : new Error(String(error)))
-        }
-      )
+      sortDirEntries(entries)
+
+      resolveOnce({ entries, resolvedPath, pathFlavor })
     }
 
     channel.on('data', onStdoutData)

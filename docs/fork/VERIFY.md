@@ -16,10 +16,6 @@ Outputs go to `$OUT_DIR` (default `/tmp/orca-fork-verify`).
 
 ## What the scripts check
 
-`ssh-symlink-listing.sh` creates a real directory and a symlink to it, then runs `ls -1Ap`. That command still classifies a directory symlink as a file because `-p` does not add a trailing slash. Upstream's SSH browser no longer uses that command: an unregistered listing follows the symlink with `[ -d ]`. The script records the `ls -1Ap` difference. If Docker is available it repeats the listing through a throwaway `sshd` container. Otherwise it starts `sshd` on `127.0.0.1:2222` with a one-off key (install `openssh-server` first; the script does not change the system ssh service).
-
-`ssh-symlink-directory-follow.sh` runs the registered browse tail, locally and through a one-off `sshd` on `127.0.0.1` (an ephemeral port). A directory symlink must end in one `/`, a real directory must not gain a second `/`, and a dangling link must stay a file. `src/fork/directory/posix-symlink-list.fork.test.ts` passes `POSIX_SYMLINK_DIRECTORY_LIST_TAIL` into that script.
-
 `screenshot-electron.mjs` builds `electron-vite --mode e2e` when `out/main/index.js` is missing, then launches Electron under Xvfb with `ORCA_BACKGROUND_LAUNCH=1` and `ORCA_E2E_HEADLESS=1`. It uses an isolated `HOME` and `ORCA_E2E_USER_DATA_DIR`, waits for the first window, and writes `fork-base-window.png`. The window stays hidden. Set `ORCA_FORK_VERIFY_SKIP_BUILD=1` to reuse an existing `out/`.
 
 ## Checks only a Mac can do

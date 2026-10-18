@@ -12,6 +12,12 @@ cd "$REPO_ROOT"
 export GIT_TERMINAL_PROMPT=0
 export GIT_EDITOR=true
 export TZ="${ORCA_SYNC_TZ:-UTC}"
+# 合并提交、pin 提交和冲突提交都用 fork 的公开身份，由脚本自己设置，机器上不用配 git 身份。
+# 推送前的身份检查仍然会核对每个提交。
+export GIT_AUTHOR_NAME="quzard"
+export GIT_AUTHOR_EMAIL="30899719+quzard@users.noreply.github.com"
+export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME"
+export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
 
 ATTEMPT_BRANCH="sync/upstream-$(date +%Y%m%d)"
 ATTEMPT_SHA=""
@@ -26,14 +32,6 @@ summary() {
 die() {
   summary "$@"
   exit 1
-}
-
-# 合并提交和 pin 提交用这里的身份。和 check-commit-identity.sh 要求的一致，否则推送前一定被拦。
-require_identity() {
-  if [[ "$(git config user.name || true)" != "quzard" ||
-    "$(git config user.email || true)" != "30899719+quzard@users.noreply.github.com" ]]; then
-    die "daily-sync: FAILED" "reason: git user.name and user.email must be quzard <30899719+quzard@users.noreply.github.com>" "develop: not pushed"
-  fi
 }
 
 # 每次推送前：upstream/main 之后的每个提交（含合并提交）作者和提交者都必须是 quzard 的 noreply 身份。
@@ -186,7 +184,6 @@ run_check() {
   fi
 }
 
-require_identity
 require_fork_origin
 if [[ -n "$(git status --porcelain)" ]]; then
   die "daily-sync: FAILED" "reason: worktree is dirty" "develop: not pushed"

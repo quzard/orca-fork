@@ -47,6 +47,11 @@ describe('fork daily sync split', () => {
     expect(script).toContain('pnpm tc')
     expect(script).toContain('build-orcad-template.mjs')
     expect(script).toContain('git push origin "HEAD:refs/heads/develop"')
+    // The script sets the fork identity for its own commits; no machine git config is needed.
+    expect(script).not.toContain('require_identity')
+    expect(script).toContain('export GIT_AUTHOR_EMAIL="30899719+quzard@users.noreply.github.com"')
+    expect(script).toContain('export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"')
+    expect(script.indexOf('export GIT_COMMITTER_NAME')).toBeLessThan(script.indexOf('git merge'))
     // Every push runs the identity guard first.
     expect(script.indexOf('require_commit_identity HEAD')).toBeLessThan(
       script.indexOf('git push origin "HEAD:refs/heads/develop"')

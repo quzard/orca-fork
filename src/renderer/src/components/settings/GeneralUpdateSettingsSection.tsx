@@ -11,7 +11,6 @@ import { translate } from '@/i18n/i18n'
 import { getUpdateCheckClickOptions, getUpdateCheckHint } from '@/lib/update-check-click-options'
 import { GeneralRemoteServerUpdates } from './GeneralRemoteServerUpdates'
 import { ReleaseChannelSection } from './ReleaseChannelSection'
-import { renderForkGithubUpdateSettings } from '../../../../shared/fork-hooks/github-update-settings'
 import { getReleaseNotesUrlForVersion } from '../../../../shared/release-channel'
 
 export function GeneralUpdateSettingsSection(): React.JSX.Element {
@@ -268,7 +267,6 @@ export function GeneralUpdateSettingsSection(): React.JSX.Element {
       </SearchableSetting>
       {channelSwitcherRevealed ? <ReleaseChannelSection /> : null}
       <GeneralRemoteServerUpdates />
-      {renderForkGithubUpdateSettings()}
     </section>
   )
 }

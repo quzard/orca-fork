@@ -1,11 +1,8 @@
 import { app, powerMonitor } from 'electron'
 import type { BrowserWindow } from 'electron'
 import { is } from '@electron-toolkit/utils'
-import {
-  forkReleaseFeedDecision,
-  forkUpstreamReleaseReadsBlocked
-} from '../../shared/fork-hooks/update-feed'
-import { forkAutoInstallOnQuit } from '../../fork/private-github-background-download'
+import { forkReleaseFeedDecision, isForkBuild } from '../../shared/fork-hooks/update-feed'
+import { forkAutoInstallOnQuit } from '../../fork/fork-background-download'
 import type { ReleaseBuild, ReleaseChannel } from '../../shared/release-channel'
 import type { ReleaseBuildListOptions } from '../updater-release-build-cache'
 import type {
@@ -168,8 +165,8 @@ export class UpdaterSetup extends UpdaterDownloadInstall {
     autoUpdater.logger = createUpdaterDiagnosticLogger() as never
 
     // Security: never re-add a verifyUpdateCodeSignature override — a no-op disables electron-updater's built-in Authenticode check and accepts any installer.
-    // fork: 已登记时不要先钉上游地址，避免 checkForUpdates 读到 app-update.yml 里的上游源。
-    if (this.activeUpdateSource === 'release' && !forkUpstreamReleaseReadsBlocked()) {
+    // fork: fork 构建不要先钉上游地址。
+    if (this.activeUpdateSource === 'release' && !isForkBuild()) {
       autoUpdater.setFeedURL({
         provider: 'generic',
         url: 'https://github.com/stablyai/orca/releases/latest/download'

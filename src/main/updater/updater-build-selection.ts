@@ -1,9 +1,6 @@
 import { app } from 'electron'
 import { is } from '@electron-toolkit/utils'
-import {
-  FORK_UPSTREAM_RELEASE_BLOCKED,
-  forkUpstreamReleaseReadsBlocked
-} from '../../shared/fork-hooks/update-feed'
+import { FORK_UPSTREAM_RELEASE_BLOCKED, isForkBuild } from '../../shared/fork-hooks/update-feed'
 import {
   DEV_CHANNEL_PLATFORM_LABEL,
   getVersionChannel,
@@ -99,7 +96,7 @@ export abstract class UpdaterBuildSelection extends UpdaterMenuChecks {
       return
     }
     // fork: 指定版本会拼上游下载地址并交给 checkForUpdates。这里直接停。
-    if (forkUpstreamReleaseReadsBlocked()) {
+    if (isForkBuild()) {
       this.sendStatus({
         state: 'error',
         message: FORK_UPSTREAM_RELEASE_BLOCKED,

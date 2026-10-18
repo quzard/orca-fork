@@ -1,66 +1,52 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import {
-  FORK_GITHUB_UPDATE_OWNER,
-  FORK_GITHUB_UPDATE_REPO,
+  forkGithubUpdateFeed,
   forkReleaseFeedDecision,
   forkUpdateFeedRegistered,
-  forkUpstreamReleaseReadsBlocked,
-  registerForkUpdateFeed,
-  registerForkUpstreamReleaseReadsBlocked,
-  resolveForkUpdateFeed
+  isForkBuild,
+  registerForkBuild,
+  registerForkUpdateFeed
 } from './update-feed'
 
 describe('fork update feed hook', () => {
   afterEach(() => {
-    registerForkUpdateFeed(null)
-    registerForkUpstreamReleaseReadsBlocked(false)
+    registerForkUpdateFeed(false)
+    registerForkBuild(false)
   })
 
   it('stays on the upstream feed until a fork registers', () => {
     expect(forkUpdateFeedRegistered()).toBe(false)
+    expect(isForkBuild()).toBe(false)
     expect(forkReleaseFeedDecision()).toEqual({ kind: 'upstream' })
-    expect(resolveForkUpdateFeed()).toBeNull()
   })
 
-  it('skips the check when the registered resolver yields no feed', () => {
-    registerForkUpdateFeed(() => null)
-    expect(forkUpdateFeedRegistered()).toBe(true)
+  it('skips the check in a fork build that has no feed (orcad, renderer)', () => {
+    registerForkBuild()
+    expect(isForkBuild()).toBe(true)
     expect(forkReleaseFeedDecision()).toEqual({ kind: 'skip' })
   })
 
-  it('returns only the private quzard feed when a token is present', () => {
-    registerForkUpdateFeed(() => ({
-      provider: 'github',
-      owner: FORK_GITHUB_UPDATE_OWNER,
-      repo: FORK_GITHUB_UPDATE_REPO,
-      private: true,
-      token: 'stub-token'
-    }))
-    expect(resolveForkUpdateFeed()).toEqual({
-      provider: 'github',
-      owner: 'quzard',
-      repo: 'orca-fork',
-      private: true,
-      token: 'stub-token'
-    })
-    expect(forkReleaseFeedDecision().kind).toBe('ready')
-    expect(forkUpstreamReleaseReadsBlocked()).toBe(true)
-  })
-
-  it('is ready with the anonymous public feed when there is no token', () => {
-    registerForkUpdateFeed(() => ({
-      provider: 'github',
-      owner: FORK_GITHUB_UPDATE_OWNER,
-      repo: FORK_GITHUB_UPDATE_REPO,
-      private: false
-    }))
+  it('is ready with only the anonymous public quzard/orca-fork feed', () => {
+    registerForkUpdateFeed()
     const decision = forkReleaseFeedDecision()
     expect(decision).toEqual({
       kind: 'ready',
       feed: { provider: 'github', owner: 'quzard', repo: 'orca-fork', private: false }
     })
-    expect(JSON.stringify(decision)).not.toContain('token')
-    expect(JSON.stringify(decision)).not.toContain('stablyai')
-    expect(forkUpstreamReleaseReadsBlocked()).toBe(true)
+    expect(Object.keys(forkGithubUpdateFeed()).sort()).toEqual([
+      'owner',
+      'private',
+      'provider',
+      'repo'
+    ])
+    expect(JSON.stringify(decision)).not.toMatch(/token|stablyai/i)
+    expect(isForkBuild()).toBe(true)
+  })
+
+  it('returns a fresh feed object each time', () => {
+    const first = forkGithubUpdateFeed()
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: simulates a caller mutating the returned object.
+    ;(first as Record<string, unknown>).token = 'x'
+    expect(forkGithubUpdateFeed()).not.toHaveProperty('token')
   })
 })

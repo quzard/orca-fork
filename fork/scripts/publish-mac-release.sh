@@ -1,7 +1,7 @@
 #!/bin/bash
 # 把 quzard/orca-fork 的 mac 预发布分成两段上传。
-# electron-updater 的 PrivateGitHubProvider.resolveFiles 会先把 latest-mac.yml
-# 里 files 列出的每一个文件都解析成 release 资产，缺一个就整次下载失败。
+# electron-updater 会把 latest-mac.yml 里 files 列出的每一个文件当成 release 资产，
+# 缺一个就整次下载失败。
 # MacUpdater 真正下载的是 zip；差分还要同名的 zip.blockmap。dmg 只给手动安装。
 # 因此公开时的 latest-mac.yml 只写 zip。dmg 在 release 已经公开之后再补。
 # 用法: publish-mac-release.sh --dist DIR --sha SHA

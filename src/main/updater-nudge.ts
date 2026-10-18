@@ -1,4 +1,5 @@
 import { net } from 'electron'
+import { isForkBuild } from '../shared/fork-hooks/update-feed'
 import { compareVersions, isValidVersion } from './updater-fallback'
 import { parseRolloutConfig, recordRolloutConfig } from './updater/rollout-flags'
 
@@ -9,6 +10,10 @@ export type NudgeConfig = {
 }
 
 export async function fetchNudge(): Promise<NudgeConfig | null> {
+  // fork: 不请求上游站点。
+  if (isForkBuild()) {
+    return null
+  }
   try {
     const res = await net.fetch('https://onorca.dev/whats-new/nudge.json', {
       signal: AbortSignal.timeout(5000)

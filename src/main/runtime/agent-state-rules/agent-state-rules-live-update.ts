@@ -4,6 +4,7 @@ import { getAppEnvironment } from '../../../shared/app-environment'
 import { readFetchResponseTextWithinLimit } from '../../../shared/fetch-response-body'
 import type { GlobalSettings } from '../../../shared/global-settings-types'
 import { getVersionChannel, MAIN_RELEASE_REPO } from '../../../shared/release-channel'
+import { isForkBuild } from '../../../shared/fork-hooks/update-feed'
 import { getMainHttpClient } from '../../network/http-client'
 import { writePluginFileAtomically } from '../../plugins/plugin-atomic-file-write'
 import {
@@ -121,7 +122,9 @@ export class AgentStateRulesLiveUpdater {
   async start(): Promise<void> {
     this.stop()
     const settings = this.deps.readSettings()
-    const live = this.deps.isPackaged && settings.agentStateRulesLiveUpdates !== false
+    // fork: 规则文件挂在上游 Releases 上，fork 构建只用内置规则和用户自己的覆盖文件。
+    const live =
+      !isForkBuild() && this.deps.isPackaged && settings.agentStateRulesLiveUpdates !== false
     const run = { channel: live ? agentStateRulesChannelForAppVersion(this.deps.appVersion) : null }
     this.run = run
     const overridePath = settings.agentStateRulesPath

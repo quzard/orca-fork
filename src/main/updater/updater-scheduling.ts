@@ -47,7 +47,7 @@ export abstract class UpdaterScheduling extends UpdaterCheckFailure {
   protected runBackgroundUpdateCheck(
     nudgeId: string | null = this.getPersistedPendingUpdateNudgeId()
   ): boolean {
-    // fork: 解析不出发布源时 pin 会返回 not-available，但这里仍会接着 checkForUpdates。先停掉。
+    // fork: 没登记更新源时 pin 会返回 not-available，但这里仍会接着 checkForUpdates。先停掉。
     if (forkReleaseFeedDecision().kind === 'skip') {
       return false
     }

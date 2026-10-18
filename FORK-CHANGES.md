@@ -90,9 +90,11 @@
 
 ## 应用内更新
 
-GitHub 令牌写在 `~/.orca/github-update-token`。`writeSecureFile` 把文件收成 0600，父目录 0700。不进钥匙串，也不进 safeStorage。设置里的 GitHub token 只能保存或清除，已保存的内容不回到界面。
+发布检查只指向 `quzard/orca-fork` 的 GitHub Releases，用 electron-updater 的公开 GitHub provider 匿名读取（`private: false`，没有 `token` 字段），打开 `allowPrerelease`，元数据文件是 `latest-mac.yml`。不读令牌文件，不读 `GH_TOKEN` / `GITHUB_TOKEN`，请求里没有 `Authorization`。设置页没有令牌输入，也没有相关 IPC。
 
-已登记时发布检查只指向 `quzard/orca-fork` 的 GitHub Releases，并打开 `allowPrerelease`，元数据文件是 `latest-mac.yml`。仓库公开，令牌可选：没有令牌文件时用 electron-updater 的公开 GitHub provider 匿名读取，不用 `GH_TOKEN` / `GITHUB_TOKEN`；有令牌时走私有 provider，API 限额更高。每次检查都重新读文件。未登记时仍是上游公开源。
+fork 构建（`registerForkBuild`，主进程、渲染进程和 orcad 都登记）不访问上游：不列上游版本、不解析指定的上游 tag、不拉上游 atom、发行说明链接指向 `quzard/orca-fork`；`onorca.dev` 的 changelog 和 nudge 直接返回空；agent 状态规则不从上游 Releases 下载，只用内置规则和用户的覆盖文件。未登记时仍是上游行为。
+
+后台下载完成后，macOS 要等 Squirrel 暂存完成（`isMacInstallerReady()`）才弹重启卡片；暂存期间手动检查只把界面放回「已下载 100%」。暂存失败时清掉暂存中的版本，界面进入错误状态，重新检查会重新下载。
 
 家里的 LaunchAgent 只在 `develop` 前进时构建、签名并发布。它跑的是 `~/Projects/orca-verify/bin/mac-auto-update.sh`，安装脚本负责复制。已经装过、仍指向仓库内脚本的代理，要重跑安装脚本，再在终端手动跑一次并点 Always Allow，然后 `--bootstrap`。脚本在 git 操作之前从临时文件重新执行，退出时删掉该副本；成功结束后才用 mv 换掉稳定副本。构建在独立进程组里，锁文件挡住第二次同时构建。codesign 超时会 `kill` 整个进程组。
 

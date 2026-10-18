@@ -1,4 +1,5 @@
 import { net } from 'electron'
+import { isForkBuild } from '../shared/fork-hooks/update-feed'
 import type { ChangelogData } from '../shared/update-status-types'
 import { compareVersions } from './updater-fallback'
 
@@ -42,6 +43,10 @@ export async function fetchChangelog(
   incomingVersion: string,
   localVersion: string
 ): Promise<ChangelogData | null> {
+  // fork: 不请求上游站点。
+  if (isForkBuild()) {
+    return null
+  }
   const res = await net.fetch('https://onorca.dev/whats-new/changelog.json', {
     signal: AbortSignal.timeout(5000)
   })

@@ -1,8 +1,4 @@
 import { ipcRenderer } from 'electron'
-import {
-  FORK_GITHUB_UPDATE_TOKEN_SET_CHANNEL,
-  FORK_GITHUB_UPDATE_TOKEN_STATUS_CHANNEL
-} from '../../shared/fork-hooks/update-feed'
 import type { UpdateStatus } from '../../shared/update-status-types'
 import { prepareAndInvokeUpdaterInstall } from '../renderer-restart-wiring'
 import { awaitBeforeUnloadCheckpoint, updaterQuitAbortRelay } from '../preload-runtime-support'
@@ -36,7 +32,5 @@ export const updaterApi = {
     const listener = (_event: Electron.IpcRendererEvent) => callback()
     ipcRenderer.on('updater:clearDismissal', listener)
     return () => ipcRenderer.removeListener('updater:clearDismissal', listener)
-  },
-  getForkGithubTokenStatus: () => ipcRenderer.invoke(FORK_GITHUB_UPDATE_TOKEN_STATUS_CHANNEL),
-  setForkGithubToken: (token) => ipcRenderer.invoke(FORK_GITHUB_UPDATE_TOKEN_SET_CHANNEL, token)
+  }
 } satisfies PreloadApi['updater']

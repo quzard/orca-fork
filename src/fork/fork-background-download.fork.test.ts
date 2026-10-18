@@ -50,28 +50,27 @@ vi.mock('../main/updater-changelog', () => ({
 vi.mock('../main/updater-lifecycle-diagnostics', () => ({
   recordUpdaterLifecycle: vi.fn()
 }))
-import {
-  FORK_GITHUB_UPDATE_OWNER,
-  FORK_GITHUB_UPDATE_REPO,
-  registerForkUpdateFeed
-} from '../shared/fork-hooks/update-feed'
+import { registerForkUpdateFeed } from '../shared/fork-hooks/update-feed'
 import {
   FORK_BACKGROUND_CHECK_FAILURE_LOG,
   FORK_BACKGROUND_DOWNLOAD_FAILURE_LOG,
+  FORK_STAGING_FAILURE_LOG,
   armForkBackgroundDownload,
   consumeForkBackgroundDownloadFailure,
   forkAutoInstallOnQuit,
   forkStagedUpdateVersion,
+  forkStagingUpdateVersion,
+  failForkStaging,
   noteForkUpdateDownloaded,
   planForkCheckFailure,
   planForkFoundUpdate,
   planForkMissingUpdate,
+  registerForkInstallerReadyProbe,
   resetForkBackgroundDownloadState,
   shouldHoldForkUpdateCheck,
   shouldPreserveForkDownloadedContext
-} from './private-github-background-download'
+} from './fork-background-download'
 
-const TOKEN = 'super-secret-token'
 const hostPlatform = process.platform
 
 function usePlatform(platform: NodeJS.Platform): void {
@@ -79,17 +78,11 @@ function usePlatform(platform: NodeJS.Platform): void {
 }
 
 function useReadyFeed(): void {
-  registerForkUpdateFeed(() => ({
-    provider: 'github',
-    owner: FORK_GITHUB_UPDATE_OWNER,
-    repo: FORK_GITHUB_UPDATE_REPO,
-    private: true,
-    token: TOKEN
-  }))
+  registerForkUpdateFeed()
 }
 
 afterEach(() => {
-  registerForkUpdateFeed(null)
+  registerForkUpdateFeed(false)
   resetForkBackgroundDownloadState()
   usePlatform(hostPlatform)
   nativeAutoUpdater.removeAllListeners()
@@ -97,7 +90,7 @@ afterEach(() => {
 })
 
 describe('fork background download decisions', () => {
-  it('leaves install-on-quit unchanged without a private feed', () => {
+  it('leaves install-on-quit unchanged without a fork feed', () => {
     expect(
       forkAutoInstallOnQuit({
         forkReady: false,
@@ -132,7 +125,7 @@ describe('fork background download decisions', () => {
     ).toBe(false)
   })
 
-  it('installs on quit for an interactive private-feed session, except supervised and Linux packages', () => {
+  it('installs on quit for an interactive fork-feed session, except supervised and Linux packages', () => {
     expect(
       forkAutoInstallOnQuit({
         forkReady: true,
@@ -317,10 +310,73 @@ describe('fork background download decisions', () => {
     expect(consumeForkBackgroundDownloadFailure('2.0.0')).toBeNull()
     expect(info).toHaveBeenCalledTimes(1)
     expect(info).toHaveBeenCalledWith(FORK_BACKGROUND_DOWNLOAD_FAILURE_LOG)
-    expect(JSON.stringify(info.mock.calls)).not.toContain(TOKEN)
     expect(FORK_BACKGROUND_DOWNLOAD_FAILURE_LOG).not.toMatch(/authorization|token/i)
     expect(FORK_BACKGROUND_CHECK_FAILURE_LOG).not.toMatch(/authorization|token/i)
     info.mockRestore()
+  })
+
+  it('does not offer a restart while the installer is still staging', () => {
+    useReadyFeed()
+    let ready = false
+    registerForkInstallerReadyProbe(() => ready)
+    noteForkUpdateDownloaded('2.0.0', false)
+    expect(forkStagedUpdateVersion()).toBeNull()
+    expect(forkStagingUpdateVersion()).toBe('2.0.0')
+    const found = (userInitiated: boolean, version = '2.0.0') =>
+      planForkFoundUpdate({
+        localOrPinned: false,
+        version,
+        userInitiated,
+        downloadingVersion: null
+      })
+    expect(found(false)).toBe('keep')
+    expect(found(true)).toBe('staging')
+    expect(found(true, '3.0.0')).toBe('staging')
+    expect(planForkMissingUpdate(false)).toBe('keep')
+    expect(planForkMissingUpdate(true)).toBe('staging')
+    expect(planForkCheckFailure('downloading', false)).toEqual({ kind: 'keep', version: '2.0.0' })
+    expect(planForkCheckFailure('checking', true)).toEqual({ kind: 'staging', version: '2.0.0' })
+    expect(
+      shouldHoldForkUpdateCheck({ userInitiated: false, status: 'idle', localOrPinned: false })
+    ).toBe(true)
+
+    ready = true
+    expect(forkStagedUpdateVersion()).toBe('2.0.0')
+    expect(forkStagingUpdateVersion()).toBeNull()
+    expect(found(true)).toBe('restart')
+    expect(planForkMissingUpdate(true)).toBe('restart')
+    expect(planForkCheckFailure('checking', true)).toEqual({ kind: 'restart', version: '2.0.0' })
+  })
+
+  it('drops the staging version when staging fails, so the next check downloads again', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    useReadyFeed()
+    registerForkInstallerReadyProbe(() => false)
+    noteForkUpdateDownloaded('2.0.0', false)
+    expect(failForkStaging()).toBe(true)
+    expect(failForkStaging()).toBe(false)
+    expect(warn).toHaveBeenCalledExactlyOnceWith(FORK_STAGING_FAILURE_LOG)
+    expect(forkStagingUpdateVersion()).toBeNull()
+    expect(forkStagedUpdateVersion()).toBeNull()
+    expect(
+      shouldHoldForkUpdateCheck({ userInitiated: false, status: 'error', localOrPinned: false })
+    ).toBe(false)
+    expect(
+      planForkFoundUpdate({
+        localOrPinned: false,
+        version: '2.0.0',
+        userInitiated: false,
+        downloadingVersion: null
+      })
+    ).toBe('download')
+    warn.mockRestore()
+  })
+
+  it('does not treat a failure as staging once the installer is ready', () => {
+    useReadyFeed()
+    noteForkUpdateDownloaded('2.0.0', false)
+    expect(failForkStaging()).toBe(false)
+    expect(forkStagedUpdateVersion()).toBe('2.0.0')
   })
 })
 
@@ -355,6 +411,7 @@ describe('fork updater handler wiring', () => {
     sendStatus: ReturnType<typeof vi.fn>
     beginForkBackgroundDownload: ReturnType<typeof vi.fn>
     finishActiveUpdateCheckAttempt: ReturnType<typeof vi.fn>
+    sendErrorStatus: ReturnType<typeof vi.fn>
     setStatus: (next: UpdateStatus) => void
     setUserInitiated: (value: boolean) => void
   }> {
@@ -367,6 +424,7 @@ describe('fork updater handler wiring', () => {
     })
     const beginForkBackgroundDownload = vi.fn()
     const finishActiveUpdateCheckAttempt = vi.fn()
+    const sendErrorStatus = vi.fn()
     const { autoUpdater, emit } = testAutoUpdater()
     const context: HandlerContext = {
       autoUpdater,
@@ -400,7 +458,7 @@ describe('fork updater handler wiring', () => {
       recordCompletedUpdateCheck: vi.fn(),
       restoreReleaseUpdateSource: vi.fn(),
       sendCheckFailureStatus: vi.fn(),
-      sendErrorStatus: vi.fn(),
+      sendErrorStatus,
       sendStatus,
       scheduleAutomaticUpdateCheck: vi.fn(),
       shouldSuppressMissingManifestPrereleaseFallbackEvent: vi.fn(() => false),
@@ -419,6 +477,7 @@ describe('fork updater handler wiring', () => {
       sendStatus,
       beginForkBackgroundDownload,
       finishActiveUpdateCheckAttempt,
+      sendErrorStatus,
       setStatus: (next) => {
         status = next
       },
@@ -497,7 +556,8 @@ describe('fork updater handler wiring', () => {
     emit('update-downloaded', { version: '2.0.0', downloadedFile: '/tmp/Orca.zip' })
     expect(sent.at(-1)).toMatchObject({ state: 'downloading', percent: 100, version: '2.0.0' })
     expect(sent.some((item) => item.state === 'downloaded')).toBe(false)
-    expect(forkStagedUpdateVersion()).toBe('2.0.0')
+    expect(forkStagedUpdateVersion()).toBeNull()
+    expect(forkStagingUpdateVersion()).toBe('2.0.0')
 
     sendStatus.mockClear()
     beginForkBackgroundDownload.mockClear()
@@ -524,8 +584,85 @@ describe('fork updater handler wiring', () => {
     expect(sent.filter((item) => item.state === 'downloaded')).toHaveLength(2)
   })
 
-  it('keeps the manual offer when no private feed is registered', async () => {
-    registerForkUpdateFeed(null)
+  it('on darwin, a manual check while Squirrel stages shows 100% downloaded, not the restart card', async () => {
+    usePlatform('darwin')
+    useReadyFeed()
+    beginMacUpdateDownload()
+    const { emit, sent, setStatus, setUserInitiated } = await wireHandlers()
+
+    emit('checking-for-update')
+    emit('update-available', { version: '2.0.0' })
+    setStatus({ state: 'downloading', percent: 40, version: '2.0.0' })
+    emit('update-downloaded', { version: '2.0.0', downloadedFile: '/tmp/Orca.zip' })
+
+    setUserInitiated(true)
+    emit('checking-for-update')
+    emit('update-available', { version: '2.0.0' })
+    expect(sent.at(-1)).toEqual({ state: 'downloading', percent: 100, version: '2.0.0' })
+    emit('checking-for-update')
+    emit('update-not-available', { version: '1.0.0' })
+    expect(sent.at(-1)).toEqual({ state: 'downloading', percent: 100, version: '2.0.0' })
+    expect(sent.some((item) => item.state === 'downloaded')).toBe(false)
+
+    nativeAutoUpdater.emit('update-downloaded')
+    expect(sent.at(-1)).toMatchObject({ state: 'downloaded', version: '2.0.0' })
+  })
+
+  it('on darwin, a staging error forwarded by MacUpdater becomes an error state, then retries', async () => {
+    usePlatform('darwin')
+    useReadyFeed()
+    beginMacUpdateDownload()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const { emit, sent, sendErrorStatus, beginForkBackgroundDownload, setStatus } =
+      await wireHandlers()
+
+    emit('checking-for-update')
+    emit('update-available', { version: '2.0.0' })
+    setStatus({ state: 'downloading', percent: 40, version: '2.0.0' })
+    emit('update-downloaded', { version: '2.0.0', downloadedFile: '/tmp/Orca.zip' })
+    expect(sent.at(-1)).toEqual({ state: 'downloading', percent: 100, version: '2.0.0' })
+
+    emit('error', new Error('Could not locate update bundle'))
+    expect(sendErrorStatus).toHaveBeenCalledExactlyOnceWith(
+      'Could not locate update bundle',
+      undefined
+    )
+    expect(forkStagingUpdateVersion()).toBeNull()
+    nativeAutoUpdater.emit('error', new Error('Could not locate update bundle'))
+    expect(sendErrorStatus).toHaveBeenCalledTimes(1)
+
+    setStatus({ state: 'error', message: 'Could not locate update bundle' })
+    beginForkBackgroundDownload.mockClear()
+    emit('checking-for-update')
+    emit('update-available', { version: '2.0.0' })
+    expect(beginForkBackgroundDownload).toHaveBeenCalledExactlyOnceWith('2.0.0')
+    warn.mockRestore()
+  })
+
+  it('on darwin, a native staging error during a manual check is not swallowed', async () => {
+    usePlatform('darwin')
+    useReadyFeed()
+    beginMacUpdateDownload()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const { emit, sent, sendErrorStatus, setStatus } = await wireHandlers()
+
+    emit('checking-for-update')
+    emit('update-available', { version: '2.0.0' })
+    setStatus({ state: 'downloading', percent: 40, version: '2.0.0' })
+    emit('update-downloaded', { version: '2.0.0', downloadedFile: '/tmp/Orca.zip' })
+    setStatus({ state: 'checking', userInitiated: true })
+
+    nativeAutoUpdater.emit('error', new Error('code signature mismatch'))
+    expect(sendErrorStatus).toHaveBeenCalledExactlyOnceWith(
+      'macOS could not stage the downloaded update: code signature mismatch'
+    )
+    expect(forkStagingUpdateVersion()).toBeNull()
+    expect(sent.some((item) => item.state === 'downloaded')).toBe(false)
+    warn.mockRestore()
+  })
+
+  it('keeps the manual offer when no fork feed is registered', async () => {
+    registerForkUpdateFeed(false)
     resetForkBackgroundDownloadState()
     let status: UpdateStatus = { state: 'checking' }
     const sendStatus = vi.fn()

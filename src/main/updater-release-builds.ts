@@ -1,8 +1,5 @@
 import { net } from 'electron'
-import {
-  FORK_UPSTREAM_RELEASE_BLOCKED,
-  forkUpstreamReleaseReadsBlocked
-} from '../shared/fork-hooks/update-feed'
+import { FORK_UPSTREAM_RELEASE_BLOCKED, isForkBuild } from '../shared/fork-hooks/update-feed'
 import {
   findInstallerAssetName,
   getReleaseRepoForChannel,
@@ -187,7 +184,7 @@ export async function listReleaseBuilds(
   platform: NodeJS.Platform = process.platform
 ): Promise<ReleaseBuild[]> {
   // fork: 版本列表不请求上游仓库。
-  if (forkUpstreamReleaseReadsBlocked()) {
+  if (isForkBuild()) {
     return []
   }
   const repo = getReleaseRepoForChannel(channel)
@@ -239,7 +236,7 @@ export type ResolvedTargetBuild = {
 /** Resolves a tag the user picked into a pinned generic feed URL. */
 export function resolveTargetBuild(channel: ReleaseChannel, tag: string): ResolvedTargetBuild {
   // fork: 指定版本不能拼出上游下载地址。
-  if (forkUpstreamReleaseReadsBlocked()) {
+  if (isForkBuild()) {
     throw new Error(FORK_UPSTREAM_RELEASE_BLOCKED)
   }
   const version = normalizeTagToVersion(tag)

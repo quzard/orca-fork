@@ -1,6 +1,6 @@
 import { net } from 'electron'
 import { parse } from 'yaml'
-import { forkUpstreamReleaseReadsBlocked } from '../shared/fork-hooks/update-feed'
+import { isForkBuild } from '../shared/fork-hooks/update-feed'
 import { compareVersions, isPrereleaseVersion, isValidVersion } from './updater-fallback'
 
 const ATOM_FEED_URL = 'https://github.com/stablyai/orca/releases.atom'
@@ -257,7 +257,7 @@ export async function fetchNewerReleaseTagsWithReadiness(
   options: FetchNewerReleaseTagOptions = {}
 ): Promise<FetchNewerReleaseTagsResult> {
   // fork: 已登记时不读上游 atom，也不探测上游产物。
-  if (forkUpstreamReleaseReadsBlocked()) {
+  if (isForkBuild()) {
     return { tags: [], state: 'no-newer' }
   }
   const includePrerelease = options.includePrerelease ?? true

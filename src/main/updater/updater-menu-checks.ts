@@ -1,7 +1,7 @@
 import { app } from 'electron'
 import { is } from '@electron-toolkit/utils'
 import {
-  FORK_GITHUB_UPDATE_TOKEN_HINT,
+  FORK_UPSTREAM_RELEASE_BLOCKED,
   forkReleaseFeedDecision
 } from '../../shared/fork-hooks/update-feed'
 import type { ReleaseChannel } from '../../shared/release-channel'
@@ -31,11 +31,11 @@ export abstract class UpdaterMenuChecks extends UpdaterScheduling {
       void this.checkForPinnedBuild(options.channel, options.targetTag)
       return
     }
-    // fork: 解析不出发布源时说明原因，不进入上游检查。否则继续（令牌可选），pin 会改到 quzard/orca-fork。
+    // fork: fork 构建没登记更新源时说明原因，不进入上游检查。登记了就继续，pin 会改到 quzard/orca-fork。
     if (forkReleaseFeedDecision().kind === 'skip') {
       this.sendStatus({
         state: 'error',
-        message: FORK_GITHUB_UPDATE_TOKEN_HINT,
+        message: FORK_UPSTREAM_RELEASE_BLOCKED,
         retryable: false,
         userInitiated: true
       })

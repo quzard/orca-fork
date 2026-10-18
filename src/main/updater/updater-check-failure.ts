@@ -2,7 +2,7 @@ import { isBenignCheckFailure } from '../updater-fallback'
 import {
   FORK_BACKGROUND_CHECK_FAILURE_LOG,
   planForkCheckFailure
-} from '../../fork/private-github-background-download'
+} from '../../fork/fork-background-download'
 import { ReleaseFeedPreflightError } from './updater-state'
 import type { CheckFailureSource } from './updater-state'
 import { UpdaterReleaseFeed } from './updater-release-feed'
@@ -43,6 +43,9 @@ export abstract class UpdaterCheckFailure extends UpdaterReleaseFeed {
         version: plan.version,
         releaseUrl: this.getKnownReleaseUrl()
       })
+    }
+    if (plan.kind === 'staging') {
+      this.sendStatus({ state: 'downloading', percent: 100, version: plan.version })
     }
     if (!userInitiated) {
       this.scheduleAutomaticUpdateCheck(this.getAutomaticRetryInterval())

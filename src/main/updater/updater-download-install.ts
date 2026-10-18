@@ -16,7 +16,7 @@ import {
   disarmForkBackgroundDownload,
   forkBackgroundDownloadFollowUp,
   isForkBackgroundDownloadArmed
-} from '../../fork/private-github-background-download'
+} from '../../fork/fork-background-download'
 
 /** Coordinates renderer-facing download/install actions and their duplicate guards. */
 export abstract class UpdaterDownloadInstall extends UpdaterRemoteStatus {
@@ -152,7 +152,7 @@ export abstract class UpdaterDownloadInstall extends UpdaterRemoteStatus {
     }
   }
 
-  /** 私有源后台下载：先标成可下载再走 downloadUpdate，失败时不把请求错误写进日志。 */
+  /** fork 源后台下载：先标成可下载再走 downloadUpdate，失败时不把请求错误写进日志。 */
   protected downloadForkBackgroundUpdate(version: string): void {
     this.availableVersion = version
     this.currentStatus = { state: 'available', version, changelog: null }

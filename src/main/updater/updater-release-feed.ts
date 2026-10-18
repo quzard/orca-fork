@@ -1,10 +1,5 @@
 import { app } from 'electron'
-import { installPrivateGithubDifferentialDownload } from '../../fork/private-github-blockmap'
-import { installPrivateGithubTokenFallback } from '../../fork/private-github-token-fallback'
-import {
-  forkReleaseFeedDecision,
-  forkUpstreamReleaseReadsBlocked
-} from '../../shared/fork-hooks/update-feed'
+import { forkReleaseFeedDecision, isForkBuild } from '../../shared/fork-hooks/update-feed'
 import {
   fetchNewerReleaseTagsWithReadiness,
   getReleaseDownloadUrl
@@ -122,22 +117,15 @@ export abstract class UpdaterReleaseFeed extends UpdaterInstallExecution {
   ): Promise<'ready' | 'not-available'> {
     const attemptId = this.activeUpdateCheckAttemptId
     const autoUpdater = this.getAutoUpdater()
-    // fork: 已登记时不拉上游 atom，只钉 quzard/orca-fork。有令牌走私有 provider，没有令牌匿名读公开 provider。
+    // fork: 不拉上游 atom，只钉 quzard/orca-fork 的匿名公开 provider（不带令牌）。差分用 electron-updater 自带的。
     const forkFeed = forkReleaseFeedDecision()
     if (forkFeed.kind === 'ready') {
       autoUpdater.allowPrerelease = true
-      // 私有 provider 的 blockmap 要在 provider 创建前解析资产 ID。装不上时仍 setFeedURL，更新退回整包。
-      // 公开 provider 用 releases/download 地址，electron-updater 自带的差分就够用。
-      if (forkFeed.feed.private) {
-        installPrivateGithubDifferentialDownload()
-        // 令牌被拒（401/403）时，这一次检查改用匿名公开 provider。必须装在差分补丁之后。
-        installPrivateGithubTokenFallback()
-      }
       autoUpdater.setFeedURL(forkFeed.feed)
       return 'ready'
     }
-    // fork: 解析不出发布源，或已挡住上游读取时，不要落到公开 latest/download。
-    if (forkFeed.kind === 'skip' || forkUpstreamReleaseReadsBlocked()) {
+    // fork: fork 构建不要落到上游 latest/download。
+    if (forkFeed.kind === 'skip' || isForkBuild()) {
       return 'not-available'
     }
     // Why: the latest/download redirect can move between check and download, so pin the concrete tag (prerelease users resolve any channel, stable only stable).

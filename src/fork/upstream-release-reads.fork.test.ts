@@ -1,14 +1,18 @@
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const netFetch = vi.hoisted(() => vi.fn())
 const netRequest = vi.hoisted(() => vi.fn())
+const resolveReleaseApiToken = vi.hoisted(() => vi.fn(() => Promise.resolve(null)))
 
 vi.mock('electron', () => ({
   net: { fetch: netFetch, request: netRequest }
 }))
 
 vi.mock('../main/updater-release-api-token', () => ({
-  resolveReleaseApiToken: () => Promise.resolve(null),
+  resolveReleaseApiToken,
   rejectReleaseApiToken: () => undefined
 }))
 
@@ -17,45 +21,94 @@ vi.mock('../main/git/gh-rate-limit-breaker', () => ({
   recordGhPrimaryRateLimit: () => undefined
 }))
 
+import { AgentStateRulesLiveUpdater } from '../main/runtime/agent-state-rules/agent-state-rules-live-update'
+import { fetchChangelog } from '../main/updater-changelog'
+import { fetchNudge } from '../main/updater-nudge'
 import { fetchNewerReleaseTagsWithReadiness } from '../main/updater-prerelease-feed'
 import { listReleaseBuilds, resolveTargetBuild } from '../main/updater-release-builds'
 import {
   FORK_UPSTREAM_RELEASE_BLOCKED,
-  registerForkUpstreamReleaseReadsBlocked
+  registerForkBuild,
+  registerForkUpdateFeed
 } from '../shared/fork-hooks/update-feed'
 import { getReleaseNotesUrlForVersion } from '../shared/release-channel'
 
-describe('fork updater does not read upstream releases', () => {
+const forkStates = [
+  ['a fork build without the desktop feed (renderer, orcad)', () => registerForkBuild()],
+  ['the desktop with the fork feed registered', () => registerForkUpdateFeed()],
+  [
+    'both registered',
+    () => {
+      registerForkBuild()
+      registerForkUpdateFeed()
+    }
+  ]
+] as const
+
+async function agentRulesFetches(): Promise<ReturnType<typeof vi.fn>> {
+  const userDataPath = mkdtempSync(join(tmpdir(), 'fork-agent-rules-'))
+  const fetch = vi.fn()
+  const updater = new AgentStateRulesLiveUpdater({
+    userDataPath,
+    appVersion: '1.4.228',
+    isPackaged: true,
+    fetch,
+    readSettings: () => ({ agentStateRulesLiveUpdates: true }) as never,
+    onActivated: () => undefined
+  })
+  try {
+    await updater.start()
+    await updater.refresh()
+  } finally {
+    updater.stop()
+    rmSync(userDataPath, { recursive: true, force: true })
+  }
+  return fetch
+}
+
+describe('fork builds never read upstream releases or onorca.dev', () => {
   afterEach(() => {
-    registerForkUpstreamReleaseReadsBlocked(false)
+    registerForkBuild(false)
+    registerForkUpdateFeed(false)
     netFetch.mockReset()
     netRequest.mockReset()
+    resolveReleaseApiToken.mockClear()
   })
 
-  it('keeps the upstream feed until a fork build registers', () => {
+  it('keeps the upstream behaviour until a fork build registers', async () => {
     expect(getReleaseNotesUrlForVersion('1.4.228')).toContain('github.com/stablyai/orca')
+    netFetch.mockResolvedValue(new Response('[]', { status: 200 }))
+    await fetchChangelog('1.4.229', '1.4.228')
+    expect(String(netFetch.mock.calls[0]?.[0])).toContain('onorca.dev')
+    expect((await agentRulesFetches()).mock.calls.length).toBeGreaterThan(0)
   })
 
-  it('skips version listing, pinned tags, and release-note urls', async () => {
-    registerForkUpstreamReleaseReadsBlocked()
-    const feed = await fetchNewerReleaseTagsWithReadiness('1.4.228-local.1.aaa', 2)
-    await expect(listReleaseBuilds('stable')).resolves.toEqual([])
-    await expect(listReleaseBuilds('hourly')).resolves.toEqual([])
-    await expect(listReleaseBuilds('daily')).resolves.toEqual([])
-    await expect(listReleaseBuilds('adhoc')).resolves.toEqual([])
-    expect(() => resolveTargetBuild('rc', 'v1.4.228')).toThrow(FORK_UPSTREAM_RELEASE_BLOCKED)
-    const notes = [
-      getReleaseNotesUrlForVersion('1.4.228'),
-      getReleaseNotesUrlForVersion('1.4.160-hourly.202607281400'),
-      getReleaseNotesUrlForVersion('1.4.160-daily.202607281300'),
-      getReleaseNotesUrlForVersion(null)
-    ]
-    for (const url of notes) {
-      expect(url).not.toContain('stablyai')
-      expect(url).toContain('github.com/quzard/orca-fork')
-    }
-    expect(feed).toEqual({ tags: [], state: 'no-newer' })
-    expect(netFetch).not.toHaveBeenCalled()
-    expect(netRequest).not.toHaveBeenCalled()
-  })
+  for (const [label, register] of forkStates) {
+    it(`blocks every upstream read for ${label}`, async () => {
+      register()
+      const feed = await fetchNewerReleaseTagsWithReadiness('1.4.228-local.1.aaa', 2)
+      await expect(listReleaseBuilds('stable')).resolves.toEqual([])
+      await expect(listReleaseBuilds('hourly')).resolves.toEqual([])
+      await expect(listReleaseBuilds('daily')).resolves.toEqual([])
+      await expect(listReleaseBuilds('adhoc')).resolves.toEqual([])
+      expect(() => resolveTargetBuild('rc', 'v1.4.228')).toThrow(FORK_UPSTREAM_RELEASE_BLOCKED)
+      const notes = [
+        getReleaseNotesUrlForVersion('1.4.228'),
+        getReleaseNotesUrlForVersion('1.4.160-hourly.202607281400'),
+        getReleaseNotesUrlForVersion('1.4.160-daily.202607281300'),
+        getReleaseNotesUrlForVersion(null)
+      ]
+      for (const url of notes) {
+        expect(url).not.toContain('stablyai')
+        expect(url).toContain('github.com/quzard/orca-fork')
+      }
+      expect(feed).toEqual({ tags: [], state: 'no-newer' })
+      await expect(fetchChangelog('1.4.229', '1.4.228')).resolves.toBeNull()
+      await expect(fetchNudge()).resolves.toBeNull()
+      expect(await agentRulesFetches()).not.toHaveBeenCalled()
+      expect(netFetch).not.toHaveBeenCalled()
+      expect(netRequest).not.toHaveBeenCalled()
+      expect(resolveReleaseApiToken).not.toHaveBeenCalled()
+    })
+  }
 })

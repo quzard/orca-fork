@@ -17,9 +17,12 @@ import { resolveFolderTerminalWorkspace } from './terminal/folder-workspace-reso
 import { getGitRepoRoot } from '../main/git/repo-detection'
 import { registerImportedWorktreePath } from '../shared/fork-hooks/imported-worktree-path'
 import { registerForkSkillSource } from './skills-source-commit'
+import { registerForkBuild } from '../shared/fork-hooks/update-feed'
 
 /** Desktop and orcad. The renderer must not import this file. */
 export function registerForkMainModules(): void {
+  // orcad 不走 registerForkModules，这里也登记，免得它去拉上游的 agent 状态规则。
+  registerForkBuild()
   registerForkSkillSource()
   installAiVaultForkServicePolicy()
   registerAiVaultServiceHeap(() => aiVaultServiceHeapMiB())

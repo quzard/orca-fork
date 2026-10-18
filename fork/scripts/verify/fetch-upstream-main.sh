@@ -12,7 +12,7 @@
 # and its helpers (git-remote-https, index-pack) are not in it. TERM, INT and HUP are trapped: the
 # trap stops the watchdog, then the fetch's whole group (TERM, repeated, then KILL after 3s), and
 # exits 143, 130 or 129. The EXIT trap does the same cleanup on every other exit; each step runs
-# once. Cleanup waits for a child only once it is gone, so it takes a few seconds at most.
+# once. Cleanup never `wait`s for a child (see stop_child), so it takes a few seconds at most.
 # While the fetch and the watchdog are being started their pids are not known yet, so a signal then
 # is only recorded; it is acted on as soon as both pids are set.
 set -euo pipefail
@@ -38,7 +38,7 @@ fetch_group=0
 # True while pid $2 (kind `pid`) or a process of group $2 (kind `group`) is running. Zombies do not
 # count: a child that has exited stays one until it is waited for, and `kill -0` still finds it.
 # Without a working `ps` (slim containers) only `kill -0` decides, so a zombie counts as running:
-# stop_child then KILLs it after 3s and its `wait` returns at once.
+# stop_child then KILLs it after 3s and moves on.
 running() {
   if [[ "$1" == group ]]; then
     kill -0 -- "-${2}" 2>/dev/null || return 1
@@ -62,10 +62,13 @@ send() {
   fi
 }
 
-# Stops a child of this script and reaps it, in at most about 3.5s. TERM is sent again on every
-# check: a child that is still starting runs this script's trap handler until it resets its own
-# traps, and bash drops a signal caught in that moment, so one TERM can be lost. After 3s it gets
-# KILL, which cannot be lost; only then does `wait` run, so it never blocks for long.
+# Stops a child of this script in at most about 3.5s. TERM is sent again on every check: a child
+# that is still starting runs this script's trap handler until it resets its own traps, and bash
+# drops a signal caught in that moment, so one TERM can be lost. After 3s it gets KILL, which cannot
+# be lost. No `wait` here: when a child dies just as a trap interrupts the main `wait` (launchd's TERM
+# to this script's group also ends the watchdog), bash 3.2 and 5.2 can reap it without noting it,
+# and a later `wait` for it blocks until some other child exits, here the fetch (which no watchdog
+# bounds any more). Bash reaps the stopped child on its own; a zombie left at exit goes to init.
 stop_child() {
   local kind="$1" pid="$2" tries=0
   while running "$kind" "$pid" && [[ "$tries" -lt 30 ]]; do
@@ -81,11 +84,10 @@ stop_child() {
       tries=$((tries + 1))
     done
   fi
-  wait "$pid" 2>/dev/null || true
 }
 
 # Idempotent: clears each pid before acting on it, so the signal trap and the EXIT trap after it
-# never kill or wait twice. Without job control the fetch shares this script's group, so only the
+# never kill twice. Without job control the fetch shares this script's group, so only the
 # fetch itself is stopped.
 cleanup_fetch() {
   local pid="$watchdog_pid"
@@ -148,10 +150,12 @@ rm -f "$marker"
 (
   # Sleeps in the background so a TERM from cleanup_fetch also ends the current sleep, and no stray
   # `sleep` outlives the script. The trap only records the stop and ends the sleep; the loop exits.
+  # INT and HUP (sent to the whole group, like launchd's TERM) do the same: the background sleep
+  # ignores INT, so a watchdog that just died of INT would leave it running.
   stop=0
   nap_pid=""
-  trap 'stop=1; [[ -n "$nap_pid" ]] && kill "$nap_pid" 2>/dev/null' TERM
-  trap - EXIT INT HUP
+  trap 'stop=1; [[ -n "$nap_pid" ]] && kill "$nap_pid" 2>/dev/null' TERM INT HUP
+  trap - EXIT
   # False once the watchdog is told to stop.
   nap() {
     sleep 1 &

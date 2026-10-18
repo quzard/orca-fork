@@ -12,7 +12,7 @@ Outputs go to `$OUT_DIR` (default `/tmp/orca-fork-verify`).
 
 ## Internal identifiers
 
-`check-no-internal-refs.sh` scans the fork-owned paths named in that script, including hook docs, `src/fork`, `src/shared/fork-hooks`, reference notes, the push script, and `*.fork.test.ts` when those files exist. It fails when a pattern matches. Put one fixed string per line in `fork/scripts/verify/internal-ref-patterns.local` (gitignored) or in `ORCA_INTERNAL_REF_PATTERNS` (newline-separated). When neither is set, the script exits 2 without scanning. It does not scan itself. `run-linux-verify.sh` runs this check first.
+`check-no-internal-refs.sh` scans `src/fork`, `src/shared/fork-hooks`, `docs/fork`, `fork/` (scripts and the push script), `FORK-CHANGES.md`, and every file added since the upstream base recorded in `src/cli/skills-source-commit.ts`, of any type. Without that commit it falls back to `*.fork.test.ts(x)` and `*-fork.test.ts(x)`. It fails when a pattern matches. Put one fixed string per line in `fork/scripts/verify/internal-ref-patterns.local` (gitignored) or in `ORCA_INTERNAL_REF_PATTERNS` (newline-separated). When neither is set, the script exits 2 without scanning. It does not scan itself. `run-linux-verify.sh` runs this check first.
 
 ## What the scripts check
 

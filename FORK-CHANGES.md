@@ -33,16 +33,16 @@
 - 隐藏工作区可搜索、可恢复。选择器显示目录、分支、分组和路径。设置里的项目列表可以多选后移除，只从 Orca 注销，不删目录。
 - 卡片左侧用淡色、从左侧截断的目录前缀。主机标题下不再重复主机名。项目组只有一个工作区、且仓库路径不在组的父目录下时，卡片去掉父目录前缀。
 - 已保存的 `groupBy: repo` 在登记后读成 host-directory。未登记时 `repo` 仍是原来的项目标题。
-- SSH 状态行上的主机类型和连接状态不换行，状态名走 `translate`。中文来自 fork 的 zh 覆盖层（见下方「界面中文」），其他语言显示英文。参考实现已经去掉远程工作区同步冲突按钮，这里不把那套界面加回来。
+- SSH 状态行上的主机类型和连接状态不换行。状态名由 `src/fork/ssh/ssh-status-labels.tsx` 翻译：`SshTargetCard` 的 `STATUS_LABELS` 保持上游的英文字面量，外面包一层 `withForkSshStatusLabels`，读取时翻译。中文来自 fork 的 zh 覆盖层（见下方「界面中文」），其他语言显示英文。参考实现已经去掉远程工作区同步冲突按钮，这里不把那套界面加回来。
 - 旧远端刷新如果省略 `sidebarGroupId`，本机保留原来的分组。显式 `null` 仍表示取消分组。
 - 组内排序：smart 保持传入顺序，其他模式在组内重排。拖到另一台主机被拒绝。
-- 跨组拖放只写目标主机上真实存在的项目组；拖到空项目标题等于拖进该主机的未分组列表，不写假的组 id。多选拖放要么全部写入，要么一项都不写：有一项不在该主机就整体拒绝。写入一项一项串行进行，不会并发改同一份存储；中途失败时按相反顺序把已写入的项精确改回原状态：原本没有自己的分组（继承项目组）就恢复成未设置，原本没有手动排序就去掉手动排序，靠更新旁边的 `clearFields` 删除字段。回滚也失败时弹出错误提示，用显示名列出没能改回的工作区（不是内部 id），并写一条带 id 的错误日志。文件夹工作区的 `sidebarGroupId` 现在会真正保存（以前被参数校验和加载丢掉）。旧版远端主机会丢掉 `sidebarGroupId` 和 `clearFields`、只应用其余字段：文件夹写入按宿主返回值对账，git 工作区写入检查宿主返回的工作区，缺了要求的分组或清除就算失败，整次拖放失败并回滚，这一行已经写进去的排序也改回去，不会只写一半而不报错；提示让用户先更新该主机上的 Orca。
+- 跨组拖放只写目标主机上真实存在的项目组；拖到空项目标题等于拖进该主机的未分组列表，不写假的组 id。多选拖放要么全部写入，要么一项都不写：有一项不在该主机就整体拒绝。写入一项一项串行进行，不会并发改同一份存储；中途失败时按相反顺序把已写入的项精确改回原状态：原本没有自己的分组（继承项目组）就恢复成未设置，原本没有手动排序就去掉手动排序，靠更新旁边的 `clearFields` 删除字段。回滚也失败时弹出错误提示，用显示名列出没能改回的工作区（不是内部 id），并写一条带 id 的错误日志。文件夹工作区的 `sidebarGroupId` 现在会真正保存（以前被参数校验和加载丢掉）。旧版远端主机会丢掉 `sidebarGroupId` 和 `clearFields`、只应用其余字段：文件夹写入按宿主返回值对账，git 工作区写入检查宿主返回的工作区，缺了要求的分组或清除就算失败，整次拖放失败并回滚，这一行已经写进去的排序也改回去，不会只写一半而不报错；提示让用户先更新该主机上的 Orca。“只写了一半”按错误码判断，不比对提示文字：`SidebarFieldsNotAppliedError` 带固定的 `code`（`SIDEBAR_FIELDS_NOT_APPLIED`），`updateWorktreeMeta` 的失败结果保留这个 `code`，用上游的 `hasRuntimeRpcErrorCode` 匹配，经过 IPC 或中继改包后也认得出。
 - 两次拖放互相独立地排队：上一次的写入和回滚全部结束后，下一次才按最新状态规划并写入；上一次失败不影响下一次。插入位置仍按松手时看到的行计算。
 - 创建弹窗从分组打开时，主机和分组就是该组。从侧栏空白创建时，主机和分组取当前工作区。状态看板和指定仓库的创建不改。新建的 git 工作区在完成后写入这个分组。
 
 ## 界面中文
 
-fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、设置里批量移除项目、跨组拖放的提示、历史面板的索引状态、SSH 连接状态名、父目录导入提示）在 `src/fork/i18n/zh.json` 里有中文。渲染进程登记时把它合进 zh 语言包：只补缺少的键，上游已有的翻译优先。上游的 `zh.json` 不改。测试保证 en.json 里 fork 新增、上游 zh 没有的键都有中文，且占位符一致。
+fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、设置里批量移除项目、跨组拖放的提示、历史面板的索引状态、SSH 连接状态名、父目录导入提示）的英文在 `src/fork/i18n/en.json`，中文在 `src/fork/i18n/zh.json`。渲染进程登记时把两份分别合进 en 和 zh 语言包：只补缺少的键，上游已有的条目优先；其他语言经 i18next 的英文回退拿到英文。上游的 `en.json`、`en-runtime-required.json` 和 `zh.json` 都与上游一致，上游文件不翻译任何 fork 键。上游的提取检查（`config/i18next.config.ts`）跳过 `src/fork`，由 `src/fork/i18n/fork-keys-catalog.fork.test.ts` 代替：fork 代码里每个字面量键都要有英文，且上游文件不引用 fork 键。测试还保证每个 fork 英文键都有中文，且占位符一致。
 
 ## F003 / F025 批量导入
 
@@ -52,7 +52,7 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 
 ## F006 授权窗口可拖拽的应用卡片
 
-仅 macOS。fork 应用启动权限助手时多传 `--fork-drag-card`（`open` 不传环境变量，所以用参数）。只有带这个参数、且还缺权限时，授权窗口才用可拖拽的应用卡片替换静态图标，整张卡片接收拖拽，未激活窗口也能拖出；指定单项权限时窗口保持显示，方便拖卡片。检查中先在卡片的位置留出同样高度的空位，检查结束换成卡片时窗口不跳动。权限已齐、或没有这个参数时，图标、文案和点击行为都是上游原样；没有这个参数时检查中也是上游原样。Linux 只核对 Swift 源码。拖进系统设置需要在 Mac 上做。
+仅 macOS。fork 应用启动权限助手时多传 `--fork-drag-card`（`open` 不传环境变量，所以用参数）。带这个参数时，授权窗口在检查中、缺权限、权限已齐三种状态都把应用卡片放在文案下方同一个位置（高 42），代替上游顶部 58 的图标，所以状态切换时窗口不跳，检查中也没有空白占位。只有缺权限时卡片接收拖拽：整张卡片可拖，未激活窗口也能拖出；检查中和权限已齐时卡片只显示、不能拖。指定单项权限时窗口保持显示，方便拖卡片。没有这个参数时，图标、文案和点击行为都是上游原样；拖拽助手窗口里的卡片也照旧可拖。Linux 只核对 Swift 源码。拖进系统设置需要在 Mac 上做。
 
 ## F007 目录软链可选（已移除）
 
@@ -103,7 +103,7 @@ fork 构建（`registerForkBuild`，主进程、渲染进程和 orcad 都登记�
 
 后台下载完成后，macOS 要等 Squirrel 暂存完成（`isMacInstallerReady()`）才弹重启卡片；暂存期间手动检查只把界面放回「已下载 100%」。暂存失败时清掉暂存中的版本，界面进入错误状态，重新检查会重新下载。受监管的无界面 serve 把暂存推迟到 `quitAndInstall`（`isMacStagingDeferredToInstall()`），这种情况下下载完就算就绪。已知限制：Squirrel 既不完成也不报错时，版本一直停在暂存中，后台检查一直挂起，手动检查一直显示「已下载 100%」。
 
-家里的 LaunchAgent 只在 `develop` 前进时构建、签名并发布。它跑的是 `~/Projects/orca-verify/bin/mac-auto-update.sh`，安装脚本负责复制。已经装过、仍指向仓库内脚本的代理，要重跑安装脚本，再在终端手动跑一次并点 Always Allow，然后 `--bootstrap`。脚本在 git 操作之前从临时文件重新执行，退出时删掉该副本；成功结束后才用 mv 换掉稳定副本。构建在独立进程组里，锁文件挡住第二次同时构建。codesign 超时会 `kill` 整个进程组。
+家里的 LaunchAgent 只在 `develop` 前进时构建、签名并发布。它跑的是 `~/Projects/orca-verify/bin/mac-auto-update.sh`，安装脚本负责复制。已经装过、仍指向仓库内脚本的代理，要重跑安装脚本，再在终端手动跑一次并点 Always Allow，然后 `--bootstrap`。脚本在 git 操作之前从临时文件重新执行，退出时删掉该副本；成功结束后才用 mv 换掉稳定副本。构建在独立进程组里，锁文件挡住第二次同时构建。codesign 超时会 `kill` 整个进程组。glibc 2.17 的 Node 压缩包先放进 `~/Projects/orca-verify/node-runtime-cache`（缺了就从 `ORCA_NODE_UNOFFICIAL_MIRROR` 取），文件名、版本和 sha256 读上游的 `src/shared/node-runtime-pin.ts`，脚本里不另写一份。代理只来自 `sync.env` 的 `ORCA_PROXY`（或直接写的 `http_proxy` 等）。
 
 发布用 `gh release create`。`gh auth status` 放在「这个 sha 已发布」之后。失败时 `release` 保持原值，`ghAuth` 记为 `failed`，不写成 skipped。`dist/` 里版本后缀已经对上该 sha 时，gh 恢复后只补发，不重新签名。客户机不需要 gh，也不再用 `gh release download` 安装。
 
@@ -116,12 +116,12 @@ launchd 里签名可能停在 Orca Local Signing 的钥匙串确认上。`--boot
 ## F040 自用发布
 
 - 家里的 Mac 用 [fork/scripts/mac-auto-update.sh](fork/scripts/mac-auto-update.sh) 构建、签名并发布（见“应用内更新”）。构建步骤是 [fork/scripts/install-mac-release.sh](fork/scripts/install-mac-release.sh) `--build-only`：上游发布步骤、`darwin-arm64` 与 Linux glibc orcad 槽、`dist/mac-arm64/Orca.app`。
-- 手动安装仍用 `install-mac-release.sh`：安装前备份旧应用，替换失败时改回；验收后用 `--cleanup-verified-backups` 清理。
+- 手动安装仍用 `install-mac-release.sh`（不带参数）：安装前备份旧应用，替换失败时改回；验收后用 `--cleanup-verified-backups` 清理。只给已删除的发布入口用的 `--install-built` 已去掉。
 - 旧的手动发布入口 `release-personal-orca.mjs`、它的 `personal-release-checks.cjs` 和本机任务检查 `personal-orca-host.py` 已删除，Mac 上从未使用。
 
 ## 内部标识
 
-本 fork 新增的文档、脚本和 `src/fork` 不得写入雇主或内部环境的名称、地址、主机和数量。检查是 `fork/scripts/verify/check-no-internal-refs.sh`。具体模式放在未入库的 `fork/scripts/verify/internal-ref-patterns.local`，或环境变量 `ORCA_INTERNAL_REF_PATTERNS`。
+本 fork 新增的文档、脚本和 `src/fork` 不得写入雇主或内部环境的名称、地址、主机和数量。检查是 `fork/scripts/verify/check-no-internal-refs.sh`，扫描 `src/fork`、`src/shared/fork-hooks`、`docs/fork`、`fork/`、本文件，以及从 skill pin 记录的上游基点以来新增的所有文件（任何扩展名）；没有那个提交时退回按 `*.fork.test.ts(x)` 和 `*-fork.test.ts(x)` 文件名收集。具体模式放在未入库的 `fork/scripts/verify/internal-ref-patterns.local`，或环境变量 `ORCA_INTERNAL_REF_PATTERNS`。
 
 ## 根目录杂项
 

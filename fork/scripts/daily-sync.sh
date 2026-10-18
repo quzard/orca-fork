@@ -230,7 +230,7 @@ run_check "rpc catalog" pnpm run verify:rpc-params-catalog
 run_check "skill guides" pnpm run verify:bundled-skill-guides
 run_check "skill manifest" pnpm run verify:skill-bundle-manifest
 run_check "localization catalog" pnpm run verify:localization-runtime-catalog
-run_check "fork tests" node config/scripts/run-vitest.mjs run --config config/vitest.config.ts --maxWorkers=2 src/fork src/shared/fork-hooks/update-feed.test.ts
+run_check "fork tests" node config/scripts/run-vitest.mjs run --config config/vitest.config.ts --maxWorkers=2 src/fork src/shared/fork-hooks
 run_check "typecheck" pnpm tc
 
 echo "daily-sync: linux orcad template"

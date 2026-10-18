@@ -72,18 +72,7 @@ function sectionOrder(
   ]
 }
 
-/**
- * Evenly renumbers the target section with the moved rows at the drop point, so the result is
- * exactly where the user dropped. Rows whose stored manual order already has the new value are
- * not written again; the moved rows always are.
- */
-function renumberSection(
-  state: GroupDropState,
-  order: readonly string[],
-  moved: readonly string[],
-  keys: ReadonlyMap<string, number>,
-  now: number
-): OrderUpdates {
+function storedManualOrders(state: GroupDropState): Map<string, number | undefined> {
   const stored = new Map<string, number | undefined>()
   for (const row of Object.values(state.worktreesByRepo).flat()) {
     stored.set(row.id, row.manualOrder)
@@ -92,20 +81,117 @@ function renumberSection(
     const row = folderWorkspaceToWorktree(workspace)
     stored.set(row.id, row.manualOrder)
   }
+  return stored
+}
+
+function changedOnly(
+  ranked: readonly (readonly [string, number])[],
+  moved: ReadonlySet<string>,
+  stored: ReadonlyMap<string, number | undefined>
+): OrderUpdates {
+  const updates = new Map<string, { manualOrder: number }>()
+  for (const [id, manualOrder] of ranked) {
+    if (moved.has(id) || stored.get(id) !== manualOrder) {
+      updates.set(id, { manualOrder })
+    }
+  }
+  return updates
+}
+
+/**
+ * Evenly renumbers the target section with the moved rows at the drop point, so the result is
+ * exactly where the user dropped. Rows whose stored manual order already has the new value are
+ * not written again; the moved rows always are. Values start at the section's own top key, so they
+ * can pass rows of other sections: the last resort when renumberWithinList finds no room.
+ */
+function renumberSection(
+  state: GroupDropState,
+  order: readonly string[],
+  moved: readonly string[],
+  keys: ReadonlyMap<string, number>,
+  now: number
+): OrderUpdates {
   const finite = order.flatMap((id) => {
     const key = keys.get(id)
     return key !== undefined && Number.isFinite(key) ? [key] : []
   })
   const top = finite.length > 0 ? Math.max(...finite) : now
+  return changedOnly(
+    order.map((id, index) => [id, top - index * GROUP_DROP_ORDER_STRIDE] as const),
+    new Set(moved),
+    storedManualOrders(state)
+  )
+}
+
+/**
+ * Renumbers only the run of target-section rows around the drop, inside the gap its neighbours
+ * from other sections leave in the full list. Every other row keeps its key, so the order across
+ * all rows (what another group-by mode shows) is unchanged apart from the moved rows. Returns null
+ * when `order` does not follow the full list or those neighbours leave no room.
+ */
+function renumberWithinList(
+  state: GroupDropState,
+  globalOrder: readonly string[],
+  order: readonly string[],
+  moved: readonly string[],
+  keys: ReadonlyMap<string, number>,
+  now: number
+): OrderUpdates | null {
   const movedSet = new Set(moved)
-  const updates = new Map<string, { manualOrder: number }>()
-  order.forEach((id, index) => {
-    const manualOrder = top - index * GROUP_DROP_ORDER_STRIDE
-    if (movedSet.has(id) || stored.get(id) !== manualOrder) {
-      updates.set(id, { manualOrder })
-    }
-  })
-  return updates
+  const first = order.findIndex((id) => movedSet.has(id))
+  const prev = first > 0 ? order[first - 1] : undefined
+  const next = order[first + moved.length]
+  const section = new Set(order)
+  const fixedAndSection = globalOrder.filter((id) => !movedSet.has(id) && keys.has(id))
+  const inSection = fixedAndSection.filter((id) => section.has(id))
+  const sectionRest = order.filter((id) => !movedSet.has(id))
+  if (
+    first === -1 ||
+    inSection.length !== sectionRest.length ||
+    inSection.some((id, index) => sectionRest[index] !== id)
+  ) {
+    return null
+  }
+  const full = [...fixedAndSection]
+  const anchor = prev !== undefined ? full.indexOf(prev) + 1 : next ? full.indexOf(next) : -1
+  if (anchor < 0) {
+    return null
+  }
+  full.splice(anchor, 0, ...moved)
+  let start = anchor
+  while (start > 0 && section.has(full[start - 1]!)) {
+    start -= 1
+  }
+  let end = anchor + moved.length
+  while (end < full.length && section.has(full[end]!)) {
+    end += 1
+  }
+  const run = full.slice(start, end)
+  const upper = start > 0 ? keys.get(full[start - 1]!) : undefined
+  const lower = end < full.length ? keys.get(full[end]!) : undefined
+  let values: number[] | null
+  if (upper !== undefined && lower !== undefined) {
+    values = ranksBetween(upper, lower, run.length)
+  } else if (upper !== undefined) {
+    values = run.map((_, index) => upper - (index + 1) * GROUP_DROP_ORDER_STRIDE)
+  } else if (lower !== undefined) {
+    values = run.map((_, index) => lower + (run.length - index) * GROUP_DROP_ORDER_STRIDE)
+  } else {
+    const finite = run.flatMap((id) => {
+      const key = keys.get(id)
+      return key !== undefined && Number.isFinite(key) ? [key] : []
+    })
+    const top = finite.length > 0 ? Math.max(...finite) : now
+    values = run.map((_, index) => top - index * GROUP_DROP_ORDER_STRIDE)
+  }
+  if (!values || values.some((value) => !Number.isFinite(value))) {
+    return null
+  }
+  return changedOnly(
+    run.map((id, index) => [id, values[index]!] as const),
+    movedSet,
+    storedManualOrders(state)
+  )
 }
 
 /**
@@ -113,8 +199,10 @@ function renumberSection(
  * placed between their new neighbours' effective keys: upstream's group-drop ranking renumbers
  * every row as soon as one still sorts by sortOrder, which reshuffled the whole ungrouped list.
  * When the neighbours tie, or the gap between them has no room left for a value strictly between,
- * the target section alone is renumbered (in its shown order, the moved rows at the drop point),
- * so the drop lands exactly where it was released. Only the returned rows change.
+ * the target section's rows around the drop are renumbered (in their shown order, the moved rows
+ * at the drop point), so the drop lands exactly where it was released. Those values stay inside the
+ * gap left by rows of other sections, so the order across the full list is kept; only when that gap
+ * has no room either is the whole section renumbered from its own top. Only the returned rows change.
  */
 export function buildGroupDropOrder(
   state: GroupDropState,
@@ -176,5 +264,8 @@ export function buildGroupDropOrder(
   )
   const insertAt = at < visibleRest.length ? section.indexOf(visibleRest[at]!) : section.length
   const order = [...section.slice(0, insertAt), ...moved, ...section.slice(insertAt)]
-  return renumberSection(state, order, moved, keys, now)
+  return (
+    renumberWithinList(state, catalog.orderedIds, order, moved, keys, now) ??
+    renumberSection(state, order, moved, keys, now)
+  )
 }

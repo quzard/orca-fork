@@ -264,3 +264,68 @@ describe('group drop order without room between the neighbours', () => {
     expect(renumbered).toBeLessThan(10)
   })
 })
+
+describe('group drop order keeps the order across the full list when it renumbers', () => {
+  function fullOrder(rows: Worktree[]): string[] {
+    return [
+      ...buildWorktreeManualOrderCatalog({ worktrees: rows, folderWorkspaces: [] }).orderedIds
+    ]
+  }
+
+  it('renumbers inside the gap other sections leave, so merged views keep their order', () => {
+    // x and y tie; f (another group) sits below them and above z in the full list.
+    const rows = [
+      row('zeta', { sidebarGroupId: 'g1', sortOrder: 1 }),
+      row('w', { sortOrder: 90 }),
+      row('x', { sortOrder: 50 }),
+      row('y', { sortOrder: 50 }),
+      row('f', { sidebarGroupId: 'g1', sortOrder: 20 }),
+      row('z', { sortOrder: 10, manualOrder: 10 })
+    ]
+    const before = fullOrder(rows).filter((id) => id !== 'zeta')
+    const updates = dropInto(rows, ['w', 'x', 'y', 'z'], ['zeta'], 2)
+    const { rows: after, loose } = applyAndList(rows, updates, ['zeta'])
+    expect(loose).toEqual(['w', 'x', 'zeta', 'y', 'z'])
+    // The order of every other row across all sections is what it was.
+    expect(fullOrder(after).filter((id) => id !== 'zeta')).toEqual(before)
+    // Only the run around the drop is written; z (below f) and f keep their keys.
+    expect(new Set(updates.keys())).toEqual(new Set(['w', 'x', 'zeta', 'y']))
+    for (const value of [...updates.values()].map((entry) => entry.manualOrder)) {
+      expect(value).toBeGreaterThan(20)
+    }
+  })
+
+  it('stays between two rows of another section that bound the run', () => {
+    const rows = [
+      row('moved', { sidebarGroupId: 'g1', sortOrder: 1 }),
+      row('top', { sidebarGroupId: 'g1', sortOrder: 100, manualOrder: 100 }),
+      row('x', { sortOrder: 50 }),
+      row('y', { sortOrder: 50 }),
+      row('bottom', { sidebarGroupId: 'g1', sortOrder: 40, manualOrder: 40 }),
+      row('z', { sortOrder: 10 })
+    ]
+    const before = fullOrder(rows).filter((id) => id !== 'moved')
+    const updates = dropInto(rows, ['x', 'y', 'z'], ['moved'], 1)
+    const { rows: after, loose } = applyAndList(rows, updates, ['moved'])
+    expect(loose).toEqual(['x', 'moved', 'y', 'z'])
+    expect(fullOrder(after).filter((id) => id !== 'moved')).toEqual(before)
+    for (const value of [...updates.values()].map((entry) => entry.manualOrder)) {
+      expect(value).toBeGreaterThan(40)
+      expect(value).toBeLessThan(100)
+    }
+  })
+
+  it('falls back to the section renumber when the rows around it tie too', () => {
+    // Every row shares one key, so no value fits between other-section rows: inherent.
+    const rows = [
+      row('moved', { sidebarGroupId: 'g1', sortOrder: 1 }),
+      row('a0', { sidebarGroupId: 'g1', sortOrder: 50 }),
+      row('b1', { sortOrder: 50 }),
+      row('b2', { sortOrder: 50 }),
+      row('c0', { sidebarGroupId: 'g1', sortOrder: 50 })
+    ]
+    const updates = dropInto(rows, ['b1', 'b2'], ['moved'], 1)
+    const { loose } = applyAndList(rows, updates, ['moved'])
+    expect(loose).toEqual(['b1', 'moved', 'b2'])
+  })
+})

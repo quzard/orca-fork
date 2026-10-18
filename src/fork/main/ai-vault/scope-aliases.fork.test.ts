@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs'
 import { mkdir, mkdtemp, rm, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -59,7 +60,9 @@ describe('scope path aliases', () => {
     await symlink(target, link)
 
     const expanded = await expandScopePathAliases([link])
-    expect(expanded).toEqual([link, target])
+    // The added path is the real path: on macOS the tmpdir itself is /var -> /private/var.
+    expect(expanded).toEqual([link, realpathSync(target)])
+    expect(realpathSync(expanded[1]!)).toBe(expanded[1])
   })
 
   it('records a scope issue for a dangling link and aliases a resolved cwd', async () => {
@@ -88,6 +91,27 @@ describe('scope path aliases', () => {
         message: 'Scope path is not a directory.'
       })
     ])
+  })
+
+  it('aliases a cwd spelled through another symlink, like macOS /var -> /private/var', async () => {
+    root = await mkdtemp(join(tmpdir(), 'orca-vault-alias-'))
+    const privateVar = join(root, 'private-var')
+    const varLink = join(root, 'var')
+    await mkdir(join(privateVar, 'project'), { recursive: true })
+    await symlink(privateVar, varLink)
+    const link = join(varLink, 'link')
+    await symlink(join(varLink, 'project'), link)
+
+    // The transcript kept the /var spelling, and its app folder is gone.
+    const scanned: {
+      sessions: { cwd: string; cwdAliases?: string[] }[]
+      issues: { kind?: string; path: string; message: string }[]
+    } = { sessions: [{ cwd: `${varLink}/project/app` }, { cwd: `${root}/elsewhere` }], issues: [] }
+    const result = await attachScopePathAliases({ scopePaths: [link] }, async () => scanned)
+
+    expect(result.sessions[0]?.cwdAliases).toEqual([`${link}/app`])
+    expect(result.sessions[1]?.cwdAliases).toBeUndefined()
+    expect(result.issues).toEqual([])
   })
 
   it('matches a workspace through the alias when the transcript cwd is the real path', () => {

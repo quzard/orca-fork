@@ -1,4 +1,5 @@
 import { realpath } from 'node:fs/promises'
+import { basename, dirname } from 'node:path'
 import type { AiVaultAgent, AiVaultScanIssue } from '../../../shared/ai-vault-types'
 import { normalizeRuntimePathSeparators } from '../../../shared/cross-platform-path'
 
@@ -51,9 +52,35 @@ export async function attachScopePathAliases<Options, Result>(
     result.issues.push(...issues)
   }
   if (aliases.size > 0) {
-    result.sessions = result.sessions.map((session) => withScopeAliases(session, aliases))
+    const resolveCwd = cachedLooseRealpath()
+    result.sessions = await Promise.all(
+      result.sessions.map((session) => withScopeAliases(session, aliases, resolveCwd))
+    )
   }
   return result
+}
+
+/**
+ * realpath of the deepest existing ancestor, plus the rest of the path. A transcript cwd can be
+ * spelled through another symlink (macOS /var is /private/var) or no longer exist; both still
+ * resolve to the spelling the scope aliases use. Cached per scan, one lookup per distinct cwd.
+ */
+function cachedLooseRealpath(): (pathValue: string) => Promise<string> {
+  const cache = new Map<string, Promise<string>>()
+  const resolve = (pathValue: string): Promise<string> => {
+    let pending = cache.get(pathValue)
+    if (!pending) {
+      pending = realpath(pathValue).catch(async () => {
+        const parent = dirname(pathValue)
+        return parent === pathValue
+          ? pathValue
+          : `${(await resolve(parent)).replace(/\/$/, '')}/${basename(pathValue)}`
+      })
+      cache.set(pathValue, pending)
+    }
+    return pending
+  }
+  return resolve
 }
 
 function scopePathsOf(options: unknown): readonly string[] {
@@ -86,26 +113,34 @@ function isListedResult(result: unknown): result is ListedResult {
   )
 }
 
-function withScopeAliases<Session extends ListedSession>(
+async function withScopeAliases<Session extends ListedSession>(
   session: Session,
-  aliases: ReadonlyMap<string, string>
-): Session {
+  aliases: ReadonlyMap<string, string>,
+  resolveCwd: (pathValue: string) => Promise<string>
+): Promise<Session> {
   if (!session.cwd) {
     return session
   }
-  const cwd = normalizeScopePath(session.cwd)
-  const cwdAliases: string[] = []
-  for (const [alias, resolved] of aliases) {
-    const suffix = suffixUnder(cwd, resolved)
-    if (suffix === null) {
-      continue
-    }
-    cwdAliases.push(suffix === '' ? alias : `${alias}/${suffix}`)
+  let cwdAliases = aliasesFor(normalizeScopePath(session.cwd), aliases)
+  if (cwdAliases.length === 0) {
+    // The recorded spelling did not match: try the cwd's real path.
+    cwdAliases = aliasesFor(normalizeScopePath(await resolveCwd(session.cwd)), aliases)
   }
   if (cwdAliases.length === 0) {
     return session
   }
   return { ...session, cwdAliases }
+}
+
+function aliasesFor(cwd: string, aliases: ReadonlyMap<string, string>): string[] {
+  const cwdAliases: string[] = []
+  for (const [alias, resolved] of aliases) {
+    const suffix = suffixUnder(cwd, resolved)
+    if (suffix !== null) {
+      cwdAliases.push(suffix === '' ? alias : `${alias}/${suffix}`)
+    }
+  }
+  return cwdAliases
 }
 
 function suffixUnder(cwd: string, resolved: string): string | null {

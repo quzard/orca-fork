@@ -176,6 +176,9 @@ git ls-remote origin 'refs/heads/sync/*' | awk '{print $2}' | sort | tr '\n' ' '
     }
   })
 
+  // Why 120s: this test runs five shell suites (temporary git repos, and the fetch-timeout cases
+  // wait for a fake hanging fetch to be killed). In full parallel runs it came close to the
+  // default 30s test timeout.
   it('builds the Mac app from origin/develop and records the status file', () => {
     const script = readFileSync(resolve('fork/scripts/mac-auto-update.sh'), 'utf8')
     expect(script).toContain('install-mac-release.sh --build-only')
@@ -311,5 +314,5 @@ git ls-remote origin 'refs/heads/sync/*' | awk '{print $2}' | sort | tr '\n' ' '
     execFileSync('bash', [resolve('fork/scripts/check-no-internal-refs.test.sh')], {
       stdio: 'inherit'
     })
-  })
+  }, 120_000)
 })

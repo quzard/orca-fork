@@ -3226,6 +3226,9 @@ private final class PermissionView: NSView {
         let ready = !checking && missingPermissions.isEmpty
         // fork: the card only while a permission is still missing; otherwise upstream's icon.
         let showsDragCard = ForkPermissionCard.enabled && !checking && !ready
+        // fork: while checking, an empty slot holds the card's place so the switch does not jump.
+        let holdsDragCardSlot = ForkPermissionCard.enabled && checking
+        let usesCardLayout = showsDragCard || holdsDragCardSlot
 
         let headerArt: NSView
         if showsDragCard {
@@ -3233,6 +3236,11 @@ private final class PermissionView: NSView {
             appTile.translatesAutoresizingMaskIntoConstraints = false
             appTile.heightAnchor.constraint(equalToConstant: 42).isActive = true
             headerArt = appTile
+        } else if holdsDragCardSlot {
+            let slot = NSView()
+            slot.translatesAutoresizingMaskIntoConstraints = false
+            slot.heightAnchor.constraint(equalToConstant: 42).isActive = true
+            headerArt = slot
         } else {
             let icon = NSImageView(image: NSWorkspace.shared.icon(forFile: appURL.path))
             icon.imageScaling = .scaleProportionallyUpOrDown
@@ -3264,7 +3272,7 @@ private final class PermissionView: NSView {
         subtitle.maximumNumberOfLines = 3
 
         let header = NSStackView(
-            views: showsDragCard ? [title, subtitle, headerArt] : [headerArt, title, subtitle]
+            views: usesCardLayout ? [title, subtitle, headerArt] : [headerArt, title, subtitle]
         )
         header.orientation = .vertical
         header.alignment = .centerX
@@ -3272,7 +3280,7 @@ private final class PermissionView: NSView {
         header.translatesAutoresizingMaskIntoConstraints = false
         stack.addArrangedSubview(header)
         header.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
-        if showsDragCard {
+        if usesCardLayout {
             headerArt.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
         }
         subtitle.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -10).isActive = true

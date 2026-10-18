@@ -27,11 +27,17 @@ describe('computer-use permission card', () => {
     expect(source).toContain('icon.widthAnchor.constraint(equalToConstant: 58)')
     expect(source).toContain('"Grant permissions so Orca can use apps when you ask."')
     expect(source).toContain(
-      'views: showsDragCard ? [title, subtitle, headerArt] : [headerArt, title, subtitle]'
+      'views: usesCardLayout ? [title, subtitle, headerArt] : [headerArt, title, subtitle]'
     )
     expect(source).toContain(
       'Drag the app card below into the permission list in System Settings, then enable its switch.'
     )
+  })
+
+  it('holds the card slot while checking, so the switch to the card does not jump', () => {
+    expect(source).toContain('let holdsDragCardSlot = ForkPermissionCard.enabled && checking')
+    expect(source).toContain('let usesCardLayout = showsDragCard || holdsDragCardSlot')
+    expect(source).toContain('slot.heightAnchor.constraint(equalToConstant: 42)')
   })
 
   it('gates the inactive-window drag and the window-stays-up change', () => {

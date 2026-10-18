@@ -8,9 +8,7 @@ import {
   type WorkspaceGroupDropArgs
 } from '../../shared/fork-hooks/sidebar-chrome'
 import { useAppStore } from '../../renderer/src/store'
-import { buildManualOrderUpdatesForGroupDrop } from '../../renderer/src/components/sidebar/worktree-manual-order'
 import type { WorktreeDragGroup } from '../../renderer/src/components/sidebar/worktree-manual-order'
-import { buildWorktreeManualOrderCatalog } from '../../renderer/src/components/sidebar/worktree-manual-order-catalog'
 import { getWorktreeSidebarDragRectsForGroup } from '../../renderer/src/components/sidebar/worktree-sidebar-drag-autoscroll'
 import type { FolderWorkspace } from '../../shared/folder-workspace-types'
 import type { ProjectGroup } from '../../shared/project-group-types'
@@ -18,10 +16,18 @@ import type { Repo } from '../../shared/repo-types'
 import type { Worktree } from '../../shared/worktree/types'
 import { resolveSidebarGroupId, folderWorkspaceHostId } from './membership'
 import {
+  EMPTY_PROJECT_GROUP_PREFIX,
   WORKSPACE_GROUP_HOST_MISMATCH,
   WORKSPACE_SIDEBAR_GROUP_ATTRIBUTE,
+  looseHostSectionKey,
   parseHostDirectorySectionKey
 } from './section-keys'
+import {
+  buildGroupDropOrder,
+  commitGroupDrop,
+  planGroupDropItems,
+  resolveGroupDropTarget
+} from './workspace-group-drop-plan'
 
 type DropArgs = {
   x: number
@@ -72,15 +78,33 @@ export function tryCommitWorkspaceGroupDrop(args: DropArgs): boolean {
     toast.error(WORKSPACE_GROUP_HOST_MISMATCH)
     return true
   }
+  if (looseTargetOfSource(target.groupId, targetHostId, args.sourceGroupKey)) {
+    return false
+  }
   const pointerY = args.y - args.container.getBoundingClientRect().top + args.container.scrollTop
-  const visible = args.groups.find((group) => group.key === key)?.worktreeIds ?? []
-  const dropIndex = workspaceGroupInsertionIndex(
-    getWorktreeSidebarDragRectsForGroup(args.container, key),
+  void writeGroupDrop(
+    targetHostId,
+    target.groupId,
+    args.draggedIds,
+    args.groups,
+    key,
     pointerY,
-    visible.length
+    args.container
   )
-  void writeGroupDrop(targetHostId, target.groupId, args.draggedIds, args.groups, key, dropIndex)
   return true
+}
+
+// An empty project header belongs to the loose list; from that list it is a plain reorder.
+function looseTargetOfSource(
+  groupId: string | null,
+  hostId: ExecutionHostId,
+  sourceGroupKey: string
+): boolean {
+  return (
+    groupId !== null &&
+    groupId.startsWith(EMPTY_PROJECT_GROUP_PREFIX) &&
+    looseHostSectionKey(hostId) === sourceGroupKey
+  )
 }
 
 function workspaceBelongsToGroup(
@@ -140,68 +164,33 @@ async function writeGroupDrop(
   draggedIds: readonly string[],
   groups: readonly WorktreeDragGroup[],
   targetKey: string,
-  dropIndex: number
+  pointerY: number,
+  container: HTMLElement
 ): Promise<void> {
   const state = useAppStore.getState()
-  const visible = groups.find((group) => group.key === targetKey)?.worktreeIds ?? []
-  const catalog = buildWorktreeManualOrderCatalog({
-    worktrees: Object.values(state.worktreesByRepo).flat(),
-    folderWorkspaces: state.folderWorkspaces
-  })
-  const hiddenMembers = catalog.orderedIds.filter(
-    (id) => !visible.includes(id) && workspaceBelongsToGroup(state, id, hostId, groupId)
-  )
-  const targetGroup = { key: targetKey, worktreeIds: [...visible, ...hiddenMembers] }
-  const order = buildManualOrderUpdatesForGroupDrop({
-    groups: groups.some((group) => group.key === targetKey)
-      ? groups.map((group) => (group.key === targetKey ? targetGroup : group))
-      : [...groups, targetGroup],
-    targetGroupKey: targetKey,
-    draggedIds,
-    dropIndex: Math.min(dropIndex, targetGroup.worktreeIds.length),
-    now: Date.now(),
-    rankByWorktreeId: catalog.rankByWorktreeId,
-    allWorktreeIds: catalog.orderedIds
-  })
-  for (const id of draggedIds) {
-    const folder = state.folderWorkspaces.find(
-      (entry) => entry.id === id || folderWorkspaceKey(entry.id) === id
-    )
-    if (folder) {
-      const folderHost =
-        folder.executionHostId ??
-        getWorktreeExecutionHostId(
-          { hostId: folder.executionHostId ?? undefined },
-          undefined,
-          hostId
-        )
-      if (folderHost !== hostId) {
-        toast.error(WORKSPACE_GROUP_HOST_MISMATCH)
-        return
-      }
-      await state.updateFolderWorkspace(
-        folder.id,
-        { sidebarGroupId: groupId, ...order.updates.get(id) },
-        { executionHostId: hostId }
-      )
-      continue
-    }
-    const worktree = state.getKnownWorktreeById(id, hostId)
-    if (!worktree || getWorktreeExecutionHostId(worktree, undefined, hostId) !== hostId) {
-      toast.error(WORKSPACE_GROUP_HOST_MISMATCH)
-      return
-    }
-    const result = await state.updateWorktreeMeta(
-      id,
-      { sidebarGroupId: groupId, ...order.updates.get(id) },
-      { executionHostId: hostId }
-    )
-    if (!result.ok) {
-      toast.error(result.error)
-      return
-    }
+  const target = resolveGroupDropTarget(state, hostId, groupId, targetKey)
+  if ('error' in target) {
+    toast.error(target.error)
+    return
   }
-  state.setSortBy('manual')
+  const visible = groups.find((group) => group.key === target.key)?.worktreeIds ?? []
+  const dropIndex = workspaceGroupInsertionIndex(
+    getWorktreeSidebarDragRectsForGroup(container, target.key),
+    pointerY,
+    visible.length
+  )
+  const order = buildGroupDropOrder(state, groups, target, draggedIds, dropIndex, (id) =>
+    workspaceBelongsToGroup(state, id, hostId, target.groupId)
+  )
+  const items = planGroupDropItems(state, hostId, target, draggedIds, order)
+  if ('error' in items) {
+    toast.error(items.error)
+    return
+  }
+  const error = await commitGroupDrop(state, hostId, items)
+  if (error) {
+    toast.error(error)
+  }
 }
 
 export function registerWorkspaceGroupDropHandler(): void {

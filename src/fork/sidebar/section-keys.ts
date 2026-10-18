@@ -8,6 +8,9 @@ export const HOST_DIRECTORY_SECTION_PREFIX = 'hd:'
 export const PINNED_SECTION_KEY = 'pinned'
 export const UNGROUP_ONLY_OPTION_ID = 'ungroup-only'
 export const WORKSPACE_GROUP_HOST_MISMATCH = 'Workspaces can only move within the same host.'
+export const WORKSPACE_GROUP_NOT_ON_HOST = 'This group is not saved on that host.'
+/** Group slot of an empty project header. Never written as a sidebarGroupId. */
+export const EMPTY_PROJECT_GROUP_PREFIX = 'empty:'
 export const DIRECTORY_TITLE_SEPARATOR = ' · '
 export const WORKSPACE_SIDEBAR_GROUP_ATTRIBUTE = 'data-workspace-sidebar-group'
 
@@ -20,7 +23,7 @@ export function looseHostSectionKey(hostId: string): string {
 }
 
 export function emptyProjectSectionKey(hostId: string, repoId: string): string {
-  return hostDirectorySectionKey(hostId, `empty:${repoId}`)
+  return hostDirectorySectionKey(hostId, `${EMPTY_PROJECT_GROUP_PREFIX}${repoId}`)
 }
 
 export function parseHostDirectorySectionKey(

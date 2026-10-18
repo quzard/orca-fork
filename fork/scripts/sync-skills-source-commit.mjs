@@ -29,7 +29,7 @@ function defaultGit(args) {
 
 /**
  * Commit skill installs can clone from stablyai/orca.
- * Merge-base with fork/base-upstream, then upstream main, then the checked-in pin.
+ * Merge-base with fork/base-upstream, then merge-base with upstream main, then the checked-in pin.
  */
 export function resolveForkSkillsSourceCommit(buildCommit, options = {}) {
   const run = options.run
@@ -40,8 +40,10 @@ export function resolveForkSkillsSourceCommit(buildCommit, options = {}) {
       return sha
     }
   }
+  // Without the base ref, the upstream commit this branch contains: merge-base with upstream main,
+  // never its tip, which can be newer than anything merged here.
   for (const ref of ['upstream/main', 'origin/upstream/main']) {
-    const sha = gitSha(['rev-parse', '--verify', `${ref}^{commit}`], run)
+    const sha = gitSha(['merge-base', 'HEAD', ref], run)
     if (sha) {
       return sha
     }

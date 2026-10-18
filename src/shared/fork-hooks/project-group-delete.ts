@@ -1,6 +1,8 @@
 // fork: 删除项目群组对话框的附加选项。未注册时不渲染，删除参数保持原值。
 
+import type { FolderWorkspace } from '../folder-workspace-types'
 import type { PersistedState } from '../persisted-state-types'
+import type { ProjectGroup } from '../project-group-types'
 
 export type DeleteProjectGroupDialogOption = {
   id: string
@@ -71,7 +73,39 @@ export function prepareKeepFolderWorkspacesOnGroupDelete(
   return keepOnGroupDelete ? keepOnGroupDelete(state, deletedGroupIds) : null
 }
 
-/** True when a folder workspace may outlive its owning group (loading keeps it). */
+/**
+ * True when a folder workspace may outlive its owning group: loading keeps it, an orcad migration
+ * accepts it, and agent hosts resolve from its own fields. Main registers the delete handler; the
+ * renderer registers registerKeepFolderWorkspacesOnProjectGroupDelete.
+ */
 export function folderWorkspacesMayOutliveTheirGroup(): boolean {
-  return keepOnGroupDelete !== undefined
+  return keepOnGroupDelete !== undefined || keepFolderWorkspaces
+}
+
+/**
+ * The owner to render a folder workspace with when its group was deleted and it was ungrouped
+ * (`sidebarGroupId: null`): a stand-in with its own path and host, so modes that pair every folder
+ * workspace with its group still list it. Null otherwise, so a group hidden for host visibility
+ * still hides its workspaces.
+ */
+export function standInGroupForGroupLessFolderWorkspace(
+  workspace: FolderWorkspace
+): ProjectGroup | null {
+  if (!folderWorkspacesMayOutliveTheirGroup() || workspace.sidebarGroupId !== null) {
+    return null
+  }
+  return {
+    id: workspace.projectGroupId,
+    name: workspace.name,
+    parentPath: workspace.folderPath,
+    connectionId: workspace.connectionId ?? null,
+    executionHostId: workspace.executionHostId ?? null,
+    parentGroupId: null,
+    createdFrom: 'manual',
+    tabOrder: 0,
+    isCollapsed: false,
+    color: null,
+    createdAt: 0,
+    updatedAt: 0
+  }
 }

@@ -7,8 +7,17 @@ import {
   testState,
   createStore,
   makeRepo,
-  makeTerminalTab
+  makeTerminalTab,
+  writeDataFile
 } from '../../main/persistence-test-harness'
+import { manifest } from '../../main/persistence-orcad-migration-catalog-fixture'
+import { collectOrcadMigrationSourceCatalog } from '../../main/persistence/migrating-orcad-catalog/orcad-source-catalog'
+import { resolveAgentWorkspaceExecutionHostId } from '../../main/agent-hooks/restored-status-dead-terminal-sweep'
+import { getDefaultPersistedState } from '../../shared/constants'
+import type { FolderWorkspace } from '../../shared/folder-workspace-types'
+import type { PersistedState } from '../../shared/persisted-state-types'
+import type { ProjectGroup } from '../../shared/project-group-types'
+import { getRenderableFolderWorkspaces } from '../../shared/sidebar-list/folder-workspace-lanes'
 import { getDefaultWorkspaceSession } from '../../shared/constants'
 import { folderWorkspaceKey } from '../../shared/workspace-scope'
 import { registerKeepFolderWorkspacesOnGroupDeleteInMain } from '../../shared/fork-hooks/project-group-delete'
@@ -121,4 +130,152 @@ describe('deleting a project group in main', () => {
     expect(store.deleteProjectGroup('missing')).toBe(false)
     expect(store.getFolderWorkspace(workspace.id)?.sidebarGroupId).toBeUndefined()
   })
+  it('fills the host stamp from the deleted owner when the workspace has none', () => {
+    const owner: ProjectGroup = {
+      id: 'grp-remote',
+      name: 'remote',
+      parentPath: '/srv/remote',
+      connectionId: null,
+      executionHostId: 'runtime:env-1',
+      parentGroupId: null,
+      createdFrom: 'folder-scan',
+      tabOrder: 0,
+      isCollapsed: false,
+      color: null,
+      createdAt: 0,
+      updatedAt: 0
+    }
+    const bare = folderWorkspace({ id: 'bare', projectGroupId: owner.id })
+    const pinned = folderWorkspace({
+      id: 'pinned',
+      projectGroupId: owner.id,
+      executionHostId: 'ssh:other'
+    })
+    const state = { projectGroups: [owner], folderWorkspaces: [bare, pinned] } as PersistedState
+    const keep = keepFolderWorkspacesOnGroupDelete(state, new Set([owner.id]))
+    state.projectGroups = []
+    keep()
+    const byId = new Map(state.folderWorkspaces.map((workspace) => [workspace.id, workspace]))
+    expect(byId.get('bare')).toMatchObject({
+      executionHostId: 'runtime:env-1',
+      sidebarGroupId: null
+    })
+    // A workspace's own stamp wins over the owner's.
+    expect(byId.get('pinned')).toMatchObject({ executionHostId: 'ssh:other', sidebarGroupId: null })
+  })
+
+  it('migrates a group-less SSH folder workspace to orcad', async () => {
+    const source = await createStore()
+    const group = source.createProjectGroup({
+      name: 'remote group',
+      parentPath: '/srv/remote',
+      createdFrom: 'folder-scan',
+      connectionId: 'ssh-prod'
+    })
+    const workspace = source.createFolderWorkspace({ projectGroupId: group.id, name: 'kept' })
+    expect(source.deleteProjectGroup(group.id)).toBe(true)
+    const payload = collectOrcadMigrationSourceCatalog(source, { id: 'ssh-prod' })
+    expect(payload.folderWorkspaces.map((entry) => entry.id)).toEqual([workspace.id])
+    expect(payload.projectGroups).toEqual([])
+    await closeTestStores()
+    rmSync(testState.dir, { recursive: true, force: true })
+
+    testState.dir = mkdtempSync(join(tmpdir(), 'orca-fork-group-delete-target-'))
+    const target = await createStore()
+    const input = manifest({ payload })
+    target.stageOrcadMigrationCatalog(input)
+    expect(target.commitStagedOrcadMigrationCatalog(input)).toMatchObject({
+      state: 'committed',
+      receipt: { folderWorkspaceIds: [workspace.id], projectGroupIds: [] }
+    })
+    target.flush()
+    const restored = await createStore()
+    expect(restored.getFolderWorkspace(workspace.id)).toMatchObject({
+      name: 'kept',
+      folderPath: '/srv/remote',
+      connectionId: null,
+      sidebarGroupId: null
+    })
+    expect(restored.getProjectGroups()).toEqual([])
+  })
+
+  it('loads a profile that already holds group-less folder workspaces, ungrouped', async () => {
+    writeDataFile({
+      ...getDefaultPersistedState(testState.dir),
+      projectGroups: [],
+      folderWorkspaces: [
+        folderWorkspace({ id: 'stale-sidebar', projectGroupId: 'gone', sidebarGroupId: 'gone' }),
+        folderWorkspace({ id: 'inherited', projectGroupId: 'gone' })
+      ]
+    })
+    const store = await createStore()
+    expect(store.getFolderWorkspaces().map((entry) => [entry.id, entry.sidebarGroupId])).toEqual(
+      expect.arrayContaining([
+        ['stale-sidebar', null],
+        ['inherited', null]
+      ])
+    )
+  })
+
+  it('lists group-less folder workspaces in modes that pair each with its group', () => {
+    const kept = folderWorkspace({
+      id: 'kept',
+      projectGroupId: 'gone',
+      sidebarGroupId: null,
+      connectionId: 'ssh-prod'
+    })
+    // Still grouped: its group is only hidden (for host visibility), so it stays hidden.
+    const hidden = folderWorkspace({ id: 'hidden', projectGroupId: 'filtered' })
+    const rows = getRenderableFolderWorkspaces([kept, hidden], [])
+    expect(rows.map((row) => row.folderWorkspace.id)).toEqual(['kept'])
+    expect(rows[0]?.projectGroup).toMatchObject({
+      id: 'gone',
+      parentPath: '/srv/folder',
+      connectionId: 'ssh-prod'
+    })
+  })
+
+  it('resolves an agent host from a group-less folder workspace itself', () => {
+    const deps = (workspace: FolderWorkspace) => ({
+      getRepo: () => undefined,
+      getWorktreeMeta: () => undefined,
+      getFolderWorkspace: () => workspace,
+      getProjectGroups: () => []
+    })
+    const key = folderWorkspaceKey('kept')
+    expect(
+      resolveAgentWorkspaceExecutionHostId(
+        key,
+        deps(folderWorkspace({ id: 'kept', projectGroupId: 'gone', connectionId: 'ssh-prod' }))
+      )
+    ).toBe('ssh:ssh-prod')
+    expect(
+      resolveAgentWorkspaceExecutionHostId(
+        key,
+        deps(
+          folderWorkspace({ id: 'kept', projectGroupId: 'gone', executionHostId: 'runtime:env-1' })
+        )
+      )
+    ).toBe('runtime:env-1')
+  })
 })
+
+function folderWorkspace(
+  overrides: Partial<FolderWorkspace> & Pick<FolderWorkspace, 'id'>
+): FolderWorkspace {
+  return {
+    projectGroupId: 'group',
+    name: overrides.id,
+    folderPath: '/srv/folder',
+    linkedTask: null,
+    comment: '',
+    isArchived: false,
+    isUnread: false,
+    isPinned: false,
+    sortOrder: 0,
+    lastActivityAt: 0,
+    createdAt: 0,
+    updatedAt: 0,
+    ...overrides
+  }
+}

@@ -5,6 +5,7 @@ import { getWorkspaceStatus, getWorkspaceStatusGroupKey } from '../workspace-sta
 import { ALL_GROUP_KEY, getPRLaneKey } from './group-keys'
 import { compareCodePoints, compareSidebarText } from './text-order'
 import type { WorktreeGroupBy } from './row-types'
+import { standInGroupForGroupLessFolderWorkspace } from '../fork-hooks/project-group-delete'
 
 /** A folder workspace paired with the project group that owns it. The pair is
  *  carried through grouping because FolderWorkspaceRow needs a non-optional
@@ -28,7 +29,9 @@ export function getRenderableFolderWorkspaces(
   const projectGroupsById = new Map(projectGroups.map((group) => [group.id, group]))
   const renderable: RenderableFolderWorkspace[] = []
   for (const folderWorkspace of folderWorkspaces) {
-    const projectGroup = projectGroupsById.get(folderWorkspace.projectGroupId)
+    const projectGroup =
+      projectGroupsById.get(folderWorkspace.projectGroupId) ??
+      standInGroupForGroupLessFolderWorkspace(folderWorkspace)
     // A group filtered out for host visibility legitimately hides its workspaces.
     if (!projectGroup?.parentPath) {
       continue

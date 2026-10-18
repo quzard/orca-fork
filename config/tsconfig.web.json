@@ -33,6 +33,7 @@
     "../src/fork/updater-fork-feed.fork.test.ts",
     "../src/fork/directory-browse.fork.test.ts",
     "../src/fork/sidebar/sidebar-field-clear.fork.test.ts",
+    "../src/fork/sidebar/host-directory-rows.fork.test.ts",
     "../src/fork/fork-background-download.ts",
     "../src/fork/fork-update-adapter.ts",
     "../src/fork/fork-background-download.fork.test.ts",

@@ -10,9 +10,12 @@ const STAGING_FAILED = 'macOS could not stage the downloaded update'
 export type { ForkUpdateAdapter }
 
 // fork: 重启卡片要等安装器就绪；macOS 上就是 Squirrel 暂存完成。
+// 受监管的无界面 serve 把暂存推迟到 quitAndInstall，下载完就算就绪，和上游 update-downloaded 的判断一致。
 export function bindForkBackgroundUpdates(ctx: UpdaterHandlerContext): ForkUpdateAdapter {
   if (process.platform === 'darwin') {
-    registerForkInstallerReadyProbe(isMacInstallerReady)
+    registerForkInstallerReadyProbe(
+      () => isMacInstallerReady() || ctx.isMacStagingDeferredToInstall()
+    )
   }
   const adapter = createForkUpdateAdapter({
     localOrPinned: () => ctx.isLocalBuildCheck() || ctx.isPinnedBuildCheck(),

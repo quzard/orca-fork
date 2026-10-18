@@ -405,7 +405,7 @@ function testAutoUpdater(): {
 }
 
 describe('fork updater handler wiring', () => {
-  async function wireHandlers(): Promise<{
+  async function wireHandlers(options: { deferredStaging?: boolean } = {}): Promise<{
     emit: (event: string, ...args: unknown[]) => void
     sent: UpdateStatus[]
     sendStatus: ReturnType<typeof vi.fn>
@@ -453,7 +453,7 @@ describe('fork updater handler wiring', () => {
       commitStagedMacInstall: vi.fn(),
       failMacStaging: vi.fn(),
       isAwaitingMacStaging: vi.fn(() => false),
-      isMacStagingDeferredToInstall: vi.fn(() => false),
+      isMacStagingDeferredToInstall: vi.fn(() => options.deferredStaging ?? false),
       shouldDeferMacQuitForInstall: vi.fn(() => true),
       recordCompletedUpdateCheck: vi.fn(),
       restoreReleaseUpdateSource: vi.fn(),
@@ -606,6 +606,29 @@ describe('fork updater handler wiring', () => {
 
     nativeAutoUpdater.emit('update-downloaded')
     expect(sent.at(-1)).toMatchObject({ state: 'downloaded', version: '2.0.0' })
+  })
+
+  it('on darwin headless serve, staging deferred to install still offers the restart', async () => {
+    usePlatform('darwin')
+    useReadyFeed()
+    beginMacUpdateDownload()
+    const { emit, sent, setStatus, setUserInitiated } = await wireHandlers({
+      deferredStaging: true
+    })
+
+    emit('checking-for-update')
+    emit('update-available', { version: '2.0.0' })
+    setStatus({ state: 'downloading', percent: 40, version: '2.0.0' })
+    emit('update-downloaded', { version: '2.0.0', downloadedFile: '/tmp/Orca.zip' })
+    expect(sent.at(-1)).toMatchObject({ state: 'downloaded', version: '2.0.0' })
+    expect(forkStagingUpdateVersion()).toBeNull()
+    expect(forkStagedUpdateVersion()).toBe('2.0.0')
+
+    setUserInitiated(true)
+    emit('checking-for-update')
+    emit('update-available', { version: '2.0.0' })
+    expect(sent.at(-1)).toMatchObject({ state: 'downloaded', version: '2.0.0' })
+    expect(sent.some((item) => item.state === 'downloading' && item.percent === 100)).toBe(false)
   })
 
   it('on darwin, a staging error forwarded by MacUpdater becomes an error state, then retries', async () => {

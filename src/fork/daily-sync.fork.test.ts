@@ -34,16 +34,19 @@ describe('fork daily sync split', () => {
     expect(feed).not.toContain('auth token')
   })
 
-  it('pushes only develop after checks, and parks failures on a sync branch', () => {
+  it('merges upstream into develop, pushes develop without force, and parks failures on a sync branch', () => {
     const script = readFileSync(resolve('fork/scripts/daily-sync.sh'), 'utf8')
     expect(script).toContain('git checkout -B develop origin/develop')
+    expect(script).toContain('git merge --no-ff --no-edit')
+    expect(script).not.toContain('git rebase')
     expect(script).toContain('git branch -f fork/base-upstream')
     expect(script).toContain('sync-skills-source-commit.mjs')
     expect(script).toContain('check-no-internal-refs.sh')
     expect(script).toContain('pnpm exec oxlint')
     expect(script).toContain('pnpm tc')
     expect(script).toContain('build-orcad-template.mjs')
-    expect(script).toContain('--force-with-lease="refs/heads/develop:${ORIGIN_DEVELOP}"')
+    expect(script).toContain('git push origin "HEAD:refs/heads/develop"')
+    expect(script).not.toContain('--force-with-lease="refs/heads/develop')
     expect(script).toContain('sync/upstream-')
     expect(script).not.toContain('workflow_dispatch')
     expect(script).not.toContain('gh workflow')

@@ -1,7 +1,7 @@
 #!/bin/bash
 # 云端每日上游同步。在干净的 Linux 检出上运行：
 #   bash fork/scripts/daily-sync.sh
-# 变基成功且检查通过时，只强制更新 origin/develop（--force-with-lease），不推标签、不推其他分支。
+# 合并成功且检查通过时，只快进推送 origin/develop（不强推），不推标签、不推其他分支。
 # 冲突或检查失败时不改 origin/develop，把现场推到 sync/upstream-YYYYMMDD（时区取 ORCA_SYNC_TZ，默认 UTC）后以非 0 退出。
 # 不调用 GitHub Actions。仓库的 Actions 必须保持关闭。
 set -euo pipefail
@@ -48,7 +48,7 @@ ensure_upstream() {
   fi
 }
 
-# 冲突现场提交成独立对象，再退出 rebase，避免本地 develop 停在冲突中间。
+# 冲突现场提交成一个带两个父提交的合并对象，再退出合并，避免本地 develop 停在冲突中间。
 publish_conflict() {
   local files tree parent commit
   files="$(git diff --name-only --diff-filter=U || true)"
@@ -56,9 +56,9 @@ publish_conflict() {
   tree="$(git write-tree)"
   parent="$(git rev-parse HEAD)"
   commit="$(
-    git commit-tree "$tree" -p "$parent" -m "$(
+    git commit-tree "$tree" -p "$parent" -p "$UPSTREAM_SHA" -m "$(
       cat <<EOF
-sync: rebase onto upstream stopped with conflict markers
+sync: merge of upstream stopped with conflict markers
 
 Upstream: ${UPSTREAM_SHA}
 Conflicted files:
@@ -68,11 +68,11 @@ Resolve the markers on this branch, then open a PR against develop.
 EOF
     )"
   )"
-  git rebase --quit
+  git merge --abort
   push_attempt_commit "$commit"
   summary \
     "daily-sync: FAILED" \
-    "reason: rebase conflict" \
+    "reason: merge conflict" \
     "upstream: ${UPSTREAM_SHA}" \
     "develop: not pushed (${ORIGIN_DEVELOP})" \
     "attempt: ${ATTEMPT_BRANCH} (${commit})" \
@@ -94,7 +94,7 @@ push_attempt_commit() {
   fi
 }
 
-# 检查失败时推送已经变基的 HEAD。origin/develop 不动。
+# 检查失败时推送已经合并的 HEAD。origin/develop 不动。
 fail_checks() {
   local reason="$1"
   local head
@@ -148,12 +148,12 @@ git checkout -B develop origin/develop
 if git merge-base --is-ancestor "$UPSTREAM_SHA" HEAD; then
   echo "daily-sync: develop already contains upstream/main"
 else
-  base="$(git merge-base HEAD "$UPSTREAM_SHA")"
-  if ! git rebase --onto "$UPSTREAM_SHA" "$base" develop; then
-    if [[ -d .git/rebase-merge || -d .git/rebase-apply ]]; then
+  count="$(git rev-list --count "HEAD..${UPSTREAM_SHA}")"
+  if ! HUSKY=0 git merge --no-ff --no-edit -m "Merge upstream main through ${UPSTREAM_SHA:0:10} (${count} commits)" "$UPSTREAM_SHA"; then
+    if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
       publish_conflict
     fi
-    die "daily-sync: FAILED" "reason: rebase failed" "upstream: ${UPSTREAM_SHA}" "develop: not pushed (${ORIGIN_DEVELOP})"
+    die "daily-sync: FAILED" "reason: merge failed" "upstream: ${UPSTREAM_SHA}" "develop: not pushed (${ORIGIN_DEVELOP})"
   fi
   PUSH_ATTEMPT=1
 fi
@@ -225,7 +225,8 @@ if [[ "$head" == "$ORIGIN_DEVELOP" ]]; then
   exit 0
 fi
 
-git push --force-with-lease="refs/heads/develop:${ORIGIN_DEVELOP}" origin "HEAD:refs/heads/develop"
+# 普通推送：develop 只会快进。别人先推了新提交时推送被拒，develop 不会被覆盖。
+git push origin "HEAD:refs/heads/develop"
 summary \
   "daily-sync: OK" \
   "upstream: ${UPSTREAM_SHA}" \

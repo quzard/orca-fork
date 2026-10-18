@@ -1,6 +1,6 @@
 # Syncing develop with upstream
 
-`develop` is the integration branch. It currently starts from upstream `17a2bced1115f064e834e397c2b949d9e150d275` plus the fork commits on that head. `fork/base` remains an alias of the commit that was moved onto `develop`; the daily jobs do not move it. `fork/base-upstream` remains the upstream pointer a human last pushed. The daily cloud job creates that ref locally from `upstream/main` before rewriting the skill pin, and does not push it. Feature work lands in `src/fork/` and should not rewrite upstream files beyond the hooks in [HOOKS.md](./HOOKS.md).
+`develop` is the integration branch (upstream's branch stays `main`). Its history is upstream `17a2bced1115f064e834e397c2b949d9e150d275` plus the fork commits, followed by merges of upstream `main`. `fork/base` remains an alias of the commit that became the integration branch; the daily jobs do not move it. `fork/base-upstream` remains the upstream pointer a human last pushed. The daily cloud job creates that ref locally from `upstream/main` before rewriting the skill pin, and does not push it. Feature work lands in `src/fork/` and should not rewrite upstream files beyond the hooks in [HOOKS.md](./HOOKS.md).
 
 The unattended jobs are documented in [DAILY.md](./DAILY.md). GitHub Actions on this fork stay disabled.
 
@@ -24,13 +24,15 @@ Generated paths marked `merge=ours`:
 - `src/renderer/src/i18n/en-runtime-required.json`
 - `src/main/acp/generated/*.generated.ts`
 
-## Rebase
+## Merge
 
 ```bash
 git fetch https://github.com/stablyai/orca.git main
 git checkout develop
-git rebase <upstream-main-sha>
+git merge --no-ff <upstream-main-sha>
 ```
+
+Do not rebase `develop` onto upstream: that rewrites every fork commit and would need a force push.
 
 Conflicts should be limited to the `// fork:` lines listed in HOOKS.md. Keep the upstream side, then re-apply the hook call if the surrounding function moved. After the first resolution, `git rerere` replays it on the next sync.
 
@@ -38,7 +40,7 @@ Conflicts should be limited to the `// fork:` lines listed in HOOKS.md. Keep the
 git rerere status
 # fix the file, then
 git add <file>
-git rebase --continue
+git commit
 ```
 
 Then regenerate catalogs and skills from the scripts in `package.json` (`verify:rpc-params-catalog`, `verify:bundled-skill-guides`, `verify:skill-bundle-manifest`, `verify:localization-runtime-catalog`) and run the checks in [VERIFY.md](./VERIFY.md).

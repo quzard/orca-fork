@@ -464,7 +464,7 @@ build_develop_release() {
     record_gh_auth_failure
     return 1
   fi
-  # 变基后的 develop 不能快进。干净的 develop 检出对齐 origin，旧 HEAD 留在 reflog。
+  # 干净的 develop 检出对齐 origin/develop，旧 HEAD 留在 reflog。
   echo "mac-auto-update: develop $(git rev-parse --short HEAD) -> $(git rev-parse --short origin/develop)"
   git reset --hard origin/develop
   seed_glibc217

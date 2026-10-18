@@ -1,10 +1,10 @@
 # Daily upstream sync and Mac publish
 
-`develop` is the integration branch. `fork/base` stays as an alias of the commit that became `develop` and is not moved by these jobs. `fork/base-upstream` stays the last upstream commit a human pushed there.
+`develop` is the integration branch and the repo's default branch. It is kept apart from upstream's `main` by name. Upstream is merged in, never rebased, so `develop` only moves forward and is never force-pushed. `fork/base` stays as an alias of the commit that became the integration branch and is not moved by these jobs. `fork/base-upstream` stays the last upstream commit a human pushed there.
 
-GitHub Actions on this fork stay disabled. Neither job calls `workflow_dispatch` or deletes `.github/workflows`. A later rebase would restore deleted workflow files, and turning Actions on would run them.
+GitHub Actions on this fork stay disabled. Neither job calls `workflow_dispatch` or deletes `.github/workflows`. A later upstream merge would restore deleted workflow files, and turning Actions on would run them.
 
-## Cloud agent: rebase and checks
+## Cloud agent: merge and checks
 
 Run on a fresh Linux checkout with Node 24, pnpm 12.8.1, and `git config user.name` / `user.email` set:
 
@@ -12,13 +12,13 @@ Run on a fresh Linux checkout with Node 24, pnpm 12.8.1, and `git config user.na
 bash fork/scripts/daily-sync.sh
 ```
 
-The script fetches `upstream` (`https://github.com/stablyai/orca.git`) and `origin/develop`, checks out `origin/develop`, and rebases that branch onto `upstream/main`. It then points the local `fork/base-upstream` ref at `upstream/main` and runs `node fork/scripts/sync-skills-source-commit.mjs`. That local ref is what the pin script reads first. The job does not push `fork/base-upstream`.
+The script fetches `upstream` (`https://github.com/stablyai/orca.git`) and `origin/develop`, checks out `origin/develop`, and merges `upstream/main` into it with `git merge --no-ff` (message `Merge upstream main through <sha> (<n> commits)`). It then points the local `fork/base-upstream` ref at `upstream/main` and runs `node fork/scripts/sync-skills-source-commit.mjs`. That local ref is what the pin script reads first. The job does not push `fork/base-upstream`.
 
-On a clean rebase and green checks it pushes `develop` with `--force-with-lease` against the `origin/develop` sha it fetched. The push updates that branch ref only. It does not push tags or any other branch. Exit code is 0. The summary lines are `daily-sync: OK`, `upstream:`, and `develop:`.
+On a clean merge and green checks it pushes `develop` with a plain, non-force push. The push is a fast-forward; if someone else moved `develop` in the meantime, GitHub rejects it and nothing is overwritten. The push updates that branch ref only. It does not push tags or any other branch. Exit code is 0. The summary lines are `daily-sync: OK`, `upstream:`, and `develop:`.
 
 Checks, in order: `check-no-internal-refs.sh`, `pnpm install --frozen-lockfile`, `pnpm exec oxlint`, the RPC / skill-guide / skill-manifest / localization-runtime catalog verifies, fork Vitest plus `src/shared/fork-hooks/update-feed.test.ts`, `pnpm tc`, then the host Linux orcad prebuild, smoke, `pnpm install --frozen-lockfile --dir mobile`, `pnpm build:mobile-web`, and `build-orcad-template.mjs` for that host slot. Set `ORCA_SYNC_DOCKER_SLOTS=1` to also run `fork/scripts/build-orcad-linux-prebuilds.sh` and stage `linux-x64-glibc,linux-arm64-glibc`. The home Mac package still builds those slots.
 
-On a rebase conflict, or when a check fails after new commits exist, the script does not update `origin/develop`. It pushes the attempt to `sync/upstream-YYYYMMDD` (`ORCA_SYNC_TZ`, default UTC). A conflict commit contains the conflict markers and stops at the first conflict. Exit code is non-zero. The summary names the reason, the untouched `develop` sha, and the attempt branch. Resolve that branch and open a PR against `develop`.
+On a merge conflict, or when a check fails after new commits exist, the script does not update `origin/develop`. It pushes the attempt to `sync/upstream-YYYYMMDD` (`ORCA_SYNC_TZ`, default UTC). A conflict commit is a two-parent merge commit (`develop` and the upstream sha) whose tree contains every conflict marker. Exit code is non-zero. The summary names the reason, the untouched `develop` sha, and the attempt branch. Resolve that branch and open a PR against `develop`; merge it with a merge commit or fast-forward, never with rebase or squash, so the upstream parent is kept.
 
 A dirty worktree, or a check failure when `HEAD` is still `origin/develop`, exits non-zero and pushes nothing.
 

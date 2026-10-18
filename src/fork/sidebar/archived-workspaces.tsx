@@ -1,6 +1,6 @@
 // Archived Orca workspaces inside the visibility dialog. Restore clears isArchived.
 import React, { useMemo, useState } from 'react'
-import { translate } from '../../renderer/src/i18n/i18n'
+import { forkTranslate } from '../i18n/fork-translate'
 import { Button } from '../../renderer/src/components/ui/button'
 import { Input } from '../../renderer/src/components/ui/input'
 import { getWorktreeExecutionHostId, normalizeExecutionHostId } from '../../shared/execution-host'
@@ -43,15 +43,15 @@ function ArchivedWorkspaceList({
   return (
     <section className="grid min-w-0 gap-2">
       <h3 className="text-sm font-medium">
-        {translate('fork.sidebar.archivedWorkspaces', 'Removed from Orca ({{value0}})', {
+        {forkTranslate('fork.sidebar.archivedWorkspaces', 'Removed from Orca ({{value0}})', {
           value0: archived.length
         })}
       </h3>
       <Input
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder={translate('fork.sidebar.searchWorkspaces', 'Search workspaces')}
-        aria-label={translate('fork.sidebar.searchWorkspaces', 'Search workspaces')}
+        placeholder={forkTranslate('fork.sidebar.searchWorkspaces', 'Search workspaces')}
+        aria-label={forkTranslate('fork.sidebar.searchWorkspaces', 'Search workspaces')}
       />
       <ul className="grid gap-1">
         {visible.map((worktree) => (
@@ -69,7 +69,7 @@ function ArchivedWorkspaceList({
                 )
               }}
             >
-              {translate('fork.sidebar.restoreWorkspace', 'Restore')}
+              {forkTranslate('fork.sidebar.restoreWorkspace', 'Restore')}
             </Button>
           </li>
         ))}

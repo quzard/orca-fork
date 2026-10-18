@@ -4,7 +4,7 @@ import { Eye, FolderMinus } from 'lucide-react'
 import { DropdownMenuItem } from '../../renderer/src/components/ui/dropdown-menu'
 import { Button } from '../../renderer/src/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../../renderer/src/components/ui/tooltip'
-import { translate } from '../../renderer/src/i18n/i18n'
+import { forkTranslate } from '../i18n/fork-translate'
 import { getWorktreeExecutionHostId } from '../../shared/execution-host'
 import { useAppStore } from '../../renderer/src/store'
 import {
@@ -31,7 +31,7 @@ function openVisibility(hostId: string | undefined, repoId?: string): void {
 }
 
 function HeaderEye(): React.JSX.Element {
-  const label = translate('fork.sidebar.hiddenWorkspaces', 'Hidden workspaces')
+  const label = forkTranslate('fork.sidebar.hiddenWorkspaces', 'Hidden workspaces')
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -58,7 +58,7 @@ export function registerSidebarMenuSlots(): void {
   registerHostSectionMenuExtra((hostId) => (
     <DropdownMenuItem onSelect={() => openVisibility(hostId)}>
       <Eye className="size-3.5" />
-      {translate('fork.sidebar.hiddenWorkspaces', 'Hidden workspaces')}
+      {forkTranslate('fork.sidebar.hiddenWorkspaces', 'Hidden workspaces')}
     </DropdownMenuItem>
   ))
   registerSidebarContextMenu((worktree) => (
@@ -72,7 +72,7 @@ export function registerSidebarMenuSlots(): void {
         }
       >
         <Eye className="size-3.5" />
-        {translate('fork.sidebar.hiddenWorkspaces', 'Hidden workspaces')}
+        {forkTranslate('fork.sidebar.hiddenWorkspaces', 'Hidden workspaces')}
       </DropdownMenuItem>
       <DropdownMenuItem
         onSelect={() => {

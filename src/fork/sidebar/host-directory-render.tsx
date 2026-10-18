@@ -1,5 +1,5 @@
 // Turns a host-directory occurrence plan into sidebar rows.
-import { translate } from '../../renderer/src/i18n/i18n'
+import { forkTranslate } from '../i18n/fork-translate'
 import type { ExecutionHostId } from '../../shared/execution-host'
 import type { ProjectGroup } from '../../shared/project-group-types'
 import { getWorktreeHostIdentity } from '../../shared/worktree/host-qualified-identity'
@@ -60,7 +60,7 @@ function appendPinned(rows: Row[], args: HostDirectoryRenderArgs): void {
   rows.push({
     type: 'header',
     key: PINNED_SECTION_KEY,
-    label: translate('auto.components.sidebar.worktree.list.groups.4aeefc5996', 'Pinned'),
+    label: forkTranslate('auto.components.sidebar.worktree.list.groups.4aeefc5996', 'Pinned'),
     count: pinned.items.length,
     icon: { kind: 'pinned' },
     hostWorktreeCounts,

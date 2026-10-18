@@ -25,11 +25,12 @@ function sourceFiles(dir: string): string[] {
   })
 }
 
-// Upstream's extraction check skips src/fork (config/i18next.config.ts), so this takes its place.
+// Fork code calls forkTranslate, which upstream's extraction check (config/i18next.config.ts) does not
+// match, so this takes its place for fork keys.
 describe('fork translation keys', () => {
   it('every literal key fork code translates has English in the fork overlay or upstream', () => {
     const keys = sourceFiles('src/fork').flatMap((file) =>
-      [...readFileSync(file, 'utf8').matchAll(/\btranslate\(\s*['"]([\w.-]+)['"]/g)].map(
+      [...readFileSync(file, 'utf8').matchAll(/\bforkTranslate\(\s*['"]([\w.-]+)['"]/g)].map(
         (match) => ({ file, key: match[1] })
       )
     )
@@ -38,6 +39,13 @@ describe('fork translation keys', () => {
       ({ key }) => typeof (lookup(en, key) ?? lookup(upstreamEn, key)) !== 'string'
     )
     expect(missing).toEqual([])
+  })
+
+  it('fork code does not call translate directly, so the upstream extraction never sees fork keys', () => {
+    const direct = sourceFiles('src/fork')
+      .filter((file) => !file.endsWith('fork-translate.tsx'))
+      .filter((file) => /(?<![\w.])translate\(/.test(readFileSync(file, 'utf8')))
+    expect(direct).toEqual([])
   })
 
   it('upstream files translate no fork key, so upstream en.json needs none', () => {

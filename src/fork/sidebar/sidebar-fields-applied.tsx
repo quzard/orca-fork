@@ -1,6 +1,6 @@
 // fork: an older remote host parses worktree.set in strip mode. It drops sidebarGroupId and
 // clearFields but applies the rest, so a group move would land half-way without a word.
-import { translate } from '../../renderer/src/i18n/i18n'
+import { forkTranslate } from '../i18n/fork-translate'
 import { hasRuntimeRpcErrorCode } from '../../shared/runtime-rpc-error-code'
 import {
   folderSidebarFieldsNotApplied,
@@ -10,7 +10,7 @@ import {
 type SidebarFields = { sidebarGroupId?: string | null; manualOrder?: number }
 
 export function sidebarFieldsNotAppliedMessage(): string {
-  return translate(
+  return forkTranslate(
     'fork.sidebar.hostTooOldForGroups',
     'Update Orca on this host to move workspaces between groups.'
   )

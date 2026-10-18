@@ -1,6 +1,6 @@
 // Archive one workspace in Orca. The directory and git branch stay on the host.
 import { toast } from 'sonner'
-import { translate } from '../../renderer/src/i18n/i18n'
+import { forkTranslate } from '../i18n/fork-translate'
 import { getWorktreeExecutionHostId } from '../../shared/execution-host'
 import { getWorktreeOperationOwnerHostIds } from '../../renderer/src/lib/worktree-operation-route'
 import { findRepoForHost } from '../../renderer/src/store/slices/repo-host-identity'
@@ -16,22 +16,25 @@ import type { ExecutionHostId } from '../../shared/execution-host'
 
 export const workspaceRemovalLabels = {
   get failed() {
-    return translate('fork.workspaceRemoval.failed', 'Could not remove this workspace from Orca')
+    return forkTranslate(
+      'fork.workspaceRemoval.failed',
+      'Could not remove this workspace from Orca'
+    )
   },
   get ambiguous() {
-    return translate(
+    return forkTranslate(
       'fork.workspaceRemoval.ambiguous',
       'This workspace has multiple execution hosts. Its terminal ownership must be resolved before removal.'
     )
   },
   get removed() {
-    return translate('fork.workspaceRemoval.removed', 'Workspace removed from Orca')
+    return forkTranslate('fork.workspaceRemoval.removed', 'Workspace removed from Orca')
   },
   get undo() {
-    return translate('fork.workspaceRemoval.undo', 'Undo')
+    return forkTranslate('fork.workspaceRemoval.undo', 'Undo')
   },
   get menu() {
-    return translate('fork.workspaceRemoval.menu', 'Remove from Orca')
+    return forkTranslate('fork.workspaceRemoval.menu', 'Remove from Orca')
   }
 }
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useAppStore } from '@/store'
-import { translate } from '@/i18n/i18n'
+import { forkTranslate } from '../i18n/fork-translate'
 import { useSessionSearchStatus } from '@/components/settings/use-session-search-status'
 import {
   isSessionSearchIndexReady,
@@ -106,15 +106,15 @@ function IndexHostRow({
   }, [attention, id, onAttention])
   let message = sessionSearchCheckingMessage()
   if (phase === 'attention' && !connected) {
-    message = translate('fork.aiVault.indexOffline', 'Offline · index status unknown')
+    message = forkTranslate('fork.aiVault.indexOffline', 'Offline · index status unknown')
   } else if (phase === 'attention') {
     message = failed
       ? sessionSearchReadErrorMessage()
-      : translate('fork.aiVault.indexUnavailable', 'Index status is unavailable on this host')
+      : forkTranslate('fork.aiVault.indexUnavailable', 'Index status is unavailable on this host')
   } else if (phase === 'off') {
-    message = translate('fork.aiVault.indexOff', 'Full-text indexing is off')
+    message = forkTranslate('fork.aiVault.indexOff', 'Full-text indexing is off')
   } else if (phase === 'unknown') {
-    message = translate(
+    message = forkTranslate(
       'fork.aiVault.indexNotReady',
       'Index is not ready · results may be incomplete'
     )
@@ -125,7 +125,7 @@ function IndexHostRow({
     <div className="space-y-1">
       <p className="font-medium text-foreground">{label}</p>
       {listLoading ? (
-        <p>{translate('fork.aiVault.listUpdating', 'History list is updating')}</p>
+        <p>{forkTranslate('fork.aiVault.listUpdating', 'History list is updating')}</p>
       ) : null}
       <p>{message}</p>
       {details.map((line) => (
@@ -161,7 +161,7 @@ export function AiVaultIndexStatus(): React.JSX.Element {
         aria-expanded={shown}
         onClick={() => setOpen((current) => !current)}
       >
-        {translate('fork.aiVault.indexStatus', INDEX_STATUS_LABEL)}
+        {forkTranslate('fork.aiVault.indexStatus', INDEX_STATUS_LABEL)}
       </button>
       <div hidden={!shown} className="space-y-1 pt-1">
         {rows}

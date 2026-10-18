@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { ChevronsDownUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { translate } from '@/i18n/i18n'
+import { forkTranslate } from '../i18n/fork-translate'
 import { requestAiVaultCollapseAll } from '../../shared/fork-hooks/ai-vault'
 import { readAiVaultPanelStatus, subscribeAiVaultPanelStatus } from './panel-status'
 
@@ -16,7 +16,7 @@ export function AiVaultCollapseAllButton(): React.JSX.Element {
       variant="ghost"
       size="icon-xs"
       className="size-6"
-      aria-label={translate('fork.aiVault.collapseAll', COLLAPSE_ALL_GROUPS_LABEL)}
+      aria-label={forkTranslate('fork.aiVault.collapseAll', COLLAPSE_ALL_GROUPS_LABEL)}
       onClick={() => requestAiVaultCollapseAll()}
     >
       <ChevronsDownUp className="size-3" />
@@ -29,7 +29,7 @@ export function AiVaultHostStatus(): React.JSX.Element | null {
   if (status.loading) {
     return (
       <p className="border-b border-sidebar-border px-3 py-1 text-xs text-muted-foreground">
-        {translate('fork.aiVault.scanning', SCANNING_HISTORY_LABEL)}
+        {forkTranslate('fork.aiVault.scanning', SCANNING_HISTORY_LABEL)}
       </p>
     )
   }
@@ -38,12 +38,12 @@ export function AiVaultHostStatus(): React.JSX.Element | null {
   }
   return (
     <p className="border-b border-sidebar-border px-3 py-1 text-xs text-muted-foreground">
-      {translate('fork.aiVault.hostCount', HOST_COUNT_LABEL, { count: status.hostCount })}
+      {forkTranslate('fork.aiVault.hostCount', HOST_COUNT_LABEL, { count: status.hostCount })}
     </p>
   )
 }
 
 /** Submenu title for hosts that are configured but not in the main list. */
 export function aiVaultOtherHostsLabel(): string {
-  return translate('fork.aiVault.otherHosts', 'Other configured hosts')
+  return forkTranslate('fork.aiVault.otherHosts', 'Other configured hosts')
 }

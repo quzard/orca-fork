@@ -1,6 +1,6 @@
 import { toast } from 'sonner'
 import { useAppStore } from '@/store'
-import { translate } from '@/i18n/i18n'
+import { forkTranslate } from '../i18n/fork-translate'
 import { normalizeRuntimePathForComparison } from '../../shared/cross-platform-path'
 import { LOCAL_EXECUTION_HOST_ID, type ExecutionHostId } from '../../shared/execution-host'
 import type { ForkPostImportDetails } from '../../shared/fork-hooks/post-import'
@@ -107,8 +107,11 @@ export async function applyForkPostImport(details: ForkPostImportDetails): Promi
   try {
     await ensureParentFolder(details)
   } catch (error) {
-    toast.warning(translate('workspaceImport.parentFolderFailed', PARENT_FOLDER_IMPORT_WARNING), {
-      description: error instanceof Error ? error.message : String(error)
-    })
+    toast.warning(
+      forkTranslate('workspaceImport.parentFolderFailed', PARENT_FOLDER_IMPORT_WARNING),
+      {
+        description: error instanceof Error ? error.message : String(error)
+      }
+    )
   }
 }

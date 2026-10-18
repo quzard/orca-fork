@@ -1,5 +1,5 @@
 // fork: SSH connection status names are translated. Upstream's literal stays the English fallback.
-import { translate } from '../../renderer/src/i18n/i18n'
+import { forkTranslate } from '../i18n/fork-translate'
 
 const KEY_BY_STATUS: Readonly<Record<string, string>> = {
   disconnected: 'disconnected',
@@ -23,7 +23,7 @@ export function withForkSshStatusLabels<T extends Record<string, string>>(labels
     }
     const english = descriptor.value
     Object.defineProperty(labels, status, {
-      get: () => translate(`sshConnectionStatus.${key}`, english),
+      get: () => forkTranslate(`sshConnectionStatus.${key}`, english),
       enumerable: true,
       configurable: true
     })

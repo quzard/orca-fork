@@ -1,6 +1,6 @@
 // Settings project list: hover checkbox, select all, then confirm Remove N.
 import React, { useSyncExternalStore } from 'react'
-import { translate } from '../../renderer/src/i18n/i18n'
+import { forkTranslate } from '../i18n/fork-translate'
 import { Button } from '../../renderer/src/components/ui/button'
 import { Checkbox } from '../../renderer/src/components/ui/checkbox'
 import {
@@ -91,7 +91,7 @@ function BulkHeader(): React.JSX.Element | null {
       <Checkbox
         checked={all}
         onCheckedChange={() => toggleAllSettingsProjects(sectionIds)}
-        aria-label={translate('fork.settings.selectAllProjects', 'Select all projects')}
+        aria-label={forkTranslate('fork.settings.selectAllProjects', 'Select all projects')}
       />
       {count > 0 ? (
         <Button
@@ -103,8 +103,8 @@ function BulkHeader(): React.JSX.Element | null {
           }}
         >
           {bulk.armed
-            ? translate('fork.settings.confirmRemove', 'Confirm')
-            : translate('fork.settings.removeProjects', 'Remove {{value0}}', { value0: count })}
+            ? forkTranslate('fork.settings.confirmRemove', 'Confirm')
+            : forkTranslate('fork.settings.removeProjects', 'Remove {{value0}}', { value0: count })}
         </Button>
       ) : null}
     </div>
@@ -119,7 +119,7 @@ function RowPrefix({ sectionId }: { sectionId: string }): React.JSX.Element {
       checked={checked}
       onCheckedChange={() => toggleSettingsProject(sectionId)}
       onClick={(event) => event.stopPropagation()}
-      aria-label={translate('fork.settings.selectProject', 'Select project')}
+      aria-label={forkTranslate('fork.settings.selectProject', 'Select project')}
       className={checked ? 'opacity-100' : 'opacity-0 group-hover/settings-project:opacity-100'}
     />
   )

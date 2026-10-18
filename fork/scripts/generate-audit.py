@@ -58,6 +58,8 @@ OVR={
 'src/fork/sidebar/context-menu-label-keys.ts':('keep','PR #7 跟进：右键菜单文案键的常量表，键目录测试读取它'),
 'src/fork/ssh/ssh-status-keys.ts':('keep','PR #7 跟进：SSH 状态名键的常量表，键目录测试读取它'),
 'fork/scripts/mac-auto-update-seed.test.sh':('keep','PR #7 跟进：seed_glibc217 的 pin 校验、缓存和镜像下载的 shell 测试'),
+'fork/scripts/verify/check-commit-identity.sh':('keep','推送和发布前检查 upstream/main 之后每个提交的作者和提交者都是 quzard 的 noreply 身份'),
+'fork/scripts/check-commit-identity.test.sh':('keep','身份检查的 shell 测试：合规、作者、提交者、合并提交、缺 upstream/main'),
 'fork/scripts/generate-audit.py':('keep','PR #7 跟进：生成本表'),
 'docs/fork/AUDIT.md':('keep','PR #7 跟进：本表'),
 'src/fork/audit-table.fork.test.ts':('keep','PR #7 跟进：检查本表和仓库一致'),

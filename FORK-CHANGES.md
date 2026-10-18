@@ -124,6 +124,10 @@ launchd 里签名可能停在 Orca Local Signing 的钥匙串确认上。`--boot
 
 本 fork 新增的文档、脚本和 `src/fork` 不得写入雇主或内部环境的名称、地址、主机和数量。检查是 `fork/scripts/verify/check-no-internal-refs.sh`，扫描 `src/fork`、`src/shared/fork-hooks`、`docs/fork`、`fork/`、本文件，以及从 skill pin 记录的上游基点以来新增的所有文件（任何扩展名）；没有那个提交时退回按 `*.fork.test.ts(x)` 和 `*-fork.test.ts(x)` 文件名收集。具体模式放在未入库的 `fork/scripts/verify/internal-ref-patterns.local`，或环境变量 `ORCA_INTERNAL_REF_PATTERNS`。
 
+## 提交身份
+
+`fork/scripts/verify/check-commit-identity.sh [REF]`（默认 `HEAD`）检查 `git rev-list REF ^upstream/main` 里的每个提交，合并提交也算：作者和提交者都必须正好是 `quzard <30899719+quzard@users.noreply.github.com>`，否则列出不合规的 SHA 并失败。没有 `upstream/main` 引用时直接失败，不退回别的基点。`check-no-internal-refs.sh` 扫完内容后接着跑它（`ORCA_IDENTITY_REF` 可指定引用）；`daily-sync.sh` 在推 attempt 分支和 `develop` 之前各跑一次，并要求本机 git 身份就是这个；`fork/push_github.sh` 推送前跑；`mac-auto-update.sh` 发布 release 前对要发布的提交跑。测试是 `fork/scripts/check-commit-identity.test.sh`。
+
 ## 根目录杂项
 
 `push_github.sh` 在 [fork/push_github.sh](fork/push_github.sh)。主机、仓库路径、GitHub 地址和分支都要由环境变量给出，没有内置默认值。示例路径是 `/srv/wt/project`。

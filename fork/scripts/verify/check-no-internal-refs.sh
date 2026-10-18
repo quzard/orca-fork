@@ -4,6 +4,8 @@
 # fork/scripts/verify/internal-ref-patterns.local (gitignored); with neither it exits 2.
 # Patterns are fixed strings, matched case-insensitively. Uses rg when installed, else grep
 # over the files git would not ignore (tracked plus untracked, like rg's default).
+# Then runs check-commit-identity.sh on ORCA_IDENTITY_REF (default HEAD): every commit since
+# upstream/main must be by quzard's noreply identity.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -116,3 +118,4 @@ if [[ "$status" -ne 1 ]]; then
   exit "$status"
 fi
 echo 'no internal identifiers in fork-owned files'
+bash "$ROOT/fork/scripts/verify/check-commit-identity.sh" "${ORCA_IDENTITY_REF:-HEAD}"

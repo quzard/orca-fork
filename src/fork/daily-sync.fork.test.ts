@@ -47,6 +47,14 @@ describe('fork daily sync split', () => {
     expect(script).toContain('pnpm tc')
     expect(script).toContain('build-orcad-template.mjs')
     expect(script).toContain('git push origin "HEAD:refs/heads/develop"')
+    // Every push runs the identity guard first.
+    expect(script.indexOf('require_commit_identity HEAD')).toBeLessThan(
+      script.indexOf('git push origin "HEAD:refs/heads/develop"')
+    )
+    expect(script.indexOf('require_commit_identity "$commit"')).toBeLessThan(
+      script.indexOf('git push origin "${commit}:refs/heads/${ATTEMPT_BRANCH}"')
+    )
+    expect(refs).toContain('check-commit-identity.sh')
     expect(script).not.toContain('--force-with-lease="refs/heads/develop')
     expect(script).toContain('sync/upstream-')
     expect(script).not.toContain('--force-with-lease')
@@ -82,6 +90,7 @@ describe('fork daily sync split', () => {
     }
     const harness = `set -euo pipefail
 die() { printf '%s\n' "$@"; exit 1; }
+require_commit_identity() { :; }
 ${fn('attempt_shape')}
 ${fn('attempt_matches')}
 ${fn('push_attempt_commit')}
@@ -220,7 +229,14 @@ git ls-remote origin 'refs/heads/sync/*' | awk '{print $2}' | sort | tr '\n' ' '
     expect(publish).not.toContain('safeStorage')
     expect(publish.indexOf('release upload')).toBeGreaterThan(0)
     const publishCall = script.slice(script.indexOf('publish_release()'))
+    expect(publishCall.indexOf('check-commit-identity.sh')).toBeLessThan(
+      publishCall.indexOf('publish-mac-release.sh')
+    )
     expect(script).not.toContain('installedSha')
+    const pushGithub = readFileSync(resolve('fork/push_github.sh'), 'utf8')
+    expect(pushGithub.indexOf('check-commit-identity.sh')).toBeLessThan(
+      pushGithub.indexOf('push_args=(push)')
+    )
     expect(publishCall.indexOf('publish-mac-release.sh')).toBeLessThan(
       publishCall.indexOf('git reset --hard')
     )
@@ -263,6 +279,9 @@ git ls-remote origin 'refs/heads/sync/*' | awk '{print $2}' | sort | tr '\n' ' '
       stdio: 'inherit'
     })
     execFileSync('bash', [resolve('fork/scripts/mac-auto-update-seed.test.sh')], {
+      stdio: 'inherit'
+    })
+    execFileSync('bash', [resolve('fork/scripts/check-commit-identity.test.sh')], {
       stdio: 'inherit'
     })
   })

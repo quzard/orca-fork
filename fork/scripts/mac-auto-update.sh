@@ -382,6 +382,12 @@ publish_release() {
     return 0
   fi
   local out code=0 line value
+  # 发布前确认 upstream/main 之后的每个提交（含合并提交）都是 quzard 的 noreply 身份。
+  if ! (cd "$REPO" && bash fork/scripts/verify/check-commit-identity.sh "$SHA") >&2; then
+    RELEASE="failed"
+    ERROR="commit identity check failed for ${SHA}; not publishing"
+    return 1
+  fi
   # zip 和 latest-mac.yml 先公开，dmg 失败只记 pending，不把这次构建标成没发布。
   out="$(bash "${REPO}/fork/scripts/publish-mac-release.sh" --dist "${REPO}/dist" --sha "$SHA")" || code=$?
   while IFS= read -r line; do

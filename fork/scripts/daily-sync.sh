@@ -28,9 +28,19 @@ die() {
   exit 1
 }
 
+# 合并提交和 pin 提交用这里的身份。和 check-commit-identity.sh 要求的一致，否则推送前一定被拦。
 require_identity() {
-  if ! git config user.name >/dev/null || ! git config user.email >/dev/null; then
-    die "daily-sync: FAILED" "reason: git user.name and user.email must be set" "develop: not pushed"
+  if [[ "$(git config user.name || true)" != "quzard" ||
+    "$(git config user.email || true)" != "30899719+quzard@users.noreply.github.com" ]]; then
+    die "daily-sync: FAILED" "reason: git user.name and user.email must be quzard <30899719+quzard@users.noreply.github.com>" "develop: not pushed"
+  fi
+}
+
+# 每次推送前：upstream/main 之后的每个提交（含合并提交）作者和提交者都必须是 quzard 的 noreply 身份。
+require_commit_identity() {
+  local ref="$1"
+  if ! bash "${REPO_ROOT}/fork/scripts/verify/check-commit-identity.sh" "$ref"; then
+    die "daily-sync: FAILED" "reason: commit identity check failed for ${ref}" "develop: not pushed (${ORIGIN_DEVELOP})"
   fi
 }
 
@@ -137,6 +147,7 @@ push_attempt_commit() {
     ATTEMPT_BRANCH="${base}-${n}"
     n=$((n + 1))
   done
+  require_commit_identity "$commit"
   if ! git push origin "${commit}:refs/heads/${ATTEMPT_BRANCH}"; then
     die "daily-sync: FAILED" "reason: could not push ${ATTEMPT_BRANCH}" "commit: ${commit}" "develop: not pushed (${ORIGIN_DEVELOP})"
   fi
@@ -274,6 +285,7 @@ if [[ "$head" == "$ORIGIN_DEVELOP" ]]; then
 fi
 
 # 普通推送：develop 只会快进。别人先推了新提交时推送被拒，develop 不会被覆盖，合并结果改推到 attempt 分支。
+require_commit_identity HEAD
 if ! git push origin "HEAD:refs/heads/develop"; then
   PUSH_ATTEMPT=1
   fail_checks "develop push rejected (develop moved since ${ORIGIN_DEVELOP})"

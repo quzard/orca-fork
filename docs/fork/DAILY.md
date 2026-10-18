@@ -24,6 +24,8 @@ On a merge conflict, or when a check fails after new commits exist, the script d
 
 A dirty worktree, or a check failure when `HEAD` is still `origin/develop`, exits non-zero and pushes nothing.
 
+Before each push (the attempt branch and `develop`) the script runs `fork/scripts/verify/check-commit-identity.sh`: every commit in `git rev-list <ref> ^upstream/main`, merge commits included, must have author and committer exactly `quzard <30899719+quzard@users.noreply.github.com>`. A failure lists the offending SHAs, exits non-zero and pushes nothing, not even an attempt branch. A missing `upstream/main` ref fails the same way. The script also stops at the start unless `git config user.name` / `user.email` are `quzard` / `30899719+quzard@users.noreply.github.com`, because the merge and pin commits use them. `check-no-internal-refs.sh` runs the same identity check after its content scan. `fork/push_github.sh` runs it before pushing, and `mac-auto-update.sh` runs it on the commit it is about to publish (the Mac checkout needs an up-to-date `upstream/main` ref for this).
+
 ## Home Mac: build, sign, publish
 
 LaunchAgent `com.orca.fork.mac-auto-update` runs `~/Projects/orca-verify/bin/mac-auto-update.sh`, a copy outside the checkout. The installer refreshes that copy. The script also re-executes itself from a temp file before any git command, so `git reset --hard origin/develop` cannot rewrite the file that is running. After a run that published the updater, including a run whose dmg is still pending, it refreshes the installed copy with `cp` to `.next` and `mv`. A `skipped` run does not. A run that failed before the release was public leaves the previous copy in place.

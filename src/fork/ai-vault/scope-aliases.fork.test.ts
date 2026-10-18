@@ -5,6 +5,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { filterAiVaultSessions } from '../../shared/ai-vault-session-filters'
 import type { AiVaultSession } from '../../shared/ai-vault-types'
 import { resetAiVaultForkHooksForTests } from '../../shared/fork-hooks/ai-vault'
+import { parseAiVaultListResult } from '../../main/ai-vault/session-list-result-validation'
+import { normalizeRuntimePathForComparison } from '../../shared/cross-platform-path'
+import { matchForkCwdCandidates } from '../../shared/fork-hooks/ai-vault-cwd'
 import { attachScopePathAliases, expandScopePathAliases } from './scope-aliases'
 
 const WORKSPACE = '/srv/wt/project'
@@ -108,4 +111,63 @@ describe('scope path aliases', () => {
     })
     expect(missed).toHaveLength(0)
   })
+
+  it('prefers the more specific alias when a parent path also matches', () => {
+    const candidates = [
+      { path: '/home/user', length: '/home/user'.length },
+      { path: '/home/user/link', length: '/home/user/link'.length }
+    ]
+    const owns = (candidate: { path: string }, cwd: string): boolean =>
+      cwd === candidate.path || cwd.startsWith(`${candidate.path}/`)
+    const ranked = matchForkCwdCandidates(
+      {
+        cwd: '/srv/wt/project/app',
+        cwdAliases: ['/home/user/link/app']
+      },
+      candidates,
+      {
+        normalize: normalizeRuntimePathForComparison,
+        owns,
+        pathLength: (candidate) => candidate.length,
+        tieBreak: (left, right) => right.length - left.length
+      }
+    )
+    expect(ranked.map((candidate) => candidate.path)).toEqual(['/home/user/link', '/home/user'])
+  })
+
+  it('keeps cwd aliases through list validation and drops them when absent', () => {
+    const parsed = parseAiVaultListResult({
+      sessions: [{ ...validSession(), cwdAliases: ['/home/user/link'] }],
+      issues: [],
+      scannedAt: '2026-01-01T00:00:00.000Z'
+    })
+    expect(parsed.sessions[0]?.cwd).toBe('/home/user/project')
+    expect(parsed.sessions[0]?.cwdAliases).toEqual(['/home/user/link'])
+  })
 })
+
+function validSession(): Record<string, unknown> {
+  return {
+    id: 'local:cursor:session-1:/home/user/session.jsonl',
+    executionHostId: 'local',
+    executionHostPlatform: 'linux',
+    agent: 'cursor',
+    sessionId: 'session-1',
+    title: 'Session',
+    cwd: '/home/user/project',
+    branch: null,
+    model: null,
+    filePath: '/home/user/session.jsonl',
+    codexHome: null,
+    createdAt: null,
+    updatedAt: null,
+    modifiedAt: '2026-01-01T00:00:00.000Z',
+    messageCount: 1,
+    totalTokens: 0,
+    previewMessages: [],
+    queuedMessageCount: 0,
+    subagentTranscriptCount: 0,
+    resumeCommand: 'cursor resume session-1',
+    subagent: null
+  }
+}

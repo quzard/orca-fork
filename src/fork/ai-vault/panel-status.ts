@@ -29,8 +29,3 @@ export function subscribeAiVaultPanelStatus(listener: () => void): () => void {
   listeners.add(listener)
   return () => listeners.delete(listener)
 }
-
-export function resetAiVaultPanelStatusForTests(): void {
-  current = { loading: false, sessionCount: 0, hostCount: 0 }
-  listeners.clear()
-}

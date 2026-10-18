@@ -87,8 +87,3 @@ export async function applyRegisteredSidebarGroup(
   }
   await assignGroup(worktreeId, sidebarGroupId, hostId)
 }
-
-export function resetComposerSeedForTests(): void {
-  readSeed = undefined
-  assignGroup = undefined
-}

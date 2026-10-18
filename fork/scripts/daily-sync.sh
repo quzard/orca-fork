@@ -64,6 +64,8 @@ Upstream: ${UPSTREAM_SHA}
 Conflicted files:
 ${files}
 
+Modify/delete conflicts have no markers; check each listed file against both parents.
+
 Resolve the markers on this branch, then open a PR against develop.
 EOF
     )"
@@ -83,13 +85,14 @@ EOF
 
 push_attempt_commit() {
   local commit="$1"
-  if git ls-remote --exit-code origin "refs/heads/${ATTEMPT_BRANCH}" >/dev/null 2>&1; then
-    git fetch --no-tags origin "refs/heads/${ATTEMPT_BRANCH}:refs/remotes/origin/${ATTEMPT_BRANCH}"
-    if ! git push --force-with-lease="refs/heads/${ATTEMPT_BRANCH}:$(git rev-parse "origin/${ATTEMPT_BRANCH}")" \
-      origin "${commit}:refs/heads/${ATTEMPT_BRANCH}"; then
-      die "daily-sync: FAILED" "reason: could not push ${ATTEMPT_BRANCH}" "commit: ${commit}" "develop: not pushed (${ORIGIN_DEVELOP})"
-    fi
-  elif ! git push origin "${commit}:refs/heads/${ATTEMPT_BRANCH}"; then
+  local base="$ATTEMPT_BRANCH"
+  local n=2
+  # attempt 分支永远不强推。当天已有同名分支（可能带着手工解法）时，改用 -2、-3 … 后缀。
+  while git ls-remote --exit-code origin "refs/heads/${ATTEMPT_BRANCH}" >/dev/null 2>&1; do
+    ATTEMPT_BRANCH="${base}-${n}"
+    n=$((n + 1))
+  done
+  if ! git push origin "${commit}:refs/heads/${ATTEMPT_BRANCH}"; then
     die "daily-sync: FAILED" "reason: could not push ${ATTEMPT_BRANCH}" "commit: ${commit}" "develop: not pushed (${ORIGIN_DEVELOP})"
   fi
 }
@@ -225,8 +228,11 @@ if [[ "$head" == "$ORIGIN_DEVELOP" ]]; then
   exit 0
 fi
 
-# 普通推送：develop 只会快进。别人先推了新提交时推送被拒，develop 不会被覆盖。
-git push origin "HEAD:refs/heads/develop"
+# 普通推送：develop 只会快进。别人先推了新提交时推送被拒，develop 不会被覆盖，合并结果改推到 attempt 分支。
+if ! git push origin "HEAD:refs/heads/develop"; then
+  PUSH_ATTEMPT=1
+  fail_checks "develop push rejected (develop moved since ${ORIGIN_DEVELOP})"
+fi
 summary \
   "daily-sync: OK" \
   "upstream: ${UPSTREAM_SHA}" \

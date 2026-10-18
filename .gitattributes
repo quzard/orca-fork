@@ -105,7 +105,6 @@
 # A later line overrides only the merge attribute, so the text eol=lf pins above stay exact.
 /skills/*/SKILL.md merge=ours
 /src/cli/bundled-skill-guides.ts merge=ours
-/src/renderer/src/i18n/en-runtime-required.json merge=ours
 /src/shared/rpc-contract/rpc-params-catalog.generated.ts merge=ours
 /src/main/acp/generated/*.generated.ts merge=ours
 /resources/skills/*.json merge=ours

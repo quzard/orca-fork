@@ -15,13 +15,14 @@ git config merge.ours.driver true
 
 `merge.ours.driver true` keeps the current branch’s copy of a generated file. After the merge, regenerate that file from the merged sources and commit the result. Do not leave a stale manifest in place.
 
-Generated paths marked `merge=ours`:
+Generated paths marked `merge=ours`. `src/renderer/src/i18n/en-runtime-required.json` is deliberately not on this list: with merge, `ours` is `develop`, so upstream additions to it would be silently dropped and `verify:localization-runtime-catalog` would fail. It merges normally.
+
+The list:
 
 - `resources/skills/current-manifest.json` (and the rest of `resources/skills/*.json`)
 - `src/cli/bundled-skill-guides.ts`
 - `skills/*/SKILL.md`
 - `src/shared/rpc-contract/rpc-params-catalog.generated.ts`
-- `src/renderer/src/i18n/en-runtime-required.json`
 - `src/main/acp/generated/*.generated.ts`
 
 ## Merge
@@ -34,7 +35,7 @@ git merge --no-ff <upstream-main-sha>
 
 Do not rebase `develop` onto upstream: that rewrites every fork commit and would need a force push.
 
-Conflicts should be limited to the `// fork:` lines listed in HOOKS.md. Keep the upstream side, then re-apply the hook call if the surrounding function moved. After the first resolution, `git rerere` replays it on the next sync.
+Conflicts should be limited to the `// fork:` lines listed in HOOKS.md. Keep the upstream side, then re-apply the hook call if the surrounding function moved. On a machine that keeps its `.git` directory, `git rerere` replays a resolution on the next sync. The daily cloud job starts from a fresh checkout every time, so it does not benefit from rerere.
 
 ```bash
 git rerere status

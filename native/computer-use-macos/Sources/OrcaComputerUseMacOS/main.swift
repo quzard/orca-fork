@@ -3224,23 +3224,17 @@ private final class PermissionView: NSView {
         } ?? []
         let checking = permissionStatus == nil
         let ready = !checking && missingPermissions.isEmpty
-        // fork: the card only while a permission is still missing; otherwise upstream's icon.
+        // fork: the card keeps one place in every state, so checking, missing and ready never
+        // swap layouts; it only accepts a drag while a permission is still missing.
         let showsDragCard = ForkPermissionCard.enabled && !checking && !ready
-        // fork: while checking, an empty slot holds the card's place so the switch does not jump.
-        let holdsDragCardSlot = ForkPermissionCard.enabled && checking
-        let usesCardLayout = showsDragCard || holdsDragCardSlot
+        let usesCardLayout = ForkPermissionCard.enabled
 
         let headerArt: NSView
-        if showsDragCard {
-            let appTile = DraggableAppTile(appURL: appURL)
+        if usesCardLayout {
+            let appTile = DraggableAppTile(appURL: appURL, dragEnabled: showsDragCard)
             appTile.translatesAutoresizingMaskIntoConstraints = false
             appTile.heightAnchor.constraint(equalToConstant: 42).isActive = true
             headerArt = appTile
-        } else if holdsDragCardSlot {
-            let slot = NSView()
-            slot.translatesAutoresizingMaskIntoConstraints = false
-            slot.heightAnchor.constraint(equalToConstant: 42).isActive = true
-            headerArt = slot
         } else {
             let icon = NSImageView(image: NSWorkspace.shared.icon(forFile: appURL.path))
             icon.imageScaling = .scaleProportionallyUpOrDown
@@ -3807,6 +3801,8 @@ private final class PermissionDragAssistantView: NSView {
 
 private final class DraggableAppTile: NSView, NSDraggingSource {
     private let appURL: URL
+    // fork: the permission window shows the card while checking and when ready, without a drag.
+    private let dragEnabled: Bool
 
     override var mouseDownCanMoveWindow: Bool { false }
 
@@ -3822,8 +3818,9 @@ private final class DraggableAppTile: NSView, NSDraggingSource {
         return hit == nil ? nil : self
     }
 
-    init(appURL: URL) {
+    init(appURL: URL, dragEnabled: Bool = true) {
         self.appURL = appURL
+        self.dragEnabled = dragEnabled
         super.init(frame: .zero)
         wantsLayer = true
         layer?.cornerRadius = 12
@@ -3838,6 +3835,7 @@ private final class DraggableAppTile: NSView, NSDraggingSource {
     }
 
     override func mouseDragged(with event: NSEvent) {
+        guard dragEnabled else { return }
         let item = NSPasteboardItem()
         item.setString(appURL.absoluteString, forType: .fileURL)
         item.setString(appURL.path, forType: .string)

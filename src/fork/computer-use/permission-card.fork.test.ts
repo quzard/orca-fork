@@ -17,15 +17,19 @@ describe('computer-use permission card', () => {
     expect(source).toContain('static let enabled = CommandLine.arguments.contains(argument)')
   })
 
-  it('shows the card only while a permission is missing, upstream icon otherwise', () => {
+  it('keeps the card in one place in every state, and drags only while one is missing', () => {
+    expect(source).toContain('let usesCardLayout = ForkPermissionCard.enabled')
     expect(source).toContain(
       'let showsDragCard = ForkPermissionCard.enabled && !checking && !ready'
     )
-    expect(source).toContain('let appTile = DraggableAppTile(appURL: appURL)')
+    expect(source).toContain(
+      'let appTile = DraggableAppTile(appURL: appURL, dragEnabled: showsDragCard)'
+    )
     expect(source).toContain('appTile.heightAnchor.constraint(equalToConstant: 42)')
-    // Upstream's icon and copy stay for the other states and for upstream launches.
-    expect(source).toContain('icon.widthAnchor.constraint(equalToConstant: 58)')
-    expect(source).toContain('"Grant permissions so Orca can use apps when you ask."')
+    expect(source).toContain('guard dragEnabled else { return }')
+    // No blank placeholder while checking: the card itself holds the place.
+    expect(source).not.toContain('holdsDragCardSlot')
+    expect(source).not.toMatch(/let slot = NSView\(\)/)
     expect(source).toContain(
       'views: usesCardLayout ? [title, subtitle, headerArt] : [headerArt, title, subtitle]'
     )
@@ -34,10 +38,12 @@ describe('computer-use permission card', () => {
     )
   })
 
-  it('holds the card slot while checking, so the switch to the card does not jump', () => {
-    expect(source).toContain('let holdsDragCardSlot = ForkPermissionCard.enabled && checking')
-    expect(source).toContain('let usesCardLayout = showsDragCard || holdsDragCardSlot')
-    expect(source).toContain('slot.heightAnchor.constraint(equalToConstant: 42)')
+  it('keeps the upstream icon, copy and drag tile when the argument is absent', () => {
+    expect(source).toContain('icon.widthAnchor.constraint(equalToConstant: 58)')
+    expect(source).toContain('"Grant permissions so Orca can use apps when you ask."')
+    // The drag assistant still builds the tile the upstream way, with the drag on.
+    expect(source).toContain('let dragTile = DraggableAppTile(appURL: appURL)')
+    expect(source).toContain('init(appURL: URL, dragEnabled: Bool = true)')
   })
 
   it('gates the inactive-window drag and the window-stays-up change', () => {

@@ -52,28 +52,30 @@ describe('fork skill source commit', () => {
   // (no fork/base-upstream, no upstream/main) cannot say what the base is, so it skips by name.
   const upstreamRefs = UPSTREAM_REFS.filter((ref) => hasRef(ref))
 
-  it.skipIf(upstreamRefs.length === 0)(
-    'pins a fork build to the upstream base, never this fork commit (skipped: no upstream ref in this clone)',
-    () => {
-      const head = git(['rev-parse', 'HEAD'])
-      const pin = resolveForkSkillsSourceCommit(head)
-      expect(FORK_SKILLS_SOURCE_COMMIT).toBe(pin)
-      expect(pin).not.toBe(head)
-      // The pin is the base the resolver found from the first ref present, and every ref present
-      // contains it: a fork/base-upstream-less Mac uses merge-base with upstream/main, not its tip.
-      expect(pin).toBe(git(['merge-base', 'HEAD', upstreamRefs[0]!]))
-      for (const ref of upstreamRefs) {
-        expect(() => git(['merge-base', '--is-ancestor', pin!, ref])).not.toThrow()
-      }
-      const sourceCommit = resolveSkillSourceCommit(head)
-      expect(sourceCommit).toBe(pin)
-      const command = buildAgentFeatureSkillInstallCommand(['orca-cli'], {
-        sourceCommit: sourceCommit ?? head
-      })
-      expect(command).toContain(`https://github.com/stablyai/orca/tree/${pin}`)
-      expect(command).not.toContain(`/tree/${head}`)
+  const pinTestName =
+    upstreamRefs.length === 0
+      ? 'pins a fork build to the upstream base (skipped: no upstream ref in this clone)'
+      : `pins a fork build to the upstream base, never this fork commit (checked against ${upstreamRefs.join(', ')})`
+
+  it.skipIf(upstreamRefs.length === 0)(pinTestName, () => {
+    const head = git(['rev-parse', 'HEAD'])
+    const pin = resolveForkSkillsSourceCommit(head)
+    expect(FORK_SKILLS_SOURCE_COMMIT).toBe(pin)
+    expect(pin).not.toBe(head)
+    // The pin is the base the resolver found from the first ref present, and every ref present
+    // contains it: a fork/base-upstream-less Mac uses merge-base with upstream/main, not its tip.
+    expect(pin).toBe(git(['merge-base', 'HEAD', upstreamRefs[0]!]))
+    for (const ref of upstreamRefs) {
+      expect(() => git(['merge-base', '--is-ancestor', pin!, ref])).not.toThrow()
     }
-  )
+    const sourceCommit = resolveSkillSourceCommit(head)
+    expect(sourceCommit).toBe(pin)
+    const command = buildAgentFeatureSkillInstallCommand(['orca-cli'], {
+      sourceCommit: sourceCommit ?? head
+    })
+    expect(command).toContain(`https://github.com/stablyai/orca/tree/${pin}`)
+    expect(command).not.toContain(`/tree/${head}`)
+  })
 
   it('uses the merge-base with upstream main, not its tip, when the fork base ref is missing', () => {
     const base = 'a'.repeat(40)

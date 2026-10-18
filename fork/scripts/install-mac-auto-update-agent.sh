@@ -40,7 +40,7 @@ else
   echo "若已经加载过指向仓库内脚本的代理，先重跑本脚本换掉它。"
   echo "尚未加载。先在终端里跑一次稳定副本，给 Orca Local Signing 点 Always Allow："
   echo "  ORCA_REPO=${REPO} ${INSTALLED_SCRIPT}"
-  echo "家里的 Mac 还要 gh 已登录，并且对 quzard/orca 有写权限。客户机不需要 gh。"
+  echo "家里的 Mac 还要 gh 已登录，并且对 quzard/orca-fork 有写权限。客户机不需要 gh。"
   echo "确认 sync.env 之后再加载："
   echo "  bash fork/scripts/install-mac-auto-update-agent.sh --bootstrap"
 fi

@@ -1,5 +1,5 @@
 #!/bin/bash
-# 家里的 Mac 只构建、签名，并在 ORCA_PUBLISH_RELEASE=1 时发布到 quzard/orca。
+# 家里的 Mac 只构建、签名，并在 ORCA_PUBLISH_RELEASE=1 时发布到 quzard/orca-fork。
 # 不拉取上游，不变基，也不在客户机上安装。客户机用应用内更新。
 # 状态写到 ~/Projects/orca-verify/sync-status.json。
 set -euo pipefail
@@ -331,7 +331,7 @@ require_gh_auth() {
 
 record_gh_auth_failure() {
   local tried="$SHA"
-  ERROR="gh auth status failed. The home Mac needs gh logged in with write access to quzard/orca. Clients do not need gh."
+  ERROR="gh auth status failed. The home Mac needs gh logged in with write access to quzard/orca-fork. Clients do not need gh."
   if [[ -n "$tried" ]]; then
     ERROR="${ERROR} Not publishing ${tried}."
   fi

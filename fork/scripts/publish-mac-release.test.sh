@@ -141,7 +141,7 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
-if [[ "$repo" != "quzard/orca" ]]; then
+if [[ "$repo" != "quzard/orca-fork" ]]; then
   printf 'unexpected repo\n' >&2
   exit 1
 fi

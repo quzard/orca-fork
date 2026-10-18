@@ -1,14 +1,14 @@
 // fork: 未登记时，发布更新仍走上游的公开地址。
 
 export const FORK_GITHUB_UPDATE_OWNER = 'quzard'
-export const FORK_GITHUB_UPDATE_REPO = 'orca'
+export const FORK_GITHUB_UPDATE_REPO = 'orca-fork'
 
 /** 没有令牌时，菜单检查和设置页都显示这一句，不访问上游。 */
 export const FORK_GITHUB_UPDATE_TOKEN_HINT =
-  'Save a fine-grained GitHub token with read-only Contents access to quzard/orca. Without a token, this build does not check for updates.'
+  'Save a fine-grained GitHub token with read-only Contents access to quzard/orca-fork. Without a token, this build does not check for updates.'
 
 export const FORK_GITHUB_UPDATE_TOKEN_SAVED =
-  'A token is saved on this computer. Update checks use quzard/orca releases only.'
+  'A token is saved on this computer. Update checks use quzard/orca-fork releases only.'
 
 export const FORK_GITHUB_UPDATE_TOKEN_STATUS_CHANNEL = 'fork:github-update-token:status'
 export const FORK_GITHUB_UPDATE_TOKEN_SET_CHANNEL = 'fork:github-update-token:set'

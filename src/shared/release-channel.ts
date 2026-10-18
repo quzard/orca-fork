@@ -232,7 +232,7 @@ export function getVersionChannel(version: string): ReleaseChannel | null {
  * — /latest also breaks when GitHub's API is degraded).
  */
 export function getReleaseNotesUrlForVersion(version: string | null): string {
-  // fork: 已登记时说明页指向 quzard/orca，不打开上游 hourly/daily 仓库。
+  // fork: 已登记时说明页指向 quzard/orca-fork，不打开上游 hourly/daily 仓库。
   if (forkUpstreamReleaseReadsBlocked()) {
     const repo = `${FORK_GITHUB_UPDATE_OWNER}/${FORK_GITHUB_UPDATE_REPO}`
     return version

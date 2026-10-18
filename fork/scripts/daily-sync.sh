@@ -37,8 +37,8 @@ require_fork_origin() {
   local url
   url="$(git remote get-url origin)"
   case "$url" in
-    *quzard/orca*) ;;
-    *) die "daily-sync: FAILED" "reason: origin is not quzard/orca ($url)" "develop: not pushed" ;;
+    *[:/]quzard/orca-fork | *[:/]quzard/orca-fork.git | *[:/]quzard/orca-fork/) ;;
+    *) die "daily-sync: FAILED" "reason: origin is not quzard/orca-fork ($url)" "develop: not pushed" ;;
   esac
 }
 

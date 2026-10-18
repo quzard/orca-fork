@@ -92,7 +92,7 @@
 
 GitHub 令牌写在 `~/.orca/github-update-token`。`writeSecureFile` 把文件收成 0600，父目录 0700。不进钥匙串，也不进 safeStorage。设置里的 GitHub token 只能保存或清除，已保存的内容不回到界面。
 
-已登记且文件里有令牌时，发布检查只指向 `quzard/orca` 的私有 GitHub Releases，并打开 `allowPrerelease`，元数据文件是 `latest-mac.yml`。没有令牌就不检查，设置和「Check for Updates」给出同一句提示。未登记时仍是上游公开源。
+已登记且文件里有令牌时，发布检查只指向 `quzard/orca-fork` 的私有 GitHub Releases，并打开 `allowPrerelease`，元数据文件是 `latest-mac.yml`。没有令牌就不检查，设置和「Check for Updates」给出同一句提示。未登记时仍是上游公开源。
 
 家里的 LaunchAgent 只在 `develop` 前进时构建、签名并发布。它跑的是 `~/Projects/orca-verify/bin/mac-auto-update.sh`，安装脚本负责复制。已经装过、仍指向仓库内脚本的代理，要重跑安装脚本，再在终端手动跑一次并点 Always Allow，然后 `--bootstrap`。脚本在 git 操作之前从临时文件重新执行，退出时删掉该副本；成功结束后才用 mv 换掉稳定副本。构建在独立进程组里，锁文件挡住第二次同时构建。codesign 超时会 `kill` 整个进程组。
 

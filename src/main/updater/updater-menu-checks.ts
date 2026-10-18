@@ -31,7 +31,7 @@ export abstract class UpdaterMenuChecks extends UpdaterScheduling {
       void this.checkForPinnedBuild(options.channel, options.targetTag)
       return
     }
-    // fork: 没有令牌时说明原因，不进入上游检查。有令牌则继续，pin 会改到 quzard/orca。
+    // fork: 没有令牌时说明原因，不进入上游检查。有令牌则继续，pin 会改到 quzard/orca-fork。
     if (forkReleaseFeedDecision().kind === 'skip') {
       this.sendStatus({
         state: 'error',

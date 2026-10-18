@@ -39,7 +39,7 @@ describe('fork update feed hook', () => {
     expect(resolveForkUpdateFeed()).toEqual({
       provider: 'github',
       owner: 'quzard',
-      repo: 'orca',
+      repo: 'orca-fork',
       private: true,
       token: 'stub-token'
     })

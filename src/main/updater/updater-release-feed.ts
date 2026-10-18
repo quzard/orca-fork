@@ -121,7 +121,7 @@ export abstract class UpdaterReleaseFeed extends UpdaterInstallExecution {
   ): Promise<'ready' | 'not-available'> {
     const attemptId = this.activeUpdateCheckAttemptId
     const autoUpdater = this.getAutoUpdater()
-    // fork: 已登记时不拉上游 atom。有令牌才钉 quzard/orca；没有令牌就停，避免落到 app-update.yml。
+    // fork: 已登记时不拉上游 atom。有令牌才钉 quzard/orca-fork；没有令牌就停，避免落到 app-update.yml。
     const forkFeed = forkReleaseFeedDecision()
     if (forkFeed.kind === 'ready') {
       autoUpdater.allowPrerelease = true

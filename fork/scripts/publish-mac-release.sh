@@ -1,5 +1,5 @@
 #!/bin/bash
-# 把 quzard/orca 的 mac 预发布分成两段上传。
+# 把 quzard/orca-fork 的 mac 预发布分成两段上传。
 # electron-updater 的 PrivateGitHubProvider.resolveFiles 会先把 latest-mac.yml
 # 里 files 列出的每一个文件都解析成 release 资产，缺一个就整次下载失败。
 # MacUpdater 真正下载的是 zip；差分还要同名的 zip.blockmap。dmg 只给手动安装。
@@ -8,7 +8,7 @@
 # stdout 只有 release= / version= / error= 三行。进度在 stderr。
 set -euo pipefail
 
-readonly GH_REPO="quzard/orca"
+readonly GH_REPO="quzard/orca-fork"
 readonly CHANNEL_FILE="latest-mac.yml"
 readonly EXIT_DMG_PENDING=20
 readonly RELEASE_COMPLETE="published"

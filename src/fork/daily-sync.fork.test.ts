@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 describe('fork daily sync split', () => {
-  it('points fork release checks at quzard/orca and skips them without a token', () => {
+  it('points fork release checks at quzard/orca-fork and skips them without a token', () => {
     const setup = readFileSync(resolve('src/main/updater/updater-setup.ts'), 'utf8')
     const pin = readFileSync(resolve('src/main/updater/updater-release-feed.ts'), 'utf8')
     const schedule = readFileSync(resolve('src/main/updater/updater-scheduling.ts'), 'utf8')
@@ -51,7 +51,9 @@ describe('fork daily sync split', () => {
     expect(script).not.toContain('--force-with-lease')
     expect(script).toContain('ATTEMPT_BRANCH="${base}-${n}"')
     expect(script).toContain('develop push rejected')
-    expect(readFileSync(resolve('.gitattributes'), 'utf8')).not.toContain('en-runtime-required.json merge=ours')
+    expect(readFileSync(resolve('.gitattributes'), 'utf8')).not.toContain(
+      'en-runtime-required.json merge=ours'
+    )
     expect(script).not.toContain('workflow_dispatch')
     expect(script).not.toContain('gh workflow')
     expect(script).not.toContain('git push --tags')
@@ -106,7 +108,7 @@ describe('fork daily sync split', () => {
     expect(publish).toContain('release edit')
     expect(publish).toContain('release download')
     expect(publish).toContain('--repo "$GH_REPO"')
-    expect(publish).toContain('readonly GH_REPO="quzard/orca"')
+    expect(publish).toContain('readonly GH_REPO="quzard/orca-fork"')
     expect(publish).toContain('--prerelease')
     expect(publish).toContain('--draft=false')
     expect(publish).toContain('--clobber')

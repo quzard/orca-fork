@@ -1,4 +1,4 @@
-// fork: 桌面更新只读 quzard/orca 的 GitHub Releases。令牌来自 0600 文件，不写日志。
+// fork: 桌面更新只读 quzard/orca-fork 的 GitHub Releases。令牌来自 0600 文件，不写日志。
 
 import {
   FORK_GITHUB_UPDATE_OWNER,

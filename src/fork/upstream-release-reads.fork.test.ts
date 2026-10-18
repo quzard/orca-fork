@@ -52,7 +52,7 @@ describe('fork updater does not read upstream releases', () => {
     ]
     for (const url of notes) {
       expect(url).not.toContain('stablyai')
-      expect(url).toContain('github.com/quzard/orca')
+      expect(url).toContain('github.com/quzard/orca-fork')
     }
     expect(feed).toEqual({ tags: [], state: 'no-newer' })
     expect(netFetch).not.toHaveBeenCalled()

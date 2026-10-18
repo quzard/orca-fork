@@ -53,7 +53,7 @@ describe('github update token file', () => {
       writeGithubUpdateToken('github_pat_test', home)
       const feed = resolveForkUpdateFeed()
       expect(feed?.owner).toBe('quzard')
-      expect(feed?.repo).toBe('orca')
+      expect(feed?.repo).toBe('orca-fork')
       expect(feed?.private).toBe(true)
       expect(feed?.token).toBe('github_pat_test')
     } finally {

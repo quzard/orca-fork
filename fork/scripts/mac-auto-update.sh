@@ -382,7 +382,7 @@ publish_release() {
     return 0
   fi
   local out code=0 line value
-  # 发布前确认 upstream/main 和身份基线之后的每个提交（含合并提交）都是 quzard 的 noreply 身份。
+  # 发布前确认 upstream/main 和身份下限（脚本里写死的 8fd7c96acc）之后的每个提交（含合并提交）都是 quzard 的 noreply 身份。
   # 先拉最新的上游 main：本地 upstream/main 落后时，同步合进来的上游提交会被当成 fork 提交。
   if ! (cd "$REPO" && bash fork/scripts/verify/fetch-upstream-main.sh) >&2; then
     RELEASE="failed"

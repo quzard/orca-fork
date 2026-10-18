@@ -1,29 +1,20 @@
 // fork: SSH connection status names are translated. Upstream's literal stays the English fallback.
 import { forkTranslate } from '../i18n/fork-translate'
-
-const KEY_BY_STATUS: Readonly<Record<string, string>> = {
-  disconnected: 'disconnected',
-  connecting: 'connecting',
-  'auth-failed': 'authFailed',
-  'deploying-relay': 'deployingRelay',
-  connected: 'connected',
-  reconnecting: 'reconnecting',
-  'reconnection-failed': 'reconnectionFailed'
-}
+import { SSH_STATUS_KEYS } from './ssh-status-keys'
 
 /**
  * Turns each plain status label into a getter that translates on read, so a language switch shows
  * at once. Labels that are already getters (upstream's `error`) are left alone.
  */
 export function withForkSshStatusLabels<T extends Record<string, string>>(labels: T): T {
-  for (const [status, key] of Object.entries(KEY_BY_STATUS)) {
+  for (const [status, key] of Object.entries(SSH_STATUS_KEYS)) {
     const descriptor = Object.getOwnPropertyDescriptor(labels, status)
     if (typeof descriptor?.value !== 'string') {
       continue
     }
     const english = descriptor.value
     Object.defineProperty(labels, status, {
-      get: () => forkTranslate(`sshConnectionStatus.${key}`, english),
+      get: () => forkTranslate(key, english),
       enumerable: true,
       configurable: true
     })

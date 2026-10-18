@@ -1,13 +1,25 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { CONTEXT_MENU_LABEL_KEYS } from '../sidebar/context-menu-label-keys'
+import { SSH_STATUS_KEYS } from '../ssh/ssh-status-keys'
 import en from './en.json'
+import zh from './zh.json'
 
 type Catalog = Record<string, unknown>
 
 const upstreamEn = JSON.parse(
   readFileSync('src/renderer/src/i18n/locales/en.json', 'utf8')
 ) as Catalog
+const upstreamZh = JSON.parse(
+  readFileSync('src/renderer/src/i18n/locales/zh.json', 'utf8')
+) as Catalog
+
+// Every key fork code builds at runtime comes from one of these typed const lists.
+const KEY_LISTS: Record<string, Readonly<Record<string, string>>> = {
+  CONTEXT_MENU_LABEL_KEYS,
+  SSH_STATUS_KEYS
+}
 
 function lookup(catalog: unknown, key: string): unknown {
   return key
@@ -28,17 +40,45 @@ function sourceFiles(dir: string): string[] {
 // Fork code calls forkTranslate, which upstream's extraction check (config/i18next.config.ts) does not
 // match, so this takes its place for fork keys.
 describe('fork translation keys', () => {
-  it('every literal key fork code translates has English in the fork overlay or upstream', () => {
-    const keys = sourceFiles('src/fork').flatMap((file) =>
-      [...readFileSync(file, 'utf8').matchAll(/\bforkTranslate\(\s*['"]([\w.-]+)['"]/g)].map(
-        (match) => ({ file, key: match[1] })
+  const calls = () =>
+    sourceFiles('src/fork').flatMap((file) => {
+      const text = readFileSync(file, 'utf8')
+      return [...text.matchAll(/\bforkTranslate\(\s*([^,)]+)/g)]
+        .filter((match) => !/^key: string$/.test(match[1].trim()))
+        .map((match) => ({ file, text, arg: match[1].trim() }))
+    })
+  const literalKeys = () =>
+    calls()
+      .map(({ file, arg }) => ({ file, key: /^['"]([\w.-]+)['"]$/.exec(arg)?.[1] }))
+      .filter((entry): entry is { file: string; key: string } => entry.key !== undefined)
+  const resolvedKeys = () => [
+    ...literalKeys().map(({ key }) => key),
+    ...Object.values(KEY_LISTS).flatMap((list) => Object.values(list))
+  ]
+  const has = (catalogs: unknown[], key: string) =>
+    catalogs.some((catalog) => typeof lookup(catalog, key) === 'string')
+
+  it('every key is a string literal or comes from a typed const list, never a template literal', () => {
+    const bad = calls()
+      .filter(({ arg }) => !/^['"][\w.-]+['"]$/.test(arg))
+      .filter(
+        ({ arg, text }) =>
+          arg.startsWith('`') ||
+          arg.includes('+') ||
+          !Object.keys(KEY_LISTS).some((name) =>
+            new RegExp(`import \\{[^}]*\\b${name}\\b`).test(text)
+          )
       )
-    )
-    expect(keys.length).toBeGreaterThan(20)
-    const missing = keys.filter(
-      ({ key }) => typeof (lookup(en, key) ?? lookup(upstreamEn, key)) !== 'string'
-    )
-    expect(missing).toEqual([])
+      .map(({ file, arg }) => `${file}: ${arg}`)
+    expect(bad).toEqual([])
+    expect(literalKeys().length).toBeGreaterThan(20)
+  })
+
+  it('every resolved key has English and Chinese', () => {
+    const keys = [...new Set(resolvedKeys())]
+    expect(keys).toEqual(expect.arrayContaining(Object.values(CONTEXT_MENU_LABEL_KEYS)))
+    expect(keys.filter((key) => !has([en, upstreamEn], key))).toEqual([])
+    expect(keys.filter((key) => !has([zh, upstreamZh], key))).toEqual([])
   })
 
   it('fork code does not call translate directly, so the upstream extraction never sees fork keys', () => {

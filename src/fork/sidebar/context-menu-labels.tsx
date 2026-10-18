@@ -5,8 +5,7 @@ import {
   type WorktreeContextMenuLabelCounts,
   type WorktreeContextMenuLabels
 } from '../../shared/fork-hooks/worktree-context-menu-labels'
-
-const KEY = 'fork.sidebar.contextMenu'
+import { CONTEXT_MENU_LABEL_KEYS } from './context-menu-label-keys'
 
 /** Same choice as upstream: a count only in a multi-select with something to act on. */
 export function forkWorktreeContextMenuLabels({
@@ -17,15 +16,23 @@ export function forkWorktreeContextMenuLabels({
   const sleepLabel =
     isMultiContext && sleepCount > 0
       ? sleepCount === 1
-        ? forkTranslate(`${KEY}.sleepOne`, 'Sleep {{count}} Workspace', { count: sleepCount })
-        : forkTranslate(`${KEY}.sleepMany`, 'Sleep {{count}} Workspaces', { count: sleepCount })
-      : forkTranslate(`${KEY}.sleep`, 'Sleep')
+        ? forkTranslate(CONTEXT_MENU_LABEL_KEYS.sleepOne, 'Sleep {{count}} Workspace', {
+            count: sleepCount
+          })
+        : forkTranslate(CONTEXT_MENU_LABEL_KEYS.sleepMany, 'Sleep {{count}} Workspaces', {
+            count: sleepCount
+          })
+      : forkTranslate(CONTEXT_MENU_LABEL_KEYS.sleep, 'Sleep')
   const deleteLabel =
     isMultiContext && deleteCount > 0
       ? deleteCount === 1
-        ? forkTranslate(`${KEY}.deleteOne`, 'Delete {{count}} Workspace', { count: deleteCount })
-        : forkTranslate(`${KEY}.deleteMany`, 'Delete {{count}} Workspaces', { count: deleteCount })
-      : forkTranslate(`${KEY}.deleteSelected`, 'Delete Selected')
+        ? forkTranslate(CONTEXT_MENU_LABEL_KEYS.deleteOne, 'Delete {{count}} Workspace', {
+            count: deleteCount
+          })
+        : forkTranslate(CONTEXT_MENU_LABEL_KEYS.deleteMany, 'Delete {{count}} Workspaces', {
+            count: deleteCount
+          })
+      : forkTranslate(CONTEXT_MENU_LABEL_KEYS.deleteSelected, 'Delete Selected')
   return { sleepLabel, deleteLabel }
 }
 

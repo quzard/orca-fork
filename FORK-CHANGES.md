@@ -38,12 +38,18 @@
 - 旧远端刷新如果省略 `sidebarGroupId`，本机保留原来的分组。显式 `null` 仍表示取消分组。
 - 组内排序：smart 保持传入顺序，其他模式在组内重排。拖到另一台主机被拒绝。
 - 跨组拖放只写目标主机上真实存在的项目组；拖到空项目标题等于拖进该主机的未分组列表，不写假的组 id。多选拖放要么全部写入，要么一项都不写：有一项不在该主机就整体拒绝。写入一项一项串行进行，不会并发改同一份存储；中途失败时按相反顺序把已写入的项精确改回原状态：原本没有自己的分组（继承项目组）就恢复成未设置，原本没有手动排序就去掉手动排序，靠更新旁边的 `clearFields` 删除字段。回滚也失败时弹出错误提示，用显示名列出没能改回的工作区（不是内部 id），并写一条带 id 的错误日志。文件夹工作区的 `sidebarGroupId` 现在会真正保存（以前被参数校验和加载丢掉）。旧版远端主机会丢掉 `sidebarGroupId` 和 `clearFields`、只应用其余字段：文件夹写入按宿主返回值对账，git 工作区写入检查宿主返回的工作区，缺了要求的分组或清除就算失败，整次拖放失败并回滚，这一行已经写进去的排序也改回去，不会只写一半而不报错；提示让用户先更新该主机上的 Orca。“只写了一半”按错误码判断，不比对提示文字：`SidebarFieldsNotAppliedError` 带固定的 `code`（`SIDEBAR_FIELDS_NOT_APPLIED`），`updateWorktreeMeta` 的失败结果保留这个 `code`，用上游的 `hasRuntimeRpcErrorCode` 匹配。这个错误在渲染进程里根据主机对 `worktree.set` 的回复抛出、也在渲染进程里判断，不经过 IPC 或运行时 RPC；错误码要保留的只是 store 的失败结果和包一层的 `cause`。
+- 未分组的工作区可以拖：fork 的未分组列表没有标题行，上游按标题行切拖放组，这些行原来并进前一组（或 `all`），拖动会话找不到自己的组，约 46ms 后取消。现在 `groups.ts` 和 `worktree-drag-units.ts` 遇到行自己的分区键变了（不是 `all`）就另起一组；上游自己的行仍在 `all` 里，行为不变。
+- 拖出分组、松手在另一张卡片中间时，跨组拖放先于“设为父工作区”判断，不会悄悄把那张卡片设成父级；同组内拖到卡片中间仍按上游设父级。原生拖放路径也一样，而且跨组拖放不再要求指针还在源组里。
+- 松手在两行之间（行距 6px）时按 12px 内最近的一行决定目标分区，不再什么都不做；以前只有主机标题能当未分组目标。
+- 跨组拖放保留当前排序方式：只有手动排序时才写排序，而且只给被拖的行写，取新邻居有效排序值（`manualOrder ?? sortOrder`）之间的值，不再在有行没有手动排序时把整个列表重新编号；邻居排序值相同就取同一个值，不重排别人。其他排序方式只写分组，和上游跨组拖放一样，也不再切换成手动排序。
+- 工作区右键菜单的分组项（钩子 `worktree-menu-groups.ts`）：host-directory 模式下按工作区的有效分组判断（自己的分组、否则项目的分组、否则无），“移入分组”只列同一主机的分组，选中后移动这个工作区本身（写它的 `sidebarGroupId`，走跨组拖放的写入和回滚，不改排序），“移出分组”写显式 `null`。其他分组模式仍是上游的项目级操作，只是列表去掉 `moveProjectToGroup` 会拒绝的其他主机分组。
+- 遗留数据：`sidebarGroupId` 指向已删除的分组、指向其他主机的分组，或显式 `null` 时，显示、拖放和菜单都按未分组处理，读取时判断，不做迁移，不改存储，直到用户移动它。
 - 两次拖放互相独立地排队：上一次的写入和回滚全部结束后，下一次才按最新状态规划并写入；上一次失败不影响下一次。插入位置仍按松手时看到的行计算。
 - 创建弹窗从分组打开时，主机和分组就是该组。从侧栏空白创建时，主机和分组取当前工作区。状态看板和指定仓库的创建不改。新建的 git 工作区在完成后写入这个分组。
 
 ## 界面中文
 
-fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、设置里批量移除项目、跨组拖放的提示、历史面板的索引状态、SSH 连接状态名、父目录导入提示、工作区右键菜单的“休眠”和“删除所选”）的英文在 `src/fork/i18n/en.json`，中文在 `src/fork/i18n/zh.json`。渲染进程登记时把两份分别合进 en 和 zh 语言包：只补缺少的键，上游已有的条目优先；其他语言经 i18next 的英文回退拿到英文。上游的 `en.json`、`en-runtime-required.json` 和 `zh.json` 都与上游一致，上游文件不翻译任何 fork 键。工作区右键菜单里上游写死的 `Sleep`、`Sleep N Workspace(s)`、`Delete Selected`、`Delete N Workspace(s)` 经钩子 `worktree-context-menu-labels.ts` 交给 `src/fork/sidebar/context-menu-labels.tsx` 翻译；没有登记时原样用上游的英文。fork 代码统一用 `src/fork/i18n/fork-translate.tsx` 的 `forkTranslate` 翻译，上游的提取检查（`config/i18next.config.ts`，与上游一致）只认 `translate` 等函数名，看不到 fork 键；fork 键由 `src/fork/i18n/fork-keys-catalog.fork.test.ts` 检查：fork 代码里每个字面量键都要有英文，且上游文件不引用 fork 键。测试还保证每个 fork 英文键都有中文，且占位符一致。
+fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、设置里批量移除项目、跨组拖放的提示、历史面板的索引状态、SSH 连接状态名、父目录导入提示、工作区右键菜单的“休眠”和“删除所选”）的英文在 `src/fork/i18n/en.json`，中文在 `src/fork/i18n/zh.json`。渲染进程登记时把两份分别合进 en 和 zh 语言包：只补缺少的键，上游已有的条目优先；其他语言经 i18next 的英文回退拿到英文。上游的 `en.json`、`en-runtime-required.json` 和 `zh.json` 都与上游一致，上游文件不翻译任何 fork 键。“仅取消分组”选项和“主机”分组模式在 `register-mode.ts`（不依赖界面的代码）里登记英文，渲染进程由 `src/fork/sidebar/mode-labels.tsx` 换成随语言变化的取值。删除 SSH 目标对话框里上游写死的 `Remove` / `Removing` 经钩子 `ssh-target-remove-labels.ts` 翻译成“删除”/“正在删除”。工作区右键菜单里上游写死的 `Sleep`、`Sleep N Workspace(s)`、`Delete Selected`、`Delete N Workspace(s)` 经钩子 `worktree-context-menu-labels.ts` 交给 `src/fork/sidebar/context-menu-labels.tsx` 翻译；没有登记时原样用上游的英文。fork 代码统一用 `src/fork/i18n/fork-translate.tsx` 的 `forkTranslate` 翻译，上游的提取检查（`config/i18next.config.ts`，与上游一致）只认 `translate` 等函数名，看不到 fork 键；fork 键由 `src/fork/i18n/fork-keys-catalog.fork.test.ts` 检查：fork 代码里每个字面量键都要有英文，且上游文件不引用 fork 键。测试还保证每个 fork 英文键都有中文，且占位符一致。
 
 ## F003 / F025 批量导入
 

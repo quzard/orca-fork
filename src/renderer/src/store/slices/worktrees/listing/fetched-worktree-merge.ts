@@ -165,22 +165,24 @@ export function mergeFetchedWorktrees(
     const currentWorktrees = s.worktreesByRepo[args.repoId]
     const refreshResult = {
       ...args.refresh.result,
-      worktrees: preserveRegisteredSidebarGroupIds(
-        preserveConcurrentDisplayName(
-          preserveConcurrentManualOrder(
-            args.refresh.result.worktrees,
-            args.requestStartedWorktrees,
-            currentWorktrees,
-            (worktree) => worktreeMatchesHost(worktree, args.hostId, matchOptions)
-          ),
+      worktrees: preserveConcurrentDisplayName(
+        preserveConcurrentManualOrder(
+          args.refresh.result.worktrees,
           args.requestStartedWorktrees,
           currentWorktrees,
           (worktree) => worktreeMatchesHost(worktree, args.hostId, matchOptions)
         ),
+        args.requestStartedWorktrees,
         currentWorktrees,
         (worktree) => worktreeMatchesHost(worktree, args.hostId, matchOptions)
       )
     }
+    // fork: a refresh from an older peer may omit sidebarGroupId; keep this host's group.
+    refreshResult.worktrees = preserveRegisteredSidebarGroupIds(
+      refreshResult.worktrees,
+      currentWorktrees,
+      (worktree) => worktreeMatchesHost(worktree, args.hostId, matchOptions)
+    )
     let incoming = toVisibleWorktrees(refreshResult, args.hostId, args.setup)
     incoming = routeListingBranchSwitchesThroughGitIdentity({
       requestStarted: args.requestStartedWorktrees,

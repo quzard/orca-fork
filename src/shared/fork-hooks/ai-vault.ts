@@ -86,8 +86,9 @@ export function setAiVaultForkServicePolicy(next: AiVaultForkServicePolicy | und
   servicePolicy = next
 }
 
-export function readAiVaultForkServicePolicy(): AiVaultForkServicePolicy | undefined {
-  return servicePolicy
+/** Scanner service init field. Unregistered, nothing is added and the service runs upstream. */
+export function aiVaultForkServiceInit(): { fork?: AiVaultForkServicePolicy } {
+  return servicePolicy ? { fork: servicePolicy } : {}
 }
 
 export function registerAiVaultToolIndexPolicy(next: AiVaultToolIndexPolicy): void {

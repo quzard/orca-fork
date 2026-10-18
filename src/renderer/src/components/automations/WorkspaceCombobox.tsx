@@ -108,24 +108,23 @@ export function WorkspaceCombobox({
                 'No workspaces found.'
               )}
             </CommandEmpty>
-            {worktrees.map((worktree) => {
-              const choice = formatRegisteredWorkspaceChoice(worktree)
-              return (
-                <CommandItem
-                  key={worktree.id}
-                  value={choice?.value ?? worktree.displayName}
-                  onSelect={() => {
-                    onValueChange(worktree.id)
-                    setOpen(false)
-                  }}
-                >
-                  <Check
-                    className={cn('size-4', value === worktree.id ? 'opacity-100' : 'opacity-0')}
-                  />
-                  <span className="truncate">{choice?.label ?? worktree.displayName}</span>
-                </CommandItem>
-              )
-            })}
+            {worktrees.map((worktree) => (
+              <CommandItem
+                key={worktree.id}
+                value={formatRegisteredWorkspaceChoice(worktree)?.value ?? worktree.displayName}
+                onSelect={() => {
+                  onValueChange(worktree.id)
+                  setOpen(false)
+                }}
+              >
+                <Check
+                  className={cn('size-4', value === worktree.id ? 'opacity-100' : 'opacity-0')}
+                />
+                <span className="truncate">
+                  {formatRegisteredWorkspaceChoice(worktree)?.label ?? worktree.displayName}
+                </span>
+              </CommandItem>
+            ))}
           </CommandList>
         </Command>
       </PopoverContent>

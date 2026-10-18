@@ -34,7 +34,7 @@ type PostImportHook = (details: ForkPostImportDetails) => void | Promise<void>
 let postImportHook: PostImportHook | undefined
 let pendingContext: ForkPostImportContext | undefined
 
-export function registerPostImportHook(next: PostImportHook): void {
+export function registerPostImportHook(next: PostImportHook | undefined): void {
   postImportHook = next
 }
 
@@ -52,4 +52,38 @@ export function runForkPostImport(details: ForkPostImportDetails): Promise<void>
     return
   }
   return Promise.resolve(postImportHook({ ...context, ...details }))
+}
+
+type ProjectAddFinish<S extends string> = (
+  repoId: string,
+  source: S,
+  executionHostId?: ExecutionHostId
+) => Promise<void>
+
+const handoffWrappers = new WeakMap<object, unknown>()
+
+/**
+ * Runs the `handoff` callback after `finish`, also when `finish` throws (its error still
+ * propagates). Unregistered, `finish` runs alone and nothing extra is awaited.
+ */
+export function withForkPostImportHandoff<S extends string>(
+  finish: ProjectAddFinish<S>
+): ProjectAddFinish<S> {
+  // One wrapper per callback, so a memoized callback keeps its identity.
+  const cached = handoffWrappers.get(finish) as ProjectAddFinish<S> | undefined
+  if (cached) {
+    return cached
+  }
+  const wrapped: ProjectAddFinish<S> = async (repoId, source, executionHostId) => {
+    if (!postImportHook) {
+      return finish(repoId, source, executionHostId)
+    }
+    try {
+      await finish(repoId, source, executionHostId)
+    } finally {
+      await runForkPostImport({ phase: 'handoff', repoId, source, executionHostId })
+    }
+  }
+  handoffWrappers.set(finish, wrapped)
+  return wrapped
 }

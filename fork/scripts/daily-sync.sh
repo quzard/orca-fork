@@ -14,6 +14,7 @@ export GIT_EDITOR=true
 export TZ="${ORCA_SYNC_TZ:-UTC}"
 
 ATTEMPT_BRANCH="sync/upstream-$(date +%Y%m%d)"
+ATTEMPT_SHA=""
 ORIGIN_DEVELOP=""
 UPSTREAM_SHA=""
 PUSH_ATTEMPT=0
@@ -77,18 +78,41 @@ EOF
     "reason: merge conflict" \
     "upstream: ${UPSTREAM_SHA}" \
     "develop: not pushed (${ORIGIN_DEVELOP})" \
-    "attempt: ${ATTEMPT_BRANCH} (${commit})" \
+    "attempt: ${ATTEMPT_BRANCH} (${ATTEMPT_SHA})" \
     "files:" \
     "${files}"
   exit 1
+}
+
+# 远端 attempt 分支已经是这次要推的结果：同一个提交，或者树和父提交都相同（重跑时 commit-tree 的时间戳不同）。
+# 命中时把远端提交写进 ATTEMPT_SHA。
+attempt_matches() {
+  local branch="$1"
+  local commit="$2"
+  local remote
+  remote="$(git ls-remote origin "refs/heads/${branch}" 2>/dev/null | awk 'NR == 1 { print $1 }')" || return 1
+  [[ -n "$remote" ]] || return 1
+  if [[ "$remote" != "$commit" ]]; then
+    git fetch -q --no-tags origin "refs/heads/${branch}" 2>/dev/null || return 1
+    remote="$(git rev-parse -q --verify FETCH_HEAD)" || return 1
+    [[ "$(git rev-parse "${remote}^{tree}")" == "$(git rev-parse "${commit}^{tree}")" ]] || return 1
+    [[ "$(git rev-parse "${remote}^@" | tr '\n' ' ')" == "$(git rev-parse "${commit}^@" | tr '\n' ' ')" ]] || return 1
+  fi
+  ATTEMPT_SHA="$remote"
 }
 
 push_attempt_commit() {
   local commit="$1"
   local base="$ATTEMPT_BRANCH"
   local n=2
+  ATTEMPT_SHA="$commit"
   # attempt 分支永远不强推。当天已有同名分支（可能带着手工解法）时，改用 -2、-3 … 后缀。
+  # 已有分支正好是同一次尝试时直接复用，不再多开一个 -n。
   while git ls-remote --exit-code origin "refs/heads/${ATTEMPT_BRANCH}" >/dev/null 2>&1; do
+    if attempt_matches "$ATTEMPT_BRANCH" "$commit"; then
+      echo "daily-sync: ${ATTEMPT_BRANCH} already holds this attempt (${ATTEMPT_SHA}); not pushing again"
+      return 0
+    fi
     ATTEMPT_BRANCH="${base}-${n}"
     n=$((n + 1))
   done
@@ -109,7 +133,7 @@ fail_checks() {
       "reason: ${reason}" \
       "upstream: ${UPSTREAM_SHA}" \
       "develop: not pushed (${ORIGIN_DEVELOP})" \
-      "attempt: ${ATTEMPT_BRANCH} (${head})"
+      "attempt: ${ATTEMPT_BRANCH} (${ATTEMPT_SHA})"
   else
     summary \
       "daily-sync: FAILED" \

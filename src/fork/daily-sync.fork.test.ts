@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 describe('fork daily sync split', () => {
   it('points fork release checks at quzard/orca-fork with an optional token', () => {
@@ -53,6 +54,9 @@ describe('fork daily sync split', () => {
     expect(script).toContain('sync/upstream-')
     expect(script).not.toContain('--force-with-lease')
     expect(script).toContain('ATTEMPT_BRANCH="${base}-${n}"')
+    expect(script.indexOf('attempt_matches "$ATTEMPT_BRANCH" "$commit"')).toBeLessThan(
+      script.indexOf('ATTEMPT_BRANCH="${base}-${n}"')
+    )
     expect(script).toContain('develop push rejected')
     expect(readFileSync(resolve('.gitattributes'), 'utf8')).not.toContain(
       'en-runtime-required.json merge=ours'
@@ -61,6 +65,65 @@ describe('fork daily sync split', () => {
     expect(script).not.toContain('gh workflow')
     expect(script).not.toContain('git push --tags')
     execFileSync('bash', ['-n', resolve('fork/scripts/daily-sync.sh')])
+  })
+
+  it('reuses an attempt branch that already holds the same commit or tree instead of adding -n', () => {
+    const script = readFileSync(resolve('fork/scripts/daily-sync.sh'), 'utf8')
+    const fn = (name: string): string => {
+      const start = script.indexOf(`${name}() {`)
+      return script.slice(start, script.indexOf('\n}\n', start) + 3)
+    }
+    const dir = mkdtempSync(join(tmpdir(), 'orca-attempt-'))
+    const env = {
+      ...process.env,
+      GIT_AUTHOR_NAME: 'test',
+      GIT_AUTHOR_EMAIL: 'test@example.com',
+      GIT_COMMITTER_NAME: 'test',
+      GIT_COMMITTER_EMAIL: 'test@example.com',
+      GIT_CONFIG_NOSYSTEM: '1',
+      HOME: dir
+    }
+    const harness = `set -euo pipefail
+die() { printf '%s\n' "$@"; exit 1; }
+${fn('attempt_matches')}
+${fn('push_attempt_commit')}
+attempt() { ATTEMPT_BRANCH=sync/upstream-20260101; push_attempt_commit "$1" >/dev/null 2>&1; echo "$ATTEMPT_BRANCH $ATTEMPT_SHA"; }
+git init -q --bare origin.git
+git init -q work && cd work
+git remote add origin ../origin.git
+echo a > f && git add f && git commit -q -m base
+echo b > f && git commit -q -am one
+one=$(git rev-parse HEAD)
+git push -q origin "$one:refs/heads/sync/upstream-20260101"
+echo "same-commit $(attempt "$one")"
+again=$(git commit-tree "$one^{tree}" -p "$one^" -m rerun)
+echo "same-tree $(attempt "$again")"
+other=$(git commit-tree "$one^{tree}" -p "$one" -m other-parent)
+echo "other-parent $(attempt "$other")"
+echo c > f && git commit -q -am two
+two=$(git rev-parse HEAD)
+echo "other-tree $(attempt "$two")"
+echo "other-tree-again $(attempt "$two")"
+git ls-remote origin 'refs/heads/sync/*' | awk '{print $2}' | sort | tr '\n' ' '
+`
+    try {
+      const out = execFileSync('bash', ['-c', harness], { cwd: dir, env, encoding: 'utf8' })
+      const lines = out.trim().split('\n')
+      const sha = (label: string) => lines.find((l) => l.startsWith(`${label} `))?.split(' ')
+      const sameCommit = sha('same-commit')!
+      expect(sameCommit[1]).toBe('sync/upstream-20260101')
+      const sameTree = sha('same-tree')!
+      expect(sameTree[1]).toBe('sync/upstream-20260101')
+      expect(sameTree[2]).toBe(sameCommit[2])
+      expect(sha('other-parent')![1]).toBe('sync/upstream-20260101-2')
+      expect(sha('other-tree')![1]).toBe('sync/upstream-20260101-3')
+      expect(sha('other-tree-again')![1]).toBe('sync/upstream-20260101-3')
+      expect(lines.at(-1)!.trim()).toBe(
+        'refs/heads/sync/upstream-20260101 refs/heads/sync/upstream-20260101-2 refs/heads/sync/upstream-20260101-3'
+      )
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 
   it('builds the Mac app from origin/develop and records the status file', () => {

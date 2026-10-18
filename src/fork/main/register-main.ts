@@ -25,3 +25,12 @@ export function registerForkMainModules(): void {
   registerImportedWorktreePath(getGitRepoRoot)
   registerForkRemoteEditorLaunch(cursorRemoteSshLaunchSpec)
 }
+
+/**
+ * orcad: the fork's registrations, then the host adapters. One call, so orcad-entry.ts stays within
+ * its 300-line limit with upstream's lines unchanged.
+ */
+export function installForkOrcadHost(installHostAdapters: () => void): void {
+  registerForkMainModules()
+  installHostAdapters()
+}

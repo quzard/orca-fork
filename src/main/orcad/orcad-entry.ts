@@ -43,7 +43,7 @@ import { stampRuntimeSourceEnv } from '../../shared/runtime-source-env'
 import { adoptWslHostLoginEnvironment } from './orcad-wsl-host-login-environment'
 import { installOrcadProcessErrorGuards } from './orcad-process-error-guards'
 import { orcadWsPortOptions } from './orcad-ws-port-policy'
-import { registerForkMainModules } from '../../fork/main/register-main'
+import { installForkOrcadHost } from '../../fork/main/register-main'
 
 export { parseArgs }
 
@@ -81,8 +81,7 @@ export type OrcadHandle = {
  */
 export async function startOrcad(options: OrcadOptions = {}): Promise<OrcadHandle> {
   // fork: scan policy, directory symlinks, and folder terminals run in orcad, not only Electron.
-  registerForkMainModules()
-  installOrcadHostAdapters()
+  installForkOrcadHost(installOrcadHostAdapters)
   // Why: an orcad started from an Orca terminal must not fence its own CLI children to that Orca.
   stampRuntimeSourceEnv(process.env, null)
   const userDataPath = resolveUserDataPath()
@@ -101,8 +100,8 @@ export async function startOrcad(options: OrcadOptions = {}): Promise<OrcadHandl
       }
     }
   )
-  // 版本和返回值放在同一行：上游多了排序戳对账后，这个文件刚好超过 300 行上限。
-  return { readiness, managedStop: { version: getAppEnvironment().getVersion(), runtimeId: readiness.runtimeId, instance }, stop }
+  const version = getAppEnvironment().getVersion()
+  return { readiness, managedStop: { version, runtimeId: readiness.runtimeId, instance }, stop }
 }
 
 async function prepareOrcadSecretStoreAndMigrate(userDataPath: string): Promise<void> {

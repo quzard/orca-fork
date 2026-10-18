@@ -22,54 +22,53 @@ import type { ForkUpdateAdapter } from './updater-fork-background'
 const AUTO_UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000
 const AUTO_UPDATE_RETRY_INTERVAL_MS = 60 * 60 * 1000
 
+// fork: the background-download adapter rides on the context so the upstream handler keeps its shape.
 export function registerAutoUpdaterHandlers(ctx: UpdaterHandlerContext): void {
-  registerUpdaterEvents(ctx, bindForkBackgroundUpdates(ctx))
+  registerUpstreamAutoUpdaterHandlers({ ...ctx, forkUpdate: bindForkBackgroundUpdates(ctx) })
 }
 
-function registerUpdaterEvents(
-  {
-    autoUpdater,
-    clearBackgroundCheckLaunchPending,
-    clearAvailableUpdateContext,
-    consumeMissingManifestPrereleaseFallbackResult,
-    getPublishingWindowLastGoodCheck,
-    getMissingManifestPrereleaseFallbackUserInitiated,
-    getCurrentStatus,
-    getActiveUpdateCheckEventAttemptId,
-    getKnownReleaseUrl,
-    getPendingInstallVersion,
-    getUserInitiatedCheck,
-    handleQuitAndInstallFailure,
-    isQuitAndInstallHandoffActive,
-    hasInstallableDownloadedVersion,
-    isLocalBuildCheck,
-    isPinnedBuildCheck,
-    shouldHandleUpdaterErrorEvent,
-    clearUpdateAvailableEventPending,
-    isActiveUpdateCheckAttempt,
-    markUpdateCheckEventAttempt,
-    markUpdateAvailableEventPending,
-    markMissingManifestPrereleaseFallbackChecking,
-    performQuitAndInstall,
-    commitStagedMacInstall,
-    failMacStaging,
-    isAwaitingMacStaging,
-    isMacStagingDeferredToInstall,
-    shouldDeferMacQuitForInstall,
-    recordCompletedUpdateCheck,
-    restoreReleaseUpdateSource,
-    sendCheckFailureStatus,
-    sendErrorStatus,
-    sendStatus,
-    scheduleAutomaticUpdateCheck,
-    shouldSuppressMissingManifestPrereleaseFallbackEvent,
-    suppressMissingManifestPrereleaseFallbackPromiseFailure,
-    setAvailableReleaseUrl,
-    setAvailableVersion,
-    setUserInitiatedCheck
-  }: UpdaterHandlerContext,
-  forkUpdate: ForkUpdateAdapter
-): void {
+function registerUpstreamAutoUpdaterHandlers({
+  autoUpdater,
+  clearBackgroundCheckLaunchPending,
+  clearAvailableUpdateContext,
+  consumeMissingManifestPrereleaseFallbackResult,
+  getPublishingWindowLastGoodCheck,
+  getMissingManifestPrereleaseFallbackUserInitiated,
+  getCurrentStatus,
+  getActiveUpdateCheckEventAttemptId,
+  getKnownReleaseUrl,
+  getPendingInstallVersion,
+  getUserInitiatedCheck,
+  handleQuitAndInstallFailure,
+  isQuitAndInstallHandoffActive,
+  hasInstallableDownloadedVersion,
+  isLocalBuildCheck,
+  isPinnedBuildCheck,
+  shouldHandleUpdaterErrorEvent,
+  clearUpdateAvailableEventPending,
+  isActiveUpdateCheckAttempt,
+  markUpdateCheckEventAttempt,
+  markUpdateAvailableEventPending,
+  markMissingManifestPrereleaseFallbackChecking,
+  performQuitAndInstall,
+  commitStagedMacInstall,
+  failMacStaging,
+  isAwaitingMacStaging,
+  isMacStagingDeferredToInstall,
+  shouldDeferMacQuitForInstall,
+  recordCompletedUpdateCheck,
+  restoreReleaseUpdateSource,
+  sendCheckFailureStatus,
+  sendErrorStatus,
+  sendStatus,
+  scheduleAutomaticUpdateCheck,
+  shouldSuppressMissingManifestPrereleaseFallbackEvent,
+  suppressMissingManifestPrereleaseFallbackPromiseFailure,
+  setAvailableReleaseUrl,
+  setAvailableVersion,
+  setUserInitiatedCheck,
+  forkUpdate
+}: UpdaterHandlerContext & { forkUpdate: ForkUpdateAdapter }): void {
   registerMacUpdaterEvents({
     getCurrentStatus,
     hasInstallableDownloadedVersion,

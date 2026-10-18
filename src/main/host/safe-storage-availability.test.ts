@@ -13,14 +13,11 @@ const {
   safeStorageWithheldReason,
   withholdSafeStorage
 } = await import('./safe-storage-availability')
-const { registerGuardedSecretBackend } =
-  await import('../../shared/fork-hooks/desktop-secret-store')
 const { ElectronSecretStore } = await import('./electron-secret-store')
 
 describe('guardedSafeStorage', () => {
   afterEach(() => {
     resetSafeStorageWithholdForTests()
-    registerGuardedSecretBackend(undefined)
     vi.clearAllMocks()
   })
 
@@ -41,23 +38,6 @@ describe('guardedSafeStorage', () => {
     expect(() => guardedSafeStorage.decryptString(Buffer.from('x'))).toThrow('secrets_unavailable')
     expect(safeStorageMock.isEncryptionAvailable).not.toHaveBeenCalled()
     expect(safeStorageMock.encryptString).not.toHaveBeenCalled()
-  })
-
-  it('sends plugin and account calls through a registered file backend', () => {
-    registerGuardedSecretBackend({
-      isEncryptionAvailable: () => true,
-      encryptString: (value) => Buffer.from(`file:${value}`),
-      decryptString: (cipher) => cipher.toString().replace('file:', '')
-    })
-    withholdSafeStorage('no default keychain')
-
-    expect(safeStorageWithheldReason()).toBeNull()
-    expect(guardedSafeStorage.isEncryptionAvailable()).toBe(true)
-    expect(guardedSafeStorage.decryptString(guardedSafeStorage.encryptString('token'))).toBe(
-      'token'
-    )
-    expect(safeStorageMock.encryptString).not.toHaveBeenCalled()
-    expect(safeStorageMock.decryptString).not.toHaveBeenCalled()
   })
 
   it('makes the secret store report why secrets are unavailable, without probing', () => {

@@ -26,24 +26,26 @@ const INDEX_STATUS_LABEL = 'Index status'
 
 type IndexHost = { id: ExecutionHostId; label: string }
 
+/**
+ * The local host, then every SSH target and runtime environment. The store is read through two
+ * stable references and the list is built here: a selector that returns a new array on every call
+ * makes zustand's useSyncExternalStore loop ("Maximum update depth exceeded", React #185).
+ */
 function useIndexHosts(): IndexHost[] {
-  return useAppStore((state) => {
-    const hosts: IndexHost[] = [
-      {
-        id: LOCAL_EXECUTION_HOST_ID,
-        label: getExecutionHostLabel(LOCAL_EXECUTION_HOST_ID)
-      }
-    ]
-    for (const [targetId, name] of state.sshTargetLabels) {
-      const id = toSshExecutionHostId(targetId)
-      hosts.push({ id, label: name.trim() || getExecutionHostLabel(id) })
-    }
-    for (const environment of state.runtimeEnvironments) {
-      const id = toRuntimeExecutionHostId(environment.id)
-      hosts.push({ id, label: environment.name || getExecutionHostLabel(id) })
-    }
-    return hosts
-  })
+  const sshTargetLabels = useAppStore((state) => state.sshTargetLabels)
+  const runtimeEnvironments = useAppStore((state) => state.runtimeEnvironments)
+  const hosts: IndexHost[] = [
+    { id: LOCAL_EXECUTION_HOST_ID, label: getExecutionHostLabel(LOCAL_EXECUTION_HOST_ID) }
+  ]
+  for (const [targetId, name] of sshTargetLabels) {
+    const id = toSshExecutionHostId(targetId)
+    hosts.push({ id, label: name.trim() || getExecutionHostLabel(id) })
+  }
+  for (const environment of runtimeEnvironments) {
+    const id = toRuntimeExecutionHostId(environment.id)
+    hosts.push({ id, label: environment.name || getExecutionHostLabel(id) })
+  }
+  return hosts
 }
 
 function useHostConnected(id: ExecutionHostId): boolean {

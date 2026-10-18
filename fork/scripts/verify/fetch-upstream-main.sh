@@ -10,8 +10,9 @@
 # The fetch runs in its own process group (`set -m` job control; macOS has no `setsid` command), so
 # when launchd stops the job (unload, logout, shutdown) and signals this script's group, the fetch
 # and its helpers (git-remote-https, index-pack) are not in it. TERM, INT and HUP are trapped: the
-# trap stops the watchdog, TERMs the fetch's whole group, waits up to 3s, KILLs what is left, and
-# exits 143, 130 or 129. The EXIT trap does the same cleanup on every other exit; each step runs once.
+# trap stops the watchdog, then the fetch's whole group (TERM, repeated, then KILL after 3s), and
+# exits 143, 130 or 129. The EXIT trap does the same cleanup on every other exit; each step runs
+# once. Cleanup waits for a child only once it is gone, so it takes a few seconds at most.
 # While the fetch and the watchdog are being started their pids are not known yet, so a signal then
 # is only recorded; it is acted on as soon as both pids are set.
 set -euo pipefail
@@ -34,48 +35,66 @@ watchdog_pid=""
 marker=""
 fetch_group=0
 
-# True while any process of the fetch's group is alive (git can exit before its helpers do). Without
-# job control the fetch shares this script's group, so only the fetch itself is checked.
-fetch_alive() {
-  if [[ "$fetch_group" == 1 ]]; then
-    kill -0 -- "-${1}" 2>/dev/null
+# True while pid $2 (kind `pid`) or a process of group $2 (kind `group`) is running. Zombies do not
+# count: a child that has exited stays one until it is waited for, and `kill -0` still finds it.
+running() {
+  if [[ "$1" == group ]]; then
+    kill -0 -- "-${2}" 2>/dev/null || return 1
   else
-    kill -0 "$1" 2>/dev/null
+    kill -0 "$2" 2>/dev/null || return 1
+  fi
+  ps -A -o pid=,pgid=,stat= 2>/dev/null | awk -v kind="$1" -v id="$2" '
+    $3 !~ /^Z/ && ((kind == "group" && $2 == id) || (kind == "pid" && $1 == id)) { found = 1 }
+    END { exit !found }'
+}
+
+send() {
+  if [[ "$2" == group ]]; then
+    kill "-${1}" -- "-${3}" 2>/dev/null || true
+  else
+    kill "-${1}" "$3" 2>/dev/null || true
   fi
 }
 
-signal_fetch() {
-  if [[ "$fetch_group" == 1 ]]; then
-    kill "-${1}" -- "-${2}" 2>/dev/null || true
-  else
-    kill "-${1}" "$2" 2>/dev/null || true
+# Stops a child of this script and reaps it, in at most about 3.5s. TERM is sent again on every
+# check: a child that is still starting runs this script's trap handler until it resets its own
+# traps, and bash drops a signal caught in that moment, so one TERM can be lost. After 3s it gets
+# KILL, which cannot be lost; only then does `wait` run, so it never blocks for long.
+stop_child() {
+  local kind="$1" pid="$2" tries=0
+  while running "$kind" "$pid" && [[ "$tries" -lt 30 ]]; do
+    send TERM "$kind" "$pid"
+    sleep 0.1
+    tries=$((tries + 1))
+  done
+  if running "$kind" "$pid"; then
+    send KILL "$kind" "$pid"
+    tries=0
+    while running "$kind" "$pid" && [[ "$tries" -lt 5 ]]; do
+      sleep 0.1
+      tries=$((tries + 1))
+    done
   fi
+  wait "$pid" 2>/dev/null || true
 }
 
 # Idempotent: clears each pid before acting on it, so the signal trap and the EXIT trap after it
-# never kill or wait twice.
+# never kill or wait twice. Without job control the fetch shares this script's group, so only the
+# fetch itself is stopped.
 cleanup_fetch() {
   local pid="$watchdog_pid"
   watchdog_pid=""
   if [[ -n "$pid" ]]; then
-    kill "$pid" 2>/dev/null || true
-    wait "$pid" 2>/dev/null || true
+    stop_child pid "$pid"
   fi
   pid="$fetch_pid"
   fetch_pid=""
   if [[ -n "$pid" ]]; then
-    if fetch_alive "$pid"; then
-      signal_fetch TERM "$pid"
-      local tries=0
-      while fetch_alive "$pid" && [[ "$tries" -lt 12 ]]; do
-        sleep 0.25
-        tries=$((tries + 1))
-      done
-      if fetch_alive "$pid"; then
-        signal_fetch KILL "$pid"
-      fi
+    if [[ "$fetch_group" == 1 ]]; then
+      stop_child group "$pid"
+    else
+      stop_child pid "$pid"
     fi
-    wait "$pid" 2>/dev/null || true
   fi
   if [[ -n "$marker" ]]; then
     rm -f "$marker"
@@ -122,27 +141,36 @@ marker="$(mktemp "${TMPDIR:-/tmp}/orca-fetch-timeout.XXXXXX")"
 rm -f "$marker"
 (
   # Sleeps in the background so a TERM from cleanup_fetch also ends the current sleep, and no stray
-  # `sleep` outlives the script.
+  # `sleep` outlives the script. The trap only records the stop and ends the sleep; the loop exits.
+  stop=0
   nap_pid=""
-  trap '[[ -n "$nap_pid" ]] && kill "$nap_pid" 2>/dev/null; exit 0' TERM
+  trap 'stop=1; [[ -n "$nap_pid" ]] && kill "$nap_pid" 2>/dev/null' TERM
   trap - EXIT INT HUP
+  # False once the watchdog is told to stop.
   nap() {
     sleep 1 &
     nap_pid=$!
+    # A TERM between the two lines above found no sleep to end.
+    if [[ "$stop" == 1 ]]; then
+      kill "$nap_pid" 2>/dev/null || true
+    fi
+    wait "$nap_pid" 2>/dev/null || true
+    # A TERM ends `wait` before the killed sleep is reaped; reap it.
     wait "$nap_pid" 2>/dev/null || true
     nap_pid=""
+    [[ "$stop" == 0 ]]
   }
   # Sleep in 1s steps so the watchdog exits soon after the fetch does.
   waited=0
   while [[ "$waited" -lt "$timeout_s" ]]; do
-    nap
+    nap || exit 0
     kill -0 "$fetch_pid" 2>/dev/null || exit 0
     waited=$((waited + 1))
   done
   : >"$marker"
   kill -TERM -- "-${fetch_pid}" 2>/dev/null || kill -TERM "$fetch_pid" 2>/dev/null || true
   for _ in 1 2 3 4 5; do
-    nap
+    nap || exit 0
     kill -0 "$fetch_pid" 2>/dev/null || exit 0
   done
   kill -KILL -- "-${fetch_pid}" 2>/dev/null || kill -KILL "$fetch_pid" 2>/dev/null || true

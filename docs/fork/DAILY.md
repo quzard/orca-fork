@@ -14,6 +14,8 @@ bash fork/scripts/daily-sync.sh
 
 The script fetches `upstream` (`https://github.com/stablyai/orca.git`) and `origin/develop`, checks out `origin/develop`, and merges `upstream/main` into it with `git merge --no-ff` (message `Merge upstream main through <sha> (<n> commits)`). It then points the local `fork/base-upstream` ref at `upstream/main` and runs `node fork/scripts/sync-skills-source-commit.mjs`. That local ref is what the pin script reads first. The job does not push `fork/base-upstream`.
 
+If the localization runtime catalog verify (`pnpm run verify:localization-runtime-catalog`) fails after a merge, run `pnpm sync:localization-runtime-catalog` manually, review the regenerated `src/renderer/src/i18n/en-runtime-required.json`, and commit it on the attempt branch.
+
 On a clean merge and green checks it pushes `develop` with a plain, non-force push. The push is a fast-forward; if someone else moved `develop` in the meantime, GitHub rejects it and nothing is overwritten. The push updates that branch ref only. It does not push tags or any other branch. Exit code is 0. The summary lines are `daily-sync: OK`, `upstream:`, and `develop:`.
 
 Checks, in order: `check-no-internal-refs.sh`, `pnpm install --frozen-lockfile`, `pnpm exec oxlint`, the RPC / skill-guide / skill-manifest / localization-runtime catalog verifies, fork Vitest plus `src/shared/fork-hooks/update-feed.test.ts`, `pnpm tc`, then the host Linux orcad prebuild, smoke, `pnpm install --frozen-lockfile --dir mobile`, `pnpm build:mobile-web`, and `build-orcad-template.mjs` for that host slot. Set `ORCA_SYNC_DOCKER_SLOTS=1` to also run `fork/scripts/build-orcad-linux-prebuilds.sh` and stage `linux-x64-glibc,linux-arm64-glibc`. The home Mac package still builds those slots.

@@ -35,8 +35,17 @@ export function isCursorLauncherCommand(command: string | undefined): boolean {
   return launcherBaseName(unquoted) === CURSOR_LAUNCHER_NAME
 }
 
+/**
+ * Percent-encodes an ssh authority for the URL. A config alias or user name may hold `/`, `?`,
+ * `#`, `%` or a space, which would otherwise end the authority early or start the query. `@`
+ * stays readable; Cursor decodes the rest when it parses the URL.
+ */
+export function encodeCursorSshAuthority(authority: string): string {
+  return encodeURIComponent(authority).replace(/%40/g, '@')
+}
+
 /** `cursor://vscode-remote/ssh-remote+<authority><path>?windowId=_blank` */
 export function buildCursorRemoteSshUrl(authority: string, pathValue: string): string {
   const encodedPath = pathValue.replace(/\\/g, '/').split('/').map(encodeURIComponent).join('/')
-  return `${CURSOR_REMOTE_SSH_URL_PREFIX}${authority}${encodedPath}${CURSOR_REMOTE_NEW_WINDOW_QUERY}`
+  return `${CURSOR_REMOTE_SSH_URL_PREFIX}${encodeCursorSshAuthority(authority)}${encodedPath}${CURSOR_REMOTE_NEW_WINDOW_QUERY}`
 }

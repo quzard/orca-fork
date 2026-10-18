@@ -1,5 +1,6 @@
 import { app } from 'electron'
 import { installPrivateGithubDifferentialDownload } from '../../fork/private-github-blockmap'
+import { installPrivateGithubTokenFallback } from '../../fork/private-github-token-fallback'
 import {
   forkReleaseFeedDecision,
   forkUpstreamReleaseReadsBlocked
@@ -129,6 +130,8 @@ export abstract class UpdaterReleaseFeed extends UpdaterInstallExecution {
       // 公开 provider 用 releases/download 地址，electron-updater 自带的差分就够用。
       if (forkFeed.feed.private) {
         installPrivateGithubDifferentialDownload()
+        // 令牌被拒（401/403）时，这一次检查改用匿名公开 provider。必须装在差分补丁之后。
+        installPrivateGithubTokenFallback()
       }
       autoUpdater.setFeedURL(forkFeed.feed)
       return 'ready'

@@ -2,7 +2,7 @@
 
 由 `fork/scripts/generate-audit.py` 生成，改了 fork 文件后重新运行并用 oxfmt 格式化。每个和上游 1b3113de8e 不同的文件一行，另列已恢复成上游和已删除的文件。`src/fork/audit-table.fork.test.ts` 检查表和仓库一致。
 
-共 323 行：delete 8，keep 293，revert-to-upstream 4，shrink 18；⚠ 不确定 1 个（保留）。
+共 322 行：delete 8，keep 292，revert-to-upstream 4，shrink 18；⚠ 不确定 1 个（保留）。
 上游文件（不含 fork 目录）里的 fork 改动行数：PR #6 之前（b7755e6357）1760，现在 1453。
 
 | 文件                                                                                    | 功能                     | 决定               | 原因                                                                                                                            |
@@ -30,7 +30,7 @@
 | `docs/fork/skill-update-flow.md`                                                        | SKL 技能 pin             | keep               | fork 自有文件                                                                                                                   |
 | `fork/push_github.sh`                                                                   | INFRA 登记/工程/文档     | keep               | fork 自有文件                                                                                                                   |
 | `fork/scripts/build-orcad-linux-prebuilds.sh`                                           | INFRA 登记/工程/文档     | keep               | fork 自有文件                                                                                                                   |
-| `fork/scripts/check-commit-identity.test.sh`                                            | INFRA 登记/工程/文档     | keep               | 身份检查的 shell 测试：合规、作者、提交者、合并提交、缺 upstream/main                                                           |
+| `fork/scripts/check-commit-identity.test.sh`                                            | INFRA 登记/工程/文档     | keep               | 身份检查的 shell 测试：合规、作者、提交者、合并提交、缺 upstream/main、挪基线不能跳过坏提交、拉取超时                           |
 | `fork/scripts/check-no-internal-refs.test.sh`                                           | INFRA 登记/工程/文档     | keep               | 标识扫描的 shell 测试：从上游改名来的文件也扫描，扫描后跑身份检查                                                               |
 | `fork/scripts/daily-sync.sh`                                                            | F040 每日同步            | keep               | fork 自有文件                                                                                                                   |
 | `fork/scripts/generate-audit.py`                                                        | INFRA 登记/工程/文档     | keep               | PR #7 跟进：生成本表                                                                                                            |
@@ -51,10 +51,9 @@
 | `fork/scripts/sync-skills-source-commit.mjs`                                            | SKL 技能 pin             | keep               | fork 自有文件                                                                                                                   |
 | `fork/scripts/uninstall-mac-auto-update-agent.sh`                                       | F040 Mac 构建发布        | keep               | fork 自有文件                                                                                                                   |
 | `fork/scripts/verify-packaged-cli-closure.mjs`                                          | INFRA 登记/工程/文档     | keep               | fork 自有文件                                                                                                                   |
-| `fork/scripts/verify/check-commit-identity.sh`                                          | INFRA 登记/工程/文档     | keep               | 推送和发布前检查 upstream/main 之后每个提交的作者和提交者都是 quzard 的 noreply 身份                                            |
+| `fork/scripts/verify/check-commit-identity.sh`                                          | INFRA 登记/工程/文档     | keep               | 推送和发布前检查 upstream/main 和写死的下限 8fd7c96acc 之后每个提交的作者和提交者都是 quzard 的 noreply 身份                    |
 | `fork/scripts/verify/check-no-internal-refs.sh`                                         | INFRA 登记/工程/文档     | keep               | PR E：扫描自上游基点以来新增的所有 fork 文件（任何扩展名）                                                                      |
-| `fork/scripts/verify/fetch-upstream-main.sh`                                            | INFRA 登记/工程/文档     | keep               | 身份检查前刷新 upstream/main，避免把已合并的上游提交当成 fork 提交                                                              |
-| `fork/scripts/verify/identity-baseline`                                                 | INFRA 登记/工程/文档     | keep               | 身份检查的基线：8fd7c96acc 及之前的已公开提交不查                                                                               |
+| `fork/scripts/verify/fetch-upstream-main.sh`                                            | INFRA 登记/工程/文档     | keep               | 身份检查前刷新 upstream/main，避免把已合并的上游提交当成 fork 提交；默认 600 秒超时，超时杀掉 fetch                             |
 | `fork/scripts/verify/run-linux-verify.sh`                                               | INFRA 登记/工程/文档     | keep               | fork 自有文件                                                                                                                   |
 | `fork/scripts/verify/screenshot-electron.mjs`                                           | INFRA 登记/工程/文档     | keep               | fork 自有文件                                                                                                                   |
 | `fork/scripts/verify/screenshot-sidebar.mjs`                                            | SB 侧栏                  | delete             | PR E：手动截图，只在 parity 文档提到；Mac 上从未使用                                                                            |

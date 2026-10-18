@@ -85,7 +85,7 @@ if [[ -n "$github_sha" && "$local_sha" == "$github_sha" ]]; then
   exit 0
 fi
 
-# 推送前：upstream/main 和身份基线之后的每个提交（含合并提交）作者和提交者都必须是 quzard 的 noreply 身份。
+# 推送前：upstream/main 和身份下限（脚本里写死的 8fd7c96acc）之后的每个提交（含合并提交）作者和提交者都必须是 quzard 的 noreply 身份。
 # 用仓库里的检查脚本；没有它或没有 upstream/main 都直接失败。
 identity_check="fork/scripts/verify/check-commit-identity.sh"
 if [[ ! -f "$identity_check" ]]; then

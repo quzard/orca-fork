@@ -90,10 +90,10 @@ describe('remove one workspace from Orca', () => {
     harness.state.getKnownWorktreeById.mockImplementation(() => harness.state.worktree)
   })
 
-  it('stops browsers, then terminals, then archives, and does not delete the directory', async () => {
+  it('archives, then stops browsers and terminals, and does not delete the directory', async () => {
     const removed = await removeWorkspaceFromOrca({ id: 'wt-1', hostId: DEVBOX })
     expect(removed).toBe(true)
-    expect(harness.order).toEqual(['browsers', 'terminals', 'archive'])
+    expect(harness.order).toEqual(['archive', 'browsers', 'terminals'])
     expect(harness.state.shutdownWorktreeBrowsers).toHaveBeenCalledWith('wt-1')
     expect(harness.state.shutdownWorktreeTerminals).toHaveBeenCalledWith('wt-1', {
       keepIdentifiers: true
@@ -103,6 +103,24 @@ describe('remove one workspace from Orca', () => {
       { isArchived: true },
       { executionHostId: DEVBOX }
     )
+  })
+
+  it('keeps terminals running when the archive fails', async () => {
+    harness.state.updateWorktreeMeta.mockImplementationOnce(async () => {
+      harness.order.push('archive')
+      return { ok: false, error: 'host offline' }
+    })
+    const removed = await removeWorkspaceFromOrca({ id: 'wt-1', hostId: DEVBOX })
+    expect(removed).toBe(false)
+    expect(harness.order).toEqual(['archive'])
+    expect(harness.state.shutdownWorktreeTerminals).not.toHaveBeenCalled()
+  })
+
+  it('a workspace whose project is gone is stopped and dropped without an archive write', async () => {
+    harness.state.repos = []
+    const removed = await removeWorkspaceFromOrca({ id: 'wt-1', hostId: DEVBOX })
+    expect(removed).toBe(true)
+    expect(harness.order).toEqual(['browsers', 'terminals'])
   })
 
   it('aborts before shutdown when the workspace has more than one owner host', async () => {

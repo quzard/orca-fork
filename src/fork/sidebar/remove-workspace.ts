@@ -71,60 +71,64 @@ export async function removeWorkspaceFromOrca(target: WorktreeDeleteIdentity): P
     toast.error(workspaceRemovalLabels.ambiguous)
     return false
   }
-  const wasActive =
-    state.activeWorktreeId === worktree.id &&
-    (state.activeWorkspaceExecutionHostId ?? hostId) === hostId
-  if (wasActive) {
-    markWorktreeSleepIntent(worktree.id)
-    state.setActiveWorktree(null)
-  }
-  try {
-    await state.shutdownWorktreeBrowsers(worktree.id)
-    await state.shutdownWorktreeTerminals(worktree.id, { keepIdentifiers: true })
-    const currentState = useAppStore.getState()
-    const current = currentState.getKnownWorktreeById(worktree.id, hostId)
-    if (!current || !identityMatches(current, target.instanceId)) {
-      showWorkspaceListChangedToast()
+  const ownerRepo = findRepoForHost(state.repos, worktree.repoId, { hostId })
+  // Why archive first: like upstream's removal, the renderer tears down only after the host
+  // accepted the change, so a failed archive leaves the workspace's terminals running.
+  if (ownerRepo) {
+    try {
+      const result = await state.updateWorktreeMeta(
+        worktree.id,
+        { isArchived: true },
+        { executionHostId: hostId }
+      )
+      if (!result.ok) {
+        throw new Error(result.error ?? workspaceRemovalLabels.failed)
+      }
+    } catch (error) {
+      toast.error(workspaceRemovalLabels.failed, {
+        description: error instanceof Error ? error.message : String(error)
+      })
       return false
     }
-    const ownerRepo = findRepoForHost(currentState.repos, current.repoId, { hostId })
-    if (!ownerRepo) {
-      dropOrphanWorktree(current, hostId)
-      toast.success(workspaceRemovalLabels.removed)
-      return true
-    }
-    const result = await currentState.updateWorktreeMeta(
-      worktree.id,
-      { isArchived: true },
-      { executionHostId: hostId }
-    )
-    if (!result.ok) {
-      throw new Error(result.error ?? workspaceRemovalLabels.failed)
-    }
-    toast.success(workspaceRemovalLabels.removed, {
-      action: {
-        label: workspaceRemovalLabels.undo,
-        onClick: () => {
-          void useAppStore
-            .getState()
-            .updateWorktreeMeta(worktree.id, { isArchived: false }, { executionHostId: hostId })
-            .then((restored) => {
-              if (!restored.ok) {
-                toast.error(restored.error ?? workspaceRemovalLabels.failed)
-              }
-            })
-        }
-      }
-    })
-    return true
+  }
+  const currentState = useAppStore.getState()
+  const wasActive =
+    currentState.activeWorktreeId === worktree.id &&
+    (currentState.activeWorkspaceExecutionHostId ?? hostId) === hostId
+  if (wasActive) {
+    markWorktreeSleepIntent(worktree.id)
+    currentState.setActiveWorktree(null)
+  }
+  try {
+    await currentState.shutdownWorktreeBrowsers(worktree.id)
+    await currentState.shutdownWorktreeTerminals(worktree.id, { keepIdentifiers: true })
   } catch (error) {
-    toast.error(workspaceRemovalLabels.failed, {
-      description: error instanceof Error ? error.message : String(error)
-    })
-    return false
+    // The archive already landed; the workspace is gone from the list either way.
+    console.error('Failed to stop a removed workspace:', error)
   } finally {
     if (wasActive) {
       clearWorktreeSleepIntent(worktree.id)
     }
   }
+  if (!ownerRepo) {
+    dropOrphanWorktree(worktree, hostId)
+    toast.success(workspaceRemovalLabels.removed)
+    return true
+  }
+  toast.success(workspaceRemovalLabels.removed, {
+    action: {
+      label: workspaceRemovalLabels.undo,
+      onClick: () => {
+        void useAppStore
+          .getState()
+          .updateWorktreeMeta(worktree.id, { isArchived: false }, { executionHostId: hostId })
+          .then((restored) => {
+            if (!restored.ok) {
+              toast.error(restored.error ?? workspaceRemovalLabels.failed)
+            }
+          })
+      }
+    }
+  })
+  return true
 }

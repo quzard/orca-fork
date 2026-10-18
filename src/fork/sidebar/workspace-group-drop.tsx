@@ -24,6 +24,7 @@ import {
 import {
   buildGroupDropOrder,
   commitGroupDrop,
+  enqueueGroupDrop,
   planGroupDropItems,
   resolveGroupDropTarget
 } from './workspace-group-drop-plan'
@@ -90,7 +91,7 @@ export function tryCommitWorkspaceGroupDrop(args: DropArgs): boolean {
     key,
     pointerY,
     args.container
-  )
+  ).catch((error: unknown) => console.error('Workspace group drop failed', error))
   return true
 }
 
@@ -158,7 +159,7 @@ function workspaceBelongsToGroup(
   )
 }
 
-async function writeGroupDrop(
+function writeGroupDrop(
   hostId: ExecutionHostId,
   groupId: string | null,
   draggedIds: readonly string[],
@@ -167,30 +168,32 @@ async function writeGroupDrop(
   pointerY: number,
   container: HTMLElement
 ): Promise<void> {
-  const state = useAppStore.getState()
-  const target = resolveGroupDropTarget(state, hostId, groupId, targetKey)
-  if ('error' in target) {
-    toast.error(target.error)
-    return
-  }
-  const visible = groups.find((group) => group.key === target.key)?.worktreeIds ?? []
-  const dropIndex = workspaceGroupInsertionIndex(
-    getWorktreeSidebarDragRectsForGroup(container, target.key),
-    pointerY,
-    visible.length
-  )
-  const order = buildGroupDropOrder(state, groups, target, draggedIds, dropIndex, (id) =>
-    workspaceBelongsToGroup(state, id, hostId, target.groupId)
-  )
-  const items = planGroupDropItems(state, hostId, target, draggedIds, order)
-  if ('error' in items) {
-    toast.error(items.error)
-    return
-  }
-  const error = await commitGroupDrop(state, hostId, items)
-  if (error) {
-    toast.error(error)
-  }
+  // The insertion point is read now, from the rows the user dropped on; the rest waits its turn.
+  const early = resolveGroupDropTarget(useAppStore.getState(), hostId, groupId, targetKey)
+  const rects = 'error' in early ? [] : getWorktreeSidebarDragRectsForGroup(container, early.key)
+  return enqueueGroupDrop(async () => {
+    // Planned from the state after any earlier drop, so two drops never rank from one snapshot.
+    const state = useAppStore.getState()
+    const target = resolveGroupDropTarget(state, hostId, groupId, targetKey)
+    if ('error' in target) {
+      toast.error(target.error)
+      return
+    }
+    const visible = groups.find((group) => group.key === target.key)?.worktreeIds ?? []
+    const dropIndex = workspaceGroupInsertionIndex(rects, pointerY, visible.length)
+    const order = buildGroupDropOrder(state, groups, target, draggedIds, dropIndex, (id) =>
+      workspaceBelongsToGroup(state, id, hostId, target.groupId)
+    )
+    const items = planGroupDropItems(state, hostId, target, draggedIds, order)
+    if ('error' in items) {
+      toast.error(items.error)
+      return
+    }
+    const error = await commitGroupDrop(state, hostId, items)
+    if (error) {
+      toast.error(error)
+    }
+  })
 }
 
 export function registerWorkspaceGroupDropHandler(): void {

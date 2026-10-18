@@ -225,3 +225,15 @@ export async function commitGroupDrop(
   }
   return null
 }
+
+let dropQueue: Promise<void> = Promise.resolve()
+
+/**
+ * Runs drops one after another, across separate drag operations: a second drop starts only after
+ * the first one's writes and any rollback finished. A failed drop does not stop the next one.
+ */
+export function enqueueGroupDrop(task: () => Promise<void>): Promise<void> {
+  const run = dropQueue.then(task)
+  dropQueue = run.catch(() => undefined)
+  return run
+}

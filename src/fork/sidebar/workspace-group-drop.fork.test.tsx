@@ -12,6 +12,7 @@ import {
 } from './section-keys'
 import {
   commitGroupDrop,
+  enqueueGroupDrop,
   planGroupDropItems,
   resolveGroupDropTarget,
   type GroupDropState,
@@ -332,5 +333,30 @@ describe('multi-row group drop', () => {
     ).resolves.toBeNull()
     expect(maxInFlight).toBe(1)
     expect(Object.keys(blob).sort()).toEqual(['f1', 'w-explicit', 'w-inherit'])
+  })
+})
+
+describe('separate drops', () => {
+  it('run one after another, and a failed drop does not block the next', async () => {
+    const events: string[] = []
+    let releaseFirst: () => void = () => {}
+    const first = enqueueGroupDrop(async () => {
+      events.push('first:start')
+      await new Promise<void>((resolve) => {
+        releaseFirst = resolve
+      })
+      events.push('first:end')
+      throw new Error('first failed')
+    })
+    const second = enqueueGroupDrop(async () => {
+      events.push('second:start')
+    })
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(events).toEqual(['first:start'])
+    releaseFirst()
+    await expect(first).rejects.toThrow('first failed')
+    await second
+    expect(events).toEqual(['first:start', 'first:end', 'second:start'])
   })
 })

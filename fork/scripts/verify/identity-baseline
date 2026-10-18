@@ -1,0 +1,7 @@
+# Identity baseline for check-commit-identity.sh: one full commit SHA, read from the checked ref.
+# Commits reachable from this one are not checked. They are already public on develop; they were
+# reviewed when this file was added and carry no personal email (20 of them are by
+# Cursor Agent <cursoragent@cursor.com>, 2026-10-16/17, and cannot be rewritten).
+# Every commit after it must be by quzard <30899719+quzard@users.noreply.github.com>.
+# Never move it backward. Moving it forward only to a commit that already passes the check.
+8fd7c96acc934cb25e41b5da17f1743e88219bbe

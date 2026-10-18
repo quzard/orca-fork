@@ -126,7 +126,7 @@ launchd 里签名可能停在 Orca Local Signing 的钥匙串确认上。`--boot
 
 ## 提交身份
 
-`fork/scripts/verify/check-commit-identity.sh [REF]`（默认 `HEAD`）检查 `git rev-list REF ^upstream/main` 里的每个提交，合并提交也算：作者和提交者都必须正好是 `quzard <30899719+quzard@users.noreply.github.com>`，否则列出不合规的 SHA 并失败。没有 `upstream/main` 引用时直接失败，不退回别的基点。`check-no-internal-refs.sh` 扫完内容后接着跑它（`ORCA_IDENTITY_REF` 可指定引用）；`daily-sync.sh` 在推 attempt 分支和 `develop` 之前各跑一次，并要求本机 git 身份就是这个；`fork/push_github.sh` 推送前跑；`mac-auto-update.sh` 发布 release 前对要发布的提交跑。测试是 `fork/scripts/check-commit-identity.test.sh`。
+`fork/scripts/verify/check-commit-identity.sh [REF]`（默认 `HEAD`）检查 `git rev-list REF ^upstream/main ^基线` 里的每个提交，合并提交也算：作者和提交者都必须正好是 `quzard <30899719+quzard@users.noreply.github.com>`，否则列出不合规的 SHA 并失败。没有 `upstream/main` 引用时直接失败，不退回别的基点。基线是 `fork/scripts/verify/identity-baseline` 里唯一的完整 SHA（现在是 develop 的 8fd7c96acc），从被检查的引用自己的树里读，工作区改动不算；文件缺失、内容不是恰好一个 40 位 SHA、仓库里没有这个提交，或它不是被检查引用的祖先，都直接失败。基线之前的提交已经公开，加基线时查过，没有个人邮箱（其中 20 个是 2026-10-16/17 的 `Cursor Agent <cursoragent@cursor.com>`，无法改写）。基线只能往前移，而且只能移到已经通过检查的提交，不能往回移。`check-no-internal-refs.sh` 扫完内容后接着跑它（`ORCA_IDENTITY_REF` 可指定引用）；`daily-sync.sh` 在推 attempt 分支和 `develop` 之前各跑一次，并要求本机 git 身份就是这个；`fork/push_github.sh` 推送前跑；`mac-auto-update.sh` 发布 release 前对要发布的提交跑。测试是 `fork/scripts/check-commit-identity.test.sh`。
 
 ## 根目录杂项
 

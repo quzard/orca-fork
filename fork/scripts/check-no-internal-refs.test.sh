@@ -26,6 +26,7 @@ echo "export const FORK_SKILLS_SOURCE_COMMIT = 'pending'" >src/cli/skills-source
 git add . && git commit -q -m upstream
 base="$(git rev-parse HEAD)"
 git update-ref refs/remotes/upstream/main "$base"
+printf '%s\n' "$base" >fork/scripts/verify/identity-baseline
 printf "export const FORK_SKILLS_SOURCE_COMMIT = '%s'\n" "$base" >src/cli/skills-source-commit.ts
 cp "${ROOT}/fork/scripts/verify/check-no-internal-refs.sh" "${ROOT}/fork/scripts/verify/check-commit-identity.sh" fork/scripts/verify/
 # 改名后多一行内部标识；相似度够高，git diff 默认会把它当改名而不是新增。

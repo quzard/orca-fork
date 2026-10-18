@@ -1,6 +1,6 @@
 #!/bin/bash
-# check-commit-identity.sh 在临时仓库里的表现：全部合规、作者不对、提交者不对、合并提交不对、没有 upstream/main。
-# 不接触网络。
+# check-commit-identity.sh 在临时仓库里的表现：基线之前的提交不查；基线之后作者、提交者、合并提交不对都失败；
+# 缺 upstream/main、缺基线文件、基线无效或不是祖先都失败。不接触网络。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -10,6 +10,7 @@ trap 'rm -rf "$BASE"' EXIT
 FAILS=0
 GOOD_NAME="quzard"
 GOOD_EMAIL="30899719+quzard@users.noreply.github.com"
+BASELINE_PATH="fork/scripts/verify/identity-baseline"
 
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 
@@ -28,8 +29,16 @@ good_commit() {
   commit_as "$GOOD_NAME" "$GOOD_EMAIL" "$GOOD_NAME" "$GOOD_EMAIL" "$1"
 }
 
-# 新仓库：一个上游提交（谁写的都行，它在 upstream/main 里），upstream/main 指向它。
-new_repo() {
+# 用一个合规提交写入基线文件。内容原样写入（可以是无效内容）。
+write_baseline() {
+  mkdir -p "$(dirname "$BASELINE_PATH")"
+  printf '# baseline\n%s\n' "$1" >"$BASELINE_PATH"
+  git add "$BASELINE_PATH"
+  good_commit "baseline $1"
+}
+
+# 新仓库：一个上游提交（谁写的都行），upstream/main 指向它；不写基线。
+bare_repo() {
   local dir="${BASE}/$1"
   mkdir -p "$dir"
   cd "$dir"
@@ -38,9 +47,15 @@ new_repo() {
   git update-ref refs/remotes/upstream/main HEAD
 }
 
+# 新仓库，基线就是上游提交。
+new_repo() {
+  bare_repo "$1"
+  write_baseline "$(git rev-parse HEAD)"
+}
+
 expect_pass() {
   local name="$1" out
-  if ! out="$(bash "$GUARD" 2>&1)"; then
+  if ! out="$(bash "$GUARD" ${2:+"$2"} 2>&1)"; then
     fail "${name}: expected pass, got: ${out}"
   fi
 }
@@ -61,6 +76,21 @@ new_repo good
 good_commit "fork one"
 good_commit "fork two"
 expect_pass "all commits by the fork identity"
+
+# 基线之前的 Cursor Agent 提交（已公开、无法改写）不查。
+bare_repo pre-baseline
+commit_as "Cursor Agent" "cursoragent@cursor.com" "Cursor Agent" "cursoragent@cursor.com" "old public commit"
+old="$(git rev-parse HEAD)"
+write_baseline "$old"
+good_commit "fork after baseline"
+expect_pass "pre-baseline commit ignored"
+# 同一个仓库，基线之后再来一个坏作者：失败，只列这一个。
+commit_as "Cursor Agent" "cursoragent@cursor.com" "$GOOD_NAME" "$GOOD_EMAIL" "new bad commit"
+sha="$(git rev-parse HEAD)"
+expect_fail "post-baseline bad author" "$sha"
+if out="$(bash "$GUARD" 2>&1)"; [[ "$out" == *"$old"* ]]; then
+  fail "pre-baseline commit was listed: ${out}"
+fi
 
 new_repo bad-author
 good_commit "fork one"
@@ -88,12 +118,8 @@ good_commit "fork two"
 GIT_AUTHOR_NAME=Someone GIT_AUTHOR_EMAIL=someone@example.com \
   GIT_COMMITTER_NAME=Someone GIT_COMMITTER_EMAIL=someone@example.com \
   git merge -q --no-ff --no-edit side
-sha="$(git rev-parse HEAD)"
-expect_fail "bad merge commit" "$sha"
-expect_pass_ref="$(git rev-parse HEAD^1)"
-if ! bash "$GUARD" "$expect_pass_ref" >/dev/null 2>&1; then
-  fail "explicit ref before the merge should pass"
-fi
+expect_fail "bad merge commit" "$(git rev-parse HEAD)"
+expect_pass "explicit ref before the merge" "$(git rev-parse HEAD^1)"
 
 new_repo upstream-merge
 good_commit "fork one"
@@ -115,6 +141,42 @@ expect_fail "missing upstream/main" "upstream/main is missing"
 
 new_repo bad-ref
 expect_fail "unknown ref" "cannot resolve" no-such-ref
+
+bare_repo missing-baseline
+good_commit "fork one"
+expect_fail "missing baseline file" "identity-baseline is missing"
+
+bare_repo invalid-baseline
+write_baseline "not-a-sha"
+expect_fail "invalid baseline" "exactly one full commit SHA"
+
+bare_repo two-baselines
+mkdir -p "$(dirname "$BASELINE_PATH")"
+printf '%s\n%s\n' "$(git rev-parse HEAD)" "$(git rev-parse HEAD)" >"$BASELINE_PATH"
+git add "$BASELINE_PATH" && good_commit "two shas"
+expect_fail "two baseline lines" "exactly one full commit SHA"
+
+bare_repo short-baseline
+write_baseline "$(git rev-parse --short HEAD)"
+expect_fail "short baseline sha" "exactly one full commit SHA"
+
+bare_repo unknown-baseline
+write_baseline "0123456789abcdef0123456789abcdef01234567"
+expect_fail "baseline not in the repo" "is not in this repository"
+
+bare_repo not-ancestor
+git checkout -q -b side
+good_commit "side only"
+side="$(git rev-parse HEAD)"
+git checkout -q main
+write_baseline "$side"
+expect_fail "baseline not an ancestor" "is not an ancestor"
+
+# 基线从被检查的引用里读：工作区改了不算。
+new_repo worktree-edit
+commit_as "Someone" "someone@example.com" "$GOOD_NAME" "$GOOD_EMAIL" "bad author"
+printf '%s\n' "$(git rev-parse HEAD)" >"$BASELINE_PATH"
+expect_fail "working-tree baseline edit ignored" "not by"
 
 if [[ "$FAILS" -ne 0 ]]; then
   echo "${FAILS} check(s) failed" >&2

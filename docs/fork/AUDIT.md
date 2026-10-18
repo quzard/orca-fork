@@ -2,7 +2,7 @@
 
 由 `fork/scripts/generate-audit.py` 生成，改了 fork 文件后重新运行并用 oxfmt 格式化。每个和上游 1b3113de8e 不同的文件一行，另列已恢复成上游和已删除的文件。`src/fork/audit-table.fork.test.ts` 检查表和仓库一致。
 
-共 321 行：delete 8，keep 291，revert-to-upstream 4，shrink 18；⚠ 不确定 1 个（保留）。
+共 322 行：delete 8，keep 292，revert-to-upstream 4，shrink 18；⚠ 不确定 1 个（保留）。
 上游文件（不含 fork 目录）里的 fork 改动行数：PR #6 之前（b7755e6357）1760，现在 1453。
 
 | 文件                                                                                    | 功能                     | 决定               | 原因                                                                                                                            |
@@ -53,6 +53,7 @@
 | `fork/scripts/verify-packaged-cli-closure.mjs`                                          | INFRA 登记/工程/文档     | keep               | fork 自有文件                                                                                                                   |
 | `fork/scripts/verify/check-commit-identity.sh`                                          | INFRA 登记/工程/文档     | keep               | 推送和发布前检查 upstream/main 之后每个提交的作者和提交者都是 quzard 的 noreply 身份                                            |
 | `fork/scripts/verify/check-no-internal-refs.sh`                                         | INFRA 登记/工程/文档     | keep               | PR E：扫描自上游基点以来新增的所有 fork 文件（任何扩展名）                                                                      |
+| `fork/scripts/verify/identity-baseline`                                                 | INFRA 登记/工程/文档     | keep               | 身份检查的基线：8fd7c96acc 及之前的已公开提交不查                                                                               |
 | `fork/scripts/verify/run-linux-verify.sh`                                               | INFRA 登记/工程/文档     | keep               | fork 自有文件                                                                                                                   |
 | `fork/scripts/verify/screenshot-electron.mjs`                                           | INFRA 登记/工程/文档     | keep               | fork 自有文件                                                                                                                   |
 | `fork/scripts/verify/screenshot-sidebar.mjs`                                            | SB 侧栏                  | delete             | PR E：手动截图，只在 parity 文档提到；Mac 上从未使用                                                                            |

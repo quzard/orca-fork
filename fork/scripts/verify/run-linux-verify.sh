@@ -7,6 +7,8 @@ cd "$ROOT"
 export OUT_DIR="${OUT_DIR:-/tmp/orca-fork-verify}"
 mkdir -p "$OUT_DIR"
 
+# 标识扫描接着跑提交身份检查，它要最新的 upstream/main。
+bash fork/scripts/verify/fetch-upstream-main.sh
 bash fork/scripts/verify/check-no-internal-refs.sh
 
 if command -v xvfb-run >/dev/null 2>&1; then

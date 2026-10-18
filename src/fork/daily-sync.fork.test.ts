@@ -233,11 +233,29 @@ git ls-remote origin 'refs/heads/sync/*' | awk '{print $2}' | sort | tr '\n' ' '
     expect(publishCall.indexOf('check-commit-identity.sh')).toBeLessThan(
       publishCall.indexOf('publish-mac-release.sh')
     )
+    // A fresh upstream/main first, so merged upstream commits are not checked as fork commits.
+    expect(publishCall.indexOf('fetch-upstream-main.sh')).toBeGreaterThan(0)
+    expect(publishCall.indexOf('fetch-upstream-main.sh')).toBeLessThan(
+      publishCall.indexOf('check-commit-identity.sh')
+    )
     expect(script).not.toContain('installedSha')
     const pushGithub = readFileSync(resolve('fork/push_github.sh'), 'utf8')
     expect(pushGithub.indexOf('check-commit-identity.sh')).toBeLessThan(
       pushGithub.indexOf('push_args=(push)')
     )
+    expect(pushGithub.indexOf('bash fork/scripts/verify/fetch-upstream-main.sh')).toBeLessThan(
+      pushGithub.indexOf('bash "$identity_check"')
+    )
+    const linuxVerify = readFileSync(resolve('fork/scripts/verify/run-linux-verify.sh'), 'utf8')
+    expect(linuxVerify.indexOf('fetch-upstream-main.sh')).toBeLessThan(
+      linuxVerify.indexOf('check-no-internal-refs.sh')
+    )
+    const fetchMain = readFileSync(resolve('fork/scripts/verify/fetch-upstream-main.sh'), 'utf8')
+    expect(fetchMain).toContain('refs/heads/main:refs/remotes/upstream/main')
+    const sync = readFileSync(resolve('fork/scripts/daily-sync.sh'), 'utf8')
+    const upstreamUrl = /git remote add upstream (\S+)/.exec(sync)?.[1]
+    expect(upstreamUrl).toBeTruthy()
+    expect(fetchMain).toContain(`readonly UPSTREAM_URL="${upstreamUrl}"`)
     expect(publishCall.indexOf('publish-mac-release.sh')).toBeLessThan(
       publishCall.indexOf('git reset --hard')
     )

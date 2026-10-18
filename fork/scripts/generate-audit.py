@@ -61,6 +61,7 @@ OVR={
 'fork/scripts/verify/check-commit-identity.sh':('keep','推送和发布前检查 upstream/main 之后每个提交的作者和提交者都是 quzard 的 noreply 身份'),
 'fork/scripts/check-commit-identity.test.sh':('keep','身份检查的 shell 测试：合规、作者、提交者、合并提交、缺 upstream/main'),
 'fork/scripts/verify/identity-baseline':('keep','身份检查的基线：8fd7c96acc 及之前的已公开提交不查'),
+'fork/scripts/verify/fetch-upstream-main.sh':('keep','身份检查前刷新 upstream/main，避免把已合并的上游提交当成 fork 提交'),
 'fork/scripts/check-no-internal-refs.test.sh':('keep','标识扫描的 shell 测试：从上游改名来的文件也扫描，扫描后跑身份检查'),
 'fork/scripts/generate-audit.py':('keep','PR #7 跟进：生成本表'),
 'docs/fork/AUDIT.md':('keep','PR #7 跟进：本表'),

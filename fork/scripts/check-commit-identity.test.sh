@@ -178,6 +178,31 @@ commit_as "Someone" "someone@example.com" "$GOOD_NAME" "$GOOD_EMAIL" "bad author
 printf '%s\n' "$(git rev-parse HEAD)" >"$BASELINE_PATH"
 expect_fail "working-tree baseline edit ignored" "not by"
 
+# fetch-upstream-main.sh：从 upstream 远端拉 main 到 refs/remotes/upstream/main（含非快进）；拉不到时失败。
+FETCH="${ROOT}/fork/scripts/verify/fetch-upstream-main.sh"
+mkdir -p "${BASE}/up-src" && cd "${BASE}/up-src"
+git init -q -b main
+commit_as "Upstream Dev" "dev@example.com" "Upstream Dev" "dev@example.com" "upstream one"
+new_repo fetch
+git remote add upstream "${BASE}/up-src"
+stale="$(git rev-parse refs/remotes/upstream/main)"
+if ! bash "$FETCH" >/dev/null 2>&1; then
+  fail "fetch from the upstream remote failed"
+elif [[ "$(git rev-parse refs/remotes/upstream/main)" != "$(git -C "${BASE}/up-src" rev-parse main)" ]]; then
+  fail "upstream/main not refreshed (still ${stale})"
+fi
+(cd "${BASE}/up-src" &&
+  GIT_AUTHOR_NAME=U GIT_AUTHOR_EMAIL=u@example.com GIT_COMMITTER_NAME=U GIT_COMMITTER_EMAIL=u@example.com \
+    git commit -q --amend --allow-empty -m "rewritten upstream")
+if ! bash "$FETCH" >/dev/null 2>&1 ||
+  [[ "$(git rev-parse refs/remotes/upstream/main)" != "$(git -C "${BASE}/up-src" rev-parse main)" ]]; then
+  fail "a rewritten upstream main was not fetched"
+fi
+git remote set-url upstream "${BASE}/no-such-repo"
+if bash "$FETCH" >/dev/null 2>&1; then
+  fail "fetch from a missing upstream should fail"
+fi
+
 if [[ "$FAILS" -ne 0 ]]; then
   echo "${FAILS} check(s) failed" >&2
   exit 1

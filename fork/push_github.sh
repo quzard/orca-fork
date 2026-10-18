@@ -2,7 +2,8 @@
 # Fast-forward a checkout, then push that branch to a GitHub remote.
 # Run on the checkout host, or from another machine which ssh's there.
 # --dry-run prints the push and does not update the remote.
-# Before pushing it runs fork/scripts/verify/check-commit-identity.sh on the branch.
+# Before pushing it fetches upstream main and runs fork/scripts/verify/check-commit-identity.sh on
+# the branch.
 # Example:
 #   PUSH_GITHUB_HOST=build-host \
 #   PUSH_GITHUB_REPO=/srv/wt/project \
@@ -84,13 +85,15 @@ if [[ -n "$github_sha" && "$local_sha" == "$github_sha" ]]; then
   exit 0
 fi
 
-# 推送前：upstream/main 之后的每个提交（含合并提交）作者和提交者都必须是 quzard 的 noreply 身份。
+# 推送前：upstream/main 和身份基线之后的每个提交（含合并提交）作者和提交者都必须是 quzard 的 noreply 身份。
 # 用仓库里的检查脚本；没有它或没有 upstream/main 都直接失败。
 identity_check="fork/scripts/verify/check-commit-identity.sh"
 if [[ ! -f "$identity_check" ]]; then
   echo "缺少 ${identity_check}，不推送" >&2
   exit 1
 fi
+# 先拉最新的上游 main，否则已合进来的上游提交会被当成 fork 提交。拉取失败就不推送。
+bash fork/scripts/verify/fetch-upstream-main.sh
 bash "$identity_check" "$BRANCH"
 
 push_args=(push)

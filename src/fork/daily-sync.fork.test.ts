@@ -232,6 +232,9 @@ git ls-remote origin 'refs/heads/sync/*' | awk '{print $2}' | sort | tr '\n' ' '
     expect(script).toContain('/Applications/OrbStack.app/Contents/MacOS/xbin')
     expect(script).toContain('export PATH="${MAC_TOOL_PATH}:${PATH}"')
     expect(script).toContain('${STATUS_DIR}/node-runtime-cache')
+    // The glibc 2.17 Node seed reads upstream's pin instead of a second copy of it.
+    expect(script).toContain('nodeRuntimeAsset("linux-x64-glibc217")')
+    expect(script).not.toMatch(/GLIBC217_SHA256|node-v\d+\.\d+\.\d+-linux-x64-glibc-217/)
     const plist = readFileSync(
       resolve('fork/scripts/launchd/com.orca.fork.mac-auto-update.plist'),
       'utf8'

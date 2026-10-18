@@ -8,8 +8,6 @@ readonly STATUS_DIR="${HOME}/Projects/orca-verify"
 readonly INSTALLED_SCRIPT="${STATUS_DIR}/bin/mac-auto-update.sh"
 readonly STATUS_JSON="${STATUS_DIR}/sync-status.json"
 readonly LOCK_FILE="${STATUS_DIR}/mac-auto-update.lock"
-readonly GLIBC217_ARCHIVE="node-v24.21.0-linux-x64-glibc-217.tar.gz"
-readonly GLIBC217_SHA256="b1d164136d4b218d663e664f40ba5e260ebc07f90e2bd784c63a57d8c0e6aa8a"
 readonly RELEASE_COMPLETE="published"
 readonly RELEASE_DMG_PENDING="published-dmg-pending"
 readonly PUBLISH_DMG_PENDING_EXIT=20
@@ -225,9 +223,21 @@ use_node24() {
   export PATH="${MAC_TOOL_PATH}:${PATH}"
 }
 
+# glibc 2.17 的 Node 来自 unofficial-builds，这台 Mac 可能连不上。文件名、版本和 sha256 读上游的
+# src/shared/node-runtime-pin.ts，不在脚本里另写一份；构建时上游脚本按同一个 pin 复用缓存。
 seed_glibc217() {
-  local dest="${ORCA_NODE_RUNTIME_CACHE_DIR}/${GLIBC217_ARCHIVE}"
-  if [[ -f "$dest" ]] && [[ "$(shasum -a 256 "$dest" | awk '{print $1}')" == "$GLIBC217_SHA256" ]]; then
+  local pin archive sha version
+  pin="$(node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --input-type=module -e '
+    import { NODE_RUNTIME_PIN, nodeRuntimeAsset } from "./src/shared/node-runtime-pin.ts"
+    const asset = nodeRuntimeAsset("linux-x64-glibc217")
+    console.log([asset.archive, asset.archiveSha256, NODE_RUNTIME_PIN.version].join(" "))
+  ')" || {
+    ERROR="cannot read the glibc 2.17 Node pin"
+    finish 1
+  }
+  read -r archive sha version <<<"$pin"
+  local dest="${ORCA_NODE_RUNTIME_CACHE_DIR}/${archive}"
+  if [[ -f "$dest" ]] && [[ "$(shasum -a 256 "$dest" | awk '{print $1}')" == "$sha" ]]; then
     return 0
   fi
   if [[ -z "${ORCA_NODE_UNOFFICIAL_MIRROR:-}" ]]; then
@@ -237,12 +247,12 @@ seed_glibc217() {
   local url="$ORCA_NODE_UNOFFICIAL_MIRROR"
   case "$url" in
     *.tar.gz) ;;
-    *) url="${url%/}/v24.21.0/${GLIBC217_ARCHIVE}" ;;
+    *) url="${url%/}/v${version}/${archive}" ;;
   esac
   curl -fsSL "$url" -o "${dest}.partial"
   local actual
   actual="$(shasum -a 256 "${dest}.partial" | awk '{print $1}')"
-  if [[ "$actual" != "$GLIBC217_SHA256" ]]; then
+  if [[ "$actual" != "$sha" ]]; then
     rm -f "${dest}.partial"
     ERROR="mirrored Node archive hashed ${actual}"
     finish 1

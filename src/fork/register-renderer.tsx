@@ -27,6 +27,7 @@ import { registerSettingsProjectBulkSlot } from './sidebar/settings-project-bulk
 import { registerSidebarMenuSlots } from './sidebar/sidebar-menu-slots'
 import { registerWorkspaceChoice } from './sidebar/workspace-choice'
 import { registerWorkspaceGroupDropHandler } from './sidebar/workspace-group-drop'
+import { registerWorkspaceMenuGroups } from './sidebar/menu-groups'
 import {
   consumeDeferredSshReconnectTui,
   pulseSshReconnectTui
@@ -45,6 +46,7 @@ export function registerForkRendererModules(): void {
   registerWorkspaceChoice()
   registerSettingsProjectBulkSlot()
   registerWorkspaceGroupDropHandler()
+  registerWorkspaceMenuGroups()
   registerHiddenWorktreeSearch({
     minimum: 1,
     matches: (worktree, query) => (worktree.branch ?? '').toLocaleLowerCase().includes(query)

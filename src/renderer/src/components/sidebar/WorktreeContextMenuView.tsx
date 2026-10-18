@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { renderSidebarContextMenu } from '../../../../shared/fork-hooks/sidebar-chrome'
+import { worktreeMenuGroups } from '../../../../shared/fork-hooks/worktree-menu-groups'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Copy,
@@ -103,6 +104,13 @@ export default function WorktreeContextMenuView({ model }: { model: WorktreeCont
     workspaceStatuses
   } = model
   const deleteShortcut = useOptionalShortcutLabel('workspace.delete')
+  const menuGroups = worktreeMenuGroups({
+    worktree,
+    repo,
+    projectGroups,
+    onMove: handleMoveProjectToGroup,
+    onRemove: handleRemoveProjectFromGroup
+  })
   return (
     <div
       ref={scopeRef}
@@ -220,7 +228,7 @@ export default function WorktreeContextMenuView({ model }: { model: WorktreeCont
                       'New group from project'
                     )}
                   </DropdownMenuItem>
-                  {projectGroups.length > 0 ? (
+                  {menuGroups.groups.length > 0 ? (
                     <DropdownMenuSub>
                       <DropdownMenuSubTrigger disabled={isDeleting}>
                         <FolderInput className="size-3.5" />
@@ -230,11 +238,11 @@ export default function WorktreeContextMenuView({ model }: { model: WorktreeCont
                         )}
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent>
-                        {projectGroups.map((group) => (
+                        {menuGroups.groups.map((group) => (
                           <DropdownMenuItem
                             key={group.id}
-                            disabled={repo.projectGroupId === group.id}
-                            onSelect={() => handleMoveProjectToGroup(group.id)}
+                            disabled={menuGroups.currentGroupId === group.id}
+                            onSelect={() => menuGroups.onMove(group.id)}
                           >
                             <span className="max-w-48 truncate">{group.name}</span>
                           </DropdownMenuItem>
@@ -242,8 +250,8 @@ export default function WorktreeContextMenuView({ model }: { model: WorktreeCont
                       </DropdownMenuSubContent>
                     </DropdownMenuSub>
                   ) : null}
-                  {repo.projectGroupId ? (
-                    <DropdownMenuItem onSelect={handleRemoveProjectFromGroup} disabled={isDeleting}>
+                  {menuGroups.currentGroupId ? (
+                    <DropdownMenuItem onSelect={menuGroups.onRemove} disabled={isDeleting}>
                       <CircleX className="size-3.5" />
                       {translate(
                         'auto.components.sidebar.WorktreeContextMenu.d35dfeae58',

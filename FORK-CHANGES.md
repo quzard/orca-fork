@@ -54,7 +54,7 @@
 
 fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、设置里批量移除项目、跨组拖放的提示、历史面板的索引状态、SSH 连接状态名、父目录导入提示、工作区右键菜单的“休眠”和“删除所选”）的英文在 `src/fork/i18n/en.json`，中文在 `src/fork/i18n/zh.json`。渲染进程登记时把两份分别合进 en 和 zh 语言包：只补缺少的键，上游已有的条目优先；其他语言经 i18next 的英文回退拿到英文。上游的 `en.json`、`en-runtime-required.json` 和 `zh.json` 都与上游一致，上游文件不翻译任何 fork 键。“仅取消分组”选项和“主机”分组模式在 `register-mode.ts`（不依赖界面的代码）里登记英文，渲染进程由 `src/fork/sidebar/mode-labels.tsx` 换成随语言变化的取值。删除 SSH 目标对话框里上游写死的 `Remove` / `Removing` 经钩子 `ssh-target-remove-labels.ts` 翻译成“删除”/“正在删除”。工作区右键菜单里上游写死的 `Sleep`、`Sleep N Workspace(s)`、`Delete Selected`、`Delete N Workspace(s)` 经钩子 `worktree-context-menu-labels.ts` 交给 `src/fork/sidebar/context-menu-labels.tsx` 翻译；没有登记时原样用上游的英文。fork 代码统一用 `src/fork/i18n/fork-translate.tsx` 的 `forkTranslate` 翻译，上游的提取检查（`config/i18next.config.ts`，与上游一致）只认 `translate` 等函数名，看不到 fork 键；fork 键由 `src/fork/i18n/fork-keys-catalog.fork.test.ts` 检查：fork 代码里每个字面量键都要有英文，且上游文件不引用 fork 键。测试还保证每个 fork 英文键都有中文，且占位符一致。
 
-分组方式菜单里的“主机”标签是随语言取值的 getter：`mode-labels.tsx` 监听 i18n 的 `languageChanged`，通知 `sidebar-group-mode.ts` 里的标签版本号；上游 `SidebarGroupByToggle` 只加一行 `useSyncExternalStore` 订阅它，切换界面语言后菜单立即换成新语言，不用等别的东西触发重渲染。没登记模式时版本号不变，和上游一样。
+分组方式菜单里的“主机”标签是随语言取值的 getter：`mode-labels.tsx` 监听 i18n 的 `languageChanged`，通知 `sidebar-group-mode.ts` 里的标签版本号；上游 `SidebarGroupByToggle` 只加一个 `useSyncExternalStore` 调用订阅它（第三个参数 `getServerSnapshot` 也传版本号读取函数，上游测试用 react-dom/server 渲染侧栏，缺了会报 `Missing getServerSnapshot`；fork 里所有 `useSyncExternalStore` 都传这个参数，`src/fork/server-snapshot.fork.test.tsx` 检查），切换界面语言后菜单立即换成新语言，不用等别的东西触发重渲染。没登记模式时版本号不变，和上游一样。
 
 ## F003 / F025 批量导入
 

@@ -2,8 +2,8 @@
 
 由 `fork/scripts/generate-audit.py` 生成，改了 fork 文件后重新运行并用 oxfmt 格式化。每个和上游 1b3113de8e 不同的文件一行，另列已恢复成上游和已删除的文件。`src/fork/audit-table.fork.test.ts` 检查表和仓库一致。
 
-共 348 行：delete 8，keep 318，revert-to-upstream 4，shrink 18；⚠ 不确定 1 个（保留）。
-上游文件（不含 fork 目录）里的 fork 改动行数：PR #6 之前（b7755e6357）1760，现在 1511。
+共 349 行：delete 8，keep 319，revert-to-upstream 4，shrink 18；⚠ 不确定 1 个（保留）。
+上游文件（不含 fork 目录）里的 fork 改动行数：PR #6 之前（b7755e6357）1760，现在 1516。
 
 | 文件                                                                                    | 功能                     | 决定               | 原因                                                                                                                            |
 | --------------------------------------------------------------------------------------- | ------------------------ | ------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -124,6 +124,7 @@
 | `src/fork/ports/workspace-port-forward.tsx`                                             | SB 侧栏/工作区           | keep               | fork 自有文件                                                                                                                   |
 | `src/fork/register-renderer.tsx`                                                        | INFRA 登记/工程/文档     | keep               | fork 自有文件                                                                                                                   |
 | `src/fork/register.ts`                                                                  | INFRA 登记/工程/文档     | keep               | fork 自有文件                                                                                                                   |
+| `src/fork/server-snapshot.fork.test.tsx`                                                | INFRA 登记/工程/文档     | keep               | fork 自有文件（测试）                                                                                                           |
 | `src/fork/sidebar/archived-workspaces.tsx`                                              | SB 侧栏                  | keep               | fork 自有文件                                                                                                                   |
 | `src/fork/sidebar/composer-seed.fork.test.ts`                                           | SB 新建工作区            | keep               | fork 自有文件（测试）                                                                                                           |
 | `src/fork/sidebar/context-menu-label-keys.ts`                                           | SB 侧栏                  | keep               | PR #7 跟进：右键菜单文案键的常量表，键目录测试读取它                                                                            |
@@ -267,7 +268,7 @@
 | `src/renderer/src/components/sidebar/HostSectionHeaderMenu.tsx`                         | SB 侧栏                  | keep               | 上游文件，fork 改动 2 行，已是最小写法                                                                                          |
 | `src/renderer/src/components/sidebar/LinearAgentSkillSetupPrompt.test.tsx`              | SKL 技能 pin             | keep               | 上游文件，fork 改动 3 行，已是最小写法                                                                                          |
 | `src/renderer/src/components/sidebar/ProjectGroupDeleteDialog.tsx`                      | SB 侧栏                  | keep               | 上游文件，fork 改动 33 行，已是最小写法                                                                                         |
-| `src/renderer/src/components/sidebar/SidebarGroupByToggle.tsx`                          | SB 侧栏                  | keep               | 上游文件，fork 改动 21 行，已是最小写法                                                                                         |
+| `src/renderer/src/components/sidebar/SidebarGroupByToggle.tsx`                          | SB 侧栏                  | keep               | 上游文件，fork 改动 25 行，已是最小写法                                                                                         |
 | `src/renderer/src/components/sidebar/WorktreeCard.tsx`                                  | SB 侧栏                  | keep               | 上游文件，fork 改动 2 行，已是最小写法                                                                                          |
 | `src/renderer/src/components/sidebar/WorktreeContextMenuView.tsx`                       | SB 侧栏                  | keep               | 右键菜单槽位；PR F：分组项改读 worktreeMenuGroups（未登记时为上游原值）；多选的批量菜单不渲染 fork 单行槽位                     |
 | `src/renderer/src/components/sidebar/WorktreeOpenInMenu.tsx`                            | SB 侧栏                  | keep               | 上游文件，fork 改动 77 行，已是最小写法                                                                                         |
@@ -283,7 +284,7 @@
 | `src/renderer/src/components/sidebar/worktree-list/drag/pointer-commit.ts`              | SB 侧栏                  | keep               | 跨组拖放钩子；PR F：先于设父级和状态目标判断                                                                                    |
 | `src/renderer/src/components/sidebar/worktree-list/drag/use-document-drop.ts`           | SB 侧栏                  | keep               | 跨组拖放钩子；PR F：先于设父级和状态目标判断                                                                                    |
 | `src/renderer/src/components/sidebar/worktree-list/grouping/build-rows.test-fixture.ts` | SB 侧栏                  | keep               | 上游文件，fork 改动 8 行，已是最小写法                                                                                          |
-| `src/renderer/src/components/sidebar/worktree-list/listing/use-section-rows.ts`         | SB 侧栏                  | keep               | 上游文件，fork 改动 27 行，已是最小写法                                                                                         |
+| `src/renderer/src/components/sidebar/worktree-list/listing/use-section-rows.ts`         | SB 侧栏                  | keep               | 上游文件，fork 改动 28 行，已是最小写法                                                                                         |
 | `src/renderer/src/components/sidebar/worktree-list/rows/HostSectionHeader.tsx`          | SB 侧栏                  | keep               | 上游文件，fork 改动 1 行，已是最小写法                                                                                          |
 | `src/renderer/src/components/sidebar/worktree-list/rows/SectionHeader.tsx`              | SB 侧栏                  | keep               | 上游文件，fork 改动 12 行，已是最小写法                                                                                         |
 | `src/renderer/src/components/sidebar/worktree-list/rows/item-row.tsx`                   | SB 侧栏                  | keep               | 上游文件，fork 改动 7 行，已是最小写法                                                                                          |

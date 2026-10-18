@@ -81,7 +81,6 @@ VERSION=""
 ERROR=""
 RELEASE="skipped"
 GH_AUTH=""
-INSTALLED_SHA=""
 BUILT_SHA=""
 PREVIOUS_SHA=""
 PREVIOUS_VERSION=""
@@ -98,7 +97,6 @@ except Exception:
     data = {}
 for key, name in (
     ("sha", "PREVIOUS_SHA"),
-    ("installedSha", "INSTALLED_SHA"),
     ("builtSha", "BUILT_SHA"),
     ("release", "PREVIOUS_RELEASE"),
     ("version", "VERSION"),
@@ -120,14 +118,12 @@ write_status() {
     STATUS_ERROR="$ERROR" \
     STATUS_RELEASE="$RELEASE" \
     STATUS_GH_AUTH="$GH_AUTH" \
-    STATUS_INSTALLED="$INSTALLED_SHA" \
     STATUS_BUILT="${BUILT_SHA:-}" \
     python3 - <<'PY'
 import json, os
 path = os.environ["STATUS_PATH"]
 doc = {
     "sha": os.environ.get("STATUS_SHA", ""),
-    "installedSha": os.environ.get("STATUS_INSTALLED", ""),
     "version": os.environ.get("STATUS_VERSION", ""),
     "result": os.environ.get("STATUS_RESULT", ""),
     "startedAt": os.environ.get("STATUS_STARTED", ""),

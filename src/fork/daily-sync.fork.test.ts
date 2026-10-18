@@ -220,6 +220,7 @@ git ls-remote origin 'refs/heads/sync/*' | awk '{print $2}' | sort | tr '\n' ' '
     expect(publish).not.toContain('safeStorage')
     expect(publish.indexOf('release upload')).toBeGreaterThan(0)
     const publishCall = script.slice(script.indexOf('publish_release()'))
+    expect(script).not.toContain('installedSha')
     expect(publishCall.indexOf('publish-mac-release.sh')).toBeLessThan(
       publishCall.indexOf('git reset --hard')
     )

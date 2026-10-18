@@ -15,8 +15,17 @@ const updaterRequire = createRequire(require.resolve('electron-updater'))
 const { HttpError } = updaterRequire('builder-util-runtime') as {
   HttpError: new (statusCode: number) => Error
 }
-const { PrivateGitHubProvider } = require('electron-updater/out/providers/PrivateGitHubProvider')
-const { GitHubProvider } = require('electron-updater/out/providers/GitHubProvider')
+type ProviderInstance = AnonymousGithubProvider & { forkTokenFallbackPatched?: boolean }
+type ProviderClass = (new (...args: unknown[]) => ProviderInstance) & {
+  prototype: ProviderInstance
+}
+const { PrivateGitHubProvider } =
+  require('electron-updater/out/providers/PrivateGitHubProvider') as {
+    PrivateGitHubProvider: ProviderClass
+  }
+const { GitHubProvider } = require('electron-updater/out/providers/GitHubProvider') as {
+  GitHubProvider: ProviderClass
+}
 
 const TOKEN = 'github_pat_rejected_test_value'
 const CURRENT = '1.4.228-local.1.abcdef123456'
@@ -66,13 +75,13 @@ function setup(apiStatus: number) {
   }
   class TestPrivateProvider extends PrivateGitHubProvider {}
   installPrivateGithubDifferentialDownload({
-    privateGithubPrototype: TestPrivateProvider.prototype,
+    privateGithubPrototype: TestPrivateProvider.prototype as never,
     httpExecutorPrototype: { createRequest: () => undefined }
   })
   installPrivateGithubTokenFallback({
-    privateGithubPrototype: TestPrivateProvider.prototype,
+    privateGithubPrototype: TestPrivateProvider.prototype as never,
     createAnonymousProvider: (options, updater, runtimeOptions) =>
-      new GitHubProvider(options, updater, runtimeOptions) as AnonymousGithubProvider
+      new GitHubProvider(options, updater, runtimeOptions)
   })
   const updater = { allowPrerelease: true, currentVersion: CURRENT, channel: null }
   const runtime = { executor, platform: 'darwin', isUseMultipleRangeRequest: false }
@@ -136,9 +145,9 @@ describe('fork update token rejected by GitHub', () => {
     await expect(failing.provider.getLatestVersion()).rejects.toThrow()
     expect(failing.calls).toHaveLength(1)
     expect(warn).not.toHaveBeenCalled()
-    expect(authorizationOf({ url: '', headers: failing.provider.fileExtraDownloadHeaders })).toBe(
-      `token ${TOKEN}`
-    )
+    expect(
+      authorizationOf({ url: '', headers: failing.provider.fileExtraDownloadHeaders ?? {} })
+    ).toBe(`token ${TOKEN}`)
   })
 
   it('clears the anonymous fallback when the next check on the same provider starts', async () => {

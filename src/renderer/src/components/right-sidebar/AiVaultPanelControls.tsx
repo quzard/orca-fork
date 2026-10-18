@@ -40,6 +40,7 @@ import { agentLabel, type AiVaultSessionGroup } from './ai-vault-session-filters
 import { translate } from '@/i18n/i18n'
 import type { AiVaultHostScopeOption } from './ai-vault-host-scope'
 import { AiVaultSessionLimitMenu } from './AiVaultSessionLimitMenu'
+import { aiVaultOtherHostsLabel } from '../../../../fork/ai-vault/panel-slots'
 import type { AiVaultSessionLimit } from './ai-vault-session-limit'
 
 const VAULT_HEADER_CONTROL_CLASS = 'size-6 shrink-0'
@@ -218,9 +219,7 @@ export function VaultHostScopeMenu({
           <>
             <DropdownMenuSeparator />
             <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                {translate('fork.aiVault.otherHosts', 'Other configured hosts')}
-              </DropdownMenuSubTrigger>
+              <DropdownMenuSubTrigger>{aiVaultOtherHostsLabel()}</DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
                 <DropdownMenuRadioGroup
                   value={executionHostScope}

@@ -42,3 +42,8 @@ export function AiVaultHostStatus(): React.JSX.Element | null {
     </p>
   )
 }
+
+/** Submenu title for hosts that are configured but not in the main list. */
+export function aiVaultOtherHostsLabel(): string {
+  return translate('fork.aiVault.otherHosts', 'Other configured hosts')
+}

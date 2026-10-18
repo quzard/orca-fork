@@ -9,36 +9,23 @@ import { Button } from '../ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
 import { isSshTargetConnecting, type SshTargetBusyAction } from './ssh-target-action-state'
 import { translate } from '@/i18n/i18n'
+import { withForkSshStatusLabels } from '../../../../fork/ssh/ssh-status-labels'
 
 // ── Shared status helpers ────────────────────────────────────────────
 
-// fork: connection status names are translated. The English fallback matches the previous literal.
-export const STATUS_LABELS: Record<SshConnectionStatus, string> = {
-  get disconnected() {
-    return translate('sshConnectionStatus.disconnected', 'Disconnected')
-  },
-  get connecting() {
-    return translate('sshConnectionStatus.connecting', 'Connecting\u2026')
-  },
-  get 'auth-failed'() {
-    return translate('sshConnectionStatus.authFailed', 'Auth failed')
-  },
-  get 'deploying-relay'() {
-    return translate('sshConnectionStatus.deployingRelay', 'Deploying relay\u2026')
-  },
-  get connected() {
-    return translate('sshConnectionStatus.connected', 'Connected')
-  },
-  get reconnecting() {
-    return translate('sshConnectionStatus.reconnecting', 'Reconnecting\u2026')
-  },
-  get 'reconnection-failed'() {
-    return translate('sshConnectionStatus.reconnectionFailed', 'Reconnection failed')
-  },
+// fork: connection status names are translated; see src/fork/ssh/ssh-status-labels.tsx.
+export const STATUS_LABELS: Record<SshConnectionStatus, string> = withForkSshStatusLabels({
+  disconnected: 'Disconnected',
+  connecting: 'Connecting\u2026',
+  'auth-failed': 'Auth failed',
+  'deploying-relay': 'Deploying relay\u2026',
+  connected: 'Connected',
+  reconnecting: 'Reconnecting\u2026',
+  'reconnection-failed': 'Reconnection failed',
   get error() {
     return translate('auto.components.settings.SshTargetCard.18968ede9e', 'Error')
   }
-}
+})
 
 export function statusColor(status: SshConnectionStatus): string {
   switch (status) {

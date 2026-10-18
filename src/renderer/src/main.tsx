@@ -38,6 +38,7 @@ import { desktopFactsShadow } from './lib/sidebar-shadow/desktop-facts-shadow'
 import { workspaceReviewShadow } from './lib/sidebar-shadow/workspace-review-shadow'
 import { sidebarTemporalShadow } from './lib/sidebar-shadow/sidebar-temporal-shadow'
 import { workspaceCreationsShadow } from './lib/sidebar-shadow/workspace-creations-shadow'
+import { workspaceRowsShadow } from './lib/sidebar-shadow/workspace-rows-shadow'
 
 // fork: 先登记分组模式，再登记渲染槽。主进程登记留在 register-main。
 registerForkModules()
@@ -58,7 +59,8 @@ if (ORCA_SIDEBAR_INPUTS_IS_MAIN) {
     desktopFactsShadow,
     workspaceReviewShadow,
     sidebarTemporalShadow,
-    workspaceCreationsShadow
+    workspaceCreationsShadow,
+    workspaceRowsShadow
   ])
   import.meta.hot?.dispose(disposeSidebarShadow)
 }

@@ -3,7 +3,6 @@
 // Metro only watches mobile/ + repo-root src/shared, never src/renderer.
 // INVARIANT: /shared is a leaf — this module must NOT import from src/renderer.
 import {
-  createNormalizedPathInsideOrEqualMatcher,
   normalizeRuntimePathForComparison,
   normalizeRuntimePathSeparators
 } from './cross-platform-path'
@@ -11,7 +10,7 @@ import { readAiVaultFolderLabel } from './fork-hooks/ai-vault'
 import { forkSessionComparisonCwds } from './fork-hooks/ai-vault-cwd'
 import { isClipboardTextByteLengthOverLimit } from './clipboard-text'
 import { splitAiVaultSearchQuery } from './ai-vault-search-query-operators'
-import { parseWslUncPath } from './wsl-paths'
+import { createAiVaultScopeCwdMatcher } from './ai-vault-scope-cwd-match'
 import type {
   AiVaultAgent,
   AiVaultGroup,
@@ -82,10 +81,9 @@ export function filterAiVaultSessions(
 
   const agentSet = new Set(filters.agents)
   const parsedQuery = parseVaultQuery(filters.query)
-  const workspaceMatchers =
-    filters.scope === 'workspace'
-      ? filters.activeWorktreePaths.map(createAiVaultWorkspaceMatcher)
-      : []
+  const inWorkspace = createAiVaultScopeCwdMatcher(
+    filters.scope === 'workspace' ? filters.activeWorktreePaths : []
+  )
 
   const filtered = sessions.filter((session) => {
     if (!agentSet.has(session.agent)) {
@@ -103,11 +101,15 @@ export function filterAiVaultSessions(
       return false
     }
     if (filters.scope === 'workspace') {
+<<<<<<< HEAD
       // fork: no aliases → the original cwd only.
       const normalizedCwds = forkSessionComparisonCwds(session).map(
         normalizeRuntimePathForComparison
       )
       if (!workspaceMatchers.some((matches) => normalizedCwds.some(matches))) {
+=======
+      if (!inWorkspace(session.cwd, session.filePath)) {
+>>>>>>> 3af9c22cc94d3b0fba21c9e988afe8b1ac538ac8
         return false
       }
     }
@@ -311,15 +313,4 @@ function getGroupIdentity(
     }
   }
   return { key: folderGroupKey(session.cwd), label: folderLabel(session.cwd) }
-}
-
-function createAiVaultWorkspaceMatcher(workspacePath: string): (normalizedCwd: string) => boolean {
-  const matches = createNormalizedPathInsideOrEqualMatcher(workspacePath)
-  const workspaceWslPath = parseWslUncPath(workspacePath)
-  if (!workspaceWslPath) {
-    return matches
-  }
-  // WSL transcripts record Linux cwd even when the workspace uses a UNC path.
-  const matchesLinux = createNormalizedPathInsideOrEqualMatcher(workspaceWslPath.linuxPath)
-  return (cwd) => matches(cwd) || matchesLinux(cwd)
 }

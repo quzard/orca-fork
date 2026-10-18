@@ -8,6 +8,7 @@ import type { EphemeralVmCheckoutMode } from '../orca-yaml-hook-types'
 import type { BuiltInWorktreeVisibilitySourceId } from '../repo-types'
 import type { WorktreeIdentity } from './identity'
 import type { WorktreeScanFailureKind } from '../worktree-scan-failure'
+import type { SmartTier } from '../sidebar-list/sort-stamps'
 
 export type WorkspaceAttachmentOrigin = {
   kind: 'observed'
@@ -148,9 +149,17 @@ export type Worktree = {
   sortOrder: number
   /** User-authored sidebar ordering. Higher values render earlier in Manual sort. */
   manualOrder?: number
+<<<<<<< HEAD
   /** Sidebar project group for this workspace. null means ungrouped. */
   sidebarGroupId?: string | null
+=======
+  /** Recent's key, stamped by the owning host on events (and still by the window). */
+>>>>>>> 3af9c22cc94d3b0fba21c9e988afe8b1ac538ac8
   lastActivityAt: number
+  /** Smart's tier, stamped by the owning host on agent transitions; absent is Rest. */
+  smartTier?: SmartTier
+  /** When the workspace entered its tier. */
+  smartAt?: number
   /** Set once when Orca creates the worktree. Absent for worktrees discovered
    *  on disk or persisted before this field existed. Used by the sidebar to
    *  grant newly-created worktrees a short grace window at the top of Recent,

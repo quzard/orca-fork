@@ -1,10 +1,14 @@
 import { OrcaRuntimeWithSleepResolvedWorktreeTerminals } from './worktree-terminal-sleep'
 import { setsEqual } from '../../runtime-worktree-binding-index'
+<<<<<<< HEAD
 import {
   includeTargetResolvedWorktree,
   runtimeWorktreeIdsEqual
 } from '../../runtime-worktree-path-identity'
+=======
+>>>>>>> 3af9c22cc94d3b0fba21c9e988afe8b1ac538ac8
 import type { RuntimeLeafRecord } from '../../runtime-terminal-state-records'
+import { worktreeIdsEqual } from '../../../../shared/worktree/id'
 
 export abstract class OrcaRuntimeWithStopExactTerminalsForWorktree extends OrcaRuntimeWithSleepResolvedWorktreeTerminals {
   protected abstract issueHandle(leaf: RuntimeLeafRecord): string
@@ -115,7 +119,7 @@ export abstract class OrcaRuntimeWithStopExactTerminalsForWorktree extends OrcaR
     const ptyIds = new Set<string>()
     for (const leaf of this.leaves.values()) {
       if (
-        runtimeWorktreeIdsEqual(leaf.worktreeId, worktreeId) &&
+        worktreeIdsEqual(leaf.worktreeId, worktreeId) &&
         leaf.connected &&
         leaf.ptyId &&
         (!freshPtyIds || freshPtyIds.has(leaf.ptyId))
@@ -125,7 +129,7 @@ export abstract class OrcaRuntimeWithStopExactTerminalsForWorktree extends OrcaR
     }
     for (const pty of this.ptysById.values()) {
       if (
-        runtimeWorktreeIdsEqual(pty.worktreeId, worktreeId) &&
+        worktreeIdsEqual(pty.worktreeId, worktreeId) &&
         pty.connected &&
         (!freshPtyIds || freshPtyIds.has(pty.ptyId))
       ) {

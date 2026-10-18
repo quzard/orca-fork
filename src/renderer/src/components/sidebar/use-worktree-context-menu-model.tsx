@@ -295,6 +295,7 @@ export function useWorktreeContextMenuModel({
   )
 
   const commands = useWorktreeContextMenuCommands({
+    getState: useAppStore.getState,
     activeContextWorktrees,
     batchDeleteWorktrees,
     createGroupDialogActiveRef,

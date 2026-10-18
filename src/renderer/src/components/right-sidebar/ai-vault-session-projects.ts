@@ -1,3 +1,7 @@
+import {
+  createNormalizedAiVaultScopeCwdMatcher,
+  sessionFileExecutionNamespace
+} from '../../../../shared/ai-vault-scope-cwd-match'
 import { resolveActiveProjectKey } from './ai-vault-project-key'
 import { toAiVaultProjectKey } from '../../../../shared/ai-vault-project-key'
 import {
@@ -11,10 +15,7 @@ import type { AiVaultSession } from '../../../../shared/ai-vault-types'
 import type { ProjectHostSetup } from '../../../../shared/project-types'
 import type { Repo } from '../../../../shared/repo-types'
 import type { Worktree } from '../../../../shared/worktree/types'
-import {
-  createNormalizedPathInsideOrEqualMatcher,
-  normalizeRuntimePathForComparison
-} from '../../../../shared/cross-platform-path'
+import { normalizeRuntimePathForComparison } from '../../../../shared/cross-platform-path'
 import {
   folderGroupKey,
   folderLabel,
@@ -42,7 +43,7 @@ type SessionProjectCandidate = {
   projectId: string | null
   repoId: string | null
   // Precomputed so a 500-session pass doesn't re-normalize every root per session.
-  ownsNormalizedCwd: (normalizedCwd: string) => boolean
+  ownsNormalizedCwd: ReturnType<typeof createNormalizedAiVaultScopeCwdMatcher>
 }
 
 type ProjectResolverArgs = {
@@ -108,7 +109,11 @@ export function buildAiVaultSessionProjectById({
       projectsByCwd = new Map()
       projectsByHostAndCwd.set(host, projectsByCwd)
     }
+<<<<<<< HEAD
     const cwdKey = forkSessionCwdCacheKey(session)
+=======
+    const cwdKey = JSON.stringify([sessionFileExecutionNamespace(session.filePath), session.cwd])
+>>>>>>> 3af9c22cc94d3b0fba21c9e988afe8b1ac538ac8
     let project = projectsByCwd.get(cwdKey)
     if (!project) {
       project = resolveSessionProject(session, candidates, projectLabelByKey)
@@ -240,7 +245,7 @@ function makeProjectCandidate(
   return {
     ...rest,
     normalizedPath,
-    ownsNormalizedCwd: createNormalizedPathInsideOrEqualMatcher(normalizedPath)
+    ownsNormalizedCwd: createNormalizedAiVaultScopeCwdMatcher([path])
   }
 }
 
@@ -270,6 +275,7 @@ function resolveSessionProject(
     return { kind: 'unknown', key: 'unknown', label: '' }
   }
 
+<<<<<<< HEAD
   // fork: symlink aliases pick the more specific path. No aliases keeps the cwd sort.
   const matches = matchForkCwdCandidates(session, candidates, {
     normalize: normalizeRuntimePathForComparison,
@@ -277,6 +283,12 @@ function resolveSessionProject(
     pathLength: (candidate) => candidate.normalizedPath.length,
     tieBreak: compareCandidates
   })
+=======
+  const normalizedCwd = normalizeRuntimePathForComparison(cwd)
+  const matches = candidates.filter((candidate) =>
+    candidate.ownsNormalizedCwd(normalizedCwd, session.filePath)
+  )
+>>>>>>> 3af9c22cc94d3b0fba21c9e988afe8b1ac538ac8
   const sessionHostId = normalizeExecutionHostId(session.executionHostId)
   const hostMatches = sessionHostId
     ? matches.filter((candidate) => candidate.hostKey === sessionHostId)

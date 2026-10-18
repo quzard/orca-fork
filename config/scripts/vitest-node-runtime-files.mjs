@@ -25,6 +25,8 @@ export const NODE_RUNTIME_INCLUDE = [
   'src/renderer/src/components/terminal-pane/pty-input-write-queue.test.ts',
   'src/renderer/src/lib/react-commit-cascade-observer.test.ts',
   'src/renderer/src/lib/react-commit-cascade-telemetry.test.ts',
+  // Fork: worktree.set clear runs against the real SQLite runtime store.
+  'src/fork/sidebar/sidebar-field-clear.fork.test.ts',
   ...SQLITE_RUNTIME_INCLUDE,
   'src/cli/**/*.test.ts',
   'src/main/persistence/**/*.test.ts',

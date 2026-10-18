@@ -4,7 +4,8 @@ import { forkTranslate } from '../i18n/fork-translate'
 import { normalizeRuntimePathForComparison } from '../../shared/cross-platform-path'
 import { LOCAL_EXECUTION_HOST_ID, type ExecutionHostId } from '../../shared/execution-host'
 import type { ForkPostImportDetails } from '../../shared/fork-hooks/post-import'
-import { getFolderWorkspaceHostId } from '@/store/folder-workspaces/folder-workspace-catalog'
+// 文件夹主机解析已从目录模块搬到 shared，签名仍是工作区加项目组列表。
+import { getFolderWorkspaceHostId } from '../../shared/folder-workspace-execution-host'
 import { findRepoForHost } from '@/store/slices/repo-host-identity'
 import { getProjectGroupHostId } from '@/store/slices/project-group-owner-routing'
 import {

@@ -468,6 +468,26 @@ if grep -q "$DMG_NAME" "${STATE}/assets/latest-mac.yml"; then
 fi
 ok
 
+# 不安全的清单和要换上的清单一样大时，也必须换（不能按大小判断成已上传）。
+CASE="same-size unsafe manifest is replaced"
+reset_state
+write_yml
+seed_local
+run_publish
+rm -f "${STATE}/assets/${DMG_NAME}" "${STATE}/assets/${DMG_NAME}.blockmap"
+sed -i.bak 's/arm64-mac\.zip/arm64-mac\.dmg/g' "${STATE}/assets/latest-mac.yml"
+rm -f "${STATE}/assets/latest-mac.yml.bak"
+clear_trace
+run_publish
+assert_release published 0 || true
+if ! grep -q '^upload 1 latest-mac.yml$' "${STATE}/trace"; then
+  fail "same-size unsafe latest-mac.yml was kept"
+fi
+if grep -q 'arm64-mac\.dmg' "${STATE}/assets/latest-mac.yml"; then
+  fail "latest-mac.yml still names a file that is not uploaded"
+fi
+ok
+
 # 已经齐的完整清单不要用 --clobber 重传。
 CASE="complete release is kept"
 reset_state

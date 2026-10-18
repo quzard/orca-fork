@@ -25,6 +25,7 @@ import {
   type PreparedOrcadMigrationDormantState
 } from './orcad-dormant-state-records'
 import { sameOrcadRepositoryConfiguration, selectNewRows } from './orcad-catalog-row-identity'
+import { folderWorkspacesMayOutliveTheirGroup } from '../../../shared/fork-hooks/project-group-delete'
 
 export type PreparedOrcadMigrationCatalog = {
   repositories: Repo[]
@@ -171,7 +172,8 @@ function assertCatalogReferences(args: {
     }
   }
   for (const workspace of args.folderWorkspaces) {
-    if (!groupIds.has(workspace.projectGroupId)) {
+    // fork: a folder workspace kept when its group was deleted moves without the group.
+    if (!groupIds.has(workspace.projectGroupId) && !folderWorkspacesMayOutliveTheirGroup()) {
       throw new Error(`orcad_migration_folder_workspace_project_group_missing:${workspace.id}`)
     }
   }

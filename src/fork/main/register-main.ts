@@ -12,6 +12,8 @@ import { getGitRepoRoot } from '../../main/git/repo-detection'
 import { registerImportedWorktreePath } from '../../shared/fork-hooks/imported-worktree-path'
 import { registerForkSkillSource } from '../../cli/skills-source-commit'
 import { registerForkBuild } from '../../shared/fork-hooks/update-feed'
+import { registerKeepFolderWorkspacesOnGroupDeleteInMain } from '../../shared/fork-hooks/project-group-delete'
+import { keepFolderWorkspacesOnGroupDelete } from './project-group-delete'
 
 /** Desktop and orcad. The renderer must not import this file. */
 export function registerForkMainModules(): void {
@@ -24,6 +26,7 @@ export function registerForkMainModules(): void {
   registerTerminalWorkspaceResolver(resolveFolderTerminalWorkspace)
   registerImportedWorktreePath(getGitRepoRoot)
   registerForkRemoteEditorLaunch(cursorRemoteSshLaunchSpec)
+  registerKeepFolderWorkspacesOnGroupDeleteInMain(keepFolderWorkspacesOnGroupDelete)
 }
 
 /**

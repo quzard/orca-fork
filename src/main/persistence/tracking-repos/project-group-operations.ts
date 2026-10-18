@@ -7,6 +7,7 @@ import {
 } from '../../../shared/project-groups'
 import { folderWorkspaceKey } from '../../../shared/workspace-scope'
 import { removeWorkspaceSessionOwnersEverywhere } from '../restoring-sessions/session-owner-removal'
+import { prepareKeepFolderWorkspacesOnGroupDelete } from '../../../shared/fork-hooks/project-group-delete'
 
 export type ProjectGroupMutationOperations = {
   state: PersistedState
@@ -89,6 +90,8 @@ export class ProjectGroupPersistenceOperations {
   deleteProjectGroup(groupId: string): boolean {
     const before = this.state.projectGroups?.length ?? 0
     const deletedGroupIds = getProjectGroupSubtreeIds(this.state.projectGroups ?? [], groupId)
+    // fork: a registered hook keeps the folder workspaces, ungrouped, instead of deleting them.
+    const keepFolders = prepareKeepFolderWorkspacesOnGroupDelete(this.state, deletedGroupIds)
     this.state.projectGroups = (this.state.projectGroups ?? []).filter(
       (group) => !deletedGroupIds.has(group.id)
     )
@@ -101,6 +104,11 @@ export class ProjectGroupPersistenceOperations {
         ? { ...repo, projectGroupId: null }
         : repo
     )
+    if (keepFolders) {
+      keepFolders()
+      this.scheduleSave()
+      return true
+    }
     const removedFolderWorkspaceKeys = new Set<string>()
     for (const workspace of this.state.folderWorkspaces ?? []) {
       if (deletedGroupIds.has(workspace.projectGroupId)) {

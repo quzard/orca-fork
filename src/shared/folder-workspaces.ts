@@ -7,6 +7,7 @@ import { isWorkspaceLinkedItemSourceContextMatch } from './workspace-linked-item
 import { normalizeWorkspaceCreatorProvenance } from './workspace-creator-provenance'
 import { getWorkspaceAttachments } from './workspace-attachments'
 import { isSmartTier } from './sidebar-list/sort-stamps'
+import { folderWorkspacesMayOutliveTheirGroup } from './fork-hooks/project-group-delete'
 
 export function normalizeFolderWorkspaceName(
   name: string | null | undefined,
@@ -42,7 +43,7 @@ export function normalizeFolderWorkspaces(
       raw.id.trim().length === 0 ||
       seen.has(raw.id) ||
       typeof raw.projectGroupId !== 'string' ||
-      !folderGroups.has(raw.projectGroupId)
+      (!folderGroups.has(raw.projectGroupId) && !folderWorkspacesMayOutliveTheirGroup())
     ) {
       continue
     }
@@ -99,10 +100,13 @@ export function normalizeFolderWorkspaces(
       ...(typeof raw.manualOrder === 'number' && Number.isFinite(raw.manualOrder)
         ? { manualOrder: raw.manualOrder }
         : {}),
-      // fork: the workspace's own sidebar group; null is an explicit ungroup.
-      ...(typeof raw.sidebarGroupId === 'string' || raw.sidebarGroupId === null
-        ? { sidebarGroupId: raw.sidebarGroupId }
-        : {}),
+      // fork: the workspace's own sidebar group; null is an explicit ungroup, as is a group-less
+      // workspace (kept when its group was deleted).
+      ...(!group
+        ? { sidebarGroupId: null }
+        : typeof raw.sidebarGroupId === 'string' || raw.sidebarGroupId === null
+          ? { sidebarGroupId: raw.sidebarGroupId }
+          : {}),
       ...(typeof raw.workspaceStatus === 'string' && raw.workspaceStatus.trim().length > 0
         ? { workspaceStatus: raw.workspaceStatus }
         : {}),

@@ -1,13 +1,15 @@
 #!/bin/bash
 # fetch-upstream-main.sh 在启动窗口里收到信号（git fetch 和看门狗刚起来）时的压力测试：每个信号跑很多遍，
 # 每次都要在几秒内按 143/130/129 退出，事后不留下 fetch、它的子进程、看门狗或看门狗的 sleep。
-# 次数用 ORCA_FETCH_STRESS_RUNS 调（每个信号的次数，默认 200）；ORCA_FETCH_STRESS_BASH 换被测的 bash
+# 次数用 ORCA_FETCH_STRESS_RUNS 调（每个信号的次数，默认 200）；没有可用 ps 时的次数用
+# ORCA_FETCH_STRESS_NO_PS_RUNS 调（每种垫片每个信号，默认 20）；ORCA_FETCH_STRESS_BASH 换被测的 bash
 # （比如自己编译的 3.2）。不接触网络：fetch 是假的 git。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 FETCH="${ROOT}/fork/scripts/verify/fetch-upstream-main.sh"
 RUNS="${ORCA_FETCH_STRESS_RUNS:-200}"
+NO_PS_RUNS="${ORCA_FETCH_STRESS_NO_PS_RUNS:-20}"
 BASH_BIN="${ORCA_FETCH_STRESS_BASH:-bash}"
 # 每次允许的最长时间（秒）。旧代码卡住时要等到看门狗超时，所以超时设得比它长。
 LIMIT=5
@@ -61,45 +63,67 @@ trap 'rm -rf "$BASE"' EXIT
 max_ms=0
 slow=0
 left=0
+total=0
 cd "${BASE}/repo"
-for case in TERM:143 INT:130 HUP:129; do
-  signal="${case%%:*}"
-  want="${case##*:}"
-  case_max=0
-  run=1
-  while [[ "$run" -le "$RUNS" ]]; do
-    started="$(now_ms)"
-    # 脚本自己当进程组组长（和 launchd 一样），后台运行也不会忽略 INT。
-    set -m
-    PATH="${fake_bin}:${PATH}" ORCA_UPSTREAM_FETCH_TIMEOUT="$TIMEOUT" \
-      ORCA_UPSTREAM_FETCH_TEST_SIGNAL_AT_SPAWN="$signal" "$BASH_BIN" "$FETCH" >"${BASE}/out" 2>&1 &
-    script_pid=$!
-    set +m
-    code=0
-    wait "$script_pid" || code=$?
-    elapsed=$(($(now_ms) - started))
-    [[ "$elapsed" -gt "$case_max" ]] && case_max="$elapsed"
-    if [[ "$code" -ne "$want" ]]; then
-      fail "${signal} run ${run}: exit ${code}, want ${want}: $(cat "${BASE}/out")"
-    fi
-    if [[ "$elapsed" -gt $((LIMIT * 1000)) ]]; then
-      slow=$((slow + 1))
-      fail "${signal} run ${run}: took ${elapsed}ms"
-    fi
-    rest="$(leftovers "$script_pid")"
-    if [[ -n "$rest" ]]; then
-      left=$((left + 1))
-      fail "${signal} run ${run}: left running:
+# 用法: stress 名称 次数 [垫片目录]。垫片目录放在被测脚本的 PATH 最前面（测试自己的 ps 不受影响）。
+stress() {
+  local label="$1" runs="$2" shim="${3:-}" case signal want case_max run started script_pid code
+  local elapsed rest prefix="${fake_bin}"
+  if [[ -n "$shim" ]]; then
+    prefix="${shim}:${fake_bin}"
+  fi
+  for case in TERM:143 INT:130 HUP:129; do
+    signal="${case%%:*}"
+    want="${case##*:}"
+    case_max=0
+    run=1
+    while [[ "$run" -le "$runs" ]]; do
+      started="$(now_ms)"
+      # 脚本自己当进程组组长（和 launchd 一样），后台运行也不会忽略 INT。
+      set -m
+      PATH="${prefix}:${PATH}" ORCA_UPSTREAM_FETCH_TIMEOUT="$TIMEOUT" \
+        ORCA_UPSTREAM_FETCH_TEST_SIGNAL_AT_SPAWN="$signal" "$BASH_BIN" "$FETCH" >"${BASE}/out" 2>&1 &
+      script_pid=$!
+      set +m
+      code=0
+      wait "$script_pid" || code=$?
+      elapsed=$(($(now_ms) - started))
+      [[ "$elapsed" -gt "$case_max" ]] && case_max="$elapsed"
+      if [[ "$code" -ne "$want" ]]; then
+        fail "${label} ${signal} run ${run}: exit ${code}, want ${want}: $(cat "${BASE}/out")"
+      fi
+      if [[ "$elapsed" -gt $((LIMIT * 1000)) ]]; then
+        slow=$((slow + 1))
+        fail "${label} ${signal} run ${run}: took ${elapsed}ms"
+      fi
+      rest="$(leftovers "$script_pid")"
+      if [[ -n "$rest" ]]; then
+        left=$((left + 1))
+        fail "${label} ${signal} run ${run}: left running:
 ${rest}"
-      cleanup_leftovers "$script_pid"
+        cleanup_leftovers "$script_pid"
+      fi
+      run=$((run + 1))
+      total=$((total + 1))
+    done
+    echo "${label} ${signal}: ${runs} runs, max ${case_max}ms"
+    if [[ "$case_max" -gt "$max_ms" ]]; then
+      max_ms="$case_max"
     fi
-    run=$((run + 1))
   done
-  echo "${signal}: ${RUNS} runs, max ${case_max}ms"
-  [[ "$case_max" -gt "$max_ms" ]] && max_ms="$case_max"
-done
+}
 
-echo "fetch signal stress: $((RUNS * 3)) runs on $("$BASH_BIN" -c 'echo $BASH_VERSION'), max ${max_ms}ms, ${slow} slow, ${left} with leftovers"
+stress "ps" "$RUNS"
+# 没有可用的 ps（精简容器）：脚本只靠 kill -0 判断子进程还在不在，照样重发 TERM、3 秒后 KILL，不会一直等。
+# 一个垫片让 ps 失败，一个让它成功但什么都不输出。
+mkdir -p "${BASE}/ps-fails" "${BASE}/ps-empty"
+printf '#!/bin/sh\nexit 1\n' >"${BASE}/ps-fails/ps"
+printf '#!/bin/sh\nexit 0\n' >"${BASE}/ps-empty/ps"
+chmod +x "${BASE}/ps-fails/ps" "${BASE}/ps-empty/ps"
+stress "ps-fails" "$NO_PS_RUNS" "${BASE}/ps-fails"
+stress "ps-empty" "$NO_PS_RUNS" "${BASE}/ps-empty"
+
+echo "fetch signal stress: ${total} runs on $("$BASH_BIN" -c 'echo $BASH_VERSION'), max ${max_ms}ms, ${slow} slow, ${left} with leftovers"
 if [[ "$FAILS" -gt 0 ]]; then
   echo "${FAILS} check(s) failed" >&2
   exit 1

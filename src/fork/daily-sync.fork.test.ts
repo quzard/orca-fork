@@ -314,10 +314,10 @@ git ls-remote origin 'refs/heads/sync/*' | awk '{print $2}' | sort | tr '\n' ' '
     execFileSync('bash', [resolve('fork/scripts/check-no-internal-refs.test.sh')], {
       stdio: 'inherit'
     })
-    // A short run here; the full 200 per signal is the script's default.
+    // A short run here; the script's defaults are 200 per signal and 20 per ps shim.
     execFileSync('bash', [resolve('fork/scripts/fetch-upstream-signal-stress.test.sh')], {
       stdio: 'inherit',
-      env: { ...process.env, ORCA_FETCH_STRESS_RUNS: '10' }
+      env: { ...process.env, ORCA_FETCH_STRESS_RUNS: '10', ORCA_FETCH_STRESS_NO_PS_RUNS: '3' }
     })
   }, 120_000)
 })

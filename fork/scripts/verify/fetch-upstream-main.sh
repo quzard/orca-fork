@@ -37,15 +37,21 @@ fetch_group=0
 
 # True while pid $2 (kind `pid`) or a process of group $2 (kind `group`) is running. Zombies do not
 # count: a child that has exited stays one until it is waited for, and `kill -0` still finds it.
+# Without a working `ps` (slim containers) only `kill -0` decides, so a zombie counts as running:
+# stop_child then KILLs it after 3s and its `wait` returns at once.
 running() {
   if [[ "$1" == group ]]; then
     kill -0 -- "-${2}" 2>/dev/null || return 1
   else
     kill -0 "$2" 2>/dev/null || return 1
   fi
-  ps -A -o pid=,pgid=,stat= 2>/dev/null | awk -v kind="$1" -v id="$2" '
+  local listing verdict
+  listing="$(ps -A -o pid=,pgid=,stat= 2>/dev/null)" || return 0
+  [[ -n "$listing" ]] || return 0
+  verdict="$(printf '%s\n' "$listing" | awk -v kind="$1" -v id="$2" '
     $3 !~ /^Z/ && ((kind == "group" && $2 == id) || (kind == "pid" && $1 == id)) { found = 1 }
-    END { exit !found }'
+    END { print (found ? "running" : "gone") }' 2>/dev/null)" || return 0
+  [[ "$verdict" != gone ]]
 }
 
 send() {

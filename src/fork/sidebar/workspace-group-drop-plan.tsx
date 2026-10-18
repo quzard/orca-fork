@@ -15,6 +15,7 @@ import {
   WORKSPACE_GROUP_NOT_ON_HOST,
   looseHostSectionKey
 } from './section-keys'
+import { sidebarFieldsNotAppliedMessage } from './sidebar-fields-applied'
 
 export type GroupDropState = {
   worktreesByRepo: Record<string, Worktree[]>
@@ -177,7 +178,8 @@ async function writeItem(
 }
 
 /**
- * Writes every row, or none: when a write fails, the rows that already landed are put back.
+ * Writes every row, or none: when a write fails, the rows that already landed are put back, and
+ * so is the failed row when an older host applied it only in part.
  * Writes run one after another so no two writes for this drop are ever in flight together.
  * Returns the error to show, or null when the whole drop applied.
  */
@@ -193,8 +195,10 @@ export async function commitGroupDrop(
       landed.push(item)
       continue
     }
+    // An older host applied this row's order but not its group: put that row back too.
+    const partial = item.kind === 'worktree' && error === sidebarFieldsNotAppliedMessage()
     const stuck: string[] = []
-    for (const done of landed.toReversed()) {
+    for (const done of partial ? [item, ...landed.toReversed()] : landed.toReversed()) {
       if ((await writeItem(writer, hostId, done, done.previous)) !== null) {
         stuck.push(done.storeId)
       }

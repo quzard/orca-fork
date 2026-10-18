@@ -21,6 +21,7 @@
     "sidebar": {
       "archivedWorkspaces": "已从 Orca 移除（{{value0}}）",
       "hiddenWorkspaces": "隐藏的工作区",
+      "hostTooOldForGroups": "请先更新此主机上的 Orca，才能在分组之间移动工作区。",
       "restoreWorkspace": "恢复",
       "searchWorkspaces": "搜索工作区"
     },

@@ -19,6 +19,7 @@ import type { WorktreeMeta } from '../../../../../../shared/worktree/meta-types'
 import type { ExecutionHostId } from '../../../../../../shared/execution-host'
 import { encodePushTargetClearForRuntimeRpc } from './hosted-review-link-mutation'
 import { encodeSidebarFieldClears } from '../../../../../../shared/fork-hooks/sidebar-field-clear'
+import { assertSidebarFieldsApplied } from '../../../../../../fork/sidebar/sidebar-fields-applied'
 
 type PendingDisplayNameWrite = {
   worktreeId: string
@@ -160,7 +161,7 @@ async function persistWorktreeMetaUntracked(
     }
   }
   const encoded = encodeSidebarFieldClears(compatibleUpdates)
-  await callRuntimeRpc(
+  const reply = await callRuntimeRpc<{ worktree?: Partial<WorktreeMeta> } | undefined>(
     target,
     'worktree.set',
     {
@@ -170,4 +171,6 @@ async function persistWorktreeMetaUntracked(
     },
     { timeoutMs: 15_000 }
   )
+  // fork: an older host drops the group fields and applies the rest; fail the write instead.
+  assertSidebarFieldsApplied(compatibleUpdates, reply?.worktree)
 }

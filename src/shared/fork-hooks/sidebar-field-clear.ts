@@ -53,7 +53,7 @@ export function parseClearableSidebarFields(value: unknown): ClearableSidebarFie
 
 /**
  * True when a host answered without the requested group or clear, e.g. an older host whose schema
- * strips them. The caller then reconciles instead of reporting a write that did not land.
+ * strips them. Folder writes reconcile; worktree writes fail (fork/sidebar/sidebar-fields-applied).
  */
 export function folderSidebarFieldsNotApplied(
   updates: { sidebarGroupId?: string | null; manualOrder?: number },

@@ -17,6 +17,7 @@ import {
   type GroupDropState,
   type GroupDropWriter
 } from './workspace-group-drop-plan'
+import { sidebarFieldsNotAppliedMessage } from './sidebar-fields-applied'
 
 function hostId(value: string): ExecutionHostId {
   const id = normalizeExecutionHostId(value)
@@ -274,6 +275,30 @@ describe('multi-row group drop', () => {
     const error = await commitGroupDrop(api, DEVBOX, plan(['folder:f1', 'w-explicit']))
     expect(error).toBe('offline Could not put back: f1.')
     expect(errors).toHaveBeenCalledWith('Workspace group drop rollback failed for', ['f1'])
+    errors.mockRestore()
+  })
+
+  it('fails the drop and puts the row back when an older host drops the group', async () => {
+    // The older host applies manualOrder but strips sidebarGroupId and clearFields.
+    const message = sidebarFieldsNotAppliedMessage()
+    const calls: { id: string; fields: object }[] = []
+    const api: GroupDropWriter = {
+      updateWorktreeMeta: vi.fn(async (id: string, fields: object) => {
+        calls.push({ id, fields })
+        return { ok: false as const, error: message }
+      }),
+      updateFolderWorkspace: vi.fn(async () => true),
+      setSortBy: vi.fn()
+    }
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const error = await commitGroupDrop(api, DEVBOX, plan(['w-explicit', 'w-inherit']))
+    // The row's own order is written back; the second row is never touched.
+    expect(calls).toStrictEqual([
+      { id: 'w-explicit', fields: { sidebarGroupId: 'g-other', manualOrder: 99 } },
+      { id: 'w-explicit', fields: { sidebarGroupId: null, manualOrder: 9 } }
+    ])
+    expect(error?.startsWith(message)).toBe(true)
+    expect(api.setSortBy).not.toHaveBeenCalled()
     errors.mockRestore()
   })
 

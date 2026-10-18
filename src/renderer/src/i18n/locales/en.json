@@ -19556,6 +19556,7 @@
     "sidebar": {
       "archivedWorkspaces": "Removed from Orca ({{value0}})",
       "hiddenWorkspaces": "Hidden workspaces",
+      "hostTooOldForGroups": "Update Orca on this host to move workspaces between groups.",
       "restoreWorkspace": "Restore",
       "searchWorkspaces": "Search workspaces"
     },

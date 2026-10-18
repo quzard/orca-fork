@@ -87,7 +87,6 @@ INSTALLED_SHA=""
 BUILT_SHA=""
 PREVIOUS_SHA=""
 PREVIOUS_VERSION=""
-PREVIOUS_RESULT=""
 PREVIOUS_RELEASE=""
 ALREADY_PUBLISHED=0
 BUILD_PGID=""
@@ -103,7 +102,6 @@ for key, name in (
     ("sha", "PREVIOUS_SHA"),
     ("installedSha", "INSTALLED_SHA"),
     ("builtSha", "BUILT_SHA"),
-    ("result", "PREVIOUS_RESULT"),
     ("release", "PREVIOUS_RELEASE"),
     ("version", "VERSION"),
 ):
@@ -438,11 +436,9 @@ PY
   return 0
 }
 
-# ORCA_BUILD_RELEASES=1 才构建。发布由 ORCA_PUBLISH_RELEASE=1 控制。
+# 只在 ORCA_BUILD_RELEASES=1 时调用（见文件末尾）。发布由 ORCA_PUBLISH_RELEASE=1 控制。
 build_develop_release() {
-  if [[ "${ORCA_BUILD_RELEASES:-}" != 1 ]]; then
-    return 0
-  fi
+  local branch
   cd "$REPO"
   if [[ -n "$(git status --porcelain)" ]]; then
     ERROR="worktree is dirty"
@@ -459,7 +455,7 @@ build_develop_release() {
   if [[ "$SHA" == "$BUILT_SHA" && "$PREVIOUS_RELEASE" == "$RELEASE_COMPLETE" ]]; then
     echo "mac-auto-update: ${SHA} is already published"
     ALREADY_PUBLISHED=1
-    RELEASE="published"
+    RELEASE="$RELEASE_COMPLETE"
     return 0
   fi
   # 同一 sha 的产物还在就只补发，不再签名。gh 失败不把 release 改成 skipped。
@@ -508,8 +504,8 @@ if [[ "$ALREADY_PUBLISHED" == 1 ]]; then
   RESULT="up-to-date"
   finish 0
 fi
-if [[ "$RELEASE" == published ]]; then
-  RESULT="published"
+if [[ "$RELEASE" == "$RELEASE_COMPLETE" ]]; then
+  RESULT="$RELEASE_COMPLETE"
   finish 0
 fi
 RESULT="built"

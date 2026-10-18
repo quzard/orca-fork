@@ -186,15 +186,16 @@ function renumberWithinList(
 }
 
 /**
- * Manual-order values for a drop under manual sort, against the same order the sidebar draws
- * (manual-order.ts), so the drop lands where its insertion line was. Normally only the dragged rows
- * are written, placed between their new neighbours' manual-sort keys: upstream's group-drop ranking renumbers
- * every row as soon as one still sorts by sortOrder, which reshuffled the whole ungrouped list.
- * When the neighbours tie, or the gap between them has no room left for a value strictly between,
- * the target section's rows around the drop are renumbered (in their shown order, the moved rows
- * at the drop point), so the drop lands exactly where it was released. Those values stay inside the
- * gap left by rows of other sections, so the order across the full list is kept; only when that gap
- * has no room either is the whole section renumbered from its own top. Only the returned rows change.
+ * Manual-order values for a drop under manual sort, computed from the order the sidebar shows (the
+ * target group's rows as drawn, plus rows it holds but does not show, each after the shown row it
+ * follows in manual order), so the drop lands where the insertion line was. Normally only the
+ * dragged rows are written, placed between their new neighbours' manual-sort keys: upstream's
+ * group-drop ranking renumbers every row as soon as one still sorts by sortOrder, which reshuffled
+ * the whole ungrouped list. When the neighbours tie, the gap between them has no room left for a
+ * value strictly between, the target section's rows around the drop are renumbered in their shown
+ * order, the moved rows at the drop point. Those values stay inside the gap left by rows of other sections,
+ * so the order across the full list is kept; only when that gap has no room either is the whole
+ * section renumbered from its own top. Only the returned rows change.
  */
 export function buildGroupDropOrder(
   state: GroupDropState,
@@ -211,18 +212,34 @@ export function buildGroupDropOrder(
     state.folderWorkspaces
   )
   const orderedIds = rows.map((row) => row.id)
-  const hidden = orderedIds.filter((id) => !visible.includes(id) && belongsToTarget(id))
-  const targetIds = [...visible, ...hidden]
+  const keys = effectiveOrderKeys(rows)
+  const visibleSet = new Set(visible)
   const dragged = new Set(draggedIds)
+  const hidden = orderedIds.filter(
+    (id) => !visibleSet.has(id) && !dragged.has(id) && belongsToTarget(id)
+  )
   const shown = groups.flatMap((group) => group.worktreeIds).filter((id) => dragged.has(id))
   const moved = [...new Set([...shown, ...draggedIds])]
-  const bounded = Math.max(0, Math.min(dropIndex, targetIds.length))
-  const removedBefore = targetIds.slice(0, bounded).filter((id) => dragged.has(id)).length
-  const rest = targetIds.filter((id) => !dragged.has(id))
-  const at = Math.max(0, Math.min(rest.length, bounded - removedBefore))
-  const keys = effectiveOrderKeys(rows)
-  const before = at > 0 ? keys.get(rest[at - 1]!) : undefined
-  const after = at < rest.length ? keys.get(rest[at]!) : undefined
+  // The drop index counts the rows the target group shows.
+  const bounded = Math.max(0, Math.min(dropIndex, visible.length))
+  const removedBefore = visible.slice(0, bounded).filter((id) => dragged.has(id)).length
+  const visibleRest = visible.filter((id) => !dragged.has(id))
+  const at = Math.max(0, Math.min(visibleRest.length, bounded - removedBefore))
+  // Hidden rows sit where manual order puts them, so a drop after the last shown row is a real end
+  // drop, not a gap before every hidden row.
+  const section = sectionOrder(orderedIds, visibleRest, hidden)
+  const insertAt =
+    at > 0
+      ? section.indexOf(visibleRest[at - 1]!) + 1
+      : visibleRest.length > 0
+        ? section.indexOf(visibleRest[0]!)
+        : section.length
+  const order = [...section.slice(0, insertAt), ...moved, ...section.slice(insertAt)]
+  const renumber = (): OrderUpdates =>
+    renumberWithinList(state, orderedIds, order, moved, keys, now) ??
+    renumberSection(state, order, moved, keys, now)
+  const before = insertAt > 0 ? keys.get(section[insertAt - 1]!) : undefined
+  const after = insertAt < section.length ? keys.get(section[insertAt]!) : undefined
   const count = moved.length
   if (before === undefined && after === undefined) {
     return new Map(
@@ -246,19 +263,7 @@ export function buildGroupDropOrder(
     )
   }
   const between = ranksBetween(before, after, count)
-  if (between) {
-    return new Map(moved.map((id, index) => [id, { manualOrder: between[index]! }]))
-  }
-  const visibleRest = visible.filter((id) => !dragged.has(id))
-  const section = sectionOrder(
-    orderedIds,
-    visibleRest,
-    hidden.filter((id) => !dragged.has(id))
-  )
-  const insertAt = at < visibleRest.length ? section.indexOf(visibleRest[at]!) : section.length
-  const order = [...section.slice(0, insertAt), ...moved, ...section.slice(insertAt)]
-  return (
-    renumberWithinList(state, orderedIds, order, moved, keys, now) ??
-    renumberSection(state, order, moved, keys, now)
-  )
+  return between
+    ? new Map(moved.map((id, index) => [id, { manualOrder: between[index]! }]))
+    : renumber()
 }

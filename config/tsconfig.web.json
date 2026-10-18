@@ -32,6 +32,7 @@
     "../src/fork/desktop-secret-store.fork.test.ts",
     "../src/fork/macos-file-secret-store.fork.test.ts",
     "../src/fork/upstream-release-reads.fork.test.ts",
+    "../src/fork/updater-fork-feed.fork.test.ts",
     "../src/fork/fork-background-download.ts",
     "../src/fork/fork-update-adapter.ts",
     "../src/fork/fork-background-download.fork.test.ts",

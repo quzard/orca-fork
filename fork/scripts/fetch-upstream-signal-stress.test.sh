@@ -7,9 +7,10 @@
 # 整个进程组（launchd 的做法）的次数用 ORCA_FETCH_STRESS_GROUP_RUNS 调（每个信号，默认 100）；
 # ORCA_FETCH_STRESS_BASH 换被测的 bash（比如自己编译的 3.2）。不接触网络：fetch 是假的 git。
 # A missing bash, ps, git, perl or awk fails the test with a message on stderr and exit 2. Started
-# with SIGINT ignored, it reruns itself with INT reset (signal-test-preflight.sh). Runs in the same
-# checkout do not touch each other: each one tests its own copy of the script, in its own temp dir,
-# and only looks at (and kills) processes of that copy, its temp dir or its own helper.
+# with SIGINT or SIGHUP ignored (`&`, nohup), it reruns itself with both reset
+# (signal-test-preflight.sh). Runs in the same checkout do not touch each other: each one tests
+# its own copy of the script, in its own temp dir, and only looks at (and kills) processes of that
+# copy, its temp dir or its own helper.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -36,7 +37,7 @@ if [[ -z "$("$BASH_BIN" -c 'echo "${BASH_VERSION:-}"' 2>/dev/null)" ]]; then
 fi
 # shellcheck source=fork/scripts/signal-test-preflight.sh
 . "${ROOT}/fork/scripts/signal-test-preflight.sh"
-ensure_int_trappable "fetch signal stress" "$BASH_BIN" "$@"
+ensure_test_signals_trappable "fetch signal stress" "$BASH_BIN" "$@"
 # The test's own checks use this ps, never the one (or none) on the PATH the script gets.
 PS_BIN="$(need "ps (to look for leftover processes)" ps)" || exit 2
 if [[ -z "$("$PS_BIN" -A -o pid= 2>/dev/null)" ]]; then

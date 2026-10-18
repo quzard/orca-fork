@@ -5,10 +5,11 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-# The signal cases send INT; a run started with INT ignored reruns itself with INT reset.
+# The signal cases send INT and HUP; a run started with either ignored (`&`, nohup) reruns itself
+# with both reset.
 # shellcheck source=fork/scripts/signal-test-preflight.sh
 . "${ROOT}/fork/scripts/signal-test-preflight.sh"
-ensure_int_trappable "check-commit-identity tests" bash "$@"
+ensure_test_signals_trappable "check-commit-identity tests" bash "$@"
 REAL_GUARD="${ROOT}/fork/scripts/verify/check-commit-identity.sh"
 BASE="$(mktemp -d "${TMPDIR:-/tmp}/orca-identity-test.XXXXXX")"
 trap 'rm -rf "$BASE"' EXIT

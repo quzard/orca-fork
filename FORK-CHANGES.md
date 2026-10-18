@@ -3,6 +3,7 @@
 集成分支是 `develop`（名字上和上游的 `main` 区分开）。它从上游 `17a2bced1115f064e834e397c2b949d9e150d275` 起，只加扩展点；之后每天把上游 `main` 合并进来，不再变基，也不强推。`fork/base` 保留为切到集成分支时的那个提交，每日任务不移动它。`fork/base-upstream` 仍是人工推上去的上游指针。行为登记在 `src/fork/`。未登记时上游行为保持不变。上游 main 的 `package.json` 仍是 `1.4.214`（稳定版号只在发布分支上改）。本 fork 写成 `1.4.228`，比已发布的 `1.4.227` 和本机正在用的 `1.4.224` 都新，本地构建不会被当成降级。
 
 - 扩展点说明：[docs/fork/HOOKS.md](docs/fork/HOOKS.md)
+- 逐文件审计（每个和上游不同的文件：功能、决定、原因）：[docs/fork/AUDIT.md](docs/fork/AUDIT.md)，由 `fork/scripts/generate-audit.py` 生成，`src/fork/audit-table.fork.test.ts` 检查它和仓库一致。
 - 行为清单：[docs/fork/parity/ssh-import.md](docs/fork/parity/ssh-import.md)、[docs/fork/parity/build-skills.md](docs/fork/parity/build-skills.md)、[docs/fork/parity/ai-vault.md](docs/fork/parity/ai-vault.md)、[docs/fork/parity/sidebar.md](docs/fork/parity/sidebar.md)
 - 同步上游：[docs/fork/SYNC.md](docs/fork/SYNC.md)
 - 每日云端变基和家里的 Mac 发布：[docs/fork/DAILY.md](docs/fork/DAILY.md)

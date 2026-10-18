@@ -29,8 +29,11 @@ export class SidebarFieldsNotAppliedError extends Error {
 }
 
 /**
- * Matches by code with upstream's transport-safe classifier, so it still matches after IPC or a
- * relay re-wraps the error, or after a store result kept only `{ error, code }`.
+ * Matches by code, never by the translated message. The error is thrown and checked in the
+ * renderer: `assertSidebarFieldsApplied` runs on the host's worktree.set reply, so it never crosses
+ * IPC or the runtime RPC. The code is kept when the store turns the throw into a
+ * `{ ok: false, error, code }` result, and when a caller wraps the error as a `cause`; upstream's
+ * `hasRuntimeRpcErrorCode` reads both.
  */
 export function isSidebarFieldsNotAppliedError(error: unknown): boolean {
   return hasRuntimeRpcErrorCode(error, SIDEBAR_FIELDS_NOT_APPLIED_CODE)

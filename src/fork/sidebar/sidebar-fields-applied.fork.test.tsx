@@ -62,19 +62,13 @@ describe('worktree.set on a host that strips the sidebar group fields', () => {
     expect(sidebarFieldsErrorCode(new Error(error.message))).toStrictEqual({})
   })
 
-  it('still matches after a transport re-wraps or flattens the error', () => {
+  it('still matches as a wrapped cause or as the store result', () => {
+    // Renderer only: the error is thrown on the worktree.set reply and never crosses IPC.
     const error = new SidebarFieldsNotAppliedError()
-    // A relay keeps the original as the cause.
-    expect(isSidebarFieldsNotAppliedError(new Error('relay failed', { cause: error }))).toBe(true)
-    // Structured clone and the store result keep plain fields only.
+    expect(isSidebarFieldsNotAppliedError(new Error('drop failed', { cause: error }))).toBe(true)
+    // updateWorktreeMeta keeps only plain fields on its failure result.
     expect(isSidebarFieldsNotAppliedError({ message: 'x', code: error.code })).toBe(true)
     expect(isSidebarFieldsNotAppliedError({ ok: false, error: 'x', code: error.code })).toBe(true)
-    // Electron IPC leaves only the message, with the token at its end.
-    expect(
-      isSidebarFieldsNotAppliedError(
-        new Error(`Error invoking remote method 'x': Error: ${SIDEBAR_FIELDS_NOT_APPLIED_CODE}`)
-      )
-    ).toBe(true)
     expect(sidebarFieldsErrorCode(error)).toStrictEqual({ code: SIDEBAR_FIELDS_NOT_APPLIED_CODE })
   })
 })

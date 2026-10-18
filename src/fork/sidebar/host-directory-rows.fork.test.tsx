@@ -25,6 +25,7 @@ import {
 } from './settings-project-bulk'
 import { HOST_DIRECTORY_GROUP_BY, hostDirectorySectionKey } from './section-keys'
 import { registerForkRendererModules } from '../register-renderer'
+import { getWorktreeDragGroups } from '../../renderer/src/components/sidebar/worktree-list/drag/groups'
 import {
   hiddenWorktreeMatchesQuery,
   hiddenWorktreeSearchMinimum
@@ -290,6 +291,33 @@ describe('host-directory sidebar rows', () => {
     expect(item && item.type === 'item' ? item.sectionKey : '').toBe(
       hostDirectorySectionKey(DEVBOX, 'grp-web')
     )
+  })
+
+  it('shows leftover group ids as ungrouped, and those rows can still be dragged', () => {
+    const rows = hostDirectoryRows({
+      // The project itself is in the group, so a workspace without its own id inherits it.
+      repos: [{ ...repo('web', '/srv/wt/web', 'web', DEVBOX), projectGroupId: 'grp-web' }],
+      groups: [projectGroup('grp-web', 'Services', DEVBOX)],
+      worktrees: [
+        // Points at a group that was deleted: ungrouped, not the project's group.
+        workspace('wt-gone', 'web', '/srv/wt/gone', 'gone', DEVBOX, { sidebarGroupId: 'deleted' }),
+        // Explicitly ungrouped while the project still points at a group.
+        workspace('wt-null', 'web', '/srv/wt/null', 'null', DEVBOX, { sidebarGroupId: null }),
+        workspace('wt-in', 'web', '/srv/wt/in', 'in', DEVBOX)
+      ]
+    })
+    const keyOf = (id: string) => {
+      const row = rows.find((entry) => entry.type === 'item' && entry.worktree.id === id)
+      return row && row.type === 'item' ? row.sectionKey : ''
+    }
+    expect(keyOf('wt-gone')).toBe(hostDirectorySectionKey(DEVBOX, null))
+    expect(keyOf('wt-null')).toBe(hostDirectorySectionKey(DEVBOX, null))
+    expect(keyOf('wt-in')).toBe(hostDirectorySectionKey(DEVBOX, 'grp-web'))
+    // The drag groups have one for the ungrouped list, holding both leftover rows.
+    const loose = getWorktreeDragGroups(rows).find(
+      (entry) => entry.key === hostDirectorySectionKey(DEVBOX, null)
+    )
+    expect(loose?.worktreeIds).toEqual(expect.arrayContaining(['wt-gone', 'wt-null']))
   })
 
   it('ignores a project group that lives on another host', () => {

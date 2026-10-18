@@ -70,7 +70,7 @@ describe('fork daily sync split', () => {
     execFileSync('bash', ['-n', resolve('fork/scripts/daily-sync.sh')])
   })
 
-  it('reuses an attempt branch that already holds the same commit or tree instead of adding -n', () => {
+  it('reuses an attempt branch that already holds the same attempt, including a check-failure rerun, instead of adding -n', () => {
     const script = readFileSync(resolve('fork/scripts/daily-sync.sh'), 'utf8')
     const fn = (name: string): string => {
       const start = script.indexOf(`${name}() {`)
@@ -88,13 +88,15 @@ describe('fork daily sync split', () => {
     }
     const harness = `set -euo pipefail
 die() { printf '%s\n' "$@"; exit 1; }
+${fn('attempt_shape')}
 ${fn('attempt_matches')}
 ${fn('push_attempt_commit')}
-attempt() { ATTEMPT_BRANCH=sync/upstream-20260101; push_attempt_commit "$1" >/dev/null 2>&1; echo "$ATTEMPT_BRANCH $ATTEMPT_SHA"; }
+attempt() { ATTEMPT_BRANCH="\${2:-sync/upstream-20260101}"; push_attempt_commit "$1" >/dev/null 2>&1; echo "$ATTEMPT_BRANCH $ATTEMPT_SHA"; }
 git init -q --bare origin.git
 git init -q work && cd work
 git remote add origin ../origin.git
 echo a > f && git add f && git commit -q -m base
+ORIGIN_DEVELOP=$(git rev-parse HEAD)
 echo b > f && git commit -q -am one
 one=$(git rev-parse HEAD)
 git push -q origin "$one:refs/heads/sync/upstream-20260101"
@@ -107,6 +109,26 @@ echo c > f && git commit -q -am two
 two=$(git rev-parse HEAD)
 echo "other-tree $(attempt "$two")"
 echo "other-tree-again $(attempt "$two")"
+# 检查失败后重跑：合并和 pin 提交是新 SHA，树和上游父提交不变。
+up=$(git commit-tree "$ORIGIN_DEVELOP^{tree}" -m upstream)
+up2=$(git commit-tree "$ORIGIN_DEVELOP^{tree}" -m upstream-later)
+echo m > f && git add f && merged=$(git write-tree)
+echo p > f && git add f && pinned=$(git write-tree)
+merge1=$(GIT_COMMITTER_DATE='2026-01-02T01:00:00Z' git commit-tree "$merged" -p "$ORIGIN_DEVELOP" -p "$up" -m merge)
+pin1=$(GIT_COMMITTER_DATE='2026-01-02T01:00:00Z' git commit-tree "$pinned" -p "$merge1" -m pin)
+merge2=$(GIT_COMMITTER_DATE='2026-01-02T02:00:00Z' git commit-tree "$merged" -p "$ORIGIN_DEVELOP" -p "$up" -m merge)
+pin2=$(GIT_COMMITTER_DATE='2026-01-02T02:00:00Z' git commit-tree "$pinned" -p "$merge2" -m pin)
+merge3=$(git commit-tree "$merged" -p "$ORIGIN_DEVELOP" -p "$up2" -m merge)
+pin3=$(git commit-tree "$pinned" -p "$merge3" -m pin)
+echo "rerun-first $(attempt "$pin1" sync/upstream-20260102)"
+echo "rerun-again $(attempt "$pin2" sync/upstream-20260102)"
+echo "rerun-other-upstream $(attempt "$pin3" sync/upstream-20260102)"
+# 手工修过的分支：多一个提交，树相同也不复用，也不覆盖。
+manual=$(git commit-tree "$pinned" -p "$pin1" -m manual-fix)
+git push -q origin "$manual:refs/heads/sync/upstream-20260103"
+echo "rerun-manual $(attempt "$pin2" sync/upstream-20260103)"
+echo "manual-kept $(git ls-remote origin refs/heads/sync/upstream-20260103 | awk '{print $1}') $manual"
+echo "pins $pin1 $pin2"
 git ls-remote origin 'refs/heads/sync/*' | awk '{print $2}' | sort | tr '\n' ' '
 `
     try {
@@ -121,8 +143,24 @@ git ls-remote origin 'refs/heads/sync/*' | awk '{print $2}' | sort | tr '\n' ' '
       expect(sha('other-parent')![1]).toBe('sync/upstream-20260101-2')
       expect(sha('other-tree')![1]).toBe('sync/upstream-20260101-3')
       expect(sha('other-tree-again')![1]).toBe('sync/upstream-20260101-3')
+      const [, pin1, pin2] = sha('pins')!
+      expect(pin1).not.toBe(pin2)
+      expect(sha('rerun-first')!.slice(1)).toEqual(['sync/upstream-20260102', pin1])
+      expect(sha('rerun-again')!.slice(1)).toEqual(['sync/upstream-20260102', pin1])
+      expect(sha('rerun-other-upstream')![1]).toBe('sync/upstream-20260102-2')
+      expect(sha('rerun-manual')!.slice(1)).toEqual(['sync/upstream-20260103-2', pin2])
+      const kept = sha('manual-kept')!
+      expect(kept[1]).toBe(kept[2])
       expect(lines.at(-1)!.trim()).toBe(
-        'refs/heads/sync/upstream-20260101 refs/heads/sync/upstream-20260101-2 refs/heads/sync/upstream-20260101-3'
+        [
+          'refs/heads/sync/upstream-20260101',
+          'refs/heads/sync/upstream-20260101-2',
+          'refs/heads/sync/upstream-20260101-3',
+          'refs/heads/sync/upstream-20260102',
+          'refs/heads/sync/upstream-20260102-2',
+          'refs/heads/sync/upstream-20260103',
+          'refs/heads/sync/upstream-20260103-2'
+        ].join(' ')
       )
     } finally {
       rmSync(dir, { recursive: true, force: true })

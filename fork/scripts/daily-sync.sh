@@ -84,19 +84,40 @@ EOF
   exit 1
 }
 
-# 远端 attempt 分支已经是这次要推的结果：同一个提交，或者树和父提交都相同（重跑时 commit-tree 的时间戳不同）。
-# 命中时把远端提交写进 ATTEMPT_SHA。
+# 从 tip 沿第一父提交走回 base（ORIGIN_DEVELOP），每个提交输出一行：树，和第一父以外的父提交（合并进来的上游）。
+# 走不回 base 时失败。提交 SHA 和时间戳不进结果，所以重跑生成的合并和 pin 提交能和上次比对。
+attempt_shape() {
+  local current="$1"
+  local base="$2"
+  local steps=0 parents
+  while [[ "$current" != "$base" ]]; do
+    [[ "$steps" -lt 20 ]] || return 1
+    parents="$(git rev-parse "${current}^@")" || return 1
+    [[ -n "$parents" ]] || return 1
+    printf '%s %s\n' "$(git rev-parse "${current}^{tree}")" "$(printf '%s\n' "$parents" | sed 1d | tr '\n' ' ')"
+    current="$(printf '%s\n' "$parents" | sed -n 1p)"
+    steps=$((steps + 1))
+  done
+}
+
+# 远端 attempt 分支已经是这次要推的结果时返回 0，并把远端提交写进 ATTEMPT_SHA。
+# 同一个提交直接命中。否则从 ORIGIN_DEVELOP 起逐个比较：提交数、每个提交的树、合并进来的上游父提交都相同才算。
+# 检查失败后重跑时，合并和 pin 提交每次 SHA 都不同，但结构一样，可以复用。
+# 分支上多了手工提交（哪怕树没变）时提交数不同，不复用，改开 -n；手工提交不会被覆盖。
 attempt_matches() {
   local branch="$1"
   local commit="$2"
-  local remote
+  local remote remote_shape commit_shape
   remote="$(git ls-remote origin "refs/heads/${branch}" 2>/dev/null | awk 'NR == 1 { print $1 }')" || return 1
   [[ -n "$remote" ]] || return 1
   if [[ "$remote" != "$commit" ]]; then
+    [[ -n "${ORIGIN_DEVELOP:-}" ]] || return 1
     git fetch -q --no-tags origin "refs/heads/${branch}" 2>/dev/null || return 1
     remote="$(git rev-parse -q --verify FETCH_HEAD)" || return 1
     [[ "$(git rev-parse "${remote}^{tree}")" == "$(git rev-parse "${commit}^{tree}")" ]] || return 1
-    [[ "$(git rev-parse "${remote}^@" | tr '\n' ' ')" == "$(git rev-parse "${commit}^@" | tr '\n' ' ')" ]] || return 1
+    remote_shape="$(attempt_shape "$remote" "$ORIGIN_DEVELOP")" || return 1
+    commit_shape="$(attempt_shape "$commit" "$ORIGIN_DEVELOP")" || return 1
+    [[ -n "$commit_shape" && "$remote_shape" == "$commit_shape" ]] || return 1
   fi
   ATTEMPT_SHA="$remote"
 }

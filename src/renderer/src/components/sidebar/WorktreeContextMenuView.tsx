@@ -313,7 +313,7 @@ export default function WorktreeContextMenuView({ model }: { model: WorktreeCont
               <DropdownMenuSeparator />
             </>
           ) : null}
-          {renderSidebarContextMenu(worktree)}
+          {isMultiContext ? null : renderSidebarContextMenu(worktree)}
           <WorkspaceSleepMenuItems
             isMultiContext={isMultiContext}
             sleepLabel={sleepLabel}

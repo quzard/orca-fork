@@ -8,7 +8,8 @@
 - 每日云端变基和家里的 Mac 发布：[docs/fork/DAILY.md](docs/fork/DAILY.md)
 - Linux 验收：[docs/fork/VERIFY.md](docs/fork/VERIFY.md)
 - F024 停用说明：[docs/fork/skill-update-flow.md](docs/fork/skill-update-flow.md)
-- 登记入口：`src/fork/register.ts`（两边都会调用，登记 host-directory）、`src/fork/register-main.ts`（桌面主进程和 orcad）、`src/fork/register-renderer.tsx`（仅界面）
+- 登记入口：`src/fork/register.ts`（主进程和界面都调用：fork 构建标记、skill 来源、host-directory、旧主机漏发的分组）、`src/fork/main/register-main.ts`（桌面主进程和 orcad）、`src/fork/main/register-electron.ts`（只在 Electron 主进程：更新源、文件密钥、权限助手参数）、`src/fork/register-renderer.tsx`（仅界面）
+- 目录约定：只在主进程运行的 fork 代码放 `src/fork/main/`；引用渲染进程的 fork 代码用 `.tsx`；`*.fork.test.ts` 是 node 测试，渲染进程测试用 `.fork.test.tsx`。tsconfig 只按这三条通配，不再逐个列文件。`pnpm tc` 在 tsc 之前先跑 `src/fork/tsconfig-boundaries.mjs`，fork 文件引用了所在工程不包含的文件就失败。用到真实 SQLite 运行时存储的测试要写进 `config/scripts/vitest-node-runtime-files.mjs` 的 `NODE_RUNTIME_INCLUDE`。
 
 ## F002 macOS 本地安装
 
@@ -35,12 +36,13 @@
 - SSH 状态行上的主机类型和连接状态不换行，状态名走 `translate`。中文来自 fork 的 zh 覆盖层（见下方「界面中文」），其他语言显示英文。参考实现已经去掉远程工作区同步冲突按钮，这里不把那套界面加回来。
 - 旧远端刷新如果省略 `sidebarGroupId`，本机保留原来的分组。显式 `null` 仍表示取消分组。
 - 组内排序：smart 保持传入顺序，其他模式在组内重排。拖到另一台主机被拒绝。
-- 跨组拖放只写目标主机上真实存在的项目组；拖到空项目标题等于拖进该主机的未分组列表，不写假的组 id。多选拖放要么全部写入，要么一项都不写：有一项不在该主机就整体拒绝。写入一项一项串行进行，不会并发改同一份存储；中途失败时按相反顺序把已写入的项精确改回原状态：原本没有自己的分组（继承项目组）就恢复成未设置，原本没有手动排序就去掉手动排序，靠更新旁边的 `clearFields` 删除字段。回滚也失败时弹出错误提示，列出没能改回的项，并写一条错误日志。文件夹工作区的 `sidebarGroupId` 现在会真正保存（以前被参数校验和加载丢掉）；宿主太旧不支持时视为写入失败并回滚。
+- 跨组拖放只写目标主机上真实存在的项目组；拖到空项目标题等于拖进该主机的未分组列表，不写假的组 id。多选拖放要么全部写入，要么一项都不写：有一项不在该主机就整体拒绝。写入一项一项串行进行，不会并发改同一份存储；中途失败时按相反顺序把已写入的项精确改回原状态：原本没有自己的分组（继承项目组）就恢复成未设置，原本没有手动排序就去掉手动排序，靠更新旁边的 `clearFields` 删除字段。回滚也失败时弹出错误提示，用显示名列出没能改回的工作区（不是内部 id），并写一条带 id 的错误日志。文件夹工作区的 `sidebarGroupId` 现在会真正保存（以前被参数校验和加载丢掉）。旧版远端主机会丢掉 `sidebarGroupId` 和 `clearFields`、只应用其余字段：文件夹写入按宿主返回值对账，git 工作区写入检查宿主返回的工作区，缺了要求的分组或清除就算失败，整次拖放失败并回滚，这一行已经写进去的排序也改回去，不会只写一半而不报错；提示让用户先更新该主机上的 Orca。
+- 两次拖放互相独立地排队：上一次的写入和回滚全部结束后，下一次才按最新状态规划并写入；上一次失败不影响下一次。插入位置仍按松手时看到的行计算。
 - 创建弹窗从分组打开时，主机和分组就是该组。从侧栏空白创建时，主机和分组取当前工作区。状态看板和指定仓库的创建不改。新建的 git 工作区在完成后写入这个分组。
 
 ## 界面中文
 
-fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、设置里批量移除项目、历史面板的索引状态、SSH 连接状态名、父目录导入提示）在 `src/fork/i18n/zh.json` 里有中文。渲染进程登记时把它合进 zh 语言包：只补缺少的键，上游已有的翻译优先。上游的 `zh.json` 不改。测试保证 en.json 里 fork 新增、上游 zh 没有的键都有中文，且占位符一致。
+fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、设置里批量移除项目、跨组拖放的提示、历史面板的索引状态、SSH 连接状态名、父目录导入提示）在 `src/fork/i18n/zh.json` 里有中文。渲染进程登记时把它合进 zh 语言包：只补缺少的键，上游已有的翻译优先。上游的 `zh.json` 不改。测试保证 en.json 里 fork 新增、上游 zh 没有的键都有中文，且占位符一致。
 
 ## F003 / F025 批量导入
 
@@ -50,7 +52,7 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 
 ## F006 授权窗口可拖拽的应用卡片
 
-仅 macOS。fork 应用启动权限助手时多传 `--fork-drag-card`（`open` 不传环境变量，所以用参数）。只有带这个参数、且还缺权限时，授权窗口才用可拖拽的应用卡片替换静态图标，整张卡片接收拖拽，未激活窗口也能拖出；指定单项权限时窗口保持显示，方便拖卡片。检查中、权限已齐、或没有这个参数时，图标、文案和点击行为都是上游原样。Linux 只核对 Swift 源码。拖进系统设置需要在 Mac 上做。
+仅 macOS。fork 应用启动权限助手时多传 `--fork-drag-card`（`open` 不传环境变量，所以用参数）。只有带这个参数、且还缺权限时，授权窗口才用可拖拽的应用卡片替换静态图标，整张卡片接收拖拽，未激活窗口也能拖出；指定单项权限时窗口保持显示，方便拖卡片。检查中先在卡片的位置留出同样高度的空位，检查结束换成卡片时窗口不跳动。权限已齐、或没有这个参数时，图标、文案和点击行为都是上游原样；没有这个参数时检查中也是上游原样。Linux 只核对 Swift 源码。拖进系统设置需要在 Mac 上做。
 
 ## F007 目录软链可选（已移除）
 
@@ -68,7 +70,7 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 
 ## F022 软链目录上的 Cursor 会话
 
-扫描前把作用域路径做 `realpath`。会话的 `cwd` 仍是恢复用的原路径；`cwdAliases` 只参与匹配、深度和归属。更长的工作区路径优先，避免父目录抢走子仓库的会话。失效链接记一条 scope 问题，扫描继续。本机和 orcad 都登记这条策略（`src/fork/ai-vault/scope-aliases.ts`）。
+扫描前把作用域路径做 `realpath`。会话的 `cwd` 仍是恢复用的原路径；`cwdAliases` 只参与匹配、深度和归属。更长的工作区路径优先，避免父目录抢走子仓库的会话。会话记录的 cwd 换了一种软链写法（例如 macOS 的 `/var` 实际是 `/private/var`）或目录已经不在时，按 cwd 最深的现存上级做 `realpath` 后再匹配；每次扫描每个不同的 cwd 只查一次，只在有别名时才查。失效链接记一条 scope 问题，扫描继续。本机和 orcad 都登记这条策略（`src/fork/main/ai-vault/scope-aliases.ts`）。
 
 ## F041 普通目录的终端生命周期
 
@@ -79,7 +81,7 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 - 列表默认看所有主机。多台主机先有可折叠的主机行，下面是完整目录；只有一台主机时不重复主机行。新组默认收起，标题栏一次收起主机和目录。
 - 全文搜索保持命中顺序。多台主机的命中在行上标出来源。索引状态默认收起，离线、读失败、索引未就绪或有细节行时展开。列表正在刷新时另写一行。逐主机最近成功扫描时间属于已移除的主机扫描缓存，不再显示。主机菜单把没有会话、不是当前主机、也没连上的远端收进「其他已配置主机」。
 - 扫描进程的内存按本机内存计算，下限仍是 384 MiB。工具输出按块写入索引，索引版本 +1，旧的截断索引会重建。
-- 启动时浏览器分区的代理改成后台应用，不再挡住第一个窗口。每个分区在排队时同步标成「代理未就绪」，请求守卫会扣住该分区的请求直到代理生效，失败则取消请求，所以不会有请求先走直连。`src/fork/startup/browser-session-proxy.fork.test.ts` 验证这一点。
+- 启动时浏览器分区的代理改成后台应用，不再挡住第一个窗口。每个分区在排队时同步标成「代理未就绪」，请求守卫会扣住该分区的请求直到代理生效，失败则取消请求，所以不会有请求先走直连。`src/fork/main/startup/browser-session-proxy.fork.test.ts` 验证这一点。
 - Mac 签名忽略 `/ai-vault/` 静态资源。
 - 没有另做一份主机扫描缓存。Linux 上用合成会话量过：上游冷扫描已经能在一次扫描里给出列表，热扫描大约 10 毫秒；旧的 150 毫秒提前返回在冷扫描时是空列表。数字记在 [docs/fork/parity/ai-vault.md](docs/fork/parity/ai-vault.md)。
 
@@ -87,7 +89,7 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 
 不再移植自定义仓库。skills 仍从 `https://github.com/stablyai/orca` 安装，内容与上游相同。fork 构建不能把本次构建提交当作 clone ref：该提交不在上游，`npx skills add` 会报 Failed to clone repository。
 
-安装、更新和 CLI 用的 ref 是上游基线提交，只写在 `src/cli/skills-source-commit.ts` 一处。它随 `out/cli/**` 打进包供 CLI 使用；桌面主进程和渲染进程的登记（`src/fork/register.ts`、`register-main.ts`、`agent-feature-install-commands.ts`）引用同一个文件。生产 CLI 代码不引用 `src/fork`。同步后运行 `node fork/scripts/sync-skills-source-commit.mjs` 重写这个文件：先 `merge-base` `fork/base-upstream`，没有该引用就用 `upstream/main`，再没有就保留已写入的值。`src/shared/agent-feature-install-commands.ts` 与上游一致，没有 skill 仓库钩子，也没有 `ORCA_FORK_SKILLS_SOURCE`。
+安装、更新和 CLI 用的 ref 是上游基线提交，只写在 `src/cli/skills-source-commit.ts` 一处。它随 `out/cli/**` 打进包供 CLI 使用；桌面主进程和渲染进程的登记（`src/fork/register.ts`、`src/fork/main/register-main.ts`、`agent-feature-install-commands.ts`）引用同一个文件。生产 CLI 代码不引用 `src/fork`。同步后运行 `node fork/scripts/sync-skills-source-commit.mjs` 重写这个文件：先 `git merge-base HEAD fork/base-upstream`（再 `origin/fork/base-upstream`）；没有该引用就用 `git merge-base HEAD upstream/main`（再 `origin/upstream/main`），不用上游 main 的最新提交；都没有就保留已写入的值。上游里断言构建提交地址的测试只 mock 掉这次登记、保持上游原样，pin 本身由 `src/fork/skills-source-commit.fork.test.ts` 和 `skills-source-commit-renderer.fork.test.tsx` 检查；本机没有任何上游引用时，前者跳过并在用例名里写明原因。`src/shared/agent-feature-install-commands.ts` 与上游一致，没有 skill 仓库钩子，也没有 `ORCA_FORK_SKILLS_SOURCE`。
 
 ## F036 本机 orcad 模板目标
 

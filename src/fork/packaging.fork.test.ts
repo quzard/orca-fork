@@ -83,6 +83,8 @@ describe('fork packaging', () => {
     expect(installer).not.toContain('--print-built-targets')
     expect(installer).not.toContain('dist/local-release')
     expect(installer).not.toContain('--publish')
+    // --install-built was only for the deleted release-personal-orca.mjs.
+    expect(installer).not.toContain('--install-built')
     expect(installer).not.toContain('ORCA_MAC_RELEASE=1')
     expect(installer).toContain('ORCA_BACKGROUND_LAUNCH=1')
     const push = readFileSync(resolve('fork/push_github.sh'), 'utf8')

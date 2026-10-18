@@ -1,5 +1,5 @@
 #!/bin/bash
-# Usage: ./fork/scripts/install-mac-release.sh [--fast] [--build-only] | --install-built <version>
+# Usage: ./fork/scripts/install-mac-release.sh [--fast] [--build-only]
 # After acceptance: ./fork/scripts/install-mac-release.sh --cleanup-verified-backups <accepted-version>
 # Thin wrapper around the macOS release job. Build commands match
 # .github/workflows/release-mac-build.yml. Signing identity, the local version
@@ -52,19 +52,13 @@ if [[ "${1:-}" == "$CLEANUP_VERIFIED_BACKUPS" ]]; then
 fi
 FAST=false
 BUILD_ONLY=false
-INSTALL_BUILT_VERSION=''
 while [[ "$#" -gt 0 ]]; do
   case "$1" in
     --fast) FAST=true; shift ;;
     --build-only) BUILD_ONLY=true; shift ;;
-    --install-built) INSTALL_BUILT_VERSION="${2:?请提供已构建版本号}"; shift 2 ;;
     *) echo "未知参数：$1" >&2; exit 1 ;;
   esac
 done
-if [[ -n "$INSTALL_BUILT_VERSION" && ( "$FAST" == true || "$BUILD_ONLY" == true ) ]]; then
-  echo '--install-built 不能与构建选项一起使用。' >&2
-  exit 1
-fi
 cd "$REPO_ROOT"
 if [[ "$(node -p 'process.versions.node.split(".")[0]')" != '24' ]]; then
   echo '请先切换到项目要求的 Node.js 24。' >&2
@@ -115,67 +109,61 @@ assert_packaged_artifacts() {
   '
 }
 
-if [[ -z "$INSTALL_BUILT_VERSION" ]]; then
-  if [[ "$FAST" == false ]]; then
-    # These Macs are Apple Silicon. The release job also installs x64 for the other package.
-    pnpm install --frozen-lockfile --cpu=arm64
-    pnpm --dir mobile install --frozen-lockfile
-    git diff --exit-code -- mobile/package.json mobile/pnpm-lock.yaml mobile/pnpm-workspace.yaml
-  else
-    echo '快速安装：跳过依赖安装。'
-  fi
-
-  # Production optimizations are unrelated to Apple distribution signing.
-  export NODE_ENV=production
-  export NODE_OPTIONS='--max-old-space-size=4096'
-  export ORCA_DIAGNOSTICS_TOKEN_URL='https://www.onorca.dev/diagnostics/token'
-  # Notarization stays off. verify-macos-release-env.mjs needs Apple secrets; do not run it.
-  export ORCA_MAC_RELEASE=0 ORCA_MAC_HOURLY=0 ORCA_MAC_DAILY=0 ORCA_MAC_ADHOC=0
-  unset CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID
-  export CSC_IDENTITY_AUTO_DISCOVERY=false
-  export CSC_NAME="$LOCAL_SIGNING_IDENTITY" ORCA_COMPUTER_MACOS_SIGN_IDENTITY="$LOCAL_SIGNING_IDENTITY"
-
-  # release-mac-build.yml "Build app" when no prebuilt JavaScript artifact is downloaded.
-  pnpm run build:release
-
-  # The release job downloads a merged template. This fork's orcad.js bundles
-  # registerForkMainModules, so an upstream template cannot be reused.
-  # darwin-arm64 is compiled here. Linux glibc slots use the CI manylinux images.
-  pnpm build:orcad-prebuilds
-  SLOT="$(node config/scripts/build-orcad-prebuilds.mjs --print-slot)"
-  if [[ "$SLOT" != darwin-arm64 ]]; then
-    echo "本机 orcad 槽是 $SLOT；Linux SSH 包需要在 Apple Silicon 上编 darwin-arm64。" >&2
-    exit 1
-  fi
-  pnpm build:orcad-prebuilds --require-slots "$SLOT"
-  pnpm build:orcad-prebuilds --smoke
-  FAST="$FAST" bash fork/scripts/build-orcad-linux-prebuilds.sh
-  # linux-x64-glibc217 is staged by the template script when that prebuild exists.
-  # Leave it out of this list so the packager does not count the compat target twice.
-  TEMPLATE_TARGETS='darwin-arm64,linux-x64-glibc,linux-arm64-glibc'
-  node config/scripts/build-orcad-template.mjs --targets "$TEMPLATE_TARGETS"
-  export ORCA_ORCAD_TEMPLATE_TARGETS="$TEMPLATE_TARGETS"
-  export ORCA_REQUIRE_ORCAD_TEMPLATE=1
-
-  node config/scripts/runtime-file-watcher-fault-harness.mjs
-  ELECTRON_RUN_AS_NODE=1 pnpm exec electron config/scripts/runtime-file-watcher-fault-harness.mjs
-
-  # Local packager. It sets the version suffix and runs electron-builder for macOS.
-  # Apple notarization and GitHub artifact upload stay off.
-  # A bare --arm64 flag does not drop the x64 package: the config lists both arches,
-  # and an empty target list keeps them. Naming dmg:arm64 and zip:arm64 builds one arch,
-  # so afterPack never runs the x64 PTY check. That check starts the interactive shell
-  # under Rosetta and timed out waiting for OK 42.
-  node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON config/scripts/pinned-node-downloads.mjs darwin-arm64
-  pnpm run ensure:electron-runtime
-  node config/scripts/build-mac-local.mjs dmg:arm64 zip:arm64
+if [[ "$FAST" == false ]]; then
+  # These Macs are Apple Silicon. The release job also installs x64 for the other package.
+  pnpm install --frozen-lockfile --cpu=arm64
+  pnpm --dir mobile install --frozen-lockfile
+  git diff --exit-code -- mobile/package.json mobile/pnpm-lock.yaml mobile/pnpm-workspace.yaml
+else
+  echo '快速安装：跳过依赖安装。'
 fi
 
-ORCA_LOCAL_BUILD_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$BUILT_APP/Contents/Info.plist")"
-if [[ -n "$INSTALL_BUILT_VERSION" && "$ORCA_LOCAL_BUILD_VERSION" != "$INSTALL_BUILT_VERSION" ]]; then
-  echo '已构建应用版本与本批发布不一致。' >&2
+# Production optimizations are unrelated to Apple distribution signing.
+export NODE_ENV=production
+export NODE_OPTIONS='--max-old-space-size=4096'
+export ORCA_DIAGNOSTICS_TOKEN_URL='https://www.onorca.dev/diagnostics/token'
+# Notarization stays off. verify-macos-release-env.mjs needs Apple secrets; do not run it.
+export ORCA_MAC_RELEASE=0 ORCA_MAC_HOURLY=0 ORCA_MAC_DAILY=0 ORCA_MAC_ADHOC=0
+unset CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID
+export CSC_IDENTITY_AUTO_DISCOVERY=false
+export CSC_NAME="$LOCAL_SIGNING_IDENTITY" ORCA_COMPUTER_MACOS_SIGN_IDENTITY="$LOCAL_SIGNING_IDENTITY"
+
+# release-mac-build.yml "Build app" when no prebuilt JavaScript artifact is downloaded.
+pnpm run build:release
+
+# The release job downloads a merged template. This fork's orcad.js bundles
+# registerForkMainModules, so an upstream template cannot be reused.
+# darwin-arm64 is compiled here. Linux glibc slots use the CI manylinux images.
+pnpm build:orcad-prebuilds
+SLOT="$(node config/scripts/build-orcad-prebuilds.mjs --print-slot)"
+if [[ "$SLOT" != darwin-arm64 ]]; then
+  echo "本机 orcad 槽是 $SLOT；Linux SSH 包需要在 Apple Silicon 上编 darwin-arm64。" >&2
   exit 1
 fi
+pnpm build:orcad-prebuilds --require-slots "$SLOT"
+pnpm build:orcad-prebuilds --smoke
+FAST="$FAST" bash fork/scripts/build-orcad-linux-prebuilds.sh
+# linux-x64-glibc217 is staged by the template script when that prebuild exists.
+# Leave it out of this list so the packager does not count the compat target twice.
+TEMPLATE_TARGETS='darwin-arm64,linux-x64-glibc,linux-arm64-glibc'
+node config/scripts/build-orcad-template.mjs --targets "$TEMPLATE_TARGETS"
+export ORCA_ORCAD_TEMPLATE_TARGETS="$TEMPLATE_TARGETS"
+export ORCA_REQUIRE_ORCAD_TEMPLATE=1
+
+node config/scripts/runtime-file-watcher-fault-harness.mjs
+ELECTRON_RUN_AS_NODE=1 pnpm exec electron config/scripts/runtime-file-watcher-fault-harness.mjs
+
+# Local packager. It sets the version suffix and runs electron-builder for macOS.
+# Apple notarization and GitHub artifact upload stay off.
+# A bare --arm64 flag does not drop the x64 package: the config lists both arches,
+# and an empty target list keeps them. Naming dmg:arm64 and zip:arm64 builds one arch,
+# so afterPack never runs the x64 PTY check. That check starts the interactive shell
+# under Rosetta and timed out waiting for OK 42.
+node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON config/scripts/pinned-node-downloads.mjs darwin-arm64
+pnpm run ensure:electron-runtime
+node config/scripts/build-mac-local.mjs dmg:arm64 zip:arm64
+
+ORCA_LOCAL_BUILD_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$BUILT_APP/Contents/Info.plist")"
 assert_packaged_artifacts
 codesign --verify --deep --strict "$BUILT_APP"
 if [[ "$BUILD_ONLY" == true ]]; then

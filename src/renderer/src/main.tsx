@@ -36,6 +36,8 @@ import {
 } from './lib/sidebar-shadow/paired-server-rows-shadow'
 import { desktopFactsShadow } from './lib/sidebar-shadow/desktop-facts-shadow'
 import { workspaceReviewShadow } from './lib/sidebar-shadow/workspace-review-shadow'
+import { sidebarTemporalShadow } from './lib/sidebar-shadow/sidebar-temporal-shadow'
+import { workspaceCreationsShadow } from './lib/sidebar-shadow/workspace-creations-shadow'
 
 // fork: 先登记分组模式，再登记渲染槽。主进程登记留在 register-main。
 registerForkModules()
@@ -54,7 +56,9 @@ if (ORCA_SIDEBAR_INPUTS_IS_MAIN) {
     pairedServerRowsShadow,
     pairedServerHostsShadow,
     desktopFactsShadow,
-    workspaceReviewShadow
+    workspaceReviewShadow,
+    sidebarTemporalShadow,
+    workspaceCreationsShadow
   ])
   import.meta.hot?.dispose(disposeSidebarShadow)
 }

@@ -252,12 +252,16 @@ git ls-remote origin 'refs/heads/sync/*' | awk '{print $2}' | sort | tr '\n' ' '
     for (const path of [
       'fork/scripts/mac-auto-update.sh',
       'fork/scripts/publish-mac-release.sh',
+      'fork/scripts/publish-bridge-release.sh',
       'fork/scripts/install-mac-auto-update-agent.sh',
       'fork/scripts/uninstall-mac-auto-update-agent.sh'
     ]) {
       execFileSync('bash', ['-n', resolve(path)])
     }
     execFileSync('bash', [resolve('fork/scripts/publish-mac-release.test.sh')], {
+      stdio: 'inherit'
+    })
+    execFileSync('bash', [resolve('fork/scripts/publish-bridge-release.test.sh')], {
       stdio: 'inherit'
     })
   })

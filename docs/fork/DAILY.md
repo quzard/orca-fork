@@ -63,6 +63,12 @@ An agent installed earlier still points its plist at `fork/scripts/mac-auto-upda
 
 Remove the agent with `bash fork/scripts/uninstall-mac-auto-update-agent.sh`. Installing the plist does not load the agent until `--bootstrap`.
 
+## Bridge release to the old repo
+
+Apps installed before the move still poll the old fork repo. `fork/scripts/publish-bridge-release.sh <tag> [old-repo]` (default `quzard/orca`) copies an already published `quzard/orca-fork` prerelease there so those apps can update once to a build that reads `quzard/orca-fork`. It needs `gh` logged in with write access to the old repo, and run by hand; the LaunchAgent does not run it.
+
+The script downloads every asset of `<tag>` from `quzard/orca-fork` into a temp dir and checks that the source is a published prerelease and that `latest-mac.yml` lists only zips that are present. It creates `<tag>` on the old repo as a draft prerelease targeting the old repo's default branch, with the notes "Bridge to quzard/orca-fork". It uploads each zip, each zip `.blockmap`, then `latest-mac.yml`, publishes the release with `gh release edit --draft=false`, and uploads the dmg files afterwards (`--no-dmg` skips them). Finally it checks that `<tag>` is the newest non-draft prerelease on the old repo and that the updater files are on it. A draft of the same tag left by an earlier failed run is filled in rather than created again. An already published tag stops the script. `--dry-run` runs the read-only checks and the download, and only prints the write commands. gh errors that look like they contain a token are replaced by a fixed message. `fork/scripts/publish-bridge-release.test.sh` runs it against a fake `gh`.
+
 ## In-app updates
 
 Settings → Updates has an optional GitHub token field. The token is a fine-grained PAT with read-only Contents on `quzard/orca-fork`. It is stored as the contents of `~/.orca/github-update-token` with mode `0600`, via `writeSecureFile`. It is not put in the macOS Keychain and not put in `safeStorage`. The settings page can save or clear it. The saved value is not sent back to the window.

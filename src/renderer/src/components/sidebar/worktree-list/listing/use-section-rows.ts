@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useAppStore } from '@/store'
 import type { AppState } from '@/store/types'
@@ -35,6 +35,10 @@ import { collectRenderedSidebarRowKeys } from './rendered-row-keys'
 import { orderHostSectionOptions } from '../../../../../../shared/sidebar-list/host-section-order'
 import { buildSidebarHostOptions } from '../../sidebar-host-options'
 import { selectPendingWorktreeCreationKeys } from './pending-worktree-creation-keys'
+import {
+  getSidebarGroupModeLabelsVersion,
+  subscribeSidebarGroupModeLabels
+} from '../../../../../../shared/fork-hooks/sidebar-group-mode'
 
 type SectionRowsArgs = {
   agentSendTargetWorktreeId?: string | null
@@ -222,9 +226,15 @@ export function useSidebarSectionRows(args: SectionRowsArgs) {
         : effectiveCollapsedGroups,
     [effectiveCollapsedGroups, hostScopedGroups]
   )
+  // fork: 登记模式的标题随界面语言变化，语言切换时重新生成行，让标题重新绘制。未登记时版本号不变。
+  const labelsVersion = useSyncExternalStore(
+    subscribeSidebarGroupModeLabels,
+    getSidebarGroupModeLabelsVersion
+  )
   const rows: Row[] = useMemo(
     () => rowPlan.render(rowCollapsedGroups),
-    [rowPlan, rowCollapsedGroups]
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- labelsVersion only forces a new row array.
+    [rowPlan, rowCollapsedGroups, labelsVersion]
   )
   const orderedHostOptions = useMemo(
     () => orderHostSectionOptions(hostOptions, workspaceHostOrder),

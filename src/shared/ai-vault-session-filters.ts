@@ -8,6 +8,7 @@ import {
   normalizeRuntimePathSeparators
 } from './cross-platform-path'
 import { readAiVaultFolderLabel } from './fork-hooks/ai-vault'
+import { forkSessionComparisonCwds } from './fork-hooks/ai-vault-cwd'
 import { isClipboardTextByteLengthOverLimit } from './clipboard-text'
 import { splitAiVaultSearchQuery } from './ai-vault-search-query-operators'
 import { parseWslUncPath } from './wsl-paths'
@@ -101,8 +102,14 @@ export function filterAiVaultSessions(
     ) {
       return false
     }
-    if (filters.scope === 'workspace' && !sessionMatchesWorkspace(session, workspaceMatchers)) {
-      return false
+    if (filters.scope === 'workspace') {
+      // fork: no aliases → the original cwd only.
+      const normalizedCwds = forkSessionComparisonCwds(session).map(
+        normalizeRuntimePathForComparison
+      )
+      if (!workspaceMatchers.some((matches) => normalizedCwds.some(matches))) {
+        return false
+      }
     }
     if (filters.scope === 'project') {
       if (!filters.activeProjectKey) {
@@ -304,19 +311,6 @@ function getGroupIdentity(
     }
   }
   return { key: folderGroupKey(session.cwd), label: folderLabel(session.cwd) }
-}
-
-function sessionMatchesWorkspace(
-  session: AiVaultSession,
-  matchers: readonly ((normalizedCwd: string) => boolean)[]
-): boolean {
-  for (const cwd of [session.cwd, ...(session.cwdAliases ?? [])]) {
-    const normalized = cwd ? normalizeRuntimePathForComparison(cwd) : null
-    if (normalized !== null && matchers.some((matches) => matches(normalized))) {
-      return true
-    }
-  }
-  return false
 }
 
 function createAiVaultWorkspaceMatcher(workspacePath: string): (normalizedCwd: string) => boolean {

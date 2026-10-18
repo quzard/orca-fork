@@ -147,8 +147,7 @@ function writer(failIds: readonly string[] = []) {
     updateFolderWorkspace: vi.fn(async (id, fields) => {
       calls.push({ kind: 'folder', id, fields })
       return !(failIds.includes(id) && calls.filter((c) => c.id === id).length === 1)
-    }),
-    setSortBy: vi.fn()
+    })
   }
   return { api, calls }
 }
@@ -192,7 +191,7 @@ describe('multi-row group drop', () => {
     ).toHaveProperty('error')
   })
 
-  it('writes every row with the real group and switches to manual sort', async () => {
+  it('writes every row with the real group', async () => {
     const items = planGroupDropItems(
       state(),
       DEVBOX,
@@ -218,7 +217,6 @@ describe('multi-row group drop', () => {
       },
       { kind: 'folder', id: 'f1', fields: { sidebarGroupId: 'g-other', manualOrder: 98 } }
     ])
-    expect(api.setSortBy).toHaveBeenCalledWith('manual')
   })
 
   function plan(ids: readonly string[]) {
@@ -252,7 +250,6 @@ describe('multi-row group drop', () => {
         fields: { sidebarGroupId: undefined, manualOrder: undefined }
       }
     ])
-    expect(api.setSortBy).not.toHaveBeenCalled()
   })
 
   it('restores explicit values as they were', async () => {
@@ -274,8 +271,7 @@ describe('multi-row group drop', () => {
         async (_id: string, fields: { sidebarGroupId?: string | null }) =>
           // the first write lands, the rollback write fails
           fields.sidebarGroupId === 'g-other'
-      ),
-      setSortBy: vi.fn()
+      )
     }
     const error = await commitGroupDrop(api, DEVBOX, plan(['folder:f1', 'w-explicit']))
     expect(error).toBe('offline Could not put back: notes.')
@@ -292,8 +288,7 @@ describe('multi-row group drop', () => {
         calls.push({ id, fields })
         return { ok: false as const, error: message, code: SIDEBAR_FIELDS_NOT_APPLIED_CODE }
       }),
-      updateFolderWorkspace: vi.fn(async () => true),
-      setSortBy: vi.fn()
+      updateFolderWorkspace: vi.fn(async () => true)
     }
     const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
     const error = await commitGroupDrop(api, DEVBOX, plan(['w-explicit', 'w-inherit']))
@@ -303,7 +298,6 @@ describe('multi-row group drop', () => {
       { id: 'w-explicit', fields: { sidebarGroupId: null, manualOrder: 9 } }
     ])
     expect(error?.startsWith(message)).toBe(true)
-    expect(api.setSortBy).not.toHaveBeenCalled()
     errors.mockRestore()
   })
 
@@ -319,8 +313,7 @@ describe('multi-row group drop', () => {
         }
         return { ok: true as const }
       }),
-      updateFolderWorkspace: vi.fn(async () => true),
-      setSortBy: vi.fn()
+      updateFolderWorkspace: vi.fn(async () => true)
     }
     await commitGroupDrop(api, DEVBOX, plan(['w-explicit']))
     expect(calls.map((call) => call.fields)).toStrictEqual([
@@ -336,8 +329,7 @@ describe('multi-row group drop', () => {
         calls.push(id)
         return { ok: false as const, error: sidebarFieldsNotAppliedMessage() }
       }),
-      updateFolderWorkspace: vi.fn(async () => true),
-      setSortBy: vi.fn()
+      updateFolderWorkspace: vi.fn(async () => true)
     }
     await commitGroupDrop(api, DEVBOX, plan(['w-explicit']))
     // A plain failure wrote nothing, so there is nothing of this row to put back.
@@ -366,8 +358,7 @@ describe('multi-row group drop', () => {
       updateFolderWorkspace: vi.fn(async (id, fields) => {
         await write(id, fields)
         return true
-      }),
-      setSortBy: vi.fn()
+      })
     }
     await expect(
       commitGroupDrop(api, DEVBOX, plan(['w-inherit', 'w-explicit', 'folder:f1']))

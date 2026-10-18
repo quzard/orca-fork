@@ -198,9 +198,14 @@ function writeGroupDrop(
     }
     const visible = groups.find((group) => group.key === target.key)?.worktreeIds ?? []
     const dropIndex = workspaceGroupInsertionIndex(rects, pointerY, visible.length)
-    const order = buildGroupDropOrder(state, groups, target, draggedIds, dropIndex, (id) =>
-      workspaceBelongsToGroup(state, id, hostId, target.groupId)
-    )
+    // A drop keeps the user's sort: only manual sort has a position to keep, and then only the
+    // moved rows get a new rank. Any other sort orders the moved rows itself.
+    const order =
+      state.sortBy === 'manual'
+        ? buildGroupDropOrder(state, groups, target, draggedIds, dropIndex, (id) =>
+            workspaceBelongsToGroup(state, id, hostId, target.groupId)
+          )
+        : new Map<string, { manualOrder: number }>()
     const items = planGroupDropItems(state, hostId, target, draggedIds, order)
     if ('error' in items) {
       toast.error(items.error)

@@ -31,6 +31,7 @@ import type {
 } from '../../shared/worktree/create-types'
 import type { WorkspaceLineage, WorktreeLineage } from '../../shared/worktree/lineage-types'
 import type { WorktreeMeta } from '../../shared/worktree/meta-types'
+import type { ClearableSidebarField } from '../../shared/fork-hooks/sidebar-field-clear'
 import type {
   DetectedWorktreeListResult,
   GitHubPrStartPoint,
@@ -123,6 +124,8 @@ export type WorktreeApi = {
     worktreeId: string
     executionHostId?: ExecutionHostId
     updates: Partial<WorktreeMeta>
+    /** fork: fields to remove (see sidebar-field-clear). */
+    clearFields?: ClearableSidebarField[]
   }) => Promise<Worktree | null>
   listLineage: () => Promise<{
     lineage: Record<string, WorktreeLineage>
@@ -176,6 +179,7 @@ export type FolderWorkspacesApi = {
         | 'isPinned'
         | 'sortOrder'
         | 'manualOrder'
+        | 'sidebarGroupId'
         | 'workspaceStatus'
         | 'createdWithAgent'
         | 'pendingFirstAgentMessageRename'
@@ -184,6 +188,8 @@ export type FolderWorkspacesApi = {
         | 'diffComments'
       >
     >
+    /** fork: fields to remove (see sidebar-field-clear). */
+    clearFields?: ClearableSidebarField[]
   }) => Promise<FolderWorkspace | null>
   delete: (args: { folderWorkspaceId: string }) => Promise<boolean>
 }

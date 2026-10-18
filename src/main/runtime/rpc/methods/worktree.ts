@@ -202,7 +202,8 @@ export const WORKTREE_METHODS = [
         pushTarget: params.pushTarget,
         diffComments: params.diffComments,
         mobileDiffReview: params.mobileDiffReview,
-        lineage: worktreeSetLineage(params)
+        lineage: worktreeSetLineage(params),
+        clearFields: params.clearFields
       })
       const warning = getWorkspaceStatusWarning(
         params.workspaceStatus,

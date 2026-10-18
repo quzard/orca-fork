@@ -218,6 +218,12 @@ export class FolderWorkspacePersistenceOperations {
     }
     if (updates.sidebarGroupId !== undefined) {
       workspace.sidebarGroupId = updates.sidebarGroupId
+    } else if (Object.hasOwn(updates, 'sidebarGroupId')) {
+      // fork: an own undefined is a decoded clear (sidebar-field-clear).
+      delete workspace.sidebarGroupId
+    }
+    if (updates.manualOrder === undefined && Object.hasOwn(updates, 'manualOrder')) {
+      delete workspace.manualOrder
     }
     if (updates.manualOrder !== undefined) {
       if (Number.isFinite(updates.manualOrder)) {

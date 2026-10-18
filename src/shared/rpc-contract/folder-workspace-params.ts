@@ -6,6 +6,7 @@ import { isWorkspaceLinkedItemSourceContextMatch } from '../workspace-linked-ite
 import { isTuiAgent } from '../tui-agent-config'
 import { OptionalFiniteNumber, OptionalString, requiredString } from './rpc-param-primitives'
 import { DiffCommentSchema } from '../diff-comment-schema'
+import { CLEARABLE_SIDEBAR_FIELDS } from '../fork-hooks/sidebar-field-clear'
 
 export const FolderWorkspaceLinkedTask = WorkspaceLinkedItemSchema.nullable()
 
@@ -60,6 +61,7 @@ export const FolderWorkspaceUpdate = z.object({
       isPinned: z.boolean().optional(),
       sortOrder: OptionalFiniteNumber,
       manualOrder: OptionalFiniteNumber,
+      sidebarGroupId: z.string().nullable().optional(),
       workspaceStatus: OptionalString,
       createdWithAgent: z.string().refine(isTuiAgent).optional(),
       pendingFirstAgentMessageRename: z.boolean().optional(),
@@ -67,7 +69,8 @@ export const FolderWorkspaceUpdate = z.object({
       lastActivityAt: OptionalFiniteNumber,
       diffComments: z.array(DiffCommentSchema).optional()
     })
-    .superRefine(assertLinkedTaskSourceContextMatch)
+    .superRefine(assertLinkedTaskSourceContextMatch),
+  clearFields: z.array(z.enum(CLEARABLE_SIDEBAR_FIELDS)).optional()
 })
 
 export const FolderWorkspaceSelector = z.object({

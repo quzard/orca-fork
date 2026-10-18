@@ -18,6 +18,7 @@ import type { RuntimeClientTarget } from '../../../../../../shared/runtime-clien
 import type { WorktreeMeta } from '../../../../../../shared/worktree/meta-types'
 import type { ExecutionHostId } from '../../../../../../shared/execution-host'
 import { encodePushTargetClearForRuntimeRpc } from './hosted-review-link-mutation'
+import { encodeSidebarFieldClears } from '../../../../../../shared/fork-hooks/sidebar-field-clear'
 
 type PendingDisplayNameWrite = {
   worktreeId: string
@@ -91,7 +92,7 @@ async function persistWorktreeMetaUntracked(
     await window.api.worktrees.updateMeta({
       worktreeId,
       ...(executionHostId ? { executionHostId } : {}),
-      updates: updates
+      ...encodeSidebarFieldClears(updates)
     })
     return
   }
@@ -158,12 +159,14 @@ async function persistWorktreeMetaUntracked(
       compatibleUpdates = olderHostUpdates
     }
   }
+  const encoded = encodeSidebarFieldClears(compatibleUpdates)
   await callRuntimeRpc(
     target,
     'worktree.set',
     {
       worktree: identityKey ? `identity:${identityKey}` : toRuntimeWorktreeSelector(worktreeId),
-      ...encodePushTargetClearForRuntimeRpc(compatibleUpdates)
+      ...encodePushTargetClearForRuntimeRpc(encoded.updates),
+      ...(encoded.clearFields ? { clearFields: encoded.clearFields } : {})
     },
     { timeoutMs: 15_000 }
   )

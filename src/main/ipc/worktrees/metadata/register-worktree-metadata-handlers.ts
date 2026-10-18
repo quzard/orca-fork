@@ -9,6 +9,11 @@ import { parseWorktreeId } from '../../worktree-logic'
 import { planWorktreeSortOrderUpdates } from '../../../../shared/worktree/sort-order-update'
 import { readBranchRenameFailureOutputForDisplay } from '../../../agent-hooks/branch-rename-failure-output'
 import { normalizeLinkedWorkItemFields } from '../ipc-context-schemas'
+import {
+  decodeSidebarFieldClears,
+  parseClearableSidebarFields,
+  type ClearableSidebarField
+} from '../../../../shared/fork-hooks/sidebar-field-clear'
 import { isRemovedFolderWorkspaceInstance } from '../../../folder-workspace-meta-presence'
 import type { WorktreeIpcContext } from '../worktree-ipc-context'
 import {
@@ -28,6 +33,7 @@ export function registerWorktreeMetadataHandlers(context: WorktreeIpcContext): v
         worktreeId: string
         executionHostId?: string
         updates: Partial<WorktreeMeta>
+        clearFields?: ClearableSidebarField[]
       }
     ) => {
       const executionHostId =
@@ -58,7 +64,10 @@ export function registerWorktreeMetadataHandlers(context: WorktreeIpcContext): v
               firstAgentMessageRenameError: null
             }
           : validatedUpdates
-      const sanitizedUpdates = stripOrcaProvenanceMetaUpdates(updates)
+      const sanitizedUpdates = decodeSidebarFieldClears(
+        stripOrcaProvenanceMetaUpdates(updates),
+        parseClearableSidebarFields(args.clearFields)
+      )
       // Why: a late write from a terminal still bound to a removed folder workspace (#22712).
       if (isRemovedFolderWorkspaceInstance(store, args.worktreeId, executionHostId)) {
         return null

@@ -13,6 +13,7 @@ import {
 import { resolveRuntimeGitHubWorktreeBase } from '../runtime-github-worktree-base'
 import { resolveRuntimeGitLabWorktreeBase } from '../runtime-gitlab-worktree-base'
 import { listWorktreesStrict } from '../../git/worktree-listing'
+import type { ClearableSidebarField } from '../../../shared/fork-hooks/sidebar-field-clear'
 import {
   adoptRuntimeProvisionedRoot,
   readLocalSparseCheckoutEnabled,
@@ -123,6 +124,7 @@ export abstract class OrcaRuntimeWithCreateManagedRemoteWorktree extends OrcaRun
         parentWorktree?: string
         noParent?: boolean
       }
+      clearFields?: readonly ClearableSidebarField[]
     }
   ) {
     if (!this.store) {

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { normalizeExecutionHostId } from '../execution-host'
+import { CLEARABLE_SIDEBAR_FIELDS } from '../fork-hooks/sidebar-field-clear'
 import { isTuiAgent } from '../tui-agent-config'
 import type { TuiAgent } from '../tui-agent'
 import {
@@ -141,6 +142,7 @@ export const WorktreeSet = WorktreeSelector.extend({
   sortOrder: OptionalFiniteNumber,
   manualOrder: OptionalFiniteNumber,
   sidebarGroupId: z.string().nullable().optional(),
+  clearFields: z.array(z.enum(CLEARABLE_SIDEBAR_FIELDS)).optional(),
   lastActivityAt: OptionalFiniteNumber,
   createdAt: OptionalFiniteNumber,
   sparseDirectories: z.array(z.string()).optional(),

@@ -98,6 +98,10 @@ export function normalizeFolderWorkspaces(
       ...(typeof raw.manualOrder === 'number' && Number.isFinite(raw.manualOrder)
         ? { manualOrder: raw.manualOrder }
         : {}),
+      // fork: the workspace's own sidebar group; null is an explicit ungroup.
+      ...(typeof raw.sidebarGroupId === 'string' || raw.sidebarGroupId === null
+        ? { sidebarGroupId: raw.sidebarGroupId }
+        : {}),
       ...(typeof raw.workspaceStatus === 'string' && raw.workspaceStatus.trim().length > 0
         ? { workspaceStatus: raw.workspaceStatus }
         : {}),

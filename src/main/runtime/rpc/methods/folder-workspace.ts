@@ -1,5 +1,6 @@
 import { defineMethod } from '../core'
 import { resolveRpcWorkspaceCreatorProvenance } from '../workspace-creator-context'
+import { decodeSidebarFieldClears } from '../../../../shared/fork-hooks/sidebar-field-clear'
 import {
   FolderWorkspaceCreate,
   FolderWorkspacePathStatus,
@@ -32,7 +33,10 @@ export const FOLDER_WORKSPACE_METHODS = [
     permission: 'workspace',
     params: FolderWorkspaceUpdate,
     handler: async (params, { runtime }) => ({
-      folderWorkspace: await runtime.updateFolderWorkspace(params.folderWorkspaceId, params.updates)
+      folderWorkspace: await runtime.updateFolderWorkspace(
+        params.folderWorkspaceId,
+        decodeSidebarFieldClears(params.updates, params.clearFields)
+      )
     })
   }),
   defineMethod({

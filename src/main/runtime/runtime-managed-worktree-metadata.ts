@@ -16,11 +16,16 @@ import {
   wslMoveProjectRefForWorkspace
 } from '../persistence/moving-wsl-projects/wsl-move-scope-guard'
 import { RuntimeLineageError } from './runtime-worktree-lineage-resolution'
+import {
+  decodeSidebarFieldClears,
+  type ClearableSidebarField
+} from '../../shared/fork-hooks/sidebar-field-clear'
 import type { ResolvedWorktree } from './runtime-worktree-path-identity'
 
 type Updates = Omit<Partial<WorktreeMeta>, 'pushTarget'> & {
   pushTarget?: GitPushTarget | null
   lineage?: { parentWorktree?: string; noParent?: boolean }
+  clearFields?: readonly ClearableSidebarField[]
 }
 
 type Ports = {
@@ -39,7 +44,7 @@ export async function updateRuntimeManagedWorktreeMetadata(args: {
   ports: Ports
 }): Promise<Worktree> {
   const worktree = await args.ports.resolveWorktree(args.selector)
-  const { lineage, ...metaUpdates } = args.updates
+  const { lineage, clearFields, ...metaUpdates } = args.updates
   const previousParentRepoId = lineage
     ? splitWorktreeId(args.store.getWorktreeLineage?.(worktree.id)?.parentWorktreeId ?? '')?.repoId
     : undefined
@@ -64,7 +69,7 @@ export async function updateRuntimeManagedWorktreeMetadata(args: {
   const normalized: Partial<WorktreeMeta> = clearPushTarget
     ? { ...metaUpdates, pushTarget: undefined }
     : (metaUpdates as Partial<WorktreeMeta>)
-  const persisted: Partial<WorktreeMeta> = omitUndefinedProperties(
+  let persisted: Partial<WorktreeMeta> = omitUndefinedProperties(
     normalized.displayName !== undefined
       ? {
           ...normalized,
@@ -76,6 +81,7 @@ export async function updateRuntimeManagedWorktreeMetadata(args: {
   if (clearPushTarget) {
     persisted.pushTarget = undefined
   }
+  persisted = decodeSidebarFieldClears(persisted, clearFields)
   if (lineage?.noParent === true) {
     args.store.removeWorktreeLineage?.(worktree.id)
     args.store.removeWorkspaceLineage?.(worktreeWorkspaceKey(worktree.id))

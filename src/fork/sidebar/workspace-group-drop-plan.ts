@@ -8,7 +8,7 @@ import { folderWorkspaceKey } from '../../shared/workspace-scope'
 import { buildManualOrderUpdatesForGroupDrop } from '../../renderer/src/components/sidebar/worktree-manual-order'
 import type { WorktreeDragGroup } from '../../renderer/src/components/sidebar/worktree-manual-order'
 import { buildWorktreeManualOrderCatalog } from '../../renderer/src/components/sidebar/worktree-manual-order-catalog'
-import { folderWorkspaceHostId, projectGroupHostId, resolveSidebarGroupId } from './membership'
+import { folderWorkspaceHostId, projectGroupHostId } from './membership'
 import {
   EMPTY_PROJECT_GROUP_PREFIX,
   WORKSPACE_GROUP_HOST_MISMATCH,
@@ -27,18 +27,22 @@ export type GroupDropState = {
 export type GroupDropWriter = {
   updateWorktreeMeta: (
     id: string,
-    updates: { sidebarGroupId: string | null; manualOrder?: number },
+    updates: Fields,
     options: { executionHostId: ExecutionHostId }
   ) => Promise<{ ok: true } | { ok: false; error: string }>
   updateFolderWorkspace: (
     id: string,
-    updates: { sidebarGroupId: string | null; manualOrder?: number },
+    updates: Fields,
     options: { executionHostId: ExecutionHostId }
   ) => Promise<boolean>
   setSortBy: (sortBy: 'manual') => void
 }
 
-type Fields = { sidebarGroupId: string | null; manualOrder?: number }
+/**
+ * Fields a drop writes. An own `undefined` value clears the field (see sidebar-field-clear): an
+ * unset group follows the project's group, and an unset manual order falls back to sortOrder.
+ */
+export type Fields = { sidebarGroupId?: string | null; manualOrder?: number }
 type Item = { kind: 'worktree' | 'folder'; storeId: string; next: Fields; previous: Fields }
 
 export type GroupDropTarget = { groupId: string | null; key: string }
@@ -96,7 +100,7 @@ export function planGroupDropItems(
         kind: 'folder',
         storeId: folder.id,
         next,
-        previous: previousFields(folder, folder.projectGroupId, groupsById, hostId, order)
+        previous: previousFields(folder, order)
       })
       continue
     }
@@ -109,34 +113,22 @@ export function planGroupDropItems(
       kind: 'worktree',
       storeId: id,
       next,
-      previous: previousFields(worktree, repo?.projectGroupId, groupsById, hostId, order)
+      previous: previousFields(worktree, order)
     })
   }
   return items
 }
 
-// Why the effective group when the stored id is absent: undefined cannot be written back, and the
-// effective id renders in the same section.
+// The exact stored values, including absent ones, so a rollback restores the row as it was.
 function previousFields(
   row: { sidebarGroupId?: string | null; manualOrder?: number },
-  inheritedGroupId: string | null | undefined,
-  groupsById: ReadonlyMap<string, ProjectGroup>,
-  hostId: ExecutionHostId,
   order: { manualOrder: number } | undefined
 ): Fields {
-  const sidebarGroupId =
-    row.sidebarGroupId !== undefined
-      ? row.sidebarGroupId
-      : resolveSidebarGroupId({
-          sidebarGroupId: undefined,
-          inheritedGroupId,
-          groupsById,
-          hostId,
-          defaultHostId: hostId
-        })
-  return order && row.manualOrder !== undefined
-    ? { sidebarGroupId, manualOrder: row.manualOrder }
-    : { sidebarGroupId }
+  const previous: Fields = { sidebarGroupId: row.sidebarGroupId }
+  if (order) {
+    previous.manualOrder = row.manualOrder
+  }
+  return previous
 }
 
 export function buildGroupDropOrder(
@@ -185,27 +177,36 @@ async function writeItem(
 }
 
 /**
- * Writes every row, or none: when any write fails, the rows that did land are put back.
- * Returns the first error, or null when the whole drop applied.
+ * Writes every row, or none: when a write fails, the rows that already landed are put back.
+ * Writes run one after another so no two writes for this drop are ever in flight together.
+ * Returns the error to show, or null when the whole drop applied.
  */
 export async function commitGroupDrop(
   writer: GroupDropWriter,
   hostId: ExecutionHostId,
   items: readonly Item[]
 ): Promise<string | null> {
-  if (items.length === 0) {
-    return null
+  const landed: Item[] = []
+  for (const item of items) {
+    const error = await writeItem(writer, hostId, item, item.next)
+    if (error === null) {
+      landed.push(item)
+      continue
+    }
+    const stuck: string[] = []
+    for (const done of landed.toReversed()) {
+      if ((await writeItem(writer, hostId, done, done.previous)) !== null) {
+        stuck.push(done.storeId)
+      }
+    }
+    if (stuck.length === 0) {
+      return error
+    }
+    console.error('Workspace group drop rollback failed for', stuck)
+    return `${error} Could not put back: ${stuck.join(', ')}.`
   }
-  const results = await Promise.all(items.map((item) => writeItem(writer, hostId, item, item.next)))
-  const firstError = results.find((error) => error !== null)
-  if (firstError === undefined) {
+  if (landed.length > 0) {
     writer.setSortBy('manual')
-    return null
   }
-  await Promise.all(
-    items.map((item, index) =>
-      results[index] === null ? writeItem(writer, hostId, item, item.previous) : null
-    )
-  )
-  return firstError
+  return null
 }

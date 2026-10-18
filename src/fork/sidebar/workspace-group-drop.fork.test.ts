@@ -215,24 +215,97 @@ describe('multi-row group drop', () => {
     expect(api.setSortBy).toHaveBeenCalledWith('manual')
   })
 
-  it('puts back the rows that landed when one write fails', async () => {
-    const items = planGroupDropItems(
-      state(),
-      DEVBOX,
-      target,
-      ['w-inherit', 'w-explicit', folderWorkspaceKey('f1')],
-      order
-    )
+  function plan(ids: readonly string[]) {
+    const items = planGroupDropItems(state(), DEVBOX, target, ids, order)
     if ('error' in items) {
       throw new Error(items.error)
     }
+    return items
+  }
+
+  it('puts back the rows that landed, exactly, when a later write fails', async () => {
     const { api, calls } = writer(['w-explicit'])
-    await expect(commitGroupDrop(api, DEVBOX, items)).resolves.toBe('no w-explicit')
-    expect(calls.slice(3)).toEqual([
-      // inherited g-dev is written back explicitly; it renders in the same section
-      { kind: 'worktree', id: 'w-inherit', fields: { sidebarGroupId: 'g-dev' } },
-      { kind: 'folder', id: 'f1', fields: { sidebarGroupId: 'g-dev', manualOrder: 5 } }
+    const error = await commitGroupDrop(api, DEVBOX, plan(['w-inherit', 'w-explicit', 'folder:f1']))
+    expect(error).toBe('no w-explicit')
+    // w-inherit had no group of its own and no manual order: both go back to unset, as own
+    // undefined keys (the clear signal), not to the project's group or the new rank.
+    expect(calls).toStrictEqual([
+      {
+        kind: 'worktree',
+        id: 'w-inherit',
+        fields: { sidebarGroupId: 'g-other', manualOrder: 100 }
+      },
+      {
+        kind: 'worktree',
+        id: 'w-explicit',
+        fields: { sidebarGroupId: 'g-other', manualOrder: 99 }
+      },
+      {
+        kind: 'worktree',
+        id: 'w-inherit',
+        fields: { sidebarGroupId: undefined, manualOrder: undefined }
+      }
     ])
     expect(api.setSortBy).not.toHaveBeenCalled()
+  })
+
+  it('restores explicit values as they were', async () => {
+    const { api, calls } = writer(['w-inherit'])
+    await commitGroupDrop(api, DEVBOX, plan(['folder:f1', 'w-explicit', 'w-inherit']))
+    expect(calls.slice(3)).toStrictEqual([
+      { kind: 'worktree', id: 'w-explicit', fields: { sidebarGroupId: null, manualOrder: 9 } },
+      { kind: 'folder', id: 'f1', fields: { sidebarGroupId: 'g-dev', manualOrder: 5 } }
+    ])
+  })
+
+  it('reports rows a failed rollback could not put back', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const api: GroupDropWriter = {
+      updateWorktreeMeta: vi.fn(async (id: string) =>
+        id === 'w-explicit' ? { ok: false as const, error: 'offline' } : { ok: true as const }
+      ),
+      updateFolderWorkspace: vi.fn(
+        async (_id: string, fields: { sidebarGroupId?: string | null }) =>
+          // the first write lands, the rollback write fails
+          fields.sidebarGroupId === 'g-other'
+      ),
+      setSortBy: vi.fn()
+    }
+    const error = await commitGroupDrop(api, DEVBOX, plan(['folder:f1', 'w-explicit']))
+    expect(error).toBe('offline Could not put back: f1.')
+    expect(errors).toHaveBeenCalledWith('Workspace group drop rollback failed for', ['f1'])
+    errors.mockRestore()
+  })
+
+  it('never has two writes in flight, so read-modify-write stores keep every row', async () => {
+    // A store that persists one shared blob with a read, a pause, and a write.
+    const blob: Record<string, unknown> = {}
+    let inFlight = 0
+    let maxInFlight = 0
+    const write = async (id: string, fields: object): Promise<void> => {
+      inFlight++
+      maxInFlight = Math.max(maxInFlight, inFlight)
+      const snapshot = { ...blob }
+      await new Promise((resolve) => setTimeout(resolve, id.length % 3))
+      Object.keys(blob).forEach((key) => delete blob[key])
+      Object.assign(blob, snapshot, { [id]: fields })
+      inFlight--
+    }
+    const api: GroupDropWriter = {
+      updateWorktreeMeta: vi.fn(async (id, fields) => {
+        await write(id, fields)
+        return { ok: true as const }
+      }),
+      updateFolderWorkspace: vi.fn(async (id, fields) => {
+        await write(id, fields)
+        return true
+      }),
+      setSortBy: vi.fn()
+    }
+    await expect(
+      commitGroupDrop(api, DEVBOX, plan(['w-inherit', 'w-explicit', 'folder:f1']))
+    ).resolves.toBeNull()
+    expect(maxInFlight).toBe(1)
+    expect(Object.keys(blob).sort()).toEqual(['f1', 'w-explicit', 'w-inherit'])
   })
 })

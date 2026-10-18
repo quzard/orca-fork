@@ -32,6 +32,10 @@ import {
   reconcileFailedFolderWorkspaceUpdate
 } from './folder-workspace-catalog'
 import {
+  encodeSidebarFieldClears,
+  folderSidebarFieldsNotApplied
+} from '../../../../shared/fork-hooks/sidebar-field-clear'
+import {
   captureWorkspaceChatDraftKeys,
   deleteWorkspaceChatDrafts
 } from '../slices/worktrees/teardown/removed-worktree-chat-drafts'
@@ -170,12 +174,15 @@ export function createFolderWorkspaceMutationActions(
       try {
         const updated =
           target.kind === 'local'
-            ? await window.api.folderWorkspaces.update({ folderWorkspaceId, updates })
+            ? await window.api.folderWorkspaces.update({
+                folderWorkspaceId,
+                ...encodeSidebarFieldClears(updates)
+              })
             : (
                 await callRuntimeRpc<{ folderWorkspace: FolderWorkspace | null }>(
                   target,
                   'folderWorkspace.update',
-                  { folderWorkspaceId, updates },
+                  { folderWorkspaceId, ...encodeSidebarFieldClears(updates) },
                   { timeoutMs: 15_000 }
                 )
               ).folderWorkspace
@@ -194,7 +201,8 @@ export function createFolderWorkspaceMutationActions(
         }
         if (
           (updates.diffComments !== undefined && updated.diffComments === undefined) ||
-          (updates.linkedItems !== undefined && updated.linkedItems === undefined)
+          (updates.linkedItems !== undefined && updated.linkedItems === undefined) ||
+          folderSidebarFieldsNotApplied(updates, updated)
         ) {
           // Older hosts can strip optional fields; reconcile instead of reporting an unsaved edit.
           await reconcileFailedFolderWorkspaceUpdate({

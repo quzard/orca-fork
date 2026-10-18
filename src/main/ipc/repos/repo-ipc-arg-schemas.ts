@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { isTuiAgent } from '../../../shared/tui-agent-config'
+import { CLEARABLE_SIDEBAR_FIELDS } from '../../../shared/fork-hooks/sidebar-field-clear'
 import { TaskSourceContextSchema } from '../../../shared/task-source-context-schema'
 import { WorkspaceLinkedItemSchema } from '../../../shared/workspace-linked-item-schema'
 import { WorkspaceAttachmentsSchema } from '../../../shared/workspace-attachment-schema'
@@ -160,6 +161,7 @@ export const FolderWorkspaceUpdateArgs = z.object({
       isPinned: z.boolean().optional(),
       sortOrder: z.number().finite().optional(),
       manualOrder: z.number().finite().optional(),
+      sidebarGroupId: z.string().nullable().optional(),
       workspaceStatus: z.string().optional(),
       createdWithAgent: z.string().refine(isTuiAgent).optional(),
       pendingFirstAgentMessageRename: z.boolean().optional(),
@@ -167,7 +169,8 @@ export const FolderWorkspaceUpdateArgs = z.object({
       lastActivityAt: z.number().finite().optional(),
       diffComments: z.array(DiffCommentSchema).optional()
     })
-    .superRefine(assertFolderWorkspaceLinkedSourceContextMatch)
+    .superRefine(assertFolderWorkspaceLinkedSourceContextMatch),
+  clearFields: z.array(z.enum(CLEARABLE_SIDEBAR_FIELDS)).optional()
 })
 
 export const FolderWorkspaceSelectorArgs = z.object({

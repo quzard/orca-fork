@@ -2,6 +2,8 @@
 # Fail when fork-owned files contain employer or internal identifiers.
 # Patterns: ORCA_INTERNAL_REF_PATTERNS (newline-separated), else
 # fork/scripts/verify/internal-ref-patterns.local (gitignored); with neither it exits 2.
+# Patterns are fixed strings, matched case-insensitively. Uses rg when installed, else grep
+# over the files git would not ignore (tracked plus untracked, like rg's default).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -60,15 +62,36 @@ for pattern in "${patterns[@]}"; do
   args+=(-e "$pattern")
 done
 
+scan_with_grep() {
+  local files=() path
+  while IFS= read -r -d '' path; do
+    case "$path" in
+      */check-no-internal-refs.sh | check-no-internal-refs.sh | *.local) continue ;;
+    esac
+    [[ -f "$path" ]] && files+=("$path")
+  done < <(git ls-files -z --cached --others --exclude-standard -- "${scan[@]}")
+  if [[ ${#files[@]} -eq 0 ]]; then
+    return 1
+  fi
+  grep -I -n -i -F -H "${args[@]}" -- "${files[@]}"
+}
+
+scanner=rg
 set +e
-matches="$(
-  rg -n -i -F "${args[@]}" \
-    --glob '!check-no-internal-refs.sh' \
-    --glob '!internal-ref-patterns.local' \
-    --glob '!*.local' \
-    "${scan[@]}"
-)"
-status=$?
+if command -v rg >/dev/null 2>&1; then
+  matches="$(
+    rg -n -i -F "${args[@]}" \
+      --glob '!check-no-internal-refs.sh' \
+      --glob '!internal-ref-patterns.local' \
+      --glob '!*.local' \
+      "${scan[@]}"
+  )"
+  status=$?
+else
+  scanner=grep
+  matches="$(scan_with_grep)"
+  status=$?
+fi
 set -e
 
 if [[ "$status" -eq 0 ]]; then
@@ -77,7 +100,7 @@ if [[ "$status" -eq 0 ]]; then
   exit 1
 fi
 if [[ "$status" -ne 1 ]]; then
-  echo "identifier scan failed (rg exit $status)" >&2
+  echo "identifier scan failed (${scanner} exit $status)" >&2
   exit "$status"
 fi
 echo 'no internal identifiers in fork-owned files'

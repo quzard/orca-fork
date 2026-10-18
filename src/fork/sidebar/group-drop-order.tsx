@@ -1,7 +1,8 @@
 // Manual-order values a cross-group drop writes. Kept apart from the write plan so each stays small.
 import { folderWorkspaceToWorktree } from '../../shared/folder-workspace-worktree'
+import type { Worktree } from '../../shared/worktree/types'
 import type { WorktreeDragGroup } from '../../renderer/src/components/sidebar/worktree-manual-order'
-import { buildWorktreeManualOrderCatalog } from '../../renderer/src/components/sidebar/worktree-manual-order-catalog'
+import { manualOrderKey, manualOrderedRows } from './manual-order'
 import type { GroupDropState, GroupDropTarget } from './workspace-group-drop-plan'
 
 export const GROUP_DROP_ORDER_STRIDE = 1000
@@ -10,19 +11,9 @@ export const GROUP_DROP_MIN_ORDER_STEP = 1e-6
 
 type OrderUpdates = ReadonlyMap<string, { manualOrder: number }>
 
-/** The key manual sort really orders by: a row without a manual order sorts by sortOrder. */
-function effectiveOrderKeys(state: GroupDropState): Map<string, number> {
-  const keys = new Map<string, number>()
-  const rows = [
-    ...Object.values(state.worktreesByRepo).flat(),
-    ...state.folderWorkspaces.map((workspace) => folderWorkspaceToWorktree(workspace))
-  ]
-  for (const row of rows) {
-    if (!row.isArchived && !keys.has(row.id)) {
-      keys.set(row.id, row.manualOrder ?? row.sortOrder)
-    }
-  }
-  return keys
+/** Every row's manual-sort key (manual-order.ts), the one the sidebar draws by. */
+function effectiveOrderKeys(rows: readonly Worktree[]): Map<string, number> {
+  return new Map(rows.map((row) => [row.id, manualOrderKey(row)]))
 }
 
 // A step this small would round away or tie at the size of these keys (doubles near 1.7e12, a
@@ -195,8 +186,9 @@ function renumberWithinList(
 }
 
 /**
- * Manual-order values for a drop under manual sort. Normally only the dragged rows are written,
- * placed between their new neighbours' effective keys: upstream's group-drop ranking renumbers
+ * Manual-order values for a drop under manual sort, against the same order the sidebar draws
+ * (manual-order.ts), so the drop lands where its insertion line was. Normally only the dragged rows
+ * are written, placed between their new neighbours' manual-sort keys: upstream's group-drop ranking renumbers
  * every row as soon as one still sorts by sortOrder, which reshuffled the whole ungrouped list.
  * When the neighbours tie, or the gap between them has no room left for a value strictly between,
  * the target section's rows around the drop are renumbered (in their shown order, the moved rows
@@ -214,11 +206,12 @@ export function buildGroupDropOrder(
   now = Date.now()
 ): OrderUpdates {
   const visible = groups.find((group) => group.key === target.key)?.worktreeIds ?? []
-  const catalog = buildWorktreeManualOrderCatalog({
-    worktrees: Object.values(state.worktreesByRepo).flat(),
-    folderWorkspaces: state.folderWorkspaces
-  })
-  const hidden = catalog.orderedIds.filter((id) => !visible.includes(id) && belongsToTarget(id))
+  const rows = manualOrderedRows(
+    Object.values(state.worktreesByRepo).flat(),
+    state.folderWorkspaces
+  )
+  const orderedIds = rows.map((row) => row.id)
+  const hidden = orderedIds.filter((id) => !visible.includes(id) && belongsToTarget(id))
   const targetIds = [...visible, ...hidden]
   const dragged = new Set(draggedIds)
   const shown = groups.flatMap((group) => group.worktreeIds).filter((id) => dragged.has(id))
@@ -227,7 +220,7 @@ export function buildGroupDropOrder(
   const removedBefore = targetIds.slice(0, bounded).filter((id) => dragged.has(id)).length
   const rest = targetIds.filter((id) => !dragged.has(id))
   const at = Math.max(0, Math.min(rest.length, bounded - removedBefore))
-  const keys = effectiveOrderKeys(state)
+  const keys = effectiveOrderKeys(rows)
   const before = at > 0 ? keys.get(rest[at - 1]!) : undefined
   const after = at < rest.length ? keys.get(rest[at]!) : undefined
   const count = moved.length
@@ -258,14 +251,14 @@ export function buildGroupDropOrder(
   }
   const visibleRest = visible.filter((id) => !dragged.has(id))
   const section = sectionOrder(
-    catalog.orderedIds,
+    orderedIds,
     visibleRest,
     hidden.filter((id) => !dragged.has(id))
   )
   const insertAt = at < visibleRest.length ? section.indexOf(visibleRest[at]!) : section.length
   const order = [...section.slice(0, insertAt), ...moved, ...section.slice(insertAt)]
   return (
-    renumberWithinList(state, catalog.orderedIds, order, moved, keys, now) ??
+    renumberWithinList(state, orderedIds, order, moved, keys, now) ??
     renumberSection(state, order, moved, keys, now)
   )
 }

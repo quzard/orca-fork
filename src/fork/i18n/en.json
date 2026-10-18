@@ -1,0 +1,52 @@
+{
+  "fork": {
+    "aiVault": {
+      "collapseAll": "Collapse all groups",
+      "hostCount": "{{count}} hosts",
+      "indexNotReady": "Index is not ready · results may be incomplete",
+      "indexOff": "Full-text indexing is off",
+      "indexOffline": "Offline · index status unknown",
+      "indexStatus": "Index status",
+      "indexUnavailable": "Index status is unavailable on this host",
+      "listUpdating": "History list is updating",
+      "otherHosts": "Other configured hosts",
+      "scanning": "Scanning history…"
+    },
+    "settings": {
+      "confirmRemove": "Confirm",
+      "removeProjects": "Remove {{value0}}",
+      "selectAllProjects": "Select all projects",
+      "selectProject": "Select project"
+    },
+    "sidebar": {
+      "archivedWorkspaces": "Removed from Orca ({{value0}})",
+      "groupHostMismatch": "Workspaces can only move within the same host.",
+      "groupMoveFailed": "Could not move the workspace.",
+      "groupNotOnHost": "This group is not saved on that host.",
+      "groupRollbackFailed": "{{error}} Could not put back: {{names}}.",
+      "hiddenWorkspaces": "Hidden workspaces",
+      "hostTooOldForGroups": "Update Orca on this host to move workspaces between groups.",
+      "restoreWorkspace": "Restore",
+      "searchWorkspaces": "Search workspaces"
+    },
+    "workspaceRemoval": {
+      "ambiguous": "This workspace has multiple execution hosts. Its terminal ownership must be resolved before removal.",
+      "failed": "Could not remove this workspace from Orca",
+      "menu": "Remove from Orca",
+      "removed": "Workspace removed from Orca",
+      "undo": "Undo"
+    }
+  },
+  "sshConnectionStatus": {
+    "authFailed": "Auth failed",
+    "connected": "Connected",
+    "connecting": "Connecting…",
+    "deployingRelay": "Deploying relay…",
+    "disconnected": "Disconnected",
+    "reconnecting": "Reconnecting…",
+    "reconnectionFailed": "Reconnection failed"
+  },
+  "workspaceImport": {
+    "parentFolderFailed": "Repositories imported; parent folder setup could not be completed"
+  }
+}

@@ -12,7 +12,9 @@ export default defineConfig({
       '**/*.spec.*',
       '**/__tests__/**',
       '**/__snapshots__/**',
-      '**/assets/**'
+      '**/assets/**',
+      // fork: fork strings live in src/fork/i18n/en.json, checked by src/fork/i18n tests.
+      'src/fork/**'
     ],
     output,
     defaultNS: false,

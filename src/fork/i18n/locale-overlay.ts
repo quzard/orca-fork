@@ -1,11 +1,13 @@
-// fork: translations for strings the fork adds. Upstream's locale files stay untouched; the
-// overlay fills only keys a loaded catalog does not have, so an upstream translation wins.
+// fork: English and Chinese for strings the fork adds. Upstream's locale files, en.json included,
+// stay untouched; the overlay fills only keys a loaded catalog does not have, so upstream wins.
 import type { i18n as I18nInstance } from 'i18next'
+import en from './en.json'
 import zh from './zh.json'
 
 const NAMESPACE = 'translation'
 
-const FORK_LOCALE_OVERLAYS: Readonly<Record<string, Record<string, unknown>>> = { zh }
+// English also serves every other language through i18next's English fallback.
+const FORK_LOCALE_OVERLAYS: Readonly<Record<string, Record<string, unknown>>> = { en, zh }
 
 /**
  * Merges each overlay into its language as soon as that catalog lands. Catalogs load lazily, so

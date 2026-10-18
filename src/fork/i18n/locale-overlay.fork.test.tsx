@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { afterAll, describe, expect, it } from 'vitest'
 import { i18n, translate } from '@/i18n/i18n'
 import { installForkLocaleOverlays } from './locale-overlay'
+import en from './en.json'
 import zh from './zh.json'
 
 type Catalog = Record<string, unknown>
@@ -21,7 +22,9 @@ function lookup(catalog: unknown, key: string): unknown {
     .reduce<unknown>((node, part) => (node as Catalog | undefined)?.[part], catalog)
 }
 
-const en = JSON.parse(readFileSync('src/renderer/src/i18n/locales/en.json', 'utf8')) as Catalog
+const upstreamEn = JSON.parse(
+  readFileSync('src/renderer/src/i18n/locales/en.json', 'utf8')
+) as Catalog
 const upstreamZh = JSON.parse(
   readFileSync('src/renderer/src/i18n/locales/zh.json', 'utf8')
 ) as Catalog
@@ -31,11 +34,14 @@ describe('fork zh overlay', () => {
     await i18n.changeLanguage('en')
   })
 
-  it('translates every fork-added key the upstream zh catalog lacks', () => {
-    // Fork keys live under these roots in en.json; the overlay must cover each English leaf.
-    const forkRoots = ['fork', 'sshConnectionStatus', 'workspaceImport']
-    const englishForkKeys = forkRoots.flatMap((root) => leafKeys(en[root], root))
-    const missingUpstream = englishForkKeys.filter((key) => lookup(upstreamZh, key) === undefined)
+  it('keeps fork English out of upstream en.json, in the fork overlay instead', () => {
+    const forkKeys = leafKeys(en)
+    expect(forkKeys.length).toBeGreaterThan(0)
+    expect(forkKeys.filter((key) => lookup(upstreamEn, key) !== undefined)).toEqual([])
+  })
+
+  it('translates every fork English key the upstream zh catalog lacks', () => {
+    const missingUpstream = leafKeys(en).filter((key) => lookup(upstreamZh, key) === undefined)
     expect(missingUpstream.length).toBeGreaterThan(0)
     for (const key of missingUpstream) {
       expect(lookup(zh, key), key).toEqual(expect.any(String))
@@ -65,6 +71,17 @@ describe('fork zh overlay', () => {
     // An upstream zh string is still upstream's.
     const upstreamKey = leafKeys(upstreamZh).find((key) => key.startsWith('auto.'))!
     expect(translate(upstreamKey, 'x')).toBe(lookup(upstreamZh, upstreamKey))
+  })
+
+  it('serves fork English from the overlay, including strings with a dynamic default', async () => {
+    installForkLocaleOverlays(i18n)
+    await i18n.changeLanguage('en')
+    expect(i18n.getResource('en', 'translation', 'fork.sidebar.groupRollbackFailed')).toBe(
+      '{{error}} Could not put back: {{names}}.'
+    )
+    expect(i18n.getResource('en', 'translation', 'sshConnectionStatus.authFailed')).toBe(
+      'Auth failed'
+    )
   })
 
   it('never overwrites a key the loaded catalog already has', async () => {

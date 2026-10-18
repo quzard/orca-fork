@@ -3217,38 +3217,6 @@
       "viewing": "Viewing: {{path}}"
     }
   },
-  "fork": {
-    "aiVault": {
-      "collapseAll": "Collapse all groups",
-      "hostCount": "{{count}} hosts",
-      "indexNotReady": "Index is not ready · results may be incomplete",
-      "indexOff": "Full-text indexing is off",
-      "indexOffline": "Offline · index status unknown",
-      "indexStatus": "Index status",
-      "indexUnavailable": "Index status is unavailable on this host",
-      "listUpdating": "History list is updating",
-      "scanning": "Scanning history…"
-    },
-    "settings": {
-      "confirmRemove": "Confirm",
-      "removeProjects": "Remove {{value0}}",
-      "selectAllProjects": "Select all projects",
-      "selectProject": "Select project"
-    },
-    "sidebar": {
-      "archivedWorkspaces": "Removed from Orca ({{value0}})",
-      "hiddenWorkspaces": "Hidden workspaces",
-      "restoreWorkspace": "Restore",
-      "searchWorkspaces": "Search workspaces"
-    },
-    "workspaceRemoval": {
-      "ambiguous": "This workspace has multiple execution hosts. Its terminal ownership must be resolved before removal.",
-      "failed": "Could not remove this workspace from Orca",
-      "menu": "Remove from Orca",
-      "removed": "Workspace removed from Orca",
-      "undo": "Undo"
-    }
-  },
   "jira": {
     "workspace": {
       "open": "Open workspace linked to {{key}}"
@@ -3298,9 +3266,6 @@
       "resumed_one": "{{count}} agent session resumed.",
       "resumed_other": "{{count}} agent sessions resumed."
     }
-  },
-  "workspaceImport": {
-    "parentFolderFailed": "Repositories imported; parent folder setup could not be completed"
   },
   "workspaceSpace": {
     "chart": {

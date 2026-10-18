@@ -67,9 +67,12 @@ describe('fork skill source commit', () => {
   it('keeps one pin, inside the CLI tree, and production CLI never imports src/fork', () => {
     // The desktop app and the CLI read the same file; there is no second copy to drift.
     expect(existsSync('src/fork/skills-source-commit.ts')).toBe(false)
-    for (const path of ['src/fork/register.ts', 'src/fork/register-main.ts']) {
-      expect(readFileSync(path, 'utf8')).toContain("from '../cli/skills-source-commit'")
-    }
+    expect(readFileSync('src/fork/register.ts', 'utf8')).toContain(
+      "from '../cli/skills-source-commit'"
+    )
+    expect(readFileSync('src/fork/main/register-main.ts', 'utf8')).toContain(
+      "from '../../cli/skills-source-commit'"
+    )
     expect(
       readFileSync('src/renderer/src/lib/agent-feature-install-commands.ts', 'utf8')
     ).toContain("import '../../../cli/skills-source-commit'")

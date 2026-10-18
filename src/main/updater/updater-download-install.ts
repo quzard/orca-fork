@@ -16,7 +16,7 @@ import {
   disarmForkBackgroundDownload,
   forkBackgroundDownloadFollowUp,
   isForkBackgroundDownloadArmed
-} from '../../fork/fork-background-download'
+} from '../../fork/main/fork-background-download'
 
 /** Coordinates renderer-facing download/install actions and their duplicate guards. */
 export abstract class UpdaterDownloadInstall extends UpdaterRemoteStatus {

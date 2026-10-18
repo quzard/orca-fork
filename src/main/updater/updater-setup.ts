@@ -2,7 +2,7 @@ import { app, powerMonitor } from 'electron'
 import type { BrowserWindow } from 'electron'
 import { is } from '@electron-toolkit/utils'
 import { forkReleaseFeedDecision, isForkBuild } from '../../shared/fork-hooks/update-feed'
-import { forkAutoInstallOnQuit } from '../../fork/fork-background-download'
+import { forkAutoInstallOnQuit } from '../../fork/main/fork-background-download'
 import type { ReleaseBuild, ReleaseChannel } from '../../shared/release-channel'
 import type { ReleaseBuildListOptions } from '../updater-release-build-cache'
 import type {

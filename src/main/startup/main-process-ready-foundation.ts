@@ -54,7 +54,7 @@ import { agentHookServer } from '../agent-hooks/server'
 import { isAgentStatusHooksEnabled } from '../agent-hooks/managed-agent-hook-controls'
 import { reportProfileStateWriteFailure } from './profile-state-write-failure'
 import { reportProfileStateSaveDelay } from './profile-state-save-delay'
-import { applyStartupBrowserSessionProxies } from '../../fork/startup/browser-session-proxy'
+import { applyStartupBrowserSessionProxies } from '../../fork/main/startup/browser-session-proxy'
 
 export async function initializeReadyFoundation(): Promise<void> {
   logStartupMilestone('app-ready')

@@ -1,4 +1,4 @@
-import { shouldDeferBrowserSessionProxy } from '../../shared/fork-hooks/startup'
+import { shouldDeferBrowserSessionProxy } from '../../../shared/fork-hooks/startup'
 
 const BROWSER_PROXY_FAILURE = '[proxy] Failed to apply network proxy settings to browser sessions'
 

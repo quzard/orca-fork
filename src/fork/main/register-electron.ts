@@ -3,12 +3,12 @@
 import {
   registerDesktopSecretStore,
   registerGuardedSecretBackend
-} from '../shared/fork-hooks/desktop-secret-store'
+} from '../../shared/fork-hooks/desktop-secret-store'
 import { createForkDesktopSecretStore } from './desktop-secret-store'
 import { MacosFileSecretStore } from './macos-file-secret-store'
-import { registerForkUpdateFeed } from '../shared/fork-hooks/update-feed'
-import { registerComputerUsePermissionHelperArgs } from '../shared/fork-hooks/computer-use-permission'
-import { FORK_PERMISSION_DRAG_CARD_ARG } from './computer-use/permission-card'
+import { registerForkUpdateFeed } from '../../shared/fork-hooks/update-feed'
+import { registerComputerUsePermissionHelperArgs } from '../../shared/fork-hooks/computer-use-permission'
+import { FORK_PERMISSION_DRAG_CARD_ARG } from '../computer-use/permission-card'
 
 /** Desktop main process, before preflight. Not called from orcad. */
 export function registerForkElectronModules(): void {

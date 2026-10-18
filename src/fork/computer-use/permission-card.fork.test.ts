@@ -51,7 +51,7 @@ describe('computer-use permission card', () => {
   })
 
   it('the fork registers the argument in the desktop process', () => {
-    const register = readFileSync('src/fork/register-electron.ts', 'utf8')
+    const register = readFileSync('src/fork/main/register-electron.ts', 'utf8')
     expect(register).toContain(
       'registerComputerUsePermissionHelperArgs([FORK_PERMISSION_DRAG_CARD_ARG])'
     )

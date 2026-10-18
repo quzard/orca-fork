@@ -5,7 +5,7 @@ import {
   registerAiVaultToolIndexPolicy,
   setAiVaultForkServicePolicy,
   type AiVaultForkServicePolicy
-} from '../../shared/fork-hooks/ai-vault'
+} from '../../../shared/fork-hooks/ai-vault'
 import { attachScopePathAliases, expandScopePathAliases } from './scope-aliases'
 
 // 工具输出改为分块索引后，旧库只存了截断文本，偏移 1 会让索引重建。

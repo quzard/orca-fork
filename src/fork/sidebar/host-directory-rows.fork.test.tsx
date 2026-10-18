@@ -6,7 +6,6 @@ import type { Repo } from '../../shared/repo-types'
 import type { Worktree } from '../../shared/worktree/types'
 import { getDefaultUIState } from '../../shared/constants'
 import { hydrateSidebarGroupBy } from '../../shared/fork-hooks/sidebar-group-mode'
-import { normalizeGroupBy } from '../../main/persistence/applying-settings/ui-selection-normalization'
 import {
   projectGroupDeleteKeepsFolderWorkspaces,
   resolveDeleteProjectGroupRemoveContainedProjects
@@ -154,12 +153,9 @@ describe('host-directory sidebar rows', () => {
   })
 
   it('reads a saved project grouping as host-directory', () => {
-    expect(normalizeGroupBy('repo')).toBe(HOST_DIRECTORY_GROUP_BY)
+    // The main-process normalizer is checked in default-group-by.fork.test.ts.
     expect(hydrateSidebarGroupBy('repo')).toBe(HOST_DIRECTORY_GROUP_BY)
     expect(hydrateSidebarGroupBy('parent')).toBe(HOST_DIRECTORY_GROUP_BY)
-    expect(normalizeGroupBy('none')).toBe('none')
-    expect(normalizeGroupBy('pr-status')).toBe('pr-status')
-    expect(normalizeGroupBy('workspace-status')).toBe('workspace-status')
   })
 
   it('keeps the same directory on two hosts in separate sections', () => {

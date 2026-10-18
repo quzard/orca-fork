@@ -2,7 +2,7 @@ import { isBenignCheckFailure } from '../updater-fallback'
 import {
   FORK_BACKGROUND_CHECK_FAILURE_LOG,
   planForkCheckFailure
-} from '../../fork/fork-background-download'
+} from '../../fork/main/fork-background-download'
 import { ReleaseFeedPreflightError } from './updater-state'
 import type { CheckFailureSource } from './updater-state'
 import { UpdaterReleaseFeed } from './updater-release-feed'

@@ -1,6 +1,7 @@
-// A fork file must only reach files its TypeScript projects include. A fork file that imports
-// renderer code belongs in the node project's exclude, and one that imports main code belongs in
-// the web excludes; otherwise `pnpm tc` fails with TS6307 on a Mac while vitest stays green.
+// A fork file must only reach files its TypeScript projects include, otherwise `pnpm tc` fails
+// with TS6307 on a Mac while vitest stays green. Convention: fork code that imports the renderer is
+// .tsx (the node project includes only src/fork/**/*.ts); main-process-only code lives under
+// src/fork/main/, and *.fork.test.ts are node tests, both excluded from the web projects.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -125,8 +126,9 @@ describe('fork files stay inside their TypeScript projects', () => {
   )
 
   it('catches a fork file that reaches outside its project', () => {
+    // Renderer-only fork modules are .tsx, which the node project does not include.
     const node = projects[0]!
-    const fake = { ...node, exclude: [] }
+    const fake = { ...node, include: [...node.include, globToRegExp('src/fork/**/*.tsx')] }
     expect(violations(fake).some((entry) => entry.includes('src/renderer/'))).toBe(true)
   })
 })

@@ -6,11 +6,11 @@ import {
   applyProxySettingsToSession,
   getProxySessionApplicationReadiness,
   resetSessionProxyApplicationForTests
-} from '../../main/network/proxy-settings'
+} from '../../../main/network/proxy-settings'
 import {
   registerDeferBrowserSessionProxy,
   resetStartupForkHooksForTests
-} from '../../shared/fork-hooks/startup'
+} from '../../../shared/fork-hooks/startup'
 import { applyStartupBrowserSessionProxies } from './browser-session-proxy'
 
 function slowSession() {

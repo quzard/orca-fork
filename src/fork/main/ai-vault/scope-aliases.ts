@@ -1,6 +1,6 @@
 import { realpath } from 'node:fs/promises'
-import type { AiVaultAgent, AiVaultScanIssue } from '../../shared/ai-vault-types'
-import { normalizeRuntimePathSeparators } from '../../shared/cross-platform-path'
+import type { AiVaultAgent, AiVaultScanIssue } from '../../../shared/ai-vault-types'
+import { normalizeRuntimePathSeparators } from '../../../shared/cross-platform-path'
 
 const SCOPE_PATH_MISSING_MESSAGE = 'Scope path is not a directory.'
 // 问题记录必须带 agent；这条是路径失败，不是某个助手的解析失败。

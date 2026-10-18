@@ -1,7 +1,7 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { usesIsolatedProfile } from '../shared/electron-isolated-profile-switches'
-import type { SecretStore } from '../shared/secret-store'
+import { usesIsolatedProfile } from '../../shared/electron-isolated-profile-switches'
+import type { SecretStore } from '../../shared/secret-store'
 import { LOCAL_SECRET_STORAGE, MacosFileSecretStore } from './macos-file-secret-store'
 
 export function usesPackagedMacosFileSecretStore(input: {
@@ -33,6 +33,6 @@ export function createForkDesktopSecretStore(): SecretStore {
     return new MacosFileSecretStore(macosFileSecretDirectory())
   }
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: same module the desktop fallback constructs; called after that module finished evaluating.
-  const host = require('../main/host/electron-secret-store') as ElectronSecretStoreModule
+  const host = require('../../main/host/electron-secret-store') as ElectronSecretStoreModule
   return new host.ElectronSecretStore()
 }

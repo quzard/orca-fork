@@ -43,7 +43,7 @@ import { stampRuntimeSourceEnv } from '../../shared/runtime-source-env'
 import { adoptWslHostLoginEnvironment } from './orcad-wsl-host-login-environment'
 import { installOrcadProcessErrorGuards } from './orcad-process-error-guards'
 import { orcadWsPortOptions } from './orcad-ws-port-policy'
-import { registerForkMainModules } from '../../fork/register-main'
+import { registerForkMainModules } from '../../fork/main/register-main'
 
 export { parseArgs }
 

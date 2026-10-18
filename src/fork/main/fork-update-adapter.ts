@@ -1,10 +1,10 @@
 // fork: 把 fork-background-download 的判断接到更新器事件上。只由 src/main/updater-fork-background.ts 使用。
 
-import type { UpdateStatus } from '../shared/update-status-types'
+import type { UpdateStatus } from '../../shared/update-status-types'
 import {
   AUTO_UPDATE_CHECK_INTERVAL_MS,
   AUTO_UPDATE_RETRY_INTERVAL_MS
-} from '../main/updater/updater-state'
+} from '../../main/updater/updater-state'
 import {
   consumeForkBackgroundDownloadFailure,
   failForkStaging,

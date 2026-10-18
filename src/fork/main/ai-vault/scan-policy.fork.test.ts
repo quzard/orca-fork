@@ -2,17 +2,17 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { searchMessageRows } from '../../main/ai-vault-search/session-search-message-rows'
-import { openSessionSearchDatabase } from '../../main/ai-vault-search/session-search-schema'
+import { searchMessageRows } from '../../../main/ai-vault-search/session-search-message-rows'
+import { openSessionSearchDatabase } from '../../../main/ai-vault-search/session-search-schema'
 import {
   registerAiVaultServiceHeap,
   registerAiVaultToolIndexPolicy,
   resetAiVaultForkHooksForTests
-} from '../../shared/fork-hooks/ai-vault'
+} from '../../../shared/fork-hooks/ai-vault'
 import {
   resetStartupForkHooksForTests,
   registerDeferBrowserSessionProxy
-} from '../../shared/fork-hooks/startup'
+} from '../../../shared/fork-hooks/startup'
 import { applyStartupBrowserSessionProxies } from '../startup/browser-session-proxy'
 import { aiVaultServiceHeapMiB } from './heap'
 import { applyAiVaultForkServicePolicy, aiVaultForkServicePolicy } from './service-policy'

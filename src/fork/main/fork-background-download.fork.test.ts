@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { UpdateStatus } from '../shared/update-status-types'
-import type { registerAutoUpdaterHandlers } from '../main/updater-events'
-import { beginMacUpdateDownload } from '../main/updater-mac-install'
+import type { UpdateStatus } from '../../shared/update-status-types'
+import type { registerAutoUpdaterHandlers } from '../../main/updater-events'
+import { beginMacUpdateDownload } from '../../main/updater-mac-install'
 
 const nativeAutoUpdater = vi.hoisted(() => {
   const handlers = new Map<string, ((...args: unknown[]) => void)[]>()
@@ -33,24 +33,24 @@ vi.mock('electron', () => ({
   autoUpdater: nativeAutoUpdater
 }))
 
-vi.mock('../main/linux-update-package-type', () => ({
+vi.mock('../../main/linux-update-package-type', () => ({
   getLinuxPackageType: () => 'non-root',
   getLinuxRootPackageType: () => null,
   isExternallyManagedLinuxInstall: () => false
 }))
 
-vi.mock('../main/cli/appimage-copy-pre-extraction', () => ({
+vi.mock('../../main/cli/appimage-copy-pre-extraction', () => ({
   preExtractDownloadedAppImageUpdate: vi.fn(async () => false)
 }))
 
-vi.mock('../main/updater-changelog', () => ({
+vi.mock('../../main/updater-changelog', () => ({
   fetchChangelog: vi.fn(async () => null)
 }))
 
-vi.mock('../main/updater-lifecycle-diagnostics', () => ({
+vi.mock('../../main/updater-lifecycle-diagnostics', () => ({
   recordUpdaterLifecycle: vi.fn()
 }))
-import { registerForkUpdateFeed } from '../shared/fork-hooks/update-feed'
+import { registerForkUpdateFeed } from '../../shared/fork-hooks/update-feed'
 import {
   FORK_BACKGROUND_CHECK_FAILURE_LOG,
   FORK_BACKGROUND_DOWNLOAD_FAILURE_LOG,
@@ -469,7 +469,7 @@ describe('fork updater handler wiring', () => {
       beginForkBackgroundDownload,
       finishActiveUpdateCheckAttempt
     }
-    const { registerAutoUpdaterHandlers } = await import('../main/updater-events')
+    const { registerAutoUpdaterHandlers } = await import('../../main/updater-events')
     registerAutoUpdaterHandlers(context)
     return {
       emit,
@@ -691,7 +691,7 @@ describe('fork updater handler wiring', () => {
     const sendStatus = vi.fn()
     const beginForkBackgroundDownload = vi.fn()
     const { autoUpdater, emit } = testAutoUpdater()
-    const { registerAutoUpdaterHandlers } = await import('../main/updater-events')
+    const { registerAutoUpdaterHandlers } = await import('../../main/updater-events')
     registerAutoUpdaterHandlers({
       autoUpdater,
       clearBackgroundCheckLaunchPending: vi.fn(),

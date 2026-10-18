@@ -1,7 +1,7 @@
 import { autoUpdater as nativeUpdater } from 'electron'
-import { registerForkInstallerReadyProbe } from '../fork/fork-background-download'
-import { createForkUpdateAdapter } from '../fork/fork-update-adapter'
-import type { ForkUpdateAdapter } from '../fork/fork-update-adapter'
+import { registerForkInstallerReadyProbe } from '../fork/main/fork-background-download'
+import { createForkUpdateAdapter } from '../fork/main/fork-update-adapter'
+import type { ForkUpdateAdapter } from '../fork/main/fork-update-adapter'
 import type { UpdaterHandlerContext } from './updater-handler-context'
 import { isMacInstallerReady, resetMacInstallState } from './updater-mac-install'
 

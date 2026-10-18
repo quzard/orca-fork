@@ -1,8 +1,8 @@
 import { createCipheriv, createDecipheriv, randomBytes, randomUUID } from 'node:crypto'
 import { chmodSync, linkSync, lstatSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
-import { bestEffortFsyncDirectorySync, writeSecureFile } from '../shared/secure-file'
-import type { SecretStore } from '../shared/secret-store'
+import { bestEffortFsyncDirectorySync, writeSecureFile } from '../../shared/secure-file'
+import type { SecretStore } from '../../shared/secret-store'
 
 export const LOCAL_SECRET_STORAGE = {
   root: '.orca',

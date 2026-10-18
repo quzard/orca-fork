@@ -227,6 +227,81 @@ if bash "$FETCH" >/dev/null 2>&1; then
   fail "fetch from a missing upstream should fail"
 fi
 
+# 拉取卡住：假的 git 在 fetch 时一直不返回。超时（这里 2 秒）后杀掉 fetch，非零退出，upstream/main 不变。
+# 其他 git 子命令交给真的 git。
+real_git="$(command -v git)"
+fake_bin="${BASE}/fake-bin"
+mkdir -p "$fake_bin"
+cat >"${fake_bin}/git" <<FAKE
+#!/bin/bash
+for arg in "\$@"; do
+  if [[ "\$arg" == fetch ]]; then
+    echo "\$\$" >"${BASE}/hung-fetch.pid"
+    exec sleep 300
+  fi
+done
+exec "${real_git}" "\$@"
+FAKE
+chmod +x "${fake_bin}/git"
+git remote set-url upstream "${BASE}/up-src"
+before="$(git rev-parse refs/remotes/upstream/main)"
+started=$SECONDS
+code=0
+out="$(PATH="${fake_bin}:${PATH}" ORCA_UPSTREAM_FETCH_TIMEOUT=2 bash "$FETCH" 2>&1)" || code=$?
+elapsed=$((SECONDS - started))
+if [[ "$code" -eq 0 ]]; then
+  fail "a hanging fetch should fail: ${out}"
+elif [[ "$out" != *"timed out after 2s"* ]]; then
+  fail "a hanging fetch should report the timeout: ${out}"
+fi
+if [[ "$elapsed" -gt 20 ]]; then
+  fail "a hanging fetch was not stopped near the timeout (${elapsed}s)"
+fi
+if [[ ! -s "${BASE}/hung-fetch.pid" ]]; then
+  fail "the fake fetch never ran"
+elif kill -0 "$(cat "${BASE}/hung-fetch.pid")" 2>/dev/null; then
+  fail "the hanging fetch is still running after the timeout"
+  kill "$(cat "${BASE}/hung-fetch.pid")" 2>/dev/null || true
+fi
+if [[ "$(git rev-parse refs/remotes/upstream/main)" != "$before" ]]; then
+  fail "a timed-out fetch changed upstream/main"
+fi
+# 不理会 TERM 的拉取：宽限 5 秒后用 KILL 结束。
+cat >"${fake_bin}/git" <<FAKE
+#!/bin/bash
+for arg in "\$@"; do
+  if [[ "\$arg" == fetch ]]; then
+    trap '' TERM
+    echo "\$\$" >"${BASE}/stubborn-fetch.pid"
+    exec sleep 300
+  fi
+done
+exec "${real_git}" "\$@"
+FAKE
+code=0
+out="$(PATH="${fake_bin}:${PATH}" ORCA_UPSTREAM_FETCH_TIMEOUT=1 bash "$FETCH" 2>&1)" || code=$?
+if [[ "$code" -eq 0 || "$out" != *"timed out"* ]]; then
+  fail "a fetch that ignores TERM should still time out: ${out}"
+elif kill -0 "$(cat "${BASE}/stubborn-fetch.pid")" 2>/dev/null; then
+  fail "a fetch that ignores TERM is still running"
+  kill -KILL "$(cat "${BASE}/stubborn-fetch.pid")" 2>/dev/null || true
+fi
+# 默认超时是 600 秒，可以用环境变量改；不是正整数就直接失败，不去拉。
+if ! grep -q 'ORCA_UPSTREAM_FETCH_TIMEOUT:-600' "$FETCH"; then
+  fail "the default fetch timeout should be 600s"
+fi
+if out="$(ORCA_UPSTREAM_FETCH_TIMEOUT=abc bash "$FETCH" 2>&1)"; then
+  fail "a bad timeout value should fail: ${out}"
+fi
+# 正常的拉取在超时内完成，照常成功。
+if ! out="$(ORCA_UPSTREAM_FETCH_TIMEOUT=30 bash "$FETCH" 2>&1)"; then
+  fail "a quick fetch under a timeout should pass: ${out}"
+fi
+# 调用方把超时当成拉取失败：push_github.sh 在 set -e 下直接调用（失败即停止），mac-auto-update.sh 不发布。
+if ! grep -q 'if ! (cd "$REPO" && bash fork/scripts/verify/fetch-upstream-main.sh)' "${ROOT}/fork/scripts/mac-auto-update.sh"; then
+  fail "mac-auto-update.sh should stop publishing when the fetch fails"
+fi
+
 if [[ "$FAILS" -ne 0 ]]; then
   echo "${FAILS} check(s) failed" >&2
   exit 1

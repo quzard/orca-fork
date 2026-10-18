@@ -235,7 +235,21 @@ seed_glibc217() {
     ERROR="cannot read the glibc 2.17 Node pin"
     finish 1
   }
-  read -r archive sha version <<<"$pin"
+  local extra=""
+  read -r archive sha version extra <<<"$pin" || true
+  # 读到的值会拼进路径和下载地址，先确认格式，免得 pin 改了结构时写到别处或下错文件。
+  if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    ERROR="glibc 2.17 Node pin has an invalid version: '${version}'"
+    finish 1
+  fi
+  if [[ ! "$sha" =~ ^[0-9a-f]{64}$ ]]; then
+    ERROR="glibc 2.17 Node pin has an invalid sha256: '${sha}'"
+    finish 1
+  fi
+  if [[ "$archive" != "node-v${version}-linux-x64-glibc-217.tar.gz" || -n "$extra" ]]; then
+    ERROR="glibc 2.17 Node pin has an unexpected archive name: '${archive}${extra:+ ${extra}}'"
+    finish 1
+  fi
   local dest="${ORCA_NODE_RUNTIME_CACHE_DIR}/${archive}"
   if [[ -f "$dest" ]] && [[ "$(shasum -a 256 "$dest" | awk '{print $1}')" == "$sha" ]]; then
     return 0

@@ -261,5 +261,8 @@ git ls-remote origin 'refs/heads/sync/*' | awk '{print $2}' | sort | tr '\n' ' '
     execFileSync('bash', [resolve('fork/scripts/publish-bridge-release.test.sh')], {
       stdio: 'inherit'
     })
+    execFileSync('bash', [resolve('fork/scripts/mac-auto-update-seed.test.sh')], {
+      stdio: 'inherit'
+    })
   })
 })

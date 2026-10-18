@@ -103,7 +103,7 @@ fork 构建（`registerForkBuild`，主进程、渲染进程和 orcad 都登记�
 
 后台下载完成后，macOS 要等 Squirrel 暂存完成（`isMacInstallerReady()`）才弹重启卡片；暂存期间手动检查只把界面放回「已下载 100%」。暂存失败时清掉暂存中的版本，界面进入错误状态，重新检查会重新下载。受监管的无界面 serve 把暂存推迟到 `quitAndInstall`（`isMacStagingDeferredToInstall()`），这种情况下下载完就算就绪。已知限制：Squirrel 既不完成也不报错时，版本一直停在暂存中，后台检查一直挂起，手动检查一直显示「已下载 100%」。
 
-家里的 LaunchAgent 只在 `develop` 前进时构建、签名并发布。它跑的是 `~/Projects/orca-verify/bin/mac-auto-update.sh`，安装脚本负责复制。已经装过、仍指向仓库内脚本的代理，要重跑安装脚本，再在终端手动跑一次并点 Always Allow，然后 `--bootstrap`。脚本在 git 操作之前从临时文件重新执行，退出时删掉该副本；成功结束后才用 mv 换掉稳定副本。构建在独立进程组里，锁文件挡住第二次同时构建。codesign 超时会 `kill` 整个进程组。glibc 2.17 的 Node 压缩包先放进 `~/Projects/orca-verify/node-runtime-cache`（缺了就从 `ORCA_NODE_UNOFFICIAL_MIRROR` 取），文件名、版本和 sha256 读上游的 `src/shared/node-runtime-pin.ts`，脚本里不另写一份。代理只来自 `sync.env` 的 `ORCA_PROXY`（或直接写的 `http_proxy` 等）。
+家里的 LaunchAgent 只在 `develop` 前进时构建、签名并发布。它跑的是 `~/Projects/orca-verify/bin/mac-auto-update.sh`，安装脚本负责复制。已经装过、仍指向仓库内脚本的代理，要重跑安装脚本，再在终端手动跑一次并点 Always Allow，然后 `--bootstrap`。脚本在 git 操作之前从临时文件重新执行，退出时删掉该副本；成功结束后才用 mv 换掉稳定副本。构建在独立进程组里，锁文件挡住第二次同时构建。codesign 超时会 `kill` 整个进程组。glibc 2.17 的 Node 压缩包先放进 `~/Projects/orca-verify/node-runtime-cache`（缺了就从 `ORCA_NODE_UNOFFICIAL_MIRROR` 取），文件名、版本和 sha256 读上游的 `src/shared/node-runtime-pin.ts`，脚本里不另写一份；读到后先校验格式（版本 `X.Y.Z`、64 位小写十六进制 sha256、文件名必须是 `node-v<版本>-linux-x64-glibc-217.tar.gz`），不符合就报明哪一项并停止（`mac-auto-update-seed.test.sh`）。代理只来自 `sync.env` 的 `ORCA_PROXY`（或直接写的 `http_proxy` 等）。
 
 发布用 `gh release create`。`gh auth status` 放在「这个 sha 已发布」之后。失败时 `release` 保持原值，`ghAuth` 记为 `failed`，不写成 skipped。`dist/` 里版本后缀已经对上该 sha 时，gh 恢复后只补发，不重新签名。客户机不需要 gh，也不再用 `gh release download` 安装。
 

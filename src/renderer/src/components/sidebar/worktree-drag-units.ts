@@ -44,8 +44,9 @@ export function getWorktreeDragUnitGroups(
     if (row.sectionKey === PINNED_GROUP_KEY && naturalWorktreeIds.has(row.worktree.id)) {
       continue
     }
-    if (!current) {
-      current = { key: ALL_GROUP_KEY, units: [] }
+    // fork: a header-less section gets its own group, as in getWorktreeDragGroups.
+    if (!current || (row.sectionKey !== ALL_GROUP_KEY && row.sectionKey !== current.key)) {
+      current = { key: row.sectionKey, units: [] }
       groups.push({
         key: current.key,
         units: current.units,

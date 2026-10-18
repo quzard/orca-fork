@@ -10,7 +10,7 @@ import { cursorRemoteSshLaunchSpec } from './open-in/cursor-remote-launch'
 import { resolveFolderTerminalWorkspace } from './terminal/folder-workspace-resolver'
 import { getGitRepoRoot } from '../main/git/repo-detection'
 import { registerImportedWorktreePath } from '../shared/fork-hooks/imported-worktree-path'
-import { registerForkSkillSource } from './skills-source-commit'
+import { registerForkSkillSource } from '../cli/skills-source-commit'
 import { registerForkBuild } from '../shared/fork-hooks/update-feed'
 
 /** Desktop and orcad. The renderer must not import this file. */

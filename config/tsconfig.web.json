@@ -8,6 +8,7 @@
     "../src/preload/api/**/*",
     "../src/shared/**/*",
     "../src/fork/**/*.ts",
+    "../src/cli/skills-source-commit.ts",
     "../src/fork/**/*.tsx"
   ],
   "exclude": [

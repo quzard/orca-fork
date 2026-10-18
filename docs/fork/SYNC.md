@@ -52,7 +52,7 @@ Rewrite the skill clone ref and commit that file with the sync:
 node fork/scripts/sync-skills-source-commit.mjs
 ```
 
-The script writes the same module to `src/cli/skills-source-commit.ts` and `src/fork/skills-source-commit.ts`. The CLI copy is the one `out/cli/**` unpacks; `src/cli/index.ts` does not import `src/fork`. It uses `git merge-base HEAD fork/base-upstream`, then `origin/fork/base-upstream`. If that ref is missing, it uses `upstream/main`, then `origin/upstream/main`. If those are missing too, it keeps the checked-in pin. A fork build must not clone `stablyai/orca` at its own commit.
+The script writes the one pin, `src/cli/skills-source-commit.ts`. It lives under `src/cli` because `out/cli/**` unpacks it and production CLI code must not import `src/fork`; the desktop and renderer registrations import the same file. It uses `git merge-base HEAD fork/base-upstream`, then `origin/fork/base-upstream`. If that ref is missing, it uses `upstream/main`, then `origin/upstream/main`. If those are missing too, it keeps the checked-in pin. A fork build must not clone `stablyai/orca` at its own commit.
 
 ## Local Mac package
 

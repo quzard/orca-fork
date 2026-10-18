@@ -83,7 +83,7 @@
 
 不再移植自定义仓库。skills 仍从 `https://github.com/stablyai/orca` 安装，内容与上游相同。fork 构建不能把本次构建提交当作 clone ref：该提交不在上游，`npx skills add` 会报 Failed to clone repository。
 
-安装、更新和 CLI 用的 ref 是上游基线提交（当前 `17a2bced1115f064e834e397c2b949d9e150d275`）。同一份模块写在两处：`src/cli/skills-source-commit.ts` 随 `out/cli/**` 打进包，供 CLI 使用；`src/fork/skills-source-commit.ts` 登记桌面和渲染进程。`src/cli/index.ts` 不引用 `src/fork`。同步后运行 `node fork/scripts/sync-skills-source-commit.mjs` 重写这两个文件：先 `merge-base` `fork/base-upstream`，没有该引用就用 `upstream/main`，再没有就保留已写入的值。`src/shared/agent-feature-install-commands.ts` 与上游一致，没有 skill 仓库钩子，也没有 `ORCA_FORK_SKILLS_SOURCE`。
+安装、更新和 CLI 用的 ref 是上游基线提交，只写在 `src/cli/skills-source-commit.ts` 一处。它随 `out/cli/**` 打进包供 CLI 使用；桌面主进程和渲染进程的登记（`src/fork/register.ts`、`register-main.ts`、`agent-feature-install-commands.ts`）引用同一个文件。生产 CLI 代码不引用 `src/fork`。同步后运行 `node fork/scripts/sync-skills-source-commit.mjs` 重写这个文件：先 `merge-base` `fork/base-upstream`，没有该引用就用 `upstream/main`，再没有就保留已写入的值。`src/shared/agent-feature-install-commands.ts` 与上游一致，没有 skill 仓库钩子，也没有 `ORCA_FORK_SKILLS_SOURCE`。
 
 ## F036 本机 orcad 模板目标
 

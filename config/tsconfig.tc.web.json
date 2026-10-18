@@ -62,6 +62,7 @@
     "../src/preload/usage-provider-api.ts",
     "../src/shared/**/*",
     "../src/fork/**/*.ts",
+    "../src/cli/skills-source-commit.ts",
     "../src/fork/**/*.tsx",
     "../src/packages/process-host/src/__fixtures__/**/*",
     "../src/main/gitlab/mappers.ts",

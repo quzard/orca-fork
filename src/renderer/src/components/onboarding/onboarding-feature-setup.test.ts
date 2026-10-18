@@ -27,7 +27,7 @@ import {
 } from './onboarding-feature-setup'
 import { getOnboardingFeatureSetupAgentRuntime } from './onboarding-feature-setup-runtime'
 import { SKILLS_CLI_VERSION } from '../../../../shared/agent-feature-install-commands'
-import { FORK_SKILLS_SOURCE_COMMIT } from '../../../../fork/skills-source-commit'
+import { FORK_SKILLS_SOURCE_COMMIT } from '../../../../cli/skills-source-commit'
 
 const ALL_SKILL_INSTALL_COMMAND = buildAgentFeatureSkillInstallCommand([
   ORCA_CLI_SKILL_NAME,

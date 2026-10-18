@@ -7,7 +7,7 @@ import {
   ORCHESTRATION_SKILL_NAME
 } from '../../../shared/agent-feature-install-commands'
 // fork: register the upstream base before the command constants below are built.
-import '../../../fork/skills-source-commit'
+import '../../../cli/skills-source-commit'
 import { resolveSkillSourceCommit } from '../../../shared/fork-hooks/skill-source-commit'
 
 export {

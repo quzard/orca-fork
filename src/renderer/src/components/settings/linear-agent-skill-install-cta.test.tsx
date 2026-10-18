@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TooltipProvider } from '../ui/tooltip'
 import { LinearAgentSkillInstallCta } from './linear-agent-skill-install-cta'
 import { SKILLS_CLI_VERSION } from '../../../../shared/agent-feature-install-commands'
-import { FORK_SKILLS_SOURCE_COMMIT } from '../../../../fork/skills-source-commit'
+import { FORK_SKILLS_SOURCE_COMMIT } from '../../../../cli/skills-source-commit'
 
 const mocks = vi.hoisted(() => ({
   skillState: {

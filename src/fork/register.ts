@@ -5,7 +5,7 @@ import { registerSidebarGroupIdPreserve } from '../shared/fork-hooks/sidebar-gro
 import { registerForkBuild } from '../shared/fork-hooks/update-feed'
 import { registerHostDirectoryMode } from './sidebar/register-mode'
 import { preserveOmittedSidebarGroupIds } from './sidebar/preserve-sidebar-group'
-import { registerForkSkillSource } from './skills-source-commit'
+import { registerForkSkillSource } from '../cli/skills-source-commit'
 
 export function registerForkModules(): void {
   registerForkBuild()

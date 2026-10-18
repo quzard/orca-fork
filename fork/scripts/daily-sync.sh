@@ -210,8 +210,8 @@ fi
 # 不推送 fork/base-upstream。
 git branch -f fork/base-upstream "$UPSTREAM_SHA"
 node fork/scripts/sync-skills-source-commit.mjs
-if ! git diff --quiet -- src/cli/skills-source-commit.ts src/fork/skills-source-commit.ts; then
-  git add -- src/cli/skills-source-commit.ts src/fork/skills-source-commit.ts
+if ! git diff --quiet -- src/cli/skills-source-commit.ts; then
+  git add -- src/cli/skills-source-commit.ts
   HUSKY=0 git commit -m "$(cat <<'EOF'
 fix(fork): pin skill installs to the upstream base
 

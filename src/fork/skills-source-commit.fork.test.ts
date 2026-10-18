@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { buildAgentFeatureSkillInstallCommand } from '../shared/agent-feature-install-commands'
 import { resolveSkillSourceCommit } from '../shared/fork-hooks/skill-source-commit'
-import { FORK_SKILLS_SOURCE_COMMIT } from './skills-source-commit'
+import { FORK_SKILLS_SOURCE_COMMIT } from '../cli/skills-source-commit'
 import { resolveForkSkillsSourceCommit } from '../../fork/scripts/sync-skills-source-commit.mjs'
 
 function git(args: string[]): string {
@@ -64,10 +64,15 @@ describe('fork skill source commit', () => {
     )
   })
 
-  it('ships the same pin inside the CLI tree and does not import src/fork from production CLI', () => {
-    expect(readFileSync('src/cli/skills-source-commit.ts', 'utf8')).toBe(
-      readFileSync('src/fork/skills-source-commit.ts', 'utf8')
-    )
+  it('keeps one pin, inside the CLI tree, and production CLI never imports src/fork', () => {
+    // The desktop app and the CLI read the same file; there is no second copy to drift.
+    expect(existsSync('src/fork/skills-source-commit.ts')).toBe(false)
+    for (const path of ['src/fork/register.ts', 'src/fork/register-main.ts']) {
+      expect(readFileSync(path, 'utf8')).toContain("from '../cli/skills-source-commit'")
+    }
+    expect(
+      readFileSync('src/renderer/src/lib/agent-feature-install-commands.ts', 'utf8')
+    ).toContain("import '../../../cli/skills-source-commit'")
     expect(readFileSync('src/cli/handlers/skills.ts', 'utf8')).toContain(
       "from '../skills-source-commit'"
     )

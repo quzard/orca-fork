@@ -55,6 +55,7 @@ describe('fork daily sync split', () => {
       script.indexOf('git push origin "${commit}:refs/heads/${ATTEMPT_BRANCH}"')
     )
     expect(refs).toContain('check-commit-identity.sh')
+    expect(refs).toContain('--no-renames --diff-filter=A')
     expect(script).not.toContain('--force-with-lease="refs/heads/develop')
     expect(script).toContain('sync/upstream-')
     expect(script).not.toContain('--force-with-lease')
@@ -282,6 +283,9 @@ git ls-remote origin 'refs/heads/sync/*' | awk '{print $2}' | sort | tr '\n' ' '
       stdio: 'inherit'
     })
     execFileSync('bash', [resolve('fork/scripts/check-commit-identity.test.sh')], {
+      stdio: 'inherit'
+    })
+    execFileSync('bash', [resolve('fork/scripts/check-no-internal-refs.test.sh')], {
       stdio: 'inherit'
     })
   })

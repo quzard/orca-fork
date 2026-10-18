@@ -122,7 +122,7 @@ launchd 里签名可能停在 Orca Local Signing 的钥匙串确认上。`--boot
 
 ## 内部标识
 
-本 fork 新增的文档、脚本和 `src/fork` 不得写入雇主或内部环境的名称、地址、主机和数量。检查是 `fork/scripts/verify/check-no-internal-refs.sh`，扫描 `src/fork`、`src/shared/fork-hooks`、`docs/fork`、`fork/`、本文件，以及从 skill pin 记录的上游基点以来新增的所有文件（任何扩展名）；没有那个提交时退回按 `*.fork.test.ts(x)` 和 `*-fork.test.ts(x)` 文件名收集。具体模式放在未入库的 `fork/scripts/verify/internal-ref-patterns.local`，或环境变量 `ORCA_INTERNAL_REF_PATTERNS`。
+本 fork 新增的文档、脚本和 `src/fork` 不得写入雇主或内部环境的名称、地址、主机和数量。检查是 `fork/scripts/verify/check-no-internal-refs.sh`，扫描 `src/fork`、`src/shared/fork-hooks`、`docs/fork`、`fork/`、本文件，以及从 skill pin 记录的上游基点以来新增的所有文件（任何扩展名）；没有那个提交时退回按 `*.fork.test.ts(x)` 和 `*-fork.test.ts(x)` 文件名收集。具体模式放在未入库的 `fork/scripts/verify/internal-ref-patterns.local`，或环境变量 `ORCA_INTERNAL_REF_PATTERNS`。上游文件复制或改名而来的 fork 文件也按新增扫描（`--no-renames`）。
 
 ## 提交身份
 

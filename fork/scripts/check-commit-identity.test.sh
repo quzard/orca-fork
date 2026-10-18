@@ -376,6 +376,34 @@ signal_case "TERM to the script" TERM 143 to-pid
 signal_case "INT to the script" INT 130 to-pid
 signal_case "HUP to the script" HUP 129 to-pid
 signal_case "TERM with a fetch that ignores TERM" TERM 143 to-pid ignore-term
+# 信号落在 `git fetch ... &` 和 `fetch_pid=$!` 之间：脚本只记下信号，拿到 pid 后立即杀掉 fetch 的进程组，
+# 不会留下一个没人管的 fetch。测试用环境变量让脚本在这个窗口里给自己发信号。
+spawn_signal_case() {
+  local signal="$1" want="$2"
+  write_signal_fake ""
+  rm -f "${BASE}/sig-fetch.pid" "${BASE}/sig-helper.pid"
+  local code=0 started=$SECONDS
+  PATH="${fake_bin}:${PATH}" ORCA_UPSTREAM_FETCH_TIMEOUT=120 \
+    ORCA_UPSTREAM_FETCH_TEST_SIGNAL_AT_SPAWN="$signal" bash "$FETCH" >"${BASE}/sig.out" 2>&1 || code=$?
+  if [[ "$code" -ne "$want" ]]; then
+    fail "${signal} at spawn: exit ${code}, want ${want}: $(cat "${BASE}/sig.out")"
+  fi
+  if [[ $((SECONDS - started)) -gt 15 ]]; then
+    fail "${signal} at spawn: the script took $((SECONDS - started))s to stop"
+  fi
+  # A fetch the trap missed keeps running and writes its pids; give it time to show up.
+  sleep 1
+  local pid
+  for pid in "$(cat "${BASE}/sig-fetch.pid" 2>/dev/null)" "$(cat "${BASE}/sig-helper.pid" 2>/dev/null)"; do
+    if [[ -n "$pid" ]] && proc_alive "$pid"; then
+      fail "${signal} at spawn: the fetch (pid ${pid}) outlived the script"
+      kill -KILL "$pid" 2>/dev/null || true
+    fi
+  done
+}
+spawn_signal_case TERM 143
+spawn_signal_case INT 130
+spawn_signal_case HUP 129
 if grep -Eq '^[^#]*setsid' "$FETCH"; then
   fail "fetch-upstream-main.sh should not rely on setsid (macOS has none)"
 fi

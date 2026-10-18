@@ -12,6 +12,8 @@
 # and its helpers (git-remote-https, index-pack) are not in it. TERM, INT and HUP are trapped: the
 # trap stops the watchdog, TERMs the fetch's whole group, waits up to 3s, KILLs what is left, and
 # exits 143, 130 or 129. The EXIT trap does the same cleanup on every other exit; each step runs once.
+# While the fetch and the watchdog are being started their pids are not known yet, so a signal then
+# is only recorded; it is acted on as soon as both pids are set.
 set -euo pipefail
 
 readonly UPSTREAM_URL="https://github.com/stablyai/orca.git"
@@ -88,11 +90,13 @@ on_signal() {
   exit "$1"
 }
 
-# Set before the fetch starts, so a signal that arrives right after the spawn is not lost.
+# A signal between `cmd &` and `pid=$!` would run the trap with no pid to kill. Until both pids are
+# set the traps only record the signal; the real traps then act on a recorded one.
+pending_signal=""
 trap cleanup_fetch EXIT
-trap 'on_signal 143' TERM
-trap 'on_signal 130' INT
-trap 'on_signal 129' HUP
+trap 'pending_signal=143' TERM
+trap 'pending_signal=130' INT
+trap 'pending_signal=129' HUP
 
 # Own process group when job control is available, so a kill reaches git's helpers
 # (git-remote-https, index-pack) too.
@@ -101,6 +105,10 @@ if set -m 2>/dev/null; then
 fi
 git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=120 \
   fetch -q --no-tags "$source" "+refs/heads/main:refs/remotes/upstream/main" &
+# Test only: signals this script inside the window above (check-commit-identity.test.sh).
+if [[ -n "${ORCA_UPSTREAM_FETCH_TEST_SIGNAL_AT_SPAWN:-}" ]]; then
+  kill "-${ORCA_UPSTREAM_FETCH_TEST_SIGNAL_AT_SPAWN}" "$$"
+fi
 fetch_pid=$!
 set +m 2>/dev/null || true
 # A group only exists when the job really became its leader.
@@ -140,6 +148,13 @@ rm -f "$marker"
   kill -KILL -- "-${fetch_pid}" 2>/dev/null || kill -KILL "$fetch_pid" 2>/dev/null || true
 ) >/dev/null 2>&1 &
 watchdog_pid=$!
+
+trap 'on_signal 143' TERM
+trap 'on_signal 130' INT
+trap 'on_signal 129' HUP
+if [[ -n "$pending_signal" ]]; then
+  on_signal "$pending_signal"
+fi
 
 status=0
 wait "$fetch_pid" || status=$?

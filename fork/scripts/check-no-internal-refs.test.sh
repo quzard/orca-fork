@@ -26,9 +26,11 @@ echo "export const FORK_SKILLS_SOURCE_COMMIT = 'pending'" >src/cli/skills-source
 git add . && git commit -q -m upstream
 base="$(git rev-parse HEAD)"
 git update-ref refs/remotes/upstream/main "$base"
-printf '%s\n' "$base" >fork/scripts/verify/identity-baseline
 printf "export const FORK_SKILLS_SOURCE_COMMIT = '%s'\n" "$base" >src/cli/skills-source-commit.ts
-cp "${ROOT}/fork/scripts/verify/check-no-internal-refs.sh" "${ROOT}/fork/scripts/verify/check-commit-identity.sh" fork/scripts/verify/
+cp "${ROOT}/fork/scripts/verify/check-no-internal-refs.sh" fork/scripts/verify/
+# 身份检查的下限写死在脚本里；这个临时仓库没有那个提交，所以副本把下限换成这里的上游提交。
+sed "s/^readonly FLOOR=.*/readonly FLOOR=\"${base}\"/" "${ROOT}/fork/scripts/verify/check-commit-identity.sh" \
+  >fork/scripts/verify/check-commit-identity.sh
 # 改名后多一行内部标识；相似度够高，git diff 默认会把它当改名而不是新增。
 git mv src/main/upstream-file.ts src/main/fork-file.ts
 echo "// secret-host-name" >>src/main/fork-file.ts

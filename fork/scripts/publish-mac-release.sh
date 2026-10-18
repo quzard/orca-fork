@@ -166,8 +166,7 @@ def entry_name(entry):
     return clean_name(raw)
 
 
-def referenced_names(version, release_date, top_path, files):
-    del version, release_date
+def referenced_names(top_path, files):
     names = []
     for entry in files:
         name = entry_name(entry)
@@ -282,8 +281,8 @@ def main():
         return
     if command == "names":
         with open(sys.argv[2], encoding="utf-8") as handle:
-            version, release_date, top_path, files = parse_manifest(handle.read())
-        for name in referenced_names(version, release_date, top_path, files):
+            _, _, top_path, files = parse_manifest(handle.read())
+        for name in referenced_names(top_path, files):
             print(name)
         return
     raise SystemExit("unknown manifest command")
@@ -397,11 +396,18 @@ asset_present() {
   return 0
 }
 
+# force: 不管远端那份是否完整都重传（有就 --clobber），用于盖掉不安全的 latest-mac.yml。
 upload_one() {
-  local file="$1" name size mode outfile
+  local file="$1" force="${2:-}" name size mode outfile
   name="$(basename "$file")"
   size="$(file_size "$file")"
-  mode="$(upload_mode "$name" "$size")"
+  if [[ "$force" != force ]]; then
+    mode="$(upload_mode "$name" "$size")"
+  elif asset_row "$name" >/dev/null 2>&1; then
+    mode=replace
+  else
+    mode=missing
+  fi
   if [[ "$mode" == ready ]]; then
     printf 'publish-mac-release: keep %s\n' "$name" >&2
     return 0
@@ -460,30 +466,8 @@ assert_filtered_yml() {
 
 # force: 草稿或已公开但清单点到了未上传的文件时，盖成只含 zip 的 latest-mac.yml。
 upload_filtered_yml() {
-  local mode="$1" size outfile replace=0
   assert_filtered_yml
-  if [[ "$mode" != force ]]; then
-    upload_one "$FILTERED_YML"
-    return 0
-  fi
-  size="$(file_size "$FILTERED_YML")"
-  if asset_row "$CHANNEL_FILE" >/dev/null 2>&1; then
-    replace=1
-  fi
-  printf 'publish-mac-release: upload %s\n' "$CHANNEL_FILE" >&2
-  outfile="$(mktemp "${TMPDIR:-/tmp}/orca-gh-out.XXXXXX")"
-  if [[ "$replace" == 1 ]]; then
-    if ! run_gh "$outfile" release upload "$TAG" --repo "$GH_REPO" --clobber "$FILTERED_YML"; then
-      forget_asset "$CHANNEL_FILE"
-      rm -f "$outfile" "${outfile}.errclass"
-      fail_upload "$CHANNEL_FILE"
-    fi
-  elif ! run_gh "$outfile" release upload "$TAG" --repo "$GH_REPO" "$FILTERED_YML"; then
-    rm -f "$outfile" "${outfile}.errclass"
-    fail_upload "$CHANNEL_FILE"
-  fi
-  rm -f "$outfile" "${outfile}.errclass"
-  remember_asset "$CHANNEL_FILE" "$size"
+  upload_one "$FILTERED_YML" "$1"
 }
 
 channel_is_unsafe() {

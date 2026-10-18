@@ -16,7 +16,9 @@
       "confirmRemove": "Confirm",
       "removeProjects": "Remove {{value0}}",
       "selectAllProjects": "Select all projects",
-      "selectProject": "Select project"
+      "selectProject": "Select project",
+      "sshTargetRemove": "Remove",
+      "sshTargetRemoving": "Removing"
     },
     "sidebar": {
       "archivedWorkspaces": "Removed from Orca ({{value0}})",
@@ -35,7 +37,11 @@
         "deleteSelected": "Delete Selected",
         "deleteOne": "Delete {{count}} Workspace",
         "deleteMany": "Delete {{count}} Workspaces"
-      }
+      },
+      "hostMode": "Host",
+      "hostModeDescription": "Group workspaces by execution host, then by directory.",
+      "ungroupOnly": "Ungroup only",
+      "ungroupOnlyDescription": "Remove the group and leave its workspaces in place."
     },
     "workspaceRemoval": {
       "ambiguous": "This workspace has multiple execution hosts. Its terminal ownership must be resolved before removal.",

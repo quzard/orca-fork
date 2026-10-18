@@ -2,7 +2,11 @@ import { mkdtempSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { registerForkUpdateFeed, resolveForkUpdateFeed } from '../shared/fork-hooks/update-feed'
+import {
+  forkReleaseFeedDecision,
+  registerForkUpdateFeed,
+  resolveForkUpdateFeed
+} from '../shared/fork-hooks/update-feed'
 import {
   githubUpdateTokenPath,
   githubUpdateTokenStatus,
@@ -40,22 +44,40 @@ describe('github update token file', () => {
     expect(githubUpdateTokenStatus(home)).toEqual({ configured: false })
   })
 
-  it('builds a private feed only when the token file has a value', () => {
+  it('reads the public repo anonymously without a token file and uses the token when present', () => {
     const home = mkdtempSync(join(tmpdir(), 'orca-gh-token-'))
     homes.push(home)
     const previous = process.env.HOME
     process.env.HOME = home
+    const anonymous = {
+      provider: 'github',
+      owner: 'quzard',
+      repo: 'orca-fork',
+      private: false
+    }
     try {
-      expect(forkGithubUpdateFeed(undefined)).toBeNull()
-      expect(forkGithubUpdateFeed('github_pat_test')?.token).toBe('github_pat_test')
+      expect(forkGithubUpdateFeed(undefined)).toEqual(anonymous)
+      expect('token' in forkGithubUpdateFeed(undefined)).toBe(false)
+      expect(forkGithubUpdateFeed('')).toEqual(anonymous)
       registerForkGithubUpdateFeed()
-      expect(resolveForkUpdateFeed()).toBeNull()
+      expect(resolveForkUpdateFeed()).toEqual(anonymous)
+      expect(forkReleaseFeedDecision()).toEqual({ kind: 'ready', feed: anonymous })
+
       writeGithubUpdateToken('github_pat_test', home)
       const feed = resolveForkUpdateFeed()
-      expect(feed?.owner).toBe('quzard')
-      expect(feed?.repo).toBe('orca-fork')
-      expect(feed?.private).toBe(true)
-      expect(feed?.token).toBe('github_pat_test')
+      expect(feed).toEqual({
+        provider: 'github',
+        owner: 'quzard',
+        repo: 'orca-fork',
+        private: true,
+        token: 'github_pat_test'
+      })
+      expect(forkReleaseFeedDecision().kind).toBe('ready')
+
+      // 清掉令牌后下一次检查回到匿名，不留旧令牌。
+      writeGithubUpdateToken('', home)
+      expect(resolveForkUpdateFeed()).toEqual(anonymous)
+      expect(JSON.stringify(resolveForkUpdateFeed())).not.toContain('github_pat_test')
     } finally {
       if (previous === undefined) {
         delete process.env.HOME

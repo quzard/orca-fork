@@ -264,7 +264,7 @@ describe('fork background download decisions', () => {
     ).toBe('download')
   })
 
-  it('does not change update offers when no token is configured', () => {
+  it('does not change update offers when no fork feed is registered', () => {
     expect(
       planForkFoundUpdate({
         localOrPinned: false,

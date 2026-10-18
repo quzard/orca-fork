@@ -1,4 +1,4 @@
-// fork: 私有源发现新版本后后台下载，只提示一次重启；没有令牌时这些判断都不生效。
+// fork: fork 发布源（有无令牌都算）发现新版本后后台下载，只提示一次重启；未登记 fork 发布源时这些判断都不生效。
 
 import { forkReleaseFeedDecision } from '../shared/fork-hooks/update-feed'
 import type { UpdateStatus } from '../shared/update-status-types'

@@ -22,7 +22,7 @@ describe('fork update feed hook', () => {
     expect(resolveForkUpdateFeed()).toBeNull()
   })
 
-  it('skips the check when the fork is registered without a token', () => {
+  it('skips the check when the registered resolver yields no feed', () => {
     registerForkUpdateFeed(() => null)
     expect(forkUpdateFeedRegistered()).toBe(true)
     expect(forkReleaseFeedDecision()).toEqual({ kind: 'skip' })
@@ -44,6 +44,23 @@ describe('fork update feed hook', () => {
       token: 'stub-token'
     })
     expect(forkReleaseFeedDecision().kind).toBe('ready')
+    expect(forkUpstreamReleaseReadsBlocked()).toBe(true)
+  })
+
+  it('is ready with the anonymous public feed when there is no token', () => {
+    registerForkUpdateFeed(() => ({
+      provider: 'github',
+      owner: FORK_GITHUB_UPDATE_OWNER,
+      repo: FORK_GITHUB_UPDATE_REPO,
+      private: false
+    }))
+    const decision = forkReleaseFeedDecision()
+    expect(decision).toEqual({
+      kind: 'ready',
+      feed: { provider: 'github', owner: 'quzard', repo: 'orca-fork', private: false }
+    })
+    expect(JSON.stringify(decision)).not.toContain('token')
+    expect(JSON.stringify(decision)).not.toContain('stablyai')
     expect(forkUpstreamReleaseReadsBlocked()).toBe(true)
   })
 })

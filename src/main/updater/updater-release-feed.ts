@@ -121,16 +121,19 @@ export abstract class UpdaterReleaseFeed extends UpdaterInstallExecution {
   ): Promise<'ready' | 'not-available'> {
     const attemptId = this.activeUpdateCheckAttemptId
     const autoUpdater = this.getAutoUpdater()
-    // fork: 已登记时不拉上游 atom。有令牌才钉 quzard/orca-fork；没有令牌就停，避免落到 app-update.yml。
+    // fork: 已登记时不拉上游 atom，只钉 quzard/orca-fork。有令牌走私有 provider，没有令牌匿名读公开 provider。
     const forkFeed = forkReleaseFeedDecision()
     if (forkFeed.kind === 'ready') {
       autoUpdater.allowPrerelease = true
-      // 私有仓库的 blockmap 要在 provider 创建前解析资产 ID。装不上时仍 setFeedURL，更新退回整包。
-      installPrivateGithubDifferentialDownload()
+      // 私有 provider 的 blockmap 要在 provider 创建前解析资产 ID。装不上时仍 setFeedURL，更新退回整包。
+      // 公开 provider 用 releases/download 地址，electron-updater 自带的差分就够用。
+      if (forkFeed.feed.private) {
+        installPrivateGithubDifferentialDownload()
+      }
       autoUpdater.setFeedURL(forkFeed.feed)
       return 'ready'
     }
-    // fork: 没有令牌，或已挡住上游读取时，不要落到公开 latest/download。
+    // fork: 解析不出发布源，或已挡住上游读取时，不要落到公开 latest/download。
     if (forkFeed.kind === 'skip' || forkUpstreamReleaseReadsBlocked()) {
       return 'not-available'
     }

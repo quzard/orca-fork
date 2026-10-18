@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 describe('fork daily sync split', () => {
-  it('points fork release checks at quzard/orca-fork and skips them without a token', () => {
+  it('points fork release checks at quzard/orca-fork with an optional token', () => {
     const setup = readFileSync(resolve('src/main/updater/updater-setup.ts'), 'utf8')
     const pin = readFileSync(resolve('src/main/updater/updater-release-feed.ts'), 'utf8')
     const schedule = readFileSync(resolve('src/main/updater/updater-scheduling.ts'), 'utf8')
@@ -17,6 +17,9 @@ describe('fork daily sync split', () => {
     )
     expect(pin.indexOf('installPrivateGithubDifferentialDownload()')).toBeLessThan(
       pin.indexOf('autoUpdater.setFeedURL(forkFeed.feed)')
+    )
+    expect(pin.indexOf('if (forkFeed.feed.private)')).toBeLessThan(
+      pin.indexOf('installPrivateGithubDifferentialDownload()')
     )
     expect(schedule).toContain("kind === 'skip'")
     expect(menu).toContain('FORK_GITHUB_UPDATE_TOKEN_HINT')

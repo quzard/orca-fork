@@ -37,6 +37,8 @@
     "../src/fork/sidebar/remove-workspace.ts",
     "../src/fork/sidebar/workspace-choice.ts",
     "../src/fork/sidebar/workspace-group-drop.ts",
+    "../src/fork/sidebar/workspace-group-drop-plan.ts",
+    "../src/fork/sidebar/workspace-group-drop.fork.test.ts",
     "../src/fork/sidebar/register-composer-seed.ts",
     "../src/fork/sidebar/host-directory-rows.fork.test.ts",
     "../src/fork/sidebar/remove-workspace.fork.test.ts"

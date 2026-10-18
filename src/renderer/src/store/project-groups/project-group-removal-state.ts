@@ -3,12 +3,9 @@ import { getProjectGroupSubtreeIds } from '../../../../shared/project-groups'
 import { getRepoExecutionHostId, type ExecutionHostId } from '../../../../shared/execution-host'
 import { catalogOwnsHost, getProjectGroupHostId } from '../slices/project-group-owner-routing'
 import type { RepoSlice } from '../repos/repo-state'
-<<<<<<< HEAD
 import { projectGroupDeleteKeepsFolderWorkspaces } from '../../../../shared/fork-hooks/project-group-delete'
-import { getFolderWorkspaceHostId } from '../folder-workspaces/folder-workspace-catalog'
-=======
+// 主机解析已搬到 shared；删除时是否保留文件夹工作区仍由 fork 钩子决定。
 import { getFolderWorkspaceHostId } from '../../../../shared/folder-workspace-execution-host'
->>>>>>> 3af9c22cc94d3b0fba21c9e988afe8b1ac538ac8
 
 // Why: a group id can exist on several hosts; only the deleted owner's rows may be cascaded away.
 export function applyProjectGroupDeleteCascade(

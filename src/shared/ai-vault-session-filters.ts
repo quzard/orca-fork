@@ -101,15 +101,8 @@ export function filterAiVaultSessions(
       return false
     }
     if (filters.scope === 'workspace') {
-<<<<<<< HEAD
-      // fork: no aliases → the original cwd only.
-      const normalizedCwds = forkSessionComparisonCwds(session).map(
-        normalizeRuntimePathForComparison
-      )
-      if (!workspaceMatchers.some((matches) => normalizedCwds.some(matches))) {
-=======
-      if (!inWorkspace(session.cwd, session.filePath)) {
->>>>>>> 3af9c22cc94d3b0fba21c9e988afe8b1ac538ac8
+      // fork: 没有别名时只比对原来的 cwd；有别名时一并比对。匹配仍走上游的文件路径命名空间。
+      if (!forkSessionComparisonCwds(session).some((cwd) => inWorkspace(cwd, session.filePath))) {
         return false
       }
     }

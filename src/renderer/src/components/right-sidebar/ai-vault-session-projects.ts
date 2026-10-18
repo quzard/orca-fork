@@ -109,11 +109,11 @@ export function buildAiVaultSessionProjectById({
       projectsByCwd = new Map()
       projectsByHostAndCwd.set(host, projectsByCwd)
     }
-<<<<<<< HEAD
-    const cwdKey = forkSessionCwdCacheKey(session)
-=======
-    const cwdKey = JSON.stringify([sessionFileExecutionNamespace(session.filePath), session.cwd])
->>>>>>> 3af9c22cc94d3b0fba21c9e988afe8b1ac538ac8
+    // fork: 没有别名时第二段就是原来的 cwd，键与上游的「命名空间 + cwd」相同；有别名时把别名算进键。
+    const cwdKey = JSON.stringify([
+      sessionFileExecutionNamespace(session.filePath),
+      forkSessionCwdCacheKey(session)
+    ])
     let project = projectsByCwd.get(cwdKey)
     if (!project) {
       project = resolveSessionProject(session, candidates, projectLabelByKey)
@@ -275,20 +275,13 @@ function resolveSessionProject(
     return { kind: 'unknown', key: 'unknown', label: '' }
   }
 
-<<<<<<< HEAD
-  // fork: symlink aliases pick the more specific path. No aliases keeps the cwd sort.
+  // fork: 软链别名选更具体的路径。没有别名时仍按原来的 cwd 排序，归属判断带上上游的文件路径。
   const matches = matchForkCwdCandidates(session, candidates, {
     normalize: normalizeRuntimePathForComparison,
-    owns: (candidate, path) => candidate.ownsNormalizedCwd(path),
+    owns: (candidate, path) => candidate.ownsNormalizedCwd(path, session.filePath),
     pathLength: (candidate) => candidate.normalizedPath.length,
     tieBreak: compareCandidates
   })
-=======
-  const normalizedCwd = normalizeRuntimePathForComparison(cwd)
-  const matches = candidates.filter((candidate) =>
-    candidate.ownsNormalizedCwd(normalizedCwd, session.filePath)
-  )
->>>>>>> 3af9c22cc94d3b0fba21c9e988afe8b1ac538ac8
   const sessionHostId = normalizeExecutionHostId(session.executionHostId)
   const hostMatches = sessionHostId
     ? matches.filter((candidate) => candidate.hostKey === sessionHostId)

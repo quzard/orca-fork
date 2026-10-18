@@ -1,12 +1,7 @@
 import { OrcaRuntimeWithSleepResolvedWorktreeTerminals } from './worktree-terminal-sleep'
 import { setsEqual } from '../../runtime-worktree-binding-index'
-<<<<<<< HEAD
-import {
-  includeTargetResolvedWorktree,
-  runtimeWorktreeIdsEqual
-} from '../../runtime-worktree-path-identity'
-=======
->>>>>>> 3af9c22cc94d3b0fba21c9e988afe8b1ac538ac8
+// fork: 文件夹工作区不在 resolved map 里，精确停止要把选择器结果并进去。上游已改用 worktreeIdsEqual。
+import { includeTargetResolvedWorktree } from '../../runtime-worktree-path-identity'
 import type { RuntimeLeafRecord } from '../../runtime-terminal-state-records'
 import { worktreeIdsEqual } from '../../../../shared/worktree/id'
 

@@ -14,16 +14,13 @@ import type { WorkspaceKey } from '../../../shared/folder-workspace-types'
 import type { Repo } from '../../../shared/repo-types'
 import type { RuntimeStore } from '../runtime-store-contract'
 import type { RuntimeWorkspaceCatalog } from './workspace-catalog'
-<<<<<<< HEAD
 import {
   getTerminalWorkspaceResolver,
   type TerminalWorkspaceHost
 } from '../../../shared/fork-hooks/terminal-lifecycle'
-import { areWorktreePathsEqual, mergeWorktree } from '../../ipc/worktree-logic'
-=======
+// 路径比较和元数据合并已从 worktree-logic 拆出；folder: 解析器仍走 fork 钩子。
 import { areWorktreePathsEqual } from '../../git/worktree-path-comparison'
 import { mergeWorktree } from '../../ipc/worktree-metadata-merge'
->>>>>>> 3af9c22cc94d3b0fba21c9e988afe8b1ac538ac8
 
 export abstract class RuntimeWorkspaceSelectors extends OrcaRuntimeWithResolveBrowserNetworkExecutionHostForWorktree {
   protected abstract hasFreshResolvedWorktreeCache(

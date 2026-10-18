@@ -149,12 +149,9 @@ export type Worktree = {
   sortOrder: number
   /** User-authored sidebar ordering. Higher values render earlier in Manual sort. */
   manualOrder?: number
-<<<<<<< HEAD
   /** Sidebar project group for this workspace. null means ungrouped. */
   sidebarGroupId?: string | null
-=======
   /** Recent's key, stamped by the owning host on events (and still by the window). */
->>>>>>> 3af9c22cc94d3b0fba21c9e988afe8b1ac538ac8
   lastActivityAt: number
   /** Smart's tier, stamped by the owning host on agent transitions; absent is Rest. */
   smartTier?: SmartTier

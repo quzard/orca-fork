@@ -1,12 +1,5 @@
-<<<<<<< HEAD
-import {
-  createNormalizedPathInsideOrEqualMatcher,
-  normalizeRuntimePathForComparison
-} from './cross-platform-path'
 import { forkSessionComparisonCwds } from './fork-hooks/ai-vault-cwd'
-=======
 import { createAiVaultScopeCwdMatcher } from './ai-vault-scope-cwd-match'
->>>>>>> 3af9c22cc94d3b0fba21c9e988afe8b1ac538ac8
 import type { AiVaultListArgs, AiVaultListResult } from './ai-vault-types'
 
 export const DEFAULT_AI_VAULT_SCAN_LIMIT = 1000
@@ -51,15 +44,8 @@ export function truncateAiVaultListResult(
     const inScope = createAiVaultScopeCwdMatcher(scopePaths)
     let scopedCount = 0
     for (const session of result.sessions) {
-<<<<<<< HEAD
-      // fork: no aliases → the original cwd only.
-      const normalizedCwds = forkSessionComparisonCwds(session).map(
-        normalizeRuntimePathForComparison
-      )
-      if (scopeMatchers.some((matches) => normalizedCwds.some(matches))) {
-=======
-      if (inScope(session.cwd, session.filePath)) {
->>>>>>> 3af9c22cc94d3b0fba21c9e988afe8b1ac538ac8
+      // fork: 没有别名时只比对原来的 cwd；有别名时一并比对。匹配仍走上游的文件路径命名空间。
+      if (forkSessionComparisonCwds(session).some((cwd) => inScope(cwd, session.filePath))) {
         selectedIds.add(session.id)
         if (++scopedCount >= depth) {
           break

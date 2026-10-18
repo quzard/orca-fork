@@ -27,7 +27,9 @@ import {
 } from './onboarding-feature-setup'
 import { getOnboardingFeatureSetupAgentRuntime } from './onboarding-feature-setup-runtime'
 import { SKILLS_CLI_VERSION } from '../../../../shared/agent-feature-install-commands'
-import { FORK_SKILLS_SOURCE_COMMIT } from '../../../../cli/skills-source-commit'
+
+// fork: keep the build commit here; the fork pin is covered in src/fork/skills-source-commit-renderer.fork.test.tsx.
+vi.mock('../../../../cli/skills-source-commit', () => ({}))
 
 const ALL_SKILL_INSTALL_COMMAND = buildAgentFeatureSkillInstallCommand([
   ORCA_CLI_SKILL_NAME,
@@ -112,9 +114,8 @@ describe('onboarding feature setup runner', () => {
 
     expect(text).toBe(ALL_SKILL_INSTALL_COMMAND)
     expect(text).toBe(
-      `npx skills@${SKILLS_CLI_VERSION} add https://github.com/stablyai/orca/tree/${FORK_SKILLS_SOURCE_COMMIT} --skill orca-cli --skill computer-use --skill orchestration --skill orca-linear --global`
+      `npx skills@${SKILLS_CLI_VERSION} add https://github.com/stablyai/orca/tree/${ORCA_BUILD_COMMIT} --skill orca-cli --skill computer-use --skill orchestration --skill orca-linear --global`
     )
-    expect(text).not.toContain(`/tree/${ORCA_BUILD_COMMIT}`)
   })
 
   it('keeps the copied command valid for the WSL target shell', () => {

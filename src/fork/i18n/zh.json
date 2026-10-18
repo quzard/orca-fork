@@ -27,7 +27,15 @@
       "hiddenWorkspaces": "隐藏的工作区",
       "hostTooOldForGroups": "请先更新此主机上的 Orca，才能在分组之间移动工作区。",
       "restoreWorkspace": "恢复",
-      "searchWorkspaces": "搜索工作区"
+      "searchWorkspaces": "搜索工作区",
+      "contextMenu": {
+        "sleep": "休眠",
+        "sleepOne": "休眠 {{count}} 个工作区",
+        "sleepMany": "休眠 {{count}} 个工作区",
+        "deleteSelected": "删除所选",
+        "deleteOne": "删除 {{count}} 个工作区",
+        "deleteMany": "删除 {{count}} 个工作区"
+      }
     },
     "workspaceRemoval": {
       "ambiguous": "此工作区有多个执行主机。需要先确定终端归属，才能移除。",

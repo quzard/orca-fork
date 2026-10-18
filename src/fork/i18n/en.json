@@ -27,7 +27,15 @@
       "hiddenWorkspaces": "Hidden workspaces",
       "hostTooOldForGroups": "Update Orca on this host to move workspaces between groups.",
       "restoreWorkspace": "Restore",
-      "searchWorkspaces": "Search workspaces"
+      "searchWorkspaces": "Search workspaces",
+      "contextMenu": {
+        "sleep": "Sleep",
+        "sleepOne": "Sleep {{count}} Workspace",
+        "sleepMany": "Sleep {{count}} Workspaces",
+        "deleteSelected": "Delete Selected",
+        "deleteOne": "Delete {{count}} Workspace",
+        "deleteMany": "Delete {{count}} Workspaces"
+      }
     },
     "workspaceRemoval": {
       "ambiguous": "This workspace has multiple execution hosts. Its terminal ownership must be resolved before removal.",

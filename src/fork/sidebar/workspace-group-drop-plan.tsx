@@ -10,7 +10,7 @@ import type { WorktreeDragGroup } from '../../renderer/src/components/sidebar/wo
 import { buildWorktreeManualOrderCatalog } from '../../renderer/src/components/sidebar/worktree-manual-order-catalog'
 import { folderWorkspaceHostId, projectGroupHostId } from './membership'
 import { EMPTY_PROJECT_GROUP_PREFIX, looseHostSectionKey } from './section-keys'
-import { sidebarFieldsNotAppliedMessage } from './sidebar-fields-applied'
+import { isSidebarFieldsNotAppliedError, sidebarFieldsErrorCode } from './sidebar-fields-applied'
 import { workspaceGroupLabels } from './workspace-group-labels'
 
 export type GroupDropState = {
@@ -26,7 +26,7 @@ export type GroupDropWriter = {
     id: string,
     updates: Fields,
     options: { executionHostId: ExecutionHostId }
-  ) => Promise<{ ok: true } | { ok: false; error: string }>
+  ) => Promise<{ ok: true } | { ok: false; error: string; code?: string }>
   updateFolderWorkspace: (
     id: string,
     updates: Fields,
@@ -165,21 +165,31 @@ export function buildGroupDropOrder(
   }).updates
 }
 
+/** `partial`: the host applied the row's other fields but not its group or clear. */
+type WriteFailure = { error: string; partial: boolean }
+
 async function writeItem(
   writer: GroupDropWriter,
   hostId: ExecutionHostId,
   item: Item,
   fields: Fields
-): Promise<string | null> {
+): Promise<WriteFailure | null> {
   const options = { executionHostId: hostId }
   if (item.kind === 'folder') {
     const ok = await writer.updateFolderWorkspace(item.storeId, fields, options).catch(() => false)
-    return ok ? null : workspaceGroupLabels.moveFailed
+    return ok ? null : { error: workspaceGroupLabels.moveFailed, partial: false }
   }
   const result = await writer
     .updateWorktreeMeta(item.storeId, fields, options)
-    .catch((error: unknown) => ({ ok: false as const, error: String(error) }))
-  return result.ok ? null : result.error
+    .catch((error: unknown) => ({
+      ok: false as const,
+      error: error instanceof Error ? error.message : String(error),
+      ...sidebarFieldsErrorCode(error)
+    }))
+  if (result.ok) {
+    return null
+  }
+  return { error: result.error, partial: isSidebarFieldsNotAppliedError(result) }
 }
 
 /**
@@ -195,13 +205,13 @@ export async function commitGroupDrop(
 ): Promise<string | null> {
   const landed: Item[] = []
   for (const item of items) {
-    const error = await writeItem(writer, hostId, item, item.next)
-    if (error === null) {
+    const failure = await writeItem(writer, hostId, item, item.next)
+    if (failure === null) {
       landed.push(item)
       continue
     }
+    const { error, partial } = failure
     // An older host applied this row's order but not its group: put that row back too.
-    const partial = item.kind === 'worktree' && error === sidebarFieldsNotAppliedMessage()
     const stuck: Item[] = []
     for (const done of partial ? [item, ...landed.toReversed()] : landed.toReversed()) {
       if ((await writeItem(writer, hostId, done, done.previous)) !== null) {

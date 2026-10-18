@@ -18,7 +18,11 @@ import {
   type GroupDropState,
   type GroupDropWriter
 } from './workspace-group-drop-plan'
-import { sidebarFieldsNotAppliedMessage } from './sidebar-fields-applied'
+import {
+  SIDEBAR_FIELDS_NOT_APPLIED_CODE,
+  SidebarFieldsNotAppliedError,
+  sidebarFieldsNotAppliedMessage
+} from './sidebar-fields-applied'
 
 function hostId(value: string): ExecutionHostId {
   const id = normalizeExecutionHostId(value)
@@ -286,7 +290,7 @@ describe('multi-row group drop', () => {
     const api: GroupDropWriter = {
       updateWorktreeMeta: vi.fn(async (id: string, fields: object) => {
         calls.push({ id, fields })
-        return { ok: false as const, error: message }
+        return { ok: false as const, error: message, code: SIDEBAR_FIELDS_NOT_APPLIED_CODE }
       }),
       updateFolderWorkspace: vi.fn(async () => true),
       setSortBy: vi.fn()
@@ -301,6 +305,43 @@ describe('multi-row group drop', () => {
     expect(error?.startsWith(message)).toBe(true)
     expect(api.setSortBy).not.toHaveBeenCalled()
     errors.mockRestore()
+  })
+
+  it('puts the row back when the typed error is thrown instead of returned', async () => {
+    const calls: { id: string; fields: object }[] = []
+    let first = true
+    const api: GroupDropWriter = {
+      updateWorktreeMeta: vi.fn(async (id: string, fields: object) => {
+        calls.push({ id, fields })
+        if (first) {
+          first = false
+          throw new SidebarFieldsNotAppliedError()
+        }
+        return { ok: true as const }
+      }),
+      updateFolderWorkspace: vi.fn(async () => true),
+      setSortBy: vi.fn()
+    }
+    await commitGroupDrop(api, DEVBOX, plan(['w-explicit']))
+    expect(calls.map((call) => call.fields)).toStrictEqual([
+      { sidebarGroupId: 'g-other', manualOrder: 99 },
+      { sidebarGroupId: null, manualOrder: 9 }
+    ])
+  })
+
+  it('does not treat the same text without the code as a half-applied write', async () => {
+    const calls: string[] = []
+    const api: GroupDropWriter = {
+      updateWorktreeMeta: vi.fn(async (id: string) => {
+        calls.push(id)
+        return { ok: false as const, error: sidebarFieldsNotAppliedMessage() }
+      }),
+      updateFolderWorkspace: vi.fn(async () => true),
+      setSortBy: vi.fn()
+    }
+    await commitGroupDrop(api, DEVBOX, plan(['w-explicit']))
+    // A plain failure wrote nothing, so there is nothing of this row to put back.
+    expect(calls).toStrictEqual(['w-explicit'])
   })
 
   it('never has two writes in flight, so read-modify-write stores keep every row', async () => {

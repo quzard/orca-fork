@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RuntimeClientTarget } from '../../shared/runtime-client-target'
 import { persistWorktreeMeta } from '../../renderer/src/store/slices/worktrees/metadata/worktree-meta-persist'
-import { sidebarFieldsNotAppliedMessage } from './sidebar-fields-applied'
+import {
+  isSidebarFieldsNotAppliedError,
+  SIDEBAR_FIELDS_NOT_APPLIED_CODE,
+  SidebarFieldsNotAppliedError,
+  sidebarFieldsErrorCode
+} from './sidebar-fields-applied'
 
 const mocks = vi.hoisted(() => ({ callRuntimeRpc: vi.fn() }))
 
@@ -24,14 +29,14 @@ describe('worktree.set on a host that strips the sidebar group fields', () => {
     mocks.callRuntimeRpc.mockResolvedValue({ worktree: { manualOrder: 7 } })
     await expect(
       persistWorktreeMeta(target, id, { sidebarGroupId: 'g1', manualOrder: 7 })
-    ).rejects.toThrow(sidebarFieldsNotAppliedMessage())
+    ).rejects.toMatchObject({ code: SIDEBAR_FIELDS_NOT_APPLIED_CODE })
   })
 
   it('fails a clear the host ignored', async () => {
     mocks.callRuntimeRpc.mockResolvedValue({ worktree: { sidebarGroupId: 'g1', manualOrder: 3 } })
     await expect(
       persistWorktreeMeta(target, id, { sidebarGroupId: undefined, manualOrder: undefined })
-    ).rejects.toThrow(sidebarFieldsNotAppliedMessage())
+    ).rejects.toBeInstanceOf(SidebarFieldsNotAppliedError)
     expect(mocks.callRuntimeRpc.mock.lastCall?.[2]).toMatchObject({
       clearFields: ['sidebarGroupId', 'manualOrder']
     })
@@ -48,5 +53,28 @@ describe('worktree.set on a host that strips the sidebar group fields', () => {
     mocks.callRuntimeRpc.mockResolvedValue(undefined)
     await expect(persistWorktreeMeta(target, id, { isPinned: true })).resolves.toBeUndefined()
     await expect(persistWorktreeMeta(target, id, { manualOrder: 4 })).resolves.toBeUndefined()
+  })
+
+  it('matches by code, never by the translated message', () => {
+    const error = new SidebarFieldsNotAppliedError()
+    expect(isSidebarFieldsNotAppliedError(error)).toBe(true)
+    expect(isSidebarFieldsNotAppliedError(new Error(error.message))).toBe(false)
+    expect(sidebarFieldsErrorCode(new Error(error.message))).toStrictEqual({})
+  })
+
+  it('still matches after a transport re-wraps or flattens the error', () => {
+    const error = new SidebarFieldsNotAppliedError()
+    // A relay keeps the original as the cause.
+    expect(isSidebarFieldsNotAppliedError(new Error('relay failed', { cause: error }))).toBe(true)
+    // Structured clone and the store result keep plain fields only.
+    expect(isSidebarFieldsNotAppliedError({ message: 'x', code: error.code })).toBe(true)
+    expect(isSidebarFieldsNotAppliedError({ ok: false, error: 'x', code: error.code })).toBe(true)
+    // Electron IPC leaves only the message, with the token at its end.
+    expect(
+      isSidebarFieldsNotAppliedError(
+        new Error(`Error invoking remote method 'x': Error: ${SIDEBAR_FIELDS_NOT_APPLIED_CODE}`)
+      )
+    ).toBe(true)
+    expect(sidebarFieldsErrorCode(error)).toStrictEqual({ code: SIDEBAR_FIELDS_NOT_APPLIED_CODE })
   })
 })

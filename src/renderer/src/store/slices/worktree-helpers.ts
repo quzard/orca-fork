@@ -272,7 +272,7 @@ export type WorktreeSlice = {
     worktreeId: string,
     updates: Partial<WorktreeMeta> & WorkspaceAttachmentMutation,
     options?: WorktreeMetaUpdateOptions
-  ) => Promise<{ ok: true } | { ok: false; error: string }>
+  ) => Promise<{ ok: true } | { ok: false; error: string; code?: string }>
   ensureHostedReviewPushTarget: (worktreeId: string) => Promise<void>
   updateWorktreesMeta: (updatesByWorktreeId: readonly WorktreeMetaBatchUpdate[]) => Promise<void>
   /**

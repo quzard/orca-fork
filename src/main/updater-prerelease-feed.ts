@@ -1,6 +1,6 @@
 import { net } from 'electron'
 import { parse } from 'yaml'
-import { isForkBuild } from '../shared/fork-hooks/update-feed'
+import { FORK_UPSTREAM_RELEASE_BLOCKED, isForkBuild } from '../shared/fork-hooks/update-feed'
 import { compareVersions, isPrereleaseVersion, isValidVersion } from './updater-fallback'
 
 const ATOM_FEED_URL = 'https://github.com/stablyai/orca/releases.atom'
@@ -14,6 +14,10 @@ const MAX_MANIFEST_PROBE_CANDIDATES = 6
 const TAG_HREF_RE = /href="https:\/\/github\.com\/stablyai\/orca\/releases\/tag\/([^"]+)"/g
 
 export function getReleaseDownloadUrl(tag: string): string {
+  // fork: 兜底。fork 构建的检查在前面就停了，走到这里说明有新的上游路径漏了门。
+  if (isForkBuild()) {
+    throw new Error(FORK_UPSTREAM_RELEASE_BLOCKED)
+  }
   return `${RELEASES_DOWNLOAD_BASE}/${encodeURIComponent(tag)}`
 }
 

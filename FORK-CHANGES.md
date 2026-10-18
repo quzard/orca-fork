@@ -92,7 +92,7 @@
 
 发布检查只指向 `quzard/orca-fork` 的 GitHub Releases，用 electron-updater 的公开 GitHub provider 匿名读取（`private: false`，没有 `token` 字段），打开 `allowPrerelease`，元数据文件是 `latest-mac.yml`。不读令牌文件，不读 `GH_TOKEN` / `GITHUB_TOKEN`，请求里没有 `Authorization`。设置页没有令牌输入，也没有相关 IPC。
 
-fork 构建（`registerForkBuild`，主进程、渲染进程和 orcad 都登记）不访问上游：不列上游版本、不解析指定的上游 tag、不拉上游 atom、发行说明链接指向 `quzard/orca-fork`；`onorca.dev` 的 changelog 和 nudge 直接返回空；agent 状态规则不从上游 Releases 下载，只用内置规则和用户的覆盖文件。未登记时仍是上游行为。
+fork 构建（`registerForkBuild`，主进程、渲染进程和 orcad 都登记）不访问上游：不列上游版本、不解析指定的上游 tag、不拉上游 atom、发行说明链接指向 `quzard/orca-fork`；`onorca.dev` 的 changelog 和 nudge 直接返回空；agent 状态规则不从上游 Releases 下载，只用内置规则和用户的覆盖文件。未登记时仍是上游行为。所有拼上游发布地址的源文件列在 `src/fork/upstream-release-sources.fork.test.ts`，每个都要调用 `isForkBuild()`，上游新加一处时测试会失败。
 
 后台下载完成后，macOS 要等 Squirrel 暂存完成（`isMacInstallerReady()`）才弹重启卡片；暂存期间手动检查只把界面放回「已下载 100%」。暂存失败时清掉暂存中的版本，界面进入错误状态，重新检查会重新下载。
 

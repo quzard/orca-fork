@@ -80,7 +80,10 @@ describe('fork builds never read upstream releases or onorca.dev', () => {
     netFetch.mockResolvedValue(new Response('[]', { status: 200 }))
     await fetchChangelog('1.4.229', '1.4.228')
     expect(String(netFetch.mock.calls[0]?.[0])).toContain('onorca.dev')
-    expect((await agentRulesFetches()).mock.calls.length).toBeGreaterThan(0)
+    const upstreamRules = await agentRulesFetches()
+    expect(String(upstreamRules.mock.calls[0]?.[0])).toMatch(
+      /^https:\/\/github\.com\/stablyai\/orca\/releases\/download\/agent-state-rules-engine-/
+    )
   })
 
   for (const [label, register] of forkStates) {

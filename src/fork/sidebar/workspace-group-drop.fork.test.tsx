@@ -273,7 +273,7 @@ describe('multi-row group drop', () => {
       setSortBy: vi.fn()
     }
     const error = await commitGroupDrop(api, DEVBOX, plan(['folder:f1', 'w-explicit']))
-    expect(error).toBe('offline Could not put back: f1.')
+    expect(error).toBe('offline Could not put back: notes.')
     expect(errors).toHaveBeenCalledWith('Workspace group drop rollback failed for', ['f1'])
     errors.mockRestore()
   })

@@ -9,13 +9,9 @@ import { buildManualOrderUpdatesForGroupDrop } from '../../renderer/src/componen
 import type { WorktreeDragGroup } from '../../renderer/src/components/sidebar/worktree-manual-order'
 import { buildWorktreeManualOrderCatalog } from '../../renderer/src/components/sidebar/worktree-manual-order-catalog'
 import { folderWorkspaceHostId, projectGroupHostId } from './membership'
-import {
-  EMPTY_PROJECT_GROUP_PREFIX,
-  WORKSPACE_GROUP_HOST_MISMATCH,
-  WORKSPACE_GROUP_NOT_ON_HOST,
-  looseHostSectionKey
-} from './section-keys'
+import { EMPTY_PROJECT_GROUP_PREFIX, looseHostSectionKey } from './section-keys'
 import { sidebarFieldsNotAppliedMessage } from './sidebar-fields-applied'
+import { workspaceGroupLabels } from './workspace-group-labels'
 
 export type GroupDropState = {
   worktreesByRepo: Record<string, Worktree[]>
@@ -44,7 +40,14 @@ export type GroupDropWriter = {
  * unset group follows the project's group, and an unset manual order falls back to sortOrder.
  */
 export type Fields = { sidebarGroupId?: string | null; manualOrder?: number }
-type Item = { kind: 'worktree' | 'folder'; storeId: string; next: Fields; previous: Fields }
+/** `name` is the workspace's display name, for messages; `storeId` is what the write addresses. */
+type Item = {
+  kind: 'worktree' | 'folder'
+  storeId: string
+  name: string
+  next: Fields
+  previous: Fields
+}
 
 export type GroupDropTarget = { groupId: string | null; key: string }
 
@@ -69,7 +72,7 @@ export function resolveGroupDropTarget(
   const onHost = state.projectGroups.some(
     (group) => group.id === groupId && projectGroupHostId(group, hostId) === hostId
   )
-  return onHost ? { groupId, key } : { error: WORKSPACE_GROUP_NOT_ON_HOST }
+  return onHost ? { groupId, key } : { error: workspaceGroupLabels.notOnHost }
 }
 
 function findFolder(state: GroupDropState, id: string): FolderWorkspace | undefined {
@@ -95,11 +98,12 @@ export function planGroupDropItems(
     if (folder) {
       const owner = groupsById.get(folder.projectGroupId)
       if (folder.isArchived || folderWorkspaceHostId(folder, owner, hostId) !== hostId) {
-        return { error: WORKSPACE_GROUP_HOST_MISMATCH }
+        return { error: workspaceGroupLabels.hostMismatch }
       }
       items.push({
         kind: 'folder',
         storeId: folder.id,
+        name: folder.name,
         next,
         previous: previousFields(folder, order)
       })
@@ -108,11 +112,12 @@ export function planGroupDropItems(
     const worktree = state.getKnownWorktreeById(id, hostId)
     const repo = worktree ? state.repos.find((entry) => entry.id === worktree.repoId) : undefined
     if (!worktree || getWorktreeExecutionHostId(worktree, repo, hostId) !== hostId) {
-      return { error: WORKSPACE_GROUP_HOST_MISMATCH }
+      return { error: workspaceGroupLabels.hostMismatch }
     }
     items.push({
       kind: 'worktree',
       storeId: id,
+      name: worktree.displayName,
       next,
       previous: previousFields(worktree, order)
     })
@@ -169,7 +174,7 @@ async function writeItem(
   const options = { executionHostId: hostId }
   if (item.kind === 'folder') {
     const ok = await writer.updateFolderWorkspace(item.storeId, fields, options).catch(() => false)
-    return ok ? null : 'Could not move the workspace.'
+    return ok ? null : workspaceGroupLabels.moveFailed
   }
   const result = await writer
     .updateWorktreeMeta(item.storeId, fields, options)
@@ -197,17 +202,23 @@ export async function commitGroupDrop(
     }
     // An older host applied this row's order but not its group: put that row back too.
     const partial = item.kind === 'worktree' && error === sidebarFieldsNotAppliedMessage()
-    const stuck: string[] = []
+    const stuck: Item[] = []
     for (const done of partial ? [item, ...landed.toReversed()] : landed.toReversed()) {
       if ((await writeItem(writer, hostId, done, done.previous)) !== null) {
-        stuck.push(done.storeId)
+        stuck.push(done)
       }
     }
     if (stuck.length === 0) {
       return error
     }
-    console.error('Workspace group drop rollback failed for', stuck)
-    return `${error} Could not put back: ${stuck.join(', ')}.`
+    console.error(
+      'Workspace group drop rollback failed for',
+      stuck.map((entry) => entry.storeId)
+    )
+    return workspaceGroupLabels.rollbackFailed(
+      error,
+      stuck.map((entry) => entry.name)
+    )
   }
   if (landed.length > 0) {
     writer.setSortBy('manual')

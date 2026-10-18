@@ -20,6 +20,10 @@
     },
     "sidebar": {
       "archivedWorkspaces": "已从 Orca 移除（{{value0}}）",
+      "groupHostMismatch": "工作区只能在同一主机内移动。",
+      "groupMoveFailed": "无法移动该工作区。",
+      "groupNotOnHost": "该分组未保存在那台主机上。",
+      "groupRollbackFailed": "{{error}} 以下工作区未能移回：{{names}}。",
       "hiddenWorkspaces": "隐藏的工作区",
       "hostTooOldForGroups": "请先更新此主机上的 Orca，才能在分组之间移动工作区。",
       "restoreWorkspace": "恢复",

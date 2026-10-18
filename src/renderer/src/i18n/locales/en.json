@@ -19555,6 +19555,10 @@
     },
     "sidebar": {
       "archivedWorkspaces": "Removed from Orca ({{value0}})",
+      "groupHostMismatch": "Workspaces can only move within the same host.",
+      "groupMoveFailed": "Could not move the workspace.",
+      "groupNotOnHost": "This group is not saved on that host.",
+      "groupRollbackFailed": "{{error}} Could not put back: {{names}}.",
       "hiddenWorkspaces": "Hidden workspaces",
       "hostTooOldForGroups": "Update Orca on this host to move workspaces between groups.",
       "restoreWorkspace": "Restore",

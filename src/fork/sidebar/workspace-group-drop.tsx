@@ -17,7 +17,6 @@ import type { Worktree } from '../../shared/worktree/types'
 import { resolveSidebarGroupId, folderWorkspaceHostId } from './membership'
 import {
   EMPTY_PROJECT_GROUP_PREFIX,
-  WORKSPACE_GROUP_HOST_MISMATCH,
   WORKSPACE_SIDEBAR_GROUP_ATTRIBUTE,
   looseHostSectionKey,
   parseHostDirectorySectionKey
@@ -28,6 +27,7 @@ import {
   planGroupDropItems,
   resolveGroupDropTarget
 } from './workspace-group-drop-plan'
+import { workspaceGroupLabels } from './workspace-group-labels'
 
 type DropArgs = {
   x: number
@@ -75,7 +75,7 @@ export function tryCommitWorkspaceGroupDrop(args: DropArgs): boolean {
     return false
   }
   if (workspaceGroupDropBlocked(sourceHostId, targetHostId)) {
-    toast.error(WORKSPACE_GROUP_HOST_MISMATCH)
+    toast.error(workspaceGroupLabels.hostMismatch)
     return true
   }
   if (looseTargetOfSource(target.groupId, targetHostId, args.sourceGroupKey)) {

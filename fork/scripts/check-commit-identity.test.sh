@@ -286,6 +286,99 @@ elif kill -0 "$(cat "${BASE}/stubborn-fetch.pid")" 2>/dev/null; then
   fail "a fetch that ignores TERM is still running"
   kill -KILL "$(cat "${BASE}/stubborn-fetch.pid")" 2>/dev/null || true
 fi
+# 脚本被信号停止（launchd 卸载、注销、关机）：fetch 在自己的进程组里，launchd 杀脚本的进程组时碰不到它。
+# 脚本捕获 TERM/INT/HUP，杀掉 fetch 的整个进程组（包括它的子进程）和看门狗，再按惯例退出（143/130/129）。
+# 假的 git 在 fetch 时起一个子进程（模拟 git-remote-https）然后一直等。僵尸进程（容器里没人回收）算已退出。
+proc_alive() {
+  local state
+  state="$(ps -o stat= -p "$1" 2>/dev/null || true)"
+  [[ -n "$state" && "$state" != Z* ]]
+}
+# 进程组里还有活着（不是僵尸）的进程。
+group_alive() {
+  ps -A -o pgid=,stat= 2>/dev/null | awk -v g="$1" '$1 == g && $2 !~ /^Z/ { found = 1 } END { exit !found }'
+}
+write_signal_fake() {
+  local ignore_term="$1"
+  cat >"${fake_bin}/git" <<FAKE
+#!/bin/bash
+for arg in "\$@"; do
+  if [[ "\$arg" == fetch ]]; then
+    ${ignore_term}
+    sleep 300 &
+    echo "\$!" >"${BASE}/sig-helper.pid"
+    echo "\$\$" >"${BASE}/sig-fetch.pid"
+    wait
+    exit 1
+  fi
+done
+exec "${real_git}" "\$@"
+FAKE
+  chmod +x "${fake_bin}/git"
+}
+# 用法: signal_case 名称 信号 期望退出码 to-pid|to-group [ignore-term]
+signal_case() {
+  local name="$1" signal="$2" want="$3" target="$4" ignore="${5:-}"
+  local trap_line=""
+  [[ "$ignore" == ignore-term ]] && trap_line="trap '' TERM"
+  write_signal_fake "$trap_line"
+  rm -f "${BASE}/sig-fetch.pid" "${BASE}/sig-helper.pid"
+  # 脚本自己当进程组组长（和 launchd 一样），后台运行也不会忽略 INT。
+  set -m
+  PATH="${fake_bin}:${PATH}" ORCA_UPSTREAM_FETCH_TIMEOUT=120 bash "$FETCH" >"${BASE}/sig.out" 2>&1 &
+  local script_pid=$!
+  set +m
+  local tries=0
+  while [[ ! -s "${BASE}/sig-fetch.pid" || ! -s "${BASE}/sig-helper.pid" ]] && [[ "$tries" -lt 100 ]]; do
+    sleep 0.1
+    tries=$((tries + 1))
+  done
+  if [[ ! -s "${BASE}/sig-fetch.pid" ]]; then
+    fail "${name}: the fake fetch never started"
+    kill -KILL -- "-${script_pid}" 2>/dev/null || true
+    return
+  fi
+  local git_pid helper_pid
+  git_pid="$(cat "${BASE}/sig-fetch.pid")"
+  helper_pid="$(cat "${BASE}/sig-helper.pid")"
+  if [[ "$target" == to-group ]]; then
+    kill "-${signal}" -- "-${script_pid}"
+  else
+    kill "-${signal}" "$script_pid"
+  fi
+  local started=$SECONDS code=0
+  wait "$script_pid" || code=$?
+  if [[ "$code" -ne "$want" ]]; then
+    fail "${name}: exit ${code}, want ${want}: $(cat "${BASE}/sig.out")"
+  fi
+  if [[ $((SECONDS - started)) -gt 15 ]]; then
+    fail "${name}: the script took $((SECONDS - started))s to stop"
+  fi
+  if proc_alive "$git_pid"; then
+    fail "${name}: the fake git is still running"
+    kill -KILL "$git_pid" 2>/dev/null || true
+  fi
+  if proc_alive "$helper_pid"; then
+    fail "${name}: the fetch's child helper is still running"
+    kill -KILL "$helper_pid" 2>/dev/null || true
+  fi
+  if group_alive "$script_pid"; then
+    fail "${name}: the watchdog (script's group) is still running"
+    kill -KILL -- "-${script_pid}" 2>/dev/null || true
+  fi
+  if [[ "$(git rev-parse refs/remotes/upstream/main)" != "$before" ]]; then
+    fail "${name}: a stopped fetch changed upstream/main"
+  fi
+}
+before="$(git rev-parse refs/remotes/upstream/main)"
+signal_case "TERM to the script's group (launchd)" TERM 143 to-group
+signal_case "TERM to the script" TERM 143 to-pid
+signal_case "INT to the script" INT 130 to-pid
+signal_case "HUP to the script" HUP 129 to-pid
+signal_case "TERM with a fetch that ignores TERM" TERM 143 to-pid ignore-term
+if grep -Eq '^[^#]*setsid' "$FETCH"; then
+  fail "fetch-upstream-main.sh should not rely on setsid (macOS has none)"
+fi
 # 默认超时是 600 秒，可以用环境变量改；不是正整数就直接失败，不去拉。
 if ! grep -q 'ORCA_UPSTREAM_FETCH_TIMEOUT:-600' "$FETCH"; then
   fail "the default fetch timeout should be 600s"

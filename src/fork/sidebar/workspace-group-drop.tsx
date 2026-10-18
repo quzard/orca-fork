@@ -21,8 +21,8 @@ import {
   looseHostSectionKey,
   parseHostDirectorySectionKey
 } from './section-keys'
+import { buildGroupDropOrder } from './group-drop-order'
 import {
-  buildGroupDropOrder,
   commitGroupDrop,
   enqueueGroupDrop,
   planGroupDropItems,
@@ -198,8 +198,9 @@ function writeGroupDrop(
     }
     const visible = groups.find((group) => group.key === target.key)?.worktreeIds ?? []
     const dropIndex = workspaceGroupInsertionIndex(rects, pointerY, visible.length)
-    // A drop keeps the user's sort: only manual sort has a position to keep, and then only the
-    // moved rows get a new rank. Any other sort orders the moved rows itself.
+    // A drop keeps the user's sort: only manual sort has a position to keep, and then the moved
+    // rows get a new rank (the target section is renumbered only when there is no room between
+    // the neighbours). Any other sort orders the moved rows itself.
     const order =
       state.sortBy === 'manual'
         ? buildGroupDropOrder(state, groups, target, draggedIds, dropIndex, (id) =>

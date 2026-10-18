@@ -5,9 +5,6 @@ import type { ProjectGroup } from '../../shared/project-group-types'
 import type { Repo } from '../../shared/repo-types'
 import type { Worktree } from '../../shared/worktree/types'
 import { folderWorkspaceKey } from '../../shared/workspace-scope'
-import { folderWorkspaceToWorktree } from '../../shared/folder-workspace-worktree'
-import type { WorktreeDragGroup } from '../../renderer/src/components/sidebar/worktree-manual-order'
-import { buildWorktreeManualOrderCatalog } from '../../renderer/src/components/sidebar/worktree-manual-order-catalog'
 import { folderWorkspaceHostId, projectGroupHostId } from './membership'
 import { EMPTY_PROJECT_GROUP_PREFIX, looseHostSectionKey } from './section-keys'
 import { isSidebarFieldsNotAppliedError, sidebarFieldsErrorCode } from './sidebar-fields-applied'
@@ -80,7 +77,10 @@ function findFolder(state: GroupDropState, id: string): FolderWorkspace | undefi
   )
 }
 
-/** Every dragged row must resolve on `hostId`; one that does not cancels the whole drop. */
+/**
+ * Every dragged row must resolve on `hostId`; one that does not cancels the whole drop. An order
+ * update for a row that is not dragged (a renumbered section) writes only its manual order.
+ */
 export function planGroupDropItems(
   state: GroupDropState,
   hostId: ExecutionHostId,
@@ -90,9 +90,13 @@ export function planGroupDropItems(
 ): Item[] | { error: string } {
   const groupsById = new Map(state.projectGroups.map((group) => [group.id, group]))
   const items: Item[] = []
-  for (const id of draggedIds) {
+  const dragged = new Set(draggedIds)
+  const reordered = [...orderUpdates.keys()].filter((id) => !dragged.has(id))
+  for (const id of [...draggedIds, ...reordered]) {
     const order = orderUpdates.get(id)
-    const next: Fields = { sidebarGroupId: target.groupId, ...order }
+    const next: Fields = dragged.has(id)
+      ? { sidebarGroupId: target.groupId, ...order }
+      : { ...order }
     const folder = findFolder(state, id)
     if (folder) {
       const owner = groupsById.get(folder.projectGroupId)
@@ -104,7 +108,7 @@ export function planGroupDropItems(
         storeId: folder.id,
         name: folder.name,
         next,
-        previous: previousFields(folder, order)
+        previous: previousFields(folder, order, dragged.has(id))
       })
       continue
     }
@@ -118,7 +122,7 @@ export function planGroupDropItems(
       storeId: id,
       name: worktree.displayName,
       next,
-      previous: previousFields(worktree, order)
+      previous: previousFields(worktree, order, dragged.has(id))
     })
   }
   return items
@@ -127,79 +131,14 @@ export function planGroupDropItems(
 // The exact stored values, including absent ones, so a rollback restores the row as it was.
 function previousFields(
   row: { sidebarGroupId?: string | null; manualOrder?: number },
-  order: { manualOrder: number } | undefined
+  order: { manualOrder: number } | undefined,
+  regrouped: boolean
 ): Fields {
-  const previous: Fields = { sidebarGroupId: row.sidebarGroupId }
+  const previous: Fields = regrouped ? { sidebarGroupId: row.sidebarGroupId } : {}
   if (order) {
     previous.manualOrder = row.manualOrder
   }
   return previous
-}
-
-const GROUP_DROP_ORDER_STRIDE = 1000
-
-/** The key manual sort really orders by: a row without a manual order sorts by sortOrder. */
-function effectiveOrderKeys(state: GroupDropState): Map<string, number> {
-  const keys = new Map<string, number>()
-  const rows = [
-    ...Object.values(state.worktreesByRepo).flat(),
-    ...state.folderWorkspaces.map((workspace) => folderWorkspaceToWorktree(workspace))
-  ]
-  for (const row of rows) {
-    if (!row.isArchived && !keys.has(row.id)) {
-      keys.set(row.id, row.manualOrder ?? row.sortOrder)
-    }
-  }
-  return keys
-}
-
-/**
- * Manual-order values for the dragged rows only, placed between their new neighbours' effective
- * keys. No other row is written: upstream's group-drop ranking renumbers every row as soon as one
- * still sorts by sortOrder, which reshuffled the whole ungrouped list. When the neighbours share a
- * key the moved rows take that key too (ties fall back to the name order) rather than renumbering.
- */
-export function buildGroupDropOrder(
-  state: GroupDropState,
-  groups: readonly WorktreeDragGroup[],
-  target: GroupDropTarget,
-  draggedIds: readonly string[],
-  dropIndex: number,
-  belongsToTarget: (id: string) => boolean,
-  now = Date.now()
-): ReadonlyMap<string, { manualOrder: number }> {
-  const visible = groups.find((group) => group.key === target.key)?.worktreeIds ?? []
-  const catalog = buildWorktreeManualOrderCatalog({
-    worktrees: Object.values(state.worktreesByRepo).flat(),
-    folderWorkspaces: state.folderWorkspaces
-  })
-  const hidden = catalog.orderedIds.filter((id) => !visible.includes(id) && belongsToTarget(id))
-  const targetIds = [...visible, ...hidden]
-  const dragged = new Set(draggedIds)
-  const shown = groups.flatMap((group) => group.worktreeIds).filter((id) => dragged.has(id))
-  const moved = [...new Set([...shown, ...draggedIds])]
-  const bounded = Math.max(0, Math.min(dropIndex, targetIds.length))
-  const removedBefore = targetIds.slice(0, bounded).filter((id) => dragged.has(id)).length
-  const rest = targetIds.filter((id) => !dragged.has(id))
-  const at = Math.max(0, Math.min(rest.length, bounded - removedBefore))
-  const keys = effectiveOrderKeys(state)
-  const before = at > 0 ? keys.get(rest[at - 1]!) : undefined
-  const after = at < rest.length ? keys.get(rest[at]!) : undefined
-  const count = moved.length
-  const rank = (index: number): number => {
-    if (before === undefined && after === undefined) {
-      return now - index * GROUP_DROP_ORDER_STRIDE
-    }
-    if (before === undefined) {
-      return after! + (count - index) * GROUP_DROP_ORDER_STRIDE
-    }
-    if (after === undefined) {
-      return before - (index + 1) * GROUP_DROP_ORDER_STRIDE
-    }
-    const gap = before - after
-    return gap > 0 ? before - (gap / (count + 1)) * (index + 1) : before
-  }
-  return new Map(moved.map((id, index) => [id, { manualOrder: rank(index) }]))
 }
 
 /** `partial`: the host applied the row's other fields but not its group or clear. */

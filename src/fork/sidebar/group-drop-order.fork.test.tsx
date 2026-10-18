@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { normalizeExecutionHostId, type ExecutionHostId } from '../../shared/execution-host'
 import type { Worktree } from '../../shared/worktree/types'
 import { hostDirectorySectionKey, looseHostSectionKey } from './section-keys'
-import { buildGroupDropOrder, type GroupDropState } from './workspace-group-drop-plan'
+import { buildWorktreeManualOrderCatalog } from '../../renderer/src/components/sidebar/worktree-manual-order-catalog'
+import { buildGroupDropOrder } from './group-drop-order'
+import { planGroupDropItems, type GroupDropState } from './workspace-group-drop-plan'
 
 const HOST = normalizeExecutionHostId('ssh:devbox') as ExecutionHostId
 const LOOSE = looseHostSectionKey(HOST)
@@ -106,27 +108,6 @@ describe('group drop order', () => {
     expect(second).toBeGreaterThan(300)
   })
 
-  it('takes the shared key when both neighbours tie, instead of renumbering', () => {
-    const tied = [
-      row('moved', { sortOrder: 1 }),
-      row('x', { sortOrder: 50 }),
-      row('y', { sortOrder: 50 })
-    ]
-    const updates = buildGroupDropOrder(
-      { ...state, worktreesByRepo: { r1: tied } },
-      [
-        { key: GROUP, worktreeIds: ['moved'] },
-        { key: LOOSE, worktreeIds: ['x', 'y'] }
-      ],
-      { groupId: null, key: LOOSE },
-      ['moved'],
-      1,
-      () => false,
-      10_000
-    )
-    expect([...updates.entries()]).toEqual([['moved', { manualOrder: 50 }]])
-  })
-
   it('ranks into an empty group', () => {
     const updates = buildGroupDropOrder(
       state,
@@ -138,5 +119,148 @@ describe('group drop order', () => {
       10_000
     )
     expect([...updates.entries()]).toEqual([['a', { manualOrder: 10_000 }]])
+  })
+
+  it('writes only the moved row when there is room (no section renumber)', () => {
+    const updates = order(2)
+    expect([...updates.keys()]).toEqual(['moved'])
+    expect(
+      planGroupDropItems(state, HOST, { groupId: null, key: LOOSE }, ['moved'], updates)
+    ).toHaveLength(1)
+  })
+})
+
+// Applies a drop's updates and returns the loose section in the order manual sort shows it.
+function applyAndList(
+  current: Worktree[],
+  updates: ReadonlyMap<string, { manualOrder: number }>,
+  regrouped: readonly string[]
+): { rows: Worktree[]; loose: string[] } {
+  const rows = current.map((entry) => {
+    const update = updates.get(entry.id)
+    const moved = regrouped.includes(entry.id)
+    return update || moved
+      ? { ...entry, ...update, ...(moved ? { sidebarGroupId: null } : {}) }
+      : entry
+  })
+  const catalog = buildWorktreeManualOrderCatalog({ worktrees: rows, folderWorkspaces: [] })
+  const loose = catalog.orderedIds.filter(
+    (id) => !rows.find((entry) => entry.id === id)!.sidebarGroupId
+  )
+  return { rows, loose }
+}
+
+function dropInto(
+  rows: Worktree[],
+  loose: readonly string[],
+  dragged: readonly string[],
+  dropIndex: number
+) {
+  const grouped = rows.filter((entry) => entry.sidebarGroupId).map((entry) => entry.id)
+  return buildGroupDropOrder(
+    {
+      ...state,
+      worktreesByRepo: { r1: rows },
+      getKnownWorktreeById: (id) => rows.find((entry) => entry.id === id)
+    },
+    [
+      { key: GROUP, worktreeIds: grouped },
+      { key: LOOSE, worktreeIds: [...loose] }
+    ],
+    { groupId: null, key: LOOSE },
+    dragged,
+    dropIndex,
+    () => false,
+    10_000
+  )
+}
+
+describe('group drop order without room between the neighbours', () => {
+  // x and y tie at 50; by name "zeta" would sort after both, so a shared key would misplace it.
+  const tied = [
+    row('zeta', { sidebarGroupId: 'g1', sortOrder: 1 }),
+    row('w', { sortOrder: 90 }),
+    row('x', { sortOrder: 50 }),
+    row('y', { sortOrder: 50 }),
+    row('z', { sortOrder: 10, manualOrder: 10 })
+  ]
+
+  it('renumbers the target section when the neighbours tie, landing exactly at the drop', () => {
+    const updates = dropInto(tied, ['w', 'x', 'y', 'z'], ['zeta'], 2)
+    const { loose } = applyAndList(tied, updates, ['zeta'])
+    expect(loose).toEqual(['w', 'x', 'zeta', 'y', 'z'])
+    // Only rows of the target section are written; all keys are now distinct.
+    expect(new Set(updates.keys())).toEqual(new Set(['w', 'x', 'zeta', 'y', 'z']))
+    const values = [...updates.values()].map((entry) => entry.manualOrder)
+    expect(new Set(values).size).toBe(values.length)
+  })
+
+  it('writes the renumbered neighbours as order-only items, the moved row with its group', () => {
+    const updates = dropInto(tied, ['w', 'x', 'y', 'z'], ['zeta'], 2)
+    const items = planGroupDropItems(
+      {
+        ...state,
+        worktreesByRepo: { r1: tied },
+        getKnownWorktreeById: (id) => tied.find((e) => e.id === id)
+      },
+      HOST,
+      { groupId: null, key: LOOSE },
+      ['zeta'],
+      updates
+    )
+    if ('error' in items) {
+      throw new Error(items.error)
+    }
+    expect(items[0]).toMatchObject({ storeId: 'zeta', next: { sidebarGroupId: null } })
+    for (const item of items.slice(1)) {
+      expect(Object.keys(item.next)).toEqual(['manualOrder'])
+      expect(Object.keys(item.previous)).toEqual(['manualOrder'])
+    }
+    // z already sat at 10 with a manual order; a rollback puts that value back, others clear.
+    expect(items.find((item) => item.storeId === 'z')?.previous).toEqual({ manualOrder: 10 })
+    expect(items.find((item) => item.storeId === 'x')?.previous).toEqual({ manualOrder: undefined })
+  })
+
+  it('places a multi-row drop into a tie exactly, in drag order', () => {
+    const rows = [
+      row('m1', { sidebarGroupId: 'g1', sortOrder: 2 }),
+      row('m2', { sidebarGroupId: 'g1', sortOrder: 1 }),
+      ...tied.slice(1)
+    ]
+    const updates = dropInto(rows, ['w', 'x', 'y', 'z'], ['m1', 'm2'], 2)
+    const { loose } = applyAndList(rows, updates, ['m1', 'm2'])
+    expect(loose).toEqual(['w', 'x', 'm1', 'm2', 'y', 'z'])
+  })
+
+  it('stays exact over 60 drops into the same gap and renumbers only when it must', () => {
+    let rows = [
+      row('a', { sortOrder: 2000 }),
+      row('b', { sortOrder: 1000 }),
+      ...Array.from({ length: 60 }, (_, index) =>
+        row(`n${String(index).padStart(2, '0')}`, { sidebarGroupId: 'g1', sortOrder: 1 })
+      )
+    ]
+    let loose = ['a', 'b']
+    let renumbered = 0
+    for (let index = 0; index < 60; index += 1) {
+      const id = `n${String(index).padStart(2, '0')}`
+      // Always dropped right under "a": the gap above the previous drop keeps halving.
+      const updates = dropInto(rows, loose, [id], 1)
+      if (updates.size > 1) {
+        renumbered += 1
+      }
+      const next = applyAndList(rows, updates, [id])
+      expect(next.loose[1]).toBe(id)
+      expect(next.loose).toEqual(['a', id, ...loose.slice(1)])
+      const keys = next.rows
+        .filter((entry) => !entry.sidebarGroupId)
+        .map((entry) => entry.manualOrder ?? entry.sortOrder)
+      expect(new Set(keys).size).toBe(keys.length)
+      rows = next.rows
+      loose = next.loose
+    }
+    // Most drops write one row; the section is renumbered only once the gap is used up.
+    expect(renumbered).toBeGreaterThan(0)
+    expect(renumbered).toBeLessThan(10)
   })
 })

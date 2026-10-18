@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import {
   registerOpenInLauncher,
@@ -31,9 +32,11 @@ import {
   pulseSshReconnectTui
 } from './terminal/reconnect-tui-pulse'
 import { registerComposerSeed } from './sidebar/register-composer-seed'
+import { installForkLocaleOverlays } from './i18n/locale-overlay'
 
 /** Renderer hooks. Kept out of the node program so it can read the app store. */
 export function registerForkRendererModules(): void {
+  installForkLocaleOverlays(i18n)
   installHostDirectoryRowPlan()
   registerHostDirectorySortReader(() => useAppStore.getState().sortBy)
   registerSidebarMenuSlots()

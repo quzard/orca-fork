@@ -1,0 +1,47 @@
+{
+  "fork": {
+    "aiVault": {
+      "collapseAll": "折叠所有分组",
+      "hostCount": "{{count}} 台主机",
+      "indexNotReady": "索引尚未就绪 · 结果可能不完整",
+      "indexOff": "全文索引已关闭",
+      "indexOffline": "离线 · 索引状态未知",
+      "indexStatus": "索引状态",
+      "indexUnavailable": "此主机无法获取索引状态",
+      "listUpdating": "历史列表正在更新",
+      "otherHosts": "其他已配置主机",
+      "scanning": "正在扫描历史…"
+    },
+    "settings": {
+      "confirmRemove": "确认",
+      "removeProjects": "移除 {{value0}}",
+      "selectAllProjects": "选择所有项目",
+      "selectProject": "选择项目"
+    },
+    "sidebar": {
+      "archivedWorkspaces": "已从 Orca 移除（{{value0}}）",
+      "hiddenWorkspaces": "隐藏的工作区",
+      "restoreWorkspace": "恢复",
+      "searchWorkspaces": "搜索工作区"
+    },
+    "workspaceRemoval": {
+      "ambiguous": "此工作区有多个执行主机。需要先确定终端归属，才能移除。",
+      "failed": "无法从 Orca 移除此工作区",
+      "menu": "从 Orca 移除",
+      "removed": "已从 Orca 移除工作区",
+      "undo": "撤销"
+    }
+  },
+  "sshConnectionStatus": {
+    "authFailed": "认证失败",
+    "connected": "已连接",
+    "connecting": "正在连接…",
+    "deployingRelay": "正在部署中继…",
+    "disconnected": "已断开连接",
+    "reconnecting": "正在重新连接…",
+    "reconnectionFailed": "重新连接失败"
+  },
+  "workspaceImport": {
+    "parentFolderFailed": "仓库已导入；父文件夹未能设置完成"
+  }
+}

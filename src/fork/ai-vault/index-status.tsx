@@ -85,6 +85,7 @@ function IndexHostRow({
   })
   const listLoading = useSyncExternalStore(
     subscribeAiVaultPanelStatus,
+    readAiVaultPanelStatus,
     readAiVaultPanelStatus
   ).loading
   const phase = indexStatusPhase({

@@ -229,6 +229,7 @@ export function useSidebarSectionRows(args: SectionRowsArgs) {
   // fork: 登记模式的标题随界面语言变化，语言切换时重新生成行，让标题重新绘制。未登记时版本号不变。
   const labelsVersion = useSyncExternalStore(
     subscribeSidebarGroupModeLabels,
+    getSidebarGroupModeLabelsVersion,
     getSidebarGroupModeLabelsVersion
   )
   const rows: Row[] = useMemo(

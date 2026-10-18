@@ -16,7 +16,11 @@ type SidebarGroupByToggleProps = {
 
 export function SidebarGroupByToggle({ groupBy, setGroupBy }: SidebarGroupByToggleProps) {
   // fork: 登记模式的标签随界面语言变化，语言切换时重新渲染。未登记时版本号不变。
-  useSyncExternalStore(subscribeSidebarGroupModeLabels, getSidebarGroupModeLabelsVersion)
+  useSyncExternalStore(
+    subscribeSidebarGroupModeLabels,
+    getSidebarGroupModeLabelsVersion,
+    getSidebarGroupModeLabelsVersion
+  )
   return (
     <ToggleGroup
       type="single"

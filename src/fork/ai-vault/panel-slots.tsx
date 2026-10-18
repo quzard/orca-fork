@@ -25,7 +25,11 @@ export function AiVaultCollapseAllButton(): React.JSX.Element {
 }
 
 export function AiVaultHostStatus(): React.JSX.Element | null {
-  const status = useSyncExternalStore(subscribeAiVaultPanelStatus, readAiVaultPanelStatus)
+  const status = useSyncExternalStore(
+    subscribeAiVaultPanelStatus,
+    readAiVaultPanelStatus,
+    readAiVaultPanelStatus
+  )
   if (status.loading) {
     return (
       <p className="border-b border-sidebar-border px-3 py-1 text-xs text-muted-foreground">

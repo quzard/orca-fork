@@ -62,12 +62,38 @@ export type SidebarGroupMode = {
 }
 
 const modes = new Map<string, SidebarGroupMode>()
+const labelListeners = new Set<() => void>()
+let labelVersion = 0
 
 export function registerSidebarGroupMode(mode: SidebarGroupMode): void {
   if (BUILTIN_GROUP_BY_IDS.has(mode.id)) {
     return
   }
   modes.set(mode.id, mode)
+  notifySidebarGroupModeLabelsChanged()
+}
+
+/**
+ * For `useSyncExternalStore` in the group-by menu: a registered label may be a getter that
+ * follows the UI language, so the fork calls `notifySidebarGroupModeLabelsChanged` when it
+ * changes. Unregistered, the version never moves and the menu renders as upstream.
+ */
+export function subscribeSidebarGroupModeLabels(listener: () => void): () => void {
+  labelListeners.add(listener)
+  return () => {
+    labelListeners.delete(listener)
+  }
+}
+
+export function getSidebarGroupModeLabelsVersion(): number {
+  return labelVersion
+}
+
+export function notifySidebarGroupModeLabelsChanged(): void {
+  labelVersion += 1
+  for (const listener of labelListeners) {
+    listener()
+  }
 }
 
 export function lookupSidebarGroupMode(id: string): SidebarGroupMode | undefined {

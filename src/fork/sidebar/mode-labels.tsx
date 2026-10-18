@@ -2,9 +2,11 @@
 // English upstream hardcodes in the "Remove SSH Target" dialog. register-mode.ts keeps the English:
 // it runs where no translator exists. Here, in the renderer, the same registrations get getters,
 // so the label follows the current language each time it is rendered.
+import { i18n } from '../../renderer/src/i18n/i18n'
 import { forkTranslate } from '../i18n/fork-translate'
 import {
   lookupSidebarGroupMode,
+  notifySidebarGroupModeLabelsChanged,
   registerSidebarGroupMode
 } from '../../shared/fork-hooks/sidebar-group-mode'
 import {
@@ -21,7 +23,15 @@ export function sshTargetRemoveLabelsForLocale(): { actionLabel: string; busyLab
   }
 }
 
+// The group-by menu reads the getter only when it renders; this makes a language switch render it.
+function onLanguageChanged(): void {
+  notifySidebarGroupModeLabelsChanged()
+}
+
 export function registerForkModeLabels(): void {
+  // Same function every time, so registering again never adds a second listener.
+  i18n.off('languageChanged', onLanguageChanged)
+  i18n.on('languageChanged', onLanguageChanged)
   const mode = lookupSidebarGroupMode(HOST_DIRECTORY_GROUP_BY)
   if (mode) {
     registerSidebarGroupMode({

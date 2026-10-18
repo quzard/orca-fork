@@ -1,8 +1,11 @@
+import { useSyncExternalStore } from 'react'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import type { WorktreeGroupBy } from '../../../../shared/sidebar-list/row-types'
 import {
+  getSidebarGroupModeLabelsVersion,
   listSidebarGroupModes,
-  registeredReplacementForBuiltinGroupBy
+  registeredReplacementForBuiltinGroupBy,
+  subscribeSidebarGroupModeLabels
 } from '../../../../shared/fork-hooks/sidebar-group-mode'
 import { GROUP_BY_OPTIONS } from './sidebar-workspace-option-items'
 
@@ -12,6 +15,8 @@ type SidebarGroupByToggleProps = {
 }
 
 export function SidebarGroupByToggle({ groupBy, setGroupBy }: SidebarGroupByToggleProps) {
+  // fork: 登记模式的标签随界面语言变化，语言切换时重新渲染。未登记时版本号不变。
+  useSyncExternalStore(subscribeSidebarGroupModeLabels, getSidebarGroupModeLabelsVersion)
   return (
     <ToggleGroup
       type="single"

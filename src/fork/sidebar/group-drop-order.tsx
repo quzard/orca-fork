@@ -203,12 +203,12 @@ function renumberWithinList(
  * follows in manual order), so the drop lands where the insertion line was. Normally only the
  * dragged rows are written, placed between their new neighbours' manual-sort keys: upstream's
  * group-drop ranking renumbers every row as soon as one still sorts by sortOrder, which reshuffled
- * the whole ungrouped list. When the neighbours tie, the gap between them has no room left for a
- * value strictly between, or the keys do not explain the shown order (a lineage child drawn under
- * its parent), the target section's rows around the drop are renumbered in their shown order, the
- * moved rows at the drop point. Those values stay inside the gap left by rows of other sections,
- * so the order across the full list is kept; only when that gap has no room either is the whole
- * section renumbered from its own top. Only the returned rows change.
+ * the whole ungrouped list. When the neighbours tie, or the gap between them has no room left for
+ * a value strictly between, or the keys do not explain the shown order (a lineage child drawn
+ * under its parent), the target section's rows around the drop are renumbered in their shown
+ * order, the moved rows at the drop point. Those values stay inside the gap left by rows of other
+ * sections, so the order across the full list is kept; only when that gap has no room either is
+ * the whole section renumbered from its own top. Only the returned rows change.
  */
 export function buildGroupDropOrder(
   state: GroupDropState,

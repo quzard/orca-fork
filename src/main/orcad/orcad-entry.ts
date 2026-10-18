@@ -101,8 +101,8 @@ export async function startOrcad(options: OrcadOptions = {}): Promise<OrcadHandl
       }
     }
   )
-  const version = getAppEnvironment().getVersion()
-  return { readiness, managedStop: { version, runtimeId: readiness.runtimeId, instance }, stop }
+  // 版本和返回值放在同一行：上游多了排序戳对账后，这个文件刚好超过 300 行上限。
+  return { readiness, managedStop: { version: getAppEnvironment().getVersion(), runtimeId: readiness.runtimeId, instance }, stop }
 }
 
 async function prepareOrcadSecretStoreAndMigrate(userDataPath: string): Promise<void> {

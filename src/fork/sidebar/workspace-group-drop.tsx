@@ -29,6 +29,7 @@ import {
   resolveGroupDropTarget
 } from './workspace-group-drop-plan'
 import { workspaceGroupLabels } from './workspace-group-labels'
+import { nearestSectionKey } from './nearest-section'
 
 type DropArgs = {
   x: number
@@ -57,7 +58,23 @@ function elementGroupKey(container: HTMLElement, x: number, y: number): string |
     .elementsFromPoint(x, y)
     .map((entry) => entry.closest<HTMLElement>(`[${WORKSPACE_SIDEBAR_GROUP_ATTRIBUTE}]`))
     .find((entry) => entry && container.contains(entry))
-  return element?.getAttribute(WORKSPACE_SIDEBAR_GROUP_ATTRIBUTE) ?? null
+  const direct = element?.getAttribute(WORKSPACE_SIDEBAR_GROUP_ATTRIBUTE)
+  if (direct) {
+    return direct
+  }
+  // Released between two rows: use the closest row, so the gap is not a dead zone.
+  const box = container.getBoundingClientRect()
+  if (x < box.left || x > box.right || y < box.top || y > box.bottom) {
+    return null
+  }
+  const rects = Array.from(
+    container.querySelectorAll<HTMLElement>(`[${WORKSPACE_SIDEBAR_GROUP_ATTRIBUTE}]`)
+  ).flatMap((entry) => {
+    const key = entry.getAttribute(WORKSPACE_SIDEBAR_GROUP_ATTRIBUTE)
+    const rect = entry.getBoundingClientRect()
+    return key ? [{ top: rect.top, bottom: rect.bottom, key }] : []
+  })
+  return nearestSectionKey(rects, y)
 }
 
 function tryCommitWorkspaceGroupDrop(args: DropArgs): boolean {

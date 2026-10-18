@@ -29,7 +29,7 @@ import {
   resolveGroupDropTarget
 } from './workspace-group-drop-plan'
 import { workspaceGroupLabels } from './workspace-group-labels'
-import { nearestSectionKey } from './nearest-section'
+import { isBetweenRowsHit, nearestGroupSectionKey } from './nearest-section'
 
 type DropArgs = {
   x: number
@@ -53,28 +53,35 @@ export function workspaceGroupInsertionIndex(
   return before?.groupIndex ?? fallback
 }
 
-function elementGroupKey(container: HTMLElement, x: number, y: number): string | null {
-  const element = document
-    .elementsFromPoint(x, y)
+/** The group key under a release point; exported for tests. */
+export function elementGroupKey(container: HTMLElement, x: number, y: number): string | null {
+  const hits = document.elementsFromPoint(x, y).filter((entry) => container.contains(entry))
+  const element = hits
     .map((entry) => entry.closest<HTMLElement>(`[${WORKSPACE_SIDEBAR_GROUP_ATTRIBUTE}]`))
     .find((entry) => entry && container.contains(entry))
   const direct = element?.getAttribute(WORKSPACE_SIDEBAR_GROUP_ATTRIBUTE)
   if (direct) {
     return direct
   }
-  // Released between two rows: use the closest row, so the gap is not a dead zone.
+  // Released between two rows: use the closest row, so the gap is not a dead zone. Only real gaps
+  // in the group and ungrouped lists count (see nearestGroupSectionKey and isBetweenRowsHit).
   const box = container.getBoundingClientRect()
   if (x < box.left || x > box.right || y < box.top || y > box.bottom) {
     return null
   }
-  const rects = Array.from(
+  const rowElements = Array.from(
     container.querySelectorAll<HTMLElement>(`[${WORKSPACE_SIDEBAR_GROUP_ATTRIBUTE}]`)
-  ).flatMap((entry) => {
+  )
+  const rowParents = new Set(rowElements.map((entry) => entry.parentElement))
+  if (!isBetweenRowsHit(hits[0], container, rowParents)) {
+    return null
+  }
+  const rects = rowElements.flatMap((entry) => {
     const key = entry.getAttribute(WORKSPACE_SIDEBAR_GROUP_ATTRIBUTE)
     const rect = entry.getBoundingClientRect()
     return key ? [{ top: rect.top, bottom: rect.bottom, key }] : []
   })
-  return nearestSectionKey(rects, y)
+  return nearestGroupSectionKey(rects, y, (key) => parseHostDirectorySectionKey(key) !== null)
 }
 
 function tryCommitWorkspaceGroupDrop(args: DropArgs): boolean {

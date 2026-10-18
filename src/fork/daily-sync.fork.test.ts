@@ -314,14 +314,16 @@ git ls-remote origin 'refs/heads/sync/*' | awk '{print $2}' | sort | tr '\n' ' '
     execFileSync('bash', [resolve('fork/scripts/check-no-internal-refs.test.sh')], {
       stdio: 'inherit'
     })
-    // A short run here; the script's defaults are 200 per signal, 20 per ps case and 3 KILL runs.
+    // A short run here; the script's defaults are 200 per signal, 20 per ps case, 3 KILL runs and
+    // 100 group-signal runs.
     execFileSync('bash', [resolve('fork/scripts/fetch-upstream-signal-stress.test.sh')], {
       stdio: 'inherit',
       env: {
         ...process.env,
         ORCA_FETCH_STRESS_RUNS: '10',
         ORCA_FETCH_STRESS_NO_PS_RUNS: '3',
-        ORCA_FETCH_STRESS_KILL_RUNS: '1'
+        ORCA_FETCH_STRESS_KILL_RUNS: '1',
+        ORCA_FETCH_STRESS_GROUP_RUNS: '3'
       }
     })
   }, 120_000)

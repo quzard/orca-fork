@@ -31,16 +31,6 @@ The Project toggle is hidden while this mode is registered, because that saved v
 | Open in                  | The existing Open-in menu is unchanged.                                                                                                                                                                                                                                     | Pass. That menu is not in this diff.                                                                      |
 | Unregistered default     | Tests that never register still get `groupBy: repo`.                                                                                                                                                                                                                        | Pass. `default-group-by.fork.test.ts`                                                                     |
 
-## Linux screenshot
-
-`fork/scripts/verify/screenshot-sidebar.mjs` builds `electron-vite --mode e2e` with the store exposed, launches Electron hidden (`ORCA_BACKGROUND_LAUNCH=1`, `ORCA_E2E_HEADLESS=1`, no `show()`), and seeds two SSH hosts.
-
-The captured window shows:
-
-- Host `devbox` (disconnected), count 3, group `Services` with cards `work/api · main` and `oss/api · main`, then an ungrouped `project · main`.
-- Host `mini` (disconnected), count 1, ungrouped `project · main`.
-- No repository header between the host and the cards.
-
 ## Full suite on this Linux machine
 
 `src/main/runtime/automation-change-publication.test.ts` fails while opening the profile-state database: `cannot start a transaction within a transaction` from `node:sqlite` (`SyncDatabase.exec` during schema verification inside a write transaction). The same file fails the same way on a clean checkout of `fork/base` at `3310892228`, using the same Node 22.14.0. A single UI-state store test that does not hit that nested begin passes on both trees. This is the machine's SQLite runtime, not a sidebar change.

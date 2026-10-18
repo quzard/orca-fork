@@ -115,11 +115,9 @@ launchd 里签名可能停在 Orca Local Signing 的钥匙串确认上。`--boot
 
 ## F040 自用发布
 
-- 入口：[fork/scripts/release-personal-orca.mjs](fork/scripts/release-personal-orca.mjs)
-- 本机任务检查：[fork/scripts/personal-orca-host.py](fork/scripts/personal-orca-host.py)（只保留 `local check`）
-- 发布分支由 `ORCA_FORK_RELEASE_BRANCH` 指定。未设置就停止。先推送，再确认已包含 `upstream/main`，不自动提交。有存活终端或不可确认任务时停止。
-- 构建交给安装脚本：上游发布步骤、`darwin-arm64` 与 Linux glibc orcad 槽、`dist/mac-arm64/Orca.app`。安装、ready 验收、清理旧应用，失败时按本批备份回退。
-- 构建期间工作区出现任何脏路径都阻止安装。
+- 家里的 Mac 用 [fork/scripts/mac-auto-update.sh](fork/scripts/mac-auto-update.sh) 构建、签名并发布（见“应用内更新”）。构建步骤是 [fork/scripts/install-mac-release.sh](fork/scripts/install-mac-release.sh) `--build-only`：上游发布步骤、`darwin-arm64` 与 Linux glibc orcad 槽、`dist/mac-arm64/Orca.app`。
+- 手动安装仍用 `install-mac-release.sh`：安装前备份旧应用，替换失败时改回；验收后用 `--cleanup-verified-backups` 清理。
+- 旧的手动发布入口 `release-personal-orca.mjs`、它的 `personal-release-checks.cjs` 和本机任务检查 `personal-orca-host.py` 已删除，Mac 上从未使用。
 
 ## 内部标识
 

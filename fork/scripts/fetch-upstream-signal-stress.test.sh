@@ -6,7 +6,10 @@
 # 只能被 KILL 结束的次数用 ORCA_FETCH_STRESS_KILL_RUNS 调（每个信号，默认 3）；fetch 已经在跑时信号发给脚本
 # 整个进程组（launchd 的做法）的次数用 ORCA_FETCH_STRESS_GROUP_RUNS 调（每个信号，默认 100）；
 # ORCA_FETCH_STRESS_BASH 换被测的 bash（比如自己编译的 3.2）。不接触网络：fetch 是假的 git。
-# A missing bash, ps, git, perl or awk fails the test with a message on stderr and exit 2.
+# A missing bash, ps, git, perl or awk fails the test with a message on stderr and exit 2. Started
+# with SIGINT ignored, it reruns itself with INT reset (signal-test-preflight.sh). Runs in the same
+# checkout do not touch each other: each one tests its own copy of the script, in its own temp dir,
+# and only looks at (and kills) processes of that copy, its temp dir or its own helper.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -31,6 +34,9 @@ if [[ -z "$("$BASH_BIN" -c 'echo "${BASH_VERSION:-}"' 2>/dev/null)" ]]; then
   echo "fetch signal stress: ${BASH_BIN} does not run as bash" >&2
   exit 2
 fi
+# shellcheck source=fork/scripts/signal-test-preflight.sh
+. "${ROOT}/fork/scripts/signal-test-preflight.sh"
+ensure_int_trappable "fetch signal stress" "$BASH_BIN" "$@"
 # The test's own checks use this ps, never the one (or none) on the PATH the script gets.
 PS_BIN="$(need "ps (to look for leftover processes)" ps)" || exit 2
 if [[ -z "$("$PS_BIN" -A -o pid= 2>/dev/null)" ]]; then
@@ -46,6 +52,10 @@ TIMEOUT=20
 # 一次运行最多等这么久就从外面 KILL 掉脚本的进程组，算失败，测试本身不会卡死。
 HARD_CAP=$((TIMEOUT + 15))
 BASE="$(mktemp -d "${TMPDIR:-/tmp}/orca-fetch-stress.XXXXXX")"
+# This run's own copy, so the leftover check (it matches the script's path) never sees a script
+# another run or check-commit-identity.test.sh started from the checkout.
+cp "$FETCH" "${BASE}/fetch-upstream-main.sh"
+FETCH="${BASE}/fetch-upstream-main.sh"
 FAILS=0
 fail() {
   echo "FAIL: $*" >&2
@@ -53,7 +63,8 @@ fail() {
 }
 
 # The fetch's child sleeps for a length unique to this test run, so a parallel run's is not counted.
-helper="sleep $((100000 + $$))"
+helper_secs=$((100000 + $$))
+helper="sleep ${helper_secs}"
 fake_bin="${BASE}/fake-bin"
 mkdir -p "$fake_bin" "${BASE}/repo"
 # 假的 git：fetch 时起一个子进程（模拟 git-remote-https）然后一直等；其他子命令交给真的 git。
@@ -88,9 +99,11 @@ now_ms() {
 # 脚本路径、临时目录（假 git）或 fetch 子进程的进程（fetch 在自己的进程组里）。
 leftovers() {
   # Patterns come in through the environment, so this awk does not match its own command line.
-  "$PS_BIN" -A -o pid=,pgid=,stat=,args= 2>/dev/null | G="$1" F="$FETCH" B="$BASE" S="$helper" awk '
+  # The helper is matched exactly: another run's helper may have a longer number with ours in it.
+  "$PS_BIN" -A -o pid=,pgid=,stat=,args= 2>/dev/null | G="$1" F="$FETCH" B="$BASE" S="$helper_secs" awk '
     $3 ~ /^Z/ { next }
-    $2 == ENVIRON["G"] || index($0, ENVIRON["F"]) || index($0, ENVIRON["B"]) || index($0, ENVIRON["S"]) { print }'
+    $2 == ENVIRON["G"] || index($0, ENVIRON["F"]) || index($0, ENVIRON["B"]) ||
+      ($4 ~ /(^|\/)sleep$/ && $5 == ENVIRON["S"] && NF == 5) { print }'
 }
 cleanup_leftovers() {
   local pid

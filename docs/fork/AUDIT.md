@@ -2,7 +2,7 @@
 
 由 `fork/scripts/generate-audit.py` 生成，改了 fork 文件后重新运行并用 oxfmt 格式化。每个和上游 3af9c22cc9 不同的文件一行，另列已恢复成上游和已删除的文件。`src/fork/audit-table.fork.test.ts` 检查表和仓库一致。
 
-共 352 行：delete 8，keep 320，revert-to-upstream 4，shrink 20；⚠ 不确定 1 个（保留）。
+共 353 行：delete 8，keep 321，revert-to-upstream 4，shrink 20；⚠ 不确定 1 个（保留）。
 上游文件（不含 fork 目录）里的 fork 改动行数：PR #6 之前（b7755e6357）1760，现在 1509。
 
 | 文件                                                                                    | 功能                     | 决定               | 原因                                                                                                                                                                                                                            |
@@ -49,6 +49,7 @@
 | `fork/scripts/publish-mac-release.sh`                                                   | F040 Mac 构建发布        | shrink             | PR E：清单上传并入 upload_one（force），去掉重复逻辑                                                                                                                                                                            |
 | `fork/scripts/publish-mac-release.test.sh`                                              | F040 Mac 构建发布        | keep               | PR E：加同大小不安全清单必须替换的用例                                                                                                                                                                                          |
 | `fork/scripts/release-personal-orca.mjs`                                                | F040 Mac 构建发布        | delete             | PR E：唯一用途是调用 personal-orca-host.py；Mac 上从未使用                                                                                                                                                                      |
+| `fork/scripts/signal-test-preflight.sh`                                                 | INFRA 登记/工程/文档     | keep               | 发 INT 的 shell 测试共用的预检：INT 被忽略时用 perl 恢复后重跑，否则以 2 退出                                                                                                                                                   |
 | `fork/scripts/sync-skills-source-commit.mjs`                                            | SKL 技能 pin             | keep               | fork 自有文件                                                                                                                                                                                                                   |
 | `fork/scripts/uninstall-mac-auto-update-agent.sh`                                       | F040 Mac 构建发布        | keep               | fork 自有文件                                                                                                                                                                                                                   |
 | `fork/scripts/verify-packaged-cli-closure.mjs`                                          | INFRA 登记/工程/文档     | keep               | fork 自有文件                                                                                                                                                                                                                   |

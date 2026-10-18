@@ -1,4 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process'
+import { computerUsePermissionHelperArgs } from '../../shared/fork-hooks/computer-use-permission'
 import { RuntimeClientError } from './runtime-client-error'
 import { readMacosBundleId, resetMacosTccPermission } from '../macos-tcc-reset'
 import { resolveMacOSComputerUseAppPath } from './macos-native-provider-paths'
@@ -61,7 +62,10 @@ async function openComputerUsePermissionsAsync(
   }
 
   closeExistingPermissionHelpers()
-  const helperArgs = permissionId ? ['--permission', permissionId] : ['--permissions']
+  const helperArgs = [
+    ...(permissionId ? ['--permission', permissionId] : ['--permissions']),
+    ...computerUsePermissionHelperArgs()
+  ]
   const helper = spawn('/usr/bin/open', ['-n', helperAppPath, '--args', ...helperArgs], {
     detached: true,
     stdio: 'ignore'

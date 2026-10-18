@@ -2,19 +2,24 @@
 """Regenerate docs/fork/AUDIT.md: one row per file that differs from the upstream base.
 
 Usage: python3 fork/scripts/generate-audit.py [REV]   (REV defaults to HEAD; --index uses staged files)
-Needs the upstream base 1b3113de8e, b7755e6357 (develop before PR #6) and 8fd7c96acc (before
-PR #7) in the clone. Decisions and reasons below are hand-written; rows with no entry get a
+The upstream base is the commit src/cli/skills-source-commit.ts pins (the daily sync moves it
+to each merged upstream). Needs that base, b7755e6357 (develop before PR #6), its upstream base
+1b3113de8e, and 8fd7c96acc (before PR #7) in the clone. Decisions and reasons below are hand-written; rows with no entry get a
 generic reason from the file's location. Rerun after changing fork files and commit the result.
 """
 import os,subprocess,re,sys,collections
 R=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 REV=sys.argv[1] if len(sys.argv)>1 else 'HEAD'
 def g(*a): return subprocess.run(['git','-C',R,*a],capture_output=True,text=True).stdout
-UP='1b3113de8e'; PRD0='b7755e6357'; BASE='8fd7c96acc'
+PRD0='b7755e6357'; PRD0_UP='1b3113de8e'; BASE='8fd7c96acc'
 def against(rev):
     return [UP,'--cached'] if rev=='--index' else [UP,rev]
 def blob(rev,f):
     return f':{f}' if rev=='--index' else f'{rev}:{f}'
+UP=re.search(r"FORK_SKILLS_SOURCE_COMMIT = '([0-9a-f]{40})'",g('show',blob(REV,'src/cli/skills-source-commit.ts'))).group(1)[:10]
+def nlines_prd0(f):
+    # PR #6 之前的 develop 对它自己的上游基点（不是现在的基点），否则合并进来的上游改动会算成 fork 改动。
+    d=g('diff',PRD0_UP,PRD0,'--',f); return sum(1 for l in d.splitlines() if l[:1] in '+-' and l[:3] not in ('+++','---'))
 def nlines(rev,f):
     d=g('diff',*against(rev),'--',f); return sum(1 for l in d.splitlines() if l[:1] in '+-' and l[:3] not in ('+++','---'))
 st=[l.split('\t') for l in g('diff','--name-status',*against(REV)).splitlines()]
@@ -94,13 +99,13 @@ for s,*fs in st:
     elif s=='A' or FORKROOT.match(f):
         d='keep'; why='fork 自有文件' + ('（测试）' if '.test.' in f else '')
     else:
-        a=nlines(PRD0,f); b=nlines(REV,f)
+        a=nlines_prd0(f); b=nlines(REV,f)
         if b<a:
             d='shrink'
             how='排除列表改成通配' if 'tsconfig' in f else ('恢复上游内容，fork 断言搬到 src/fork' if '.test.' in f else '逻辑搬进 src/fork，上游只留调用')
             why=f'PR D：上游文件里的 fork 改动 {a}→{b} 行（{how}）'
         else: d='keep'; why=f'上游文件，fork 改动 {b} 行，已是最小写法'
-    if s=='M' and not FORKROOT.match(f): tot1+=nlines(REV,f); tot0+=nlines(PRD0,f)
+    if s=='M' and not FORKROOT.match(f): tot1+=nlines(REV,f); tot0+=nlines_prd0(f)
     cnt[d]+=1; rows.append(f'| `{f}` | {feat(f)} | {d} | {why} |')
 for f,why in REVERTED.items():
     if g('diff','--name-only',*against(REV),'--',f).strip() or not g('cat-file','-t',blob(REV,f)).strip(): continue
@@ -110,8 +115,8 @@ for f,why in DEL.items():
     cnt['delete']+=1; rows.append(f'| `{f}` | {feat(f)} | delete | PR E：{why}；Mac 上从未使用 |')
 rows.sort(key=lambda r:r.split('`')[1])
 unsure=sum('⚠' in r for r in rows)
-head=['# Fork 文件逐个审计（对比上游 1b3113de8e）','',
-'由 `fork/scripts/generate-audit.py` 生成，改了 fork 文件后重新运行并用 oxfmt 格式化。每个和上游 1b3113de8e 不同的文件一行，另列已恢复成上游和已删除的文件。`src/fork/audit-table.fork.test.ts` 检查表和仓库一致。','',
+head=[f'# Fork 文件逐个审计（对比上游 {UP}）','',
+f'由 `fork/scripts/generate-audit.py` 生成，改了 fork 文件后重新运行并用 oxfmt 格式化。每个和上游 {UP} 不同的文件一行，另列已恢复成上游和已删除的文件。`src/fork/audit-table.fork.test.ts` 检查表和仓库一致。','',
 f'共 {len(rows)} 行：'+'，'.join(f'{k} {v}' for k,v in sorted(cnt.items()))+f'；⚠ 不确定 {unsure} 个（保留）。',
 f'上游文件（不含 fork 目录）里的 fork 改动行数：PR #6 之前（b7755e6357）{tot0}，现在 {tot1}。','',
 '| 文件 | 功能 | 决定 | 原因 |','|---|---|---|---|']

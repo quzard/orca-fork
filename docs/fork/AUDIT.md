@@ -2,8 +2,8 @@
 
 由 `fork/scripts/generate-audit.py` 生成，改了 fork 文件后重新运行并用 oxfmt 格式化。每个和上游 1b3113de8e 不同的文件一行，另列已恢复成上游和已删除的文件。`src/fork/audit-table.fork.test.ts` 检查表和仓库一致。
 
-共 337 行：delete 8，keep 307，revert-to-upstream 4，shrink 18；⚠ 不确定 1 个（保留）。
-上游文件（不含 fork 目录）里的 fork 改动行数：PR #6 之前（b7755e6357）1760，现在 1492。
+共 339 行：delete 8，keep 309，revert-to-upstream 4，shrink 18；⚠ 不确定 1 个（保留）。
+上游文件（不含 fork 目录）里的 fork 改动行数：PR #6 之前（b7755e6357）1760，现在 1497。
 
 | 文件                                                                                    | 功能                     | 决定               | 原因                                                                                                                            |
 | --------------------------------------------------------------------------------------- | ------------------------ | ------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -134,6 +134,7 @@
 | `src/fork/sidebar/directory-label.ts`                                                   | SB 侧栏                  | keep               | fork 自有文件                                                                                                                   |
 | `src/fork/sidebar/group-drag-session.fork.test.tsx`                                     | SB 侧栏                  | keep               | fork 自有文件（测试）                                                                                                           |
 | `src/fork/sidebar/group-drop-order.fork.test.tsx`                                       | SB 侧栏                  | keep               | fork 自有文件（测试）                                                                                                           |
+| `src/fork/sidebar/group-drop-order.tsx`                                                 | SB 侧栏                  | keep               | PR F 新增：手动排序跨组拖放的排序值；邻居相同或间隔用尽时只重排目标分区                                                         |
 | `src/fork/sidebar/group-drop-precedence.fork.test.tsx`                                  | SB 侧栏                  | keep               | fork 自有文件（测试）                                                                                                           |
 | `src/fork/sidebar/host-directory-render-args.ts`                                        | SB 侧栏                  | keep               | fork 自有文件                                                                                                                   |
 | `src/fork/sidebar/host-directory-render.tsx`                                            | SB 侧栏                  | keep               | fork 自有文件                                                                                                                   |
@@ -144,8 +145,9 @@
 | `src/fork/sidebar/membership.ts`                                                        | SB 侧栏                  | keep               | fork 自有文件                                                                                                                   |
 | `src/fork/sidebar/menu-groups.fork.test.tsx`                                            | SB 侧栏                  | keep               | fork 自有文件（测试）                                                                                                           |
 | `src/fork/sidebar/menu-groups.tsx`                                                      | SB 侧栏                  | keep               | PR F 新增：按有效分组和同主机过滤的菜单分组项，工作区级移动                                                                     |
+| `src/fork/sidebar/mode-labels-rerender.fork.test.tsx`                                   | SB 侧栏                  | keep               | fork 自有文件（测试）                                                                                                           |
 | `src/fork/sidebar/mode-labels.fork.test.tsx`                                            | SB 侧栏                  | keep               | fork 自有文件（测试）                                                                                                           |
-| `src/fork/sidebar/mode-labels.tsx`                                                      | SB 侧栏                  | keep               | PR F 新增：仅取消分组、主机模式和 SSH 删除按钮的翻译                                                                            |
+| `src/fork/sidebar/mode-labels.tsx`                                                      | SB 侧栏                  | keep               | PR F 新增：仅取消分组、主机模式和 SSH 删除按钮的翻译；切换语言时通知分组方式菜单重渲染                                          |
 | `src/fork/sidebar/nearest-section.fork.test.tsx`                                        | SB 侧栏                  | keep               | fork 自有文件（测试）                                                                                                           |
 | `src/fork/sidebar/nearest-section.ts`                                                   | SB 侧栏                  | keep               | PR F 新增：两行之间松手时取最近一行的分区                                                                                       |
 | `src/fork/sidebar/preserve-sidebar-group.fork.test.ts`                                  | SB 侧栏                  | keep               | fork 自有文件（测试）                                                                                                           |
@@ -162,7 +164,7 @@
 | `src/fork/sidebar/sidebar-fields-store-result.fork.test.tsx`                            | SB 侧栏                  | keep               | fork 自有文件（测试）                                                                                                           |
 | `src/fork/sidebar/sidebar-menu-slots.tsx`                                               | SB 侧栏                  | keep               | fork 自有文件                                                                                                                   |
 | `src/fork/sidebar/workspace-choice.tsx`                                                 | SB 侧栏                  | keep               | fork 自有文件                                                                                                                   |
-| `src/fork/sidebar/workspace-group-drop-plan.tsx`                                        | SB 侧栏                  | keep               | 跨次拖放队列；PR E：按错误码判断只写一半                                                                                        |
+| `src/fork/sidebar/workspace-group-drop-plan.tsx`                                        | SB 侧栏                  | keep               | 跨次拖放队列；PR E：按错误码判断只写一半；PR F：重新编号的邻居只写排序                                                          |
 | `src/fork/sidebar/workspace-group-drop.fork.test.tsx`                                   | SB 侧栏                  | keep               | fork 自有文件（测试）                                                                                                           |
 | `src/fork/sidebar/workspace-group-drop.tsx`                                             | SB 侧栏                  | keep               | fork 自有文件                                                                                                                   |
 | `src/fork/sidebar/workspace-group-labels.tsx`                                           | SB 侧栏                  | keep               | fork 自有文件                                                                                                                   |
@@ -256,7 +258,7 @@
 | `src/renderer/src/components/sidebar/HostSectionHeaderMenu.tsx`                         | SB 侧栏                  | keep               | 上游文件，fork 改动 2 行，已是最小写法                                                                                          |
 | `src/renderer/src/components/sidebar/LinearAgentSkillSetupPrompt.test.tsx`              | SKL 技能 pin             | keep               | 上游文件，fork 改动 3 行，已是最小写法                                                                                          |
 | `src/renderer/src/components/sidebar/ProjectGroupDeleteDialog.tsx`                      | SB 侧栏                  | keep               | 上游文件，fork 改动 33 行，已是最小写法                                                                                         |
-| `src/renderer/src/components/sidebar/SidebarGroupByToggle.tsx`                          | SB 侧栏                  | keep               | 上游文件，fork 改动 16 行，已是最小写法                                                                                         |
+| `src/renderer/src/components/sidebar/SidebarGroupByToggle.tsx`                          | SB 侧栏                  | keep               | 上游文件，fork 改动 21 行，已是最小写法                                                                                         |
 | `src/renderer/src/components/sidebar/WorktreeCard.tsx`                                  | SB 侧栏                  | keep               | 上游文件，fork 改动 2 行，已是最小写法                                                                                          |
 | `src/renderer/src/components/sidebar/WorktreeContextMenuView.tsx`                       | SB 侧栏                  | keep               | 右键菜单槽位；PR F：分组项改读 worktreeMenuGroups（未登记时为上游原值）                                                         |
 | `src/renderer/src/components/sidebar/WorktreeOpenInMenu.tsx`                            | SB 侧栏                  | keep               | 上游文件，fork 改动 77 行，已是最小写法                                                                                         |

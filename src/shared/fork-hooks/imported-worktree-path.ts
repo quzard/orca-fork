@@ -6,7 +6,7 @@ export function registerImportedWorktreePath(next: (repoPath: string) => string)
   resolvePath = next
 }
 
-export function resolveImportedWorktreePath(repoPath: string): string | undefined {
+function resolveImportedWorktreePath(repoPath: string): string | undefined {
   return resolvePath?.(repoPath)
 }
 

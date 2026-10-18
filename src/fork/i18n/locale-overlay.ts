@@ -5,7 +5,7 @@ import zh from './zh.json'
 
 const NAMESPACE = 'translation'
 
-export const FORK_LOCALE_OVERLAYS: Readonly<Record<string, Record<string, unknown>>> = { zh }
+const FORK_LOCALE_OVERLAYS: Readonly<Record<string, Record<string, unknown>>> = { zh }
 
 /**
  * Merges each overlay into its language as soon as that catalog lands. Catalogs load lazily, so

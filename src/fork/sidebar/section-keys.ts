@@ -4,7 +4,7 @@ import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
 import type { WorkspaceSortBy } from '../../shared/workspace-view/workspace-row-sort'
 
 export const HOST_DIRECTORY_GROUP_BY = 'host-directory'
-export const HOST_DIRECTORY_SECTION_PREFIX = 'hd:'
+const HOST_DIRECTORY_SECTION_PREFIX = 'hd:'
 export const PINNED_SECTION_KEY = 'pinned'
 export const UNGROUP_ONLY_OPTION_ID = 'ungroup-only'
 /** Group slot of an empty project header. Never written as a sidebarGroupId. */

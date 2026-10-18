@@ -20,14 +20,14 @@ type HostGroup<Session extends HostSession> = {
   sessions: Session[]
 }
 
-export function fullDirectoryLabel(pathValue: string | null): string {
+function fullDirectoryLabel(pathValue: string | null): string {
   if (!pathValue) {
     return UNKNOWN_LOCATION_LABEL
   }
   return normalizeRuntimePathSeparators(pathValue.normalize('NFC'))
 }
 
-export function isHostHeaderKey(key: string): boolean {
+function isHostHeaderKey(key: string): boolean {
   return key.startsWith(HOST_HEADER_PREFIX)
 }
 
@@ -36,7 +36,7 @@ export function hostHeaderKey(hostId: string): string {
 }
 
 /** Directory groups are `${host}::${folder}`. Host ids themselves contain colons. */
-export function directoryHostId(key: string): string | null {
+function directoryHostId(key: string): string | null {
   if (isHostHeaderKey(key)) {
     return null
   }

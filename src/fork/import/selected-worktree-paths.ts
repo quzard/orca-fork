@@ -2,10 +2,7 @@ import { normalizeRuntimePathForComparison } from '../../shared/cross-platform-p
 import { mergeExternalWorktreeInboxPaths } from '../../shared/external-worktree-inbox'
 
 /** Selected directories that are not the repo's own checkout. */
-export function selectedLinkedWorktreePaths(
-  repoPath: string,
-  selectedPaths: readonly string[]
-): string[] {
+function selectedLinkedWorktreePaths(repoPath: string, selectedPaths: readonly string[]): string[] {
   const repoKey = normalizeRuntimePathForComparison(repoPath)
   return selectedPaths.filter(
     (path) => path.trim().length > 0 && normalizeRuntimePathForComparison(path) !== repoKey

@@ -52,7 +52,7 @@ type RankOptions<T> = {
  * Prefer the workspace whose path leaves the shortest remainder under any alias.
  * Returns null when the session has no aliases, so callers keep their original sort.
  */
-export function rankForkCwdOwners<T>(
+function rankForkCwdOwners<T>(
   session: AliasSession,
   candidates: readonly T[],
   options: RankOptions<T>

@@ -7,7 +7,7 @@ import { directoryLabelForRepo, directoryLabelsForHost } from './directory-label
 import { resolveSidebarGroupId } from './membership'
 import { hostDirectoryDefaultHostId } from './section-keys'
 
-export function workspaceChoiceText(worktree: Worktree): { label: string; value: string } {
+function workspaceChoiceText(worktree: Worktree): { label: string; value: string } {
   const state = useAppStore.getState()
   const repo = state.repos.find((entry) => entry.id === worktree.repoId)
   const defaultHostId = hostDirectoryDefaultHostId()

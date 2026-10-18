@@ -6,7 +6,7 @@ import type {
 import { isCursorLauncherCommand } from './cursor-remote-url'
 import { resolveEnvironmentSshTargetId } from './environment-ssh-target'
 
-export const REMOTE_SSH_OPEN_METADATA = 'Remote SSH'
+const REMOTE_SSH_OPEN_METADATA = 'Remote SSH'
 
 export type RemoteOpenRouteState = {
   ownerUnresolved?: boolean

@@ -60,7 +60,7 @@ function elementGroupKey(container: HTMLElement, x: number, y: number): string |
   return element?.getAttribute(WORKSPACE_SIDEBAR_GROUP_ATTRIBUTE) ?? null
 }
 
-export function tryCommitWorkspaceGroupDrop(args: DropArgs): boolean {
+function tryCommitWorkspaceGroupDrop(args: DropArgs): boolean {
   const source = parseHostDirectorySectionKey(args.sourceGroupKey)
   if (!source || !args.container) {
     return false

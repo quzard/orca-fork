@@ -126,7 +126,7 @@ export function takeRegisteredSidebarRowPlan(
   return delegateRegisteredSidebarRowPlan(inputs.groupBy, inputs)
 }
 
-export function delegateRegisteredSidebarRowPlan(
+function delegateRegisteredSidebarRowPlan(
   groupBy: string,
   input: SidebarPlanArgs
 ): SidebarRowPlan | undefined {

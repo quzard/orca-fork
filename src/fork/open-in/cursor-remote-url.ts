@@ -1,7 +1,7 @@
 export const CURSOR_LAUNCHER_NAME = 'cursor'
 export const CURSOR_REMOTE_SSH_LAUNCHER_ID = 'cursor-remote-ssh'
 export const CURSOR_OPEN_IN_LABEL = 'Cursor'
-export const CURSOR_REMOTE_SSH_URL_PREFIX = 'cursor://vscode-remote/ssh-remote+'
+const CURSOR_REMOTE_SSH_URL_PREFIX = 'cursor://vscode-remote/ssh-remote+'
 export const CURSOR_REMOTE_NEW_WINDOW_QUERY = '?windowId=_blank'
 
 const WINDOWS_ABSOLUTE_PATH = /^(?:[a-z]:[\\/]|\\\\)/i
@@ -40,7 +40,7 @@ export function isCursorLauncherCommand(command: string | undefined): boolean {
  * `#`, `%` or a space, which would otherwise end the authority early or start the query. `@`
  * stays readable; Cursor decodes the rest when it parses the URL.
  */
-export function encodeCursorSshAuthority(authority: string): string {
+function encodeCursorSshAuthority(authority: string): string {
   return encodeURIComponent(authority).replace(/%40/g, '@')
 }
 

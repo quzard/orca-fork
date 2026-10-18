@@ -73,7 +73,7 @@ function pendingStagingVersion(): string | null {
   return stagingVersion
 }
 
-export function isForkGithubUpdateReady(): boolean {
+function isForkGithubUpdateReady(): boolean {
   return forkReleaseFeedDecision().kind === 'ready'
 }
 

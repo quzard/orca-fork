@@ -26,10 +26,7 @@ export type ForkUpdateEffects = {
   staging: (version: string) => void
 }
 
-export function takeForkFoundUpdate(
-  input: ForkFoundUpdateInput,
-  effects: ForkUpdateEffects
-): boolean {
+function takeForkFoundUpdate(input: ForkFoundUpdateInput, effects: ForkUpdateEffects): boolean {
   const effect = planForkFoundUpdate(input)
   if (effect === 'passthrough') {
     return false
@@ -51,7 +48,7 @@ export function takeForkFoundUpdate(
   return true
 }
 
-export function takeForkMissingUpdate(
+function takeForkMissingUpdate(
   userInitiated: boolean,
   effects: Pick<ForkUpdateEffects, 'schedule' | 'finish' | 'restart' | 'staging'>
 ): boolean {

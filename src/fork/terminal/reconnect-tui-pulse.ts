@@ -6,7 +6,7 @@ import {
   type TerminalReconnectFitInfo
 } from '../../shared/fork-hooks/terminal-lifecycle'
 
-export const TUI_REPAINT_PULSE_MS = 200
+const TUI_REPAINT_PULSE_MS = 200
 
 const pulseTokens = new Map<string, object>()
 const deferredPtyIds = new Set<string>()

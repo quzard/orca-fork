@@ -53,11 +53,24 @@ if [[ -f "${STATUS_DIR}/sync.env" ]]; then
 fi
 
 REPO="$ORCA_REPO"
-export http_proxy="${http_proxy:-http://127.0.0.1:6152}"
-export https_proxy="${https_proxy:-http://127.0.0.1:6152}"
-export ALL_PROXY="${ALL_PROXY:-http://127.0.0.1:6152}"
-export HTTP_PROXY="$http_proxy"
-export HTTPS_PROXY="$https_proxy"
+# 代理只从 sync.env（或调用方环境）读，脚本不内置地址。ORCA_PROXY 是三个变量的默认值；
+# 也可以在 sync.env 里直接写 http_proxy / https_proxy / ALL_PROXY。都没设时不走代理。
+if [[ -n "${ORCA_PROXY:-}" ]]; then
+  http_proxy="${http_proxy:-$ORCA_PROXY}"
+  https_proxy="${https_proxy:-$ORCA_PROXY}"
+  ALL_PROXY="${ALL_PROXY:-$ORCA_PROXY}"
+fi
+if [[ -n "${http_proxy:-}" ]]; then
+  export http_proxy
+  export HTTP_PROXY="$http_proxy"
+fi
+if [[ -n "${https_proxy:-}" ]]; then
+  export https_proxy
+  export HTTPS_PROXY="$https_proxy"
+fi
+if [[ -n "${ALL_PROXY:-}" ]]; then
+  export ALL_PROXY
+fi
 export NODE_USE_ENV_PROXY=1
 export ORCA_BACKGROUND_LAUNCH=1
 export ORCA_NODE_RUNTIME_CACHE_DIR="${ORCA_NODE_RUNTIME_CACHE_DIR:-${STATUS_DIR}/node-runtime-cache}"

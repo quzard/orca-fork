@@ -7,7 +7,6 @@ import {
 } from '../../shared/fork-hooks/ai-vault'
 import { markSecondaryVaultHosts } from './host-menu'
 import { registerAiVaultListPresentation } from './list-presentation'
-import { AiVaultIndexStatus } from './index-status'
 import { AiVaultCollapseAllButton, AiVaultHostStatus } from './panel-slots'
 
 export function registerForkRendererModules(): void {
@@ -22,10 +21,5 @@ export function registerForkRendererModules(): void {
     })
   )
   registerAiVaultPanelSlot('header-actions', () => <AiVaultCollapseAllButton />)
-  registerAiVaultPanelSlot('below-header', () => (
-    <>
-      <AiVaultHostStatus />
-      <AiVaultIndexStatus />
-    </>
-  ))
+  registerAiVaultPanelSlot('below-header', () => <AiVaultHostStatus />)
 }

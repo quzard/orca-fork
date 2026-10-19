@@ -1,14 +1,14 @@
 // @vitest-environment happy-dom
-// A fresh profile opening the right sidebar's Agents tab: the fork's index status in the panel's
-// below-header slot used to select a new host array on every store read, and zustand's
-// useSyncExternalStore re-rendered without end (React #185, "Maximum update depth exceeded").
+// A fresh profile opening the right sidebar's Agents tab with the fork's panel slots and list
+// presentation registered. A fork slot once selected a new array on every store read, and
+// zustand's useSyncExternalStore re-rendered without end (React #185, "Maximum update depth
+// exceeded"); every fork store read in the panel must stay stable.
 import { cleanup, render, screen } from '@testing-library/react'
 import { Component, type ReactNode } from 'react'
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest'
 import { useAppStore } from '@/store'
 import { registerForkModules } from '../register'
 import { registerForkRendererModules } from '../register-renderer'
-import { AiVaultIndexStatus } from './index-status'
 
 // No agent sessions at all, as in a profile that never ran one.
 vi.mock('../../renderer/src/components/right-sidebar/ai-vault-session-refresh', () => ({
@@ -72,21 +72,6 @@ it('opens the Agents panel of an empty profile without an update loop', async ()
   )
   await new Promise((resolve) => setTimeout(resolve, 20))
   expect(caught).toBeUndefined()
-  // The fork's index status rendered in the slot, so the check above covered it.
-  expect(screen.getByRole('button', { name: 'Index status' })).toBeTruthy()
-})
-
-it('lists the local host, SSH targets and runtime environments in the index status', () => {
-  useAppStore.setState({
-    sshTargetLabels: new Map([['target-1', 'Build box']]),
-    runtimeEnvironments: [{ id: 'env-1', name: 'Cloud runtime' }] as never
-  })
-  render(
-    <Boundary>
-      <AiVaultIndexStatus />
-    </Boundary>
-  )
-  expect(caught).toBeUndefined()
-  expect(screen.getByText('Build box')).toBeTruthy()
-  expect(screen.getByText('Cloud runtime')).toBeTruthy()
+  // The fork's header slot rendered, so the check above covered the fork's panel code.
+  expect(screen.getByRole('button', { name: 'Collapse all groups' })).toBeTruthy()
 })

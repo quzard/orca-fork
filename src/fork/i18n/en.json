@@ -3,12 +3,6 @@
     "aiVault": {
       "collapseAll": "Collapse all groups",
       "hostCount": "{{count}} hosts",
-      "indexNotReady": "Index is not ready · results may be incomplete",
-      "indexOff": "Full-text indexing is off",
-      "indexOffline": "Offline · index status unknown",
-      "indexStatus": "Index status",
-      "indexUnavailable": "Index status is unavailable on this host",
-      "listUpdating": "History list is updating",
       "otherHosts": "Other configured hosts",
       "scanning": "Scanning history…"
     },

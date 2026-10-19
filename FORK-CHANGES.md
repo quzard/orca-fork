@@ -52,7 +52,7 @@
 
 ## 界面中文
 
-fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、设置里批量移除项目、跨组拖放的提示、历史面板的索引状态、SSH 连接状态名、父目录导入提示、工作区右键菜单的“休眠”和“删除所选”）的英文在 `src/fork/i18n/en.json`，中文在 `src/fork/i18n/zh.json`。渲染进程登记时把两份分别合进 en 和 zh 语言包：只补缺少的键，上游已有的条目优先；其他语言经 i18next 的英文回退拿到英文。上游的 `en.json`、`en-runtime-required.json` 和 `zh.json` 都与上游一致，上游文件不翻译任何 fork 键。“仅取消分组”选项和“主机”分组模式在 `register-mode.ts`（不依赖界面的代码）里登记英文，渲染进程由 `src/fork/sidebar/mode-labels.tsx` 换成随语言变化的取值。删除 SSH 目标对话框里上游写死的 `Remove` / `Removing` 经钩子 `ssh-target-remove-labels.ts` 翻译成“删除”/“正在删除”。工作区右键菜单里上游写死的 `Sleep`、`Sleep N Workspace(s)`、`Delete Selected`、`Delete N Workspace(s)` 经钩子 `worktree-context-menu-labels.ts` 交给 `src/fork/sidebar/context-menu-labels.tsx` 翻译；没有登记时原样用上游的英文。fork 代码统一用 `src/fork/i18n/fork-translate.tsx` 的 `forkTranslate` 翻译，上游的提取检查（`config/i18next.config.ts`，与上游一致）只认 `translate` 等函数名，看不到 fork 键；fork 键由 `src/fork/i18n/fork-keys-catalog.fork.test.ts` 检查：fork 代码里每个字面量键都要有英文，且上游文件不引用 fork 键。测试还保证每个 fork 英文键都有中文，且占位符一致。
+fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、设置里批量移除项目、跨组拖放的提示、SSH 连接状态名、父目录导入提示、工作区右键菜单的“休眠”和“删除所选”）的英文在 `src/fork/i18n/en.json`，中文在 `src/fork/i18n/zh.json`。渲染进程登记时把两份分别合进 en 和 zh 语言包：只补缺少的键，上游已有的条目优先；其他语言经 i18next 的英文回退拿到英文。上游的 `en.json`、`en-runtime-required.json` 和 `zh.json` 都与上游一致，上游文件不翻译任何 fork 键。“仅取消分组”选项和“主机”分组模式在 `register-mode.ts`（不依赖界面的代码）里登记英文，渲染进程由 `src/fork/sidebar/mode-labels.tsx` 换成随语言变化的取值。删除 SSH 目标对话框里上游写死的 `Remove` / `Removing` 经钩子 `ssh-target-remove-labels.ts` 翻译成“删除”/“正在删除”。工作区右键菜单里上游写死的 `Sleep`、`Sleep N Workspace(s)`、`Delete Selected`、`Delete N Workspace(s)` 经钩子 `worktree-context-menu-labels.ts` 交给 `src/fork/sidebar/context-menu-labels.tsx` 翻译；没有登记时原样用上游的英文。fork 代码统一用 `src/fork/i18n/fork-translate.tsx` 的 `forkTranslate` 翻译，上游的提取检查（`config/i18next.config.ts`，与上游一致）只认 `translate` 等函数名，看不到 fork 键；fork 键由 `src/fork/i18n/fork-keys-catalog.fork.test.ts` 检查：fork 代码里每个字面量键都要有英文，且上游文件不引用 fork 键。测试还保证每个 fork 英文键都有中文，且占位符一致。
 
 分组方式菜单里的“主机”标签是随语言取值的 getter：`mode-labels.tsx` 监听 i18n 的 `languageChanged`，通知 `sidebar-group-mode.ts` 里的标签版本号；上游 `SidebarGroupByToggle` 只加一个 `useSyncExternalStore` 调用订阅它（第三个参数 `getServerSnapshot` 也传版本号读取函数，上游测试用 react-dom/server 渲染侧栏，缺了会报 `Missing getServerSnapshot`；fork 里所有 `useSyncExternalStore` 都传这个参数，`src/fork/server-snapshot.fork.test.tsx` 检查），切换界面语言后菜单立即换成新语言，不用等别的东西触发重渲染。没登记模式时版本号不变，和上游一样。
 
@@ -91,8 +91,8 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 ## 历史会话（已登记）
 
 - 列表默认看所有主机。多台主机先有可折叠的主机行，下面是完整目录；只有一台主机时不重复主机行。新组默认收起，标题栏一次收起主机和目录。
-- 全文搜索保持命中顺序。多台主机的命中在行上标出来源。索引状态默认收起，离线、读失败、索引未就绪或有细节行时展开。列表正在刷新时另写一行。逐主机最近成功扫描时间属于已移除的主机扫描缓存，不再显示。主机菜单把没有会话、不是当前主机、也没连上的远端收进「其他已配置主机」。
-- 索引状态的主机列表在渲染时由 `sshTargetLabels` 和 `runtimeEnvironments` 两个稳定的 store 引用拼出来，不在 zustand 选择器里新建数组：选择器每次返回新数组时，zustand 的 `useSyncExternalStore` 一直重渲染，打开右侧栏「Agents」页就报 React #185（Maximum update depth exceeded），右侧栏崩溃。`src/fork/ai-vault/agents-panel-empty-profile.fork.test.tsx` 用空配置渲染整个面板检查。
+- 全文搜索保持命中顺序。多台主机的命中在行上标出来源。历史面板里不另显示索引状态（以前 fork 在列表上方逐主机列出，已删除），索引状态只在上游的设置「智能体会话搜索」页里看。主机菜单把没有会话、不是当前主机、也没连上的远端收进「其他已配置主机」。
+- `src/fork/ai-vault/agents-panel-empty-profile.fork.test.tsx` 用空配置渲染整个「Agents」面板（登记了 fork 的面板插槽和列表呈现），检查不会报 React #185（Maximum update depth exceeded）：fork 插槽以前在 zustand 选择器里每次新建数组，`useSyncExternalStore` 一直重渲染，右侧栏崩溃。
 - 扫描进程的内存按本机内存计算，下限仍是 384 MiB。工具输出按块写入索引，索引版本 +1，旧的截断索引会重建。
 - 启动时浏览器分区的代理改成后台应用，不再挡住第一个窗口。每个分区在排队时同步标成「代理未就绪」，请求守卫会扣住该分区的请求直到代理生效，失败则取消请求，所以不会有请求先走直连。`src/fork/main/startup/browser-session-proxy.fork.test.ts` 验证这一点。
 - Mac 签名忽略 `/ai-vault/` 静态资源。

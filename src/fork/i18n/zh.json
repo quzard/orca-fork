@@ -3,12 +3,6 @@
     "aiVault": {
       "collapseAll": "折叠所有分组",
       "hostCount": "{{count}} 台主机",
-      "indexNotReady": "索引尚未就绪 · 结果可能不完整",
-      "indexOff": "全文索引已关闭",
-      "indexOffline": "离线 · 索引状态未知",
-      "indexStatus": "索引状态",
-      "indexUnavailable": "此主机无法获取索引状态",
-      "listUpdating": "历史列表正在更新",
       "otherHosts": "其他已配置主机",
       "scanning": "正在扫描历史…"
     },

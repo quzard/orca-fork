@@ -1,5 +1,5 @@
 import { ImeInput } from '@/lib/ime-text-field'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { LoaderCircle, RefreshCw, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
@@ -27,6 +27,9 @@ type AiVaultPanelHeaderProps = {
   adjustmentCount: number
   /** Bumped by a caller that sent the user here, e.g. Settings; focuses the search box once. */
   focusSearchRequestId?: number
+  headerAction?: ReactNode
+  /** Sees search keys first; a handled key is default-prevented. */
+  onSearchKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void
   onQueryChange: (query: string) => void
   onScopeChange: (scope: AiVaultScope) => void
   onExecutionHostScopeChange: (scope: ExecutionHostScope) => void
@@ -55,6 +58,8 @@ export function AiVaultPanelHeader({
   sessionLimit,
   adjustmentCount,
   focusSearchRequestId = 0,
+  headerAction,
+  onSearchKeyDown,
   onQueryChange,
   onScopeChange,
   onExecutionHostScopeChange,
@@ -137,7 +142,11 @@ export function AiVaultPanelHeader({
               <RefreshCw className="size-3" />
             )}
           </Button>
+<<<<<<< HEAD
           <ForkAiVaultSlot id="header-actions" />
+=======
+          {headerAction}
+>>>>>>> dd85af143466a6dbb3f0b9649dcc3bd0854f3afb
         </div>
       </div>
 
@@ -166,7 +175,9 @@ export function AiVaultPanelHeader({
             'Search sessions'
           )}
           onKeyDown={(event) => {
-            if (event.key === 'Escape') {
+            onSearchKeyDown?.(event)
+            // A dialog host clears the search itself before this runs, and prevents its own close.
+            if (event.key === 'Escape' && !event.defaultPrevented) {
               event.stopPropagation()
               onQueryChange('')
             }

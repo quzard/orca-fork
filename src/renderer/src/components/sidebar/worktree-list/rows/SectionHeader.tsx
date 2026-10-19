@@ -93,11 +93,18 @@ export function renderWorktreeSectionHeaderRow(args: {
 }): React.JSX.Element {
   const { ctx, row, vItem, isActiveStickyHeader } = args
   const { headerDrag } = ctx
+<<<<<<< HEAD
   // fork: 已登记分组沿用项目标题的菜单和拖放，而不是 PR 标题。
   const repoChrome = ctx.groupBy === 'repo' || lookupSidebarGroupMode(ctx.groupBy) !== undefined
   const isRepoHeader = repoChrome && row.repo !== undefined
   const isProjectGroupHeader = repoChrome && row.projectGroup !== undefined
   const projectIdForHeader = isRepoHeader ? row.repo!.id : undefined
+=======
+  const isRepoHeader = ctx.groupBy === 'repo' && row.repo !== undefined
+  const isProjectGroupHeader = ctx.groupBy === 'repo' && row.projectGroup !== undefined
+  const headerRepo = isRepoHeader ? row.repo : undefined
+  const projectIdForHeader = headerRepo?.id
+>>>>>>> dd85af143466a6dbb3f0b9649dcc3bd0854f3afb
   const projectGroupIdForHeader =
     isProjectGroupHeader && !row.repo && typeof row.projectGroup?.id === 'string'
       ? row.projectGroup.id
@@ -282,8 +289,8 @@ export function renderWorktreeSectionHeaderRow(args: {
             : undefined
         }
         onPointerDown={
-          isDraggableRepoHeader && projectIdForHeader
-            ? (event) => headerDrag.repoDrag.onHandlePointerDown(event, projectIdForHeader)
+          isDraggableRepoHeader && headerRepo
+            ? (event) => headerDrag.repoDrag.onHandlePointerDown(event, headerRepo)
             : isDraggableProjectGroupHeader && projectGroupIdForHeader
               ? (event) =>
                   headerDrag.projectGroupDrag.onHandlePointerDown(event, projectGroupIdForHeader)

@@ -1,7 +1,6 @@
 import {
   ALL_EXECUTION_HOSTS_SCOPE,
   LOCAL_EXECUTION_HOST_ID,
-  getLocalExecutionHostLabel,
   getRepoExecutionHostId,
   getWorktreeExecutionHostId,
   type ExecutionHostId,
@@ -84,12 +83,12 @@ function getRowHostId(
   }
 }
 
-function getFallbackHost(hostId: ExecutionHostId): HostSectionOption {
+function getFallbackHost(hostId: ExecutionHostId, localHostLabel: string): HostSectionOption {
   const isLocal = hostId === LOCAL_EXECUTION_HOST_ID
   return {
     id: hostId,
     kind: isLocal ? 'local' : hostId.startsWith('ssh:') ? 'ssh' : 'runtime',
-    label: isLocal ? getLocalExecutionHostLabel() : hostId,
+    label: isLocal ? localHostLabel : hostId,
     detail: isLocal ? 'This computer' : 'Host',
     health: isLocal ? 'local' : 'available'
   }
@@ -183,6 +182,8 @@ export function addHostSectionRows(args: {
   workspaceHostScope: ExecutionHostScope
   visibleWorkspaceHostIds?: readonly ExecutionHostId[] | null
   defaultHostId: ExecutionHostId
+  /** The listed host's own name for itself; a phone reader must not derive it from its own platform. */
+  localHostLabel: string
   // Why: host sections reuse the sidebar's persisted collapsed-group keys
   // (`host:<hostId>`) so collapse state survives restarts like other groups.
   collapsedHostKeys?: ReadonlySet<string>
@@ -303,7 +304,7 @@ export function addHostSectionRows(args: {
     if (!hostRows || hostRows.length === 0) {
       continue
     }
-    const host = hostOptionsById.get(hostId) ?? getFallbackHost(hostId)
+    const host = hostOptionsById.get(hostId) ?? getFallbackHost(hostId, args.localHostLabel)
     const collapsed =
       args.forceCollapseHosts || (args.collapsedHostKeys?.has(`host:${host.id}`) ?? false)
     result.push({

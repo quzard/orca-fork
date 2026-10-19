@@ -207,20 +207,12 @@ export function useWorktreeContextMenuModel({
   const removesProject = shouldRemoveProjectFromContextMenu(repo, worktree)
   // fork: one call; unregistered it returns upstream's English below unchanged.
   const { sleepLabel, deleteLabel } = worktreeContextMenuLabels(
+    { isMultiContext, sleepCount: sleepableWorktrees.length, deleteCount: batchDeleteWorktrees.length },
     {
-      isMultiContext,
-      sleepCount: sleepableWorktrees.length,
-      deleteCount: batchDeleteWorktrees.length
-    },
-    {
-      sleepLabel:
-        isMultiContext && sleepableWorktrees.length > 0
-          ? `Sleep ${sleepableWorktrees.length} Workspace${sleepableWorktrees.length === 1 ? '' : 's'}`
-          : 'Sleep',
-      deleteLabel:
-        isMultiContext && batchDeleteWorktrees.length > 0
-          ? `Delete ${batchDeleteWorktrees.length} Workspace${batchDeleteWorktrees.length === 1 ? '' : 's'}`
-          : 'Delete Selected'
+      sleepLabel: isMultiContext && sleepableWorktrees.length > 0 ? `Sleep ${sleepableWorktrees.length} Workspace${sleepableWorktrees.length === 1 ? '' : 's'}` : 'Sleep',
+      deleteLabel: isMultiContext && batchDeleteWorktrees.length > 0
+        ? `Delete ${batchDeleteWorktrees.length} Workspace${batchDeleteWorktrees.length === 1 ? '' : 's'}`
+        : 'Delete Selected'
     }
   )
   const hasParentLink = hasWorktreeParentLink(

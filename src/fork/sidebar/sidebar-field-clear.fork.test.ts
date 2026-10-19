@@ -17,6 +17,7 @@ import type { RuntimeStore } from '../../main/runtime/runtime-store-contract'
 import type { ResolvedWorktree } from '../../main/runtime/runtime-worktree-path-identity'
 import type { Worktree } from '../../shared/worktree/types'
 import { closeTestStores, createStore, testState } from '../../main/persistence-test-harness'
+import { hostWorktreeTarget } from '../../shared/worktree/host-qualified-identity'
 
 vi.mock('../../main/ssh/ssh-config-parser', () => ({
   loadUserSshConfig: vi.fn(),
@@ -99,12 +100,11 @@ describe('runtime worktree.set clear', () => {
       path: '/srv/app',
       instanceId: 'i-1'
     } as unknown as ResolvedWorktree
-    const setWorktreeMetaForHost = vi.fn()
+    const setWorktreeMeta = vi.fn()
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the update only reads these store members.
     const store = {
       getRepos: () => [],
-      setWorktreeMeta: vi.fn(),
-      setWorktreeMetaForHost
+      setWorktreeMeta
     } as unknown as RuntimeStore
     await updateRuntimeManagedWorktreeMetadata({
       selector: `id:${worktree.id}`,
@@ -119,7 +119,8 @@ describe('runtime worktree.set clear', () => {
         showWorktree: vi.fn(async () => worktree as unknown as Worktree)
       }
     })
-    expect(setWorktreeMetaForHost.mock.calls[0]?.[2]).toStrictEqual({
+    // 写入走 setWorktreeMeta(target, updates)。清掉的字段是 updates 里自己的 undefined 键。
+    expect(setWorktreeMeta.mock.calls[0]?.[1]).toStrictEqual({
       comment: 'c',
       sidebarGroupId: undefined,
       manualOrder: undefined
@@ -138,9 +139,12 @@ describe('store: own group and manual order', () => {
 
   it('a worktree meta write clears both fields', async () => {
     const store = await createStore()
-    store.setWorktreeMeta('r1::/srv/wt', { sidebarGroupId: 'g1', manualOrder: 5 })
+    const target = hostWorktreeTarget({ id: 'r1::/srv/wt', hostId: 'local' })
+    const written = store.setWorktreeMeta(target, { sidebarGroupId: 'g1', manualOrder: 5 })
+    expect(written.sidebarGroupId).toBe('g1')
+    expect(written.manualOrder).toBe(5)
     const meta = store.setWorktreeMeta(
-      'r1::/srv/wt',
+      target,
       decodeSidebarFieldClears({}, ['sidebarGroupId', 'manualOrder'])
     )
     expect(meta.sidebarGroupId).toBeUndefined()

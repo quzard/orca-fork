@@ -35,7 +35,9 @@ function memoryStore(initial: Partial<WorktreeMeta>) {
   return {
     rows,
     getRepos: () => [],
-    setWorktreeMeta: (id: string, updates: Partial<WorktreeMeta>) => write(id, updates),
+    // 上游现在传入 { id, hostId }。后两个用例仍直接传字符串，所以两种都认。
+    setWorktreeMeta: (target: { id: string } | string, updates: Partial<WorktreeMeta>) =>
+      write(typeof target === 'string' ? target : target.id, updates),
     setWorktreeMetaForHost: (id: string, _host: string, updates: Partial<WorktreeMeta>) =>
       write(id, updates)
   }

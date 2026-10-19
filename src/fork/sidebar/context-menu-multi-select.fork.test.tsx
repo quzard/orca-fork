@@ -30,6 +30,9 @@ const state = {
   tabsByWorktree: {},
   ptyIdsByTabId: {},
   browserTabsByWorktree: {},
+  // 菜单打开时直接读这两张表。缺了会在判断能否休眠时抛错。
+  unifiedTabsByWorktree: {},
+  agentStatusByPaneKey: {},
   keybindings: {},
   settings: { activeRuntimeEnvironmentId: null, openInApplications: [] },
   openSettingsPage: vi.fn(),

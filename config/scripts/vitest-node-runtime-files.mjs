@@ -27,7 +27,7 @@ export const NODE_RUNTIME_INCLUDE = [
   'src/renderer/src/lib/react-commit-cascade-telemetry.test.ts',
   // Fork: worktree.set clear runs against the real SQLite runtime store.
   'src/fork/sidebar/sidebar-field-clear.fork.test.ts',
-  // Fork: the group-delete test reads the orcad migration catalog, which imports SQLite.
+  // Fork: the group-delete test imports persistence-test-harness, which loads SQLite.
   'src/fork/main/project-group-delete.fork.test.ts',
   ...SQLITE_RUNTIME_INCLUDE,
   'src/cli/**/*.test.ts',

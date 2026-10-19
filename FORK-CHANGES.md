@@ -10,7 +10,7 @@
 - Linux 验收：[docs/fork/VERIFY.md](docs/fork/VERIFY.md)
 - F024 停用说明：[docs/fork/skill-update-flow.md](docs/fork/skill-update-flow.md)
 - 登记入口：`src/fork/register.ts`（主进程和界面都调用：fork 构建标记、skill 来源、host-directory、旧主机漏发的分组）、`src/fork/main/register-main.ts`（桌面主进程和 orcad：含删除项目组时保留文件夹工作区）、`src/fork/main/register-electron.ts`（只在 Electron 主进程：更新源、文件密钥、权限助手参数）、`src/fork/register-renderer.tsx`（仅界面）
-- 目录约定：只在主进程运行的 fork 代码放 `src/fork/main/`；引用渲染进程的 fork 代码用 `.tsx`；`*.fork.test.ts` 是 node 测试，渲染进程测试用 `.fork.test.tsx`。tsconfig 只按这三条通配，不再逐个列文件。`pnpm tc` 在 tsc 之前先跑 `src/fork/tsconfig-boundaries.mjs`，fork 文件引用了所在工程不包含的文件就失败。用到真实 SQLite 运行时存储、或导入会加载 SQLite 的模块（比如 orcad 迁移清单）的测试，要写进 `config/scripts/vitest-node-runtime-files.mjs` 的 `NODE_RUNTIME_INCLUDE`；漏写时 `config/scripts/vitest-sqlite-runtime-boundary.test.ts` 失败。
+- 目录约定：只在主进程运行的 fork 代码放 `src/fork/main/`；引用渲染进程的 fork 代码用 `.tsx`；`*.fork.test.ts` 是 node 测试，渲染进程测试用 `.fork.test.tsx`。tsconfig 只按这三条通配，不再逐个列文件。`pnpm tc` 在 tsc 之前先跑 `src/fork/tsconfig-boundaries.mjs`，fork 文件引用了所在工程不包含的文件就失败。用到真实 SQLite 运行时存储、或导入会加载 SQLite 的模块（比如 `persistence-test-harness`）的测试，要写进 `config/scripts/vitest-node-runtime-files.mjs` 的 `NODE_RUNTIME_INCLUDE`；漏写时 `config/scripts/vitest-sqlite-runtime-boundary.test.ts` 失败。
 
 ## F002 macOS 本地安装
 

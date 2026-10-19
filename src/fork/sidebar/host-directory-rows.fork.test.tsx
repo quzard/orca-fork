@@ -389,6 +389,8 @@ describe('host-directory sidebar rows', () => {
       ],
       workspaceHostScope: 'all',
       defaultHostId: 'local',
+      // 上游现在要求调用方传入本机标题；这两处主机都在 hostOptions 里，标题不会被用到。
+      localHostLabel: 'Local',
       preferProjectGrouping: true,
       retainSingleHostHeader: true
     })
@@ -400,6 +402,7 @@ describe('host-directory sidebar rows', () => {
       ],
       workspaceHostScope: 'all',
       defaultHostId: 'local',
+      localHostLabel: 'Local',
       preferProjectGrouping: true
     })
     expect(plain.some((row) => row.type === 'host-header')).toBe(false)

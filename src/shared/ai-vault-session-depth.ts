@@ -52,29 +52,15 @@ export function truncateAiVaultListResult(
   if (depth === 'unlimited') {
     return result
   }
-<<<<<<< HEAD
-  const selectedIds = new Set(result.sessions.slice(0, depth).map((session) => session.id))
-  if (scopePaths.length > 0) {
-    const inScope = createAiVaultScopeCwdMatcher(scopePaths)
-    let scopedCount = 0
-    for (const session of result.sessions) {
-      // fork: 没有别名时只比对原来的 cwd；有别名时一并比对。匹配仍走上游的文件路径命名空间。
-      if (forkSessionComparisonCwds(session).some((cwd) => inScope(cwd, session.filePath))) {
-        selectedIds.add(session.id)
-        if (++scopedCount >= depth) {
-          break
-        }
-      }
-    }
-  }
-  const sessions = result.sessions.filter((session) => selectedIds.has(session.id))
-=======
   const inScope = scopePaths.length > 0 ? createAiVaultScopeCwdMatcher(scopePaths) : null
   let outOfScopeCount = 0
-  const sessions = result.sessions.filter(
-    (session) => inScope?.(session.cwd, session.filePath) === true || outOfScopeCount++ < depth
-  )
->>>>>>> dd85af143466a6dbb3f0b9649dcc3bd0854f3afb
+  const sessions = result.sessions.filter((session) => {
+    // fork: 没有别名时只比对原来的 cwd；有别名时一并比对。匹配仍走上游的文件路径命名空间。
+    const scoped =
+      inScope !== null &&
+      forkSessionComparisonCwds(session).some((cwd) => inScope(cwd, session.filePath))
+    return scoped || outOfScopeCount++ < depth
+  })
   return {
     ...result,
     sessions,

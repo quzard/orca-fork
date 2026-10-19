@@ -42,16 +42,10 @@ import { useAiVaultPanelSessionResume } from './use-ai-vault-panel-session-resum
 import { AiVaultScanProgressStrip } from './AiVaultScanProgressStrip'
 import { useAiVaultScanProgress } from './ai-vault-scan-progress-store'
 import { aiVaultLocalScanKey } from '../../../../shared/ai-vault-local-scan-key'
-<<<<<<< HEAD
 import {
   useForkAiVaultGroups,
   useForkVaultHostMenu
 } from '../../../../fork/ai-vault/use-list-presentation'
-export default function AiVaultPanel(): React.JSX.Element {
-  const activeWorktreeId = useActiveWorktreeId()
-  const activeWorktree = useActiveWorktree()
-  const activeRepo = useActiveRepo()
-=======
 import { useAiVaultPanelWorkspace } from './use-ai-vault-panel-workspace'
 import {
   aiVaultPanelKeyboardRootProps,
@@ -73,7 +67,6 @@ export default function AiVaultPanel({
     worktree: activeWorktree,
     repo: activeRepo
   } = useAiVaultPanelWorkspace(workspace)
->>>>>>> dd85af143466a6dbb3f0b9649dcc3bd0854f3afb
   const repos = useRepos()
   const allWorktrees = useAllWorktrees()
   const projectHostSetupProjection = useProjectHostSetupProjection()

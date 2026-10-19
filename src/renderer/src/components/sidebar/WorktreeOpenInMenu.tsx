@@ -88,9 +88,9 @@ export function getOpenInEntryAvailability(
   connectionId?: string | null,
   runtimeEnvironmentId?: string | null,
   ownerUnresolved?: boolean,
-<<<<<<< HEAD
+  runtimeSshHost?: WorkspaceEditorSshHost | null,
   worktreePath?: string
-): { disabled: boolean; metadata?: string } {
+): { disabled: boolean; metadata?: string; disabledReason?: string } {
   // fork: 登记启动器自带 canOpen 时用它。普通条目走下面的原判断。
   const forkLauncher = findOpenInLauncher(entry.id)
   if (forkLauncher?.canOpen) {
@@ -102,10 +102,6 @@ export function getOpenInEntryAvailability(
       ? { disabled: false }
       : { disabled: true }
   }
-=======
-  runtimeSshHost?: WorkspaceEditorSshHost | null
-): { disabled: boolean; metadata?: string; disabledReason?: string } {
->>>>>>> dd85af143466a6dbb3f0b9649dcc3bd0854f3afb
   if (entry.target === 'file-manager') {
     const disabled = isRevealOrEditorOpenBlocked(
       getLocalPathOpenOwnerForRoute({ connectionId, runtimeEnvironmentId, ownerUnresolved })
@@ -208,9 +204,10 @@ export async function openWorktreePath(args: {
       ownerUnresolved: args.ownerUnresolved,
       runtimeSshHost: getWorkspaceEditorSshHost(useAppStore.getState(), args.workspace)
     })
-<<<<<<< HEAD
-    if (!capability.allowed) {
-      // fork: 登记的远端打开改走解析出的 SSH 目标。
+    if (capability.allowed) {
+      editorConnectionId = capability.sshTargetId ?? editorConnectionId
+    } else {
+      // fork: 登记的远端打开改走解析出的 SSH 目标。上游已经允许的编辑器走上面的 sshTargetId。
       const adjusted = adjustOpenInRoute({
         worktreePath: args.worktreePath,
         connectionId: args.connectionId,
@@ -231,11 +228,6 @@ export async function openWorktreePath(args: {
         }
         return
       }
-=======
-    if (capability.allowed) {
-      editorConnectionId = capability.sshTargetId ?? editorConnectionId
-    } else {
->>>>>>> dd85af143466a6dbb3f0b9649dcc3bd0854f3afb
       if (capability.reason === 'remote-runtime') {
         showOpenFailureToast({ ok: false, reason: 'remote-runtime-unsupported' }, false)
       } else {
@@ -320,11 +312,8 @@ export function WorktreeOpenInMenuItems({
           connectionId,
           runtimeEnvironmentId,
           ownerUnresolved,
-<<<<<<< HEAD
+          runtimeSshHost,
           worktreePath
-=======
-          runtimeSshHost
->>>>>>> dd85af143466a6dbb3f0b9649dcc3bd0854f3afb
         )
         const item = (
           <DropdownMenuItem

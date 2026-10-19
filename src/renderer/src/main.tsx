@@ -25,23 +25,8 @@ import { primeTerminalWebglAddon } from './lib/pane-manager/pane-webgl-renderer'
 import { SkillWarningPreviewLauncher } from './components/skills/SkillWarningPreviewLauncher'
 import { installBrowserClientPageRenderer } from './components/browser-pane/browser-client-page-renderer-installation'
 import { installOsFileDropCancellationGuard } from './lib/os-file-drop-cancellation-guard'
-<<<<<<< HEAD
 import { registerForkModules } from '../../fork/register'
 import { registerForkRendererModules } from '../../fork/register-renderer'
-import { installSidebarShadowComparison } from './lib/sidebar-shadow/sidebar-shadow-comparison'
-import { ORCA_SIDEBAR_INPUTS_IS_MAIN } from '../../shared/sidebar-inputs-switch'
-import { workspaceActivityShadow } from './lib/sidebar-shadow/workspace-activity-shadow'
-import {
-  pairedServerHostsShadow,
-  pairedServerRowsShadow
-} from './lib/sidebar-shadow/paired-server-rows-shadow'
-import { desktopFactsShadow } from './lib/sidebar-shadow/desktop-facts-shadow'
-import { workspaceReviewShadow } from './lib/sidebar-shadow/workspace-review-shadow'
-import { sidebarTemporalShadow } from './lib/sidebar-shadow/sidebar-temporal-shadow'
-import { workspaceCreationsShadow } from './lib/sidebar-shadow/workspace-creations-shadow'
-import { workspaceRowsShadow } from './lib/sidebar-shadow/workspace-rows-shadow'
-=======
->>>>>>> dd85af143466a6dbb3f0b9649dcc3bd0854f3afb
 
 // fork: 先登记分组模式，再登记渲染槽。主进程登记留在 register-main。
 registerForkModules()

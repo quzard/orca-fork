@@ -142,11 +142,8 @@ export function AiVaultPanelHeader({
               <RefreshCw className="size-3" />
             )}
           </Button>
-<<<<<<< HEAD
-          <ForkAiVaultSlot id="header-actions" />
-=======
           {headerAction}
->>>>>>> dd85af143466a6dbb3f0b9649dcc3bd0854f3afb
+          <ForkAiVaultSlot id="header-actions" />
         </div>
       </div>
 

@@ -42,11 +42,8 @@ import { stampRuntimeSourceEnv } from '../../shared/runtime-source-env'
 import { adoptWslHostLoginEnvironment } from './orcad-wsl-host-login-environment'
 import { installOrcadProcessErrorGuards } from './orcad-process-error-guards'
 import { orcadWsPortOptions } from './orcad-ws-port-policy'
-<<<<<<< HEAD
-import { installForkOrcadHost } from '../../fork/main/register-main'
-=======
 import { ORCA_LAYOUT_OWNER_IS_MAIN } from '../../shared/layout-owner-switch'
->>>>>>> dd85af143466a6dbb3f0b9649dcc3bd0854f3afb
+import { installForkOrcadHost } from '../../fork/main/register-main'
 
 export { parseArgs }
 

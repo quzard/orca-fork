@@ -50,18 +50,8 @@ export type ExternalEditorProcessLaunchSpec =
   | ExternalEditorExecutableLaunchSpec
   | ExternalEditorShellLaunchSpec
 
-<<<<<<< HEAD
 export type ExternalEditorLaunchSpec = ExternalEditorProcessLaunchSpec | ExternalEditorUrlLaunchSpec
 
-function escapePosixPathForShell(pathValue: string): string {
-  if (/^[a-zA-Z0-9_./@:-]+$/.test(pathValue)) {
-    return pathValue
-  }
-  return `'${pathValue.replace(/'/g, "'\\''")}'`
-}
-
-=======
->>>>>>> dd85af143466a6dbb3f0b9649dcc3bd0854f3afb
 function escapeWindowsPathForShell(pathValue: string): string {
   return /^[a-zA-Z0-9_./@:\\-]+$/.test(pathValue) ? pathValue : `"${pathValue}"`
 }
@@ -265,22 +255,7 @@ export function resolveVsCodeRemoteSshLaunchSpec(
   }
 }
 
-<<<<<<< HEAD
-function resolveExternalEditorSpawn(launchSpec: ExternalEditorLaunchSpec): {
-  spawnCmd: string
-  spawnArgs: string[]
-  windowsHide: boolean
-} {
-  // Why: only shims flagged during resolution (JetBrains) take the start /B
-  // detach; every other launcher keeps the waiting form so its argv survives.
-  if (launchSpec.kind === 'url') {
-    throw new Error('url launch specs open through launchExternalEditor')
-  }
-  if (launchSpec.kind === 'executable') {
-    const spawned = getSpawnArgsForWindows(launchSpec.spawnCmd, launchSpec.spawnArgs, {
-      detachedGui: launchSpec.detachedGui === true
-=======
-function startExternalEditorProcess(launchSpec: ExternalEditorLaunchSpec): ChildProcess {
+function startExternalEditorProcess(launchSpec: ExternalEditorProcessLaunchSpec): ChildProcess {
   if (launchSpec.kind === 'shell') {
     const { spawnCmd, spawnArgs, hideWindowsConsole } = launchSpec
     return hideWindowsConsole
@@ -295,7 +270,6 @@ function startExternalEditorProcess(launchSpec: ExternalEditorLaunchSpec): Child
       args: launchSpec.spawnArgs,
       detached: true,
       stdio: 'ignore'
->>>>>>> dd85af143466a6dbb3f0b9649dcc3bd0854f3afb
     })
   }
   // Why: only shims flagged during resolution (JetBrains) take the start /B detach.
@@ -314,15 +288,11 @@ function startExternalEditorProcess(launchSpec: ExternalEditorLaunchSpec): Child
 }
 
 export async function launchExternalEditor(launchSpec: ExternalEditorLaunchSpec): Promise<void> {
-<<<<<<< HEAD
   if (launchSpec.kind === 'url') {
     const { shell } = await import('electron')
     await shell.openExternal(launchSpec.url)
     return
   }
-  const { spawnCmd, spawnArgs, windowsHide } = resolveExternalEditorSpawn(launchSpec)
-=======
->>>>>>> dd85af143466a6dbb3f0b9649dcc3bd0854f3afb
   await new Promise<void>((resolvePromise, rejectPromise) => {
     const child = startExternalEditorProcess(launchSpec)
     let settled = false

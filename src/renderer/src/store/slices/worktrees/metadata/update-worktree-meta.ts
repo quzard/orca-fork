@@ -33,11 +33,8 @@ import {
   resolveGitHubReviewPushTarget
 } from './hosted-review-push-target'
 import { persistWorktreeMeta } from './worktree-meta-persist'
-<<<<<<< HEAD
-import { sidebarFieldsErrorCode } from '../../../../../../fork/sidebar/sidebar-fields-applied'
-=======
 import { withPendingSidebarRowWrites } from '@/lib/sidebar-pending-layer'
->>>>>>> dd85af143466a6dbb3f0b9649dcc3bd0854f3afb
+import { sidebarFieldsErrorCode } from '../../../../../../fork/sidebar/sidebar-fields-applied'
 import { isRuntimeSelectorNotFoundError } from '../listing/runtime-worktree-rpc-errors'
 import { runtimeTargetForWorktreeOwner } from '../listing/worktree-owner-target'
 import { runtimeTargetForWorkspaceOwner } from '@/lib/resolve-owner'

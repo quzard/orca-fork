@@ -19,31 +19,43 @@ import {
   type ExecutionHostId
 } from '../../shared/execution-host'
 import { resolveAiVaultSearchSettings } from '../../shared/ai-vault-search-settings'
+import { isListedRemoteServer } from '../../shared/runtime-environments'
 import { indexStatusNeedsAttention, indexStatusPhase } from './index-status-lines'
 import { readAiVaultPanelStatus, subscribeAiVaultPanelStatus } from './panel-status'
 
 const INDEX_STATUS_LABEL = 'Index status'
 
-type IndexHost = { id: ExecutionHostId; label: string }
+/** `reportedOnly`: drawn only while the host is connected and reports search turned on. */
+type IndexHost = { id: ExecutionHostId; label: string; reportedOnly: boolean }
 
 /**
- * The local host, then every SSH target and runtime environment. The store is read through two
- * stable references and the list is built here: a selector that returns a new array on every call
- * makes zustand's useSyncExternalStore loop ("Maximum update depth exceeded", React #185).
+ * The hosts the session search settings page lists: this computer and every paired Orca server
+ * it lists (`isListedRemoteServer`). SSH targets are candidates only: a configured target that
+ * was never connected, or whose search is off, has no index to report on, so its row stays
+ * hidden until the host itself says search is on. The store is read through two stable
+ * references and the list is built here: a selector that returns a new array on every call makes
+ * zustand's useSyncExternalStore loop ("Maximum update depth exceeded", React #185).
  */
 function useIndexHosts(): IndexHost[] {
   const sshTargetLabels = useAppStore((state) => state.sshTargetLabels)
   const runtimeEnvironments = useAppStore((state) => state.runtimeEnvironments)
   const hosts: IndexHost[] = [
-    { id: LOCAL_EXECUTION_HOST_ID, label: getExecutionHostLabel(LOCAL_EXECUTION_HOST_ID) }
+    {
+      id: LOCAL_EXECUTION_HOST_ID,
+      label: getExecutionHostLabel(LOCAL_EXECUTION_HOST_ID),
+      reportedOnly: false
+    }
   ]
   for (const [targetId, name] of sshTargetLabels) {
     const id = toSshExecutionHostId(targetId)
-    hosts.push({ id, label: name.trim() || getExecutionHostLabel(id) })
+    hosts.push({ id, label: name.trim() || getExecutionHostLabel(id), reportedOnly: true })
   }
   for (const environment of runtimeEnvironments) {
+    if (!isListedRemoteServer(environment)) {
+      continue
+    }
     const id = toRuntimeExecutionHostId(environment.id)
-    hosts.push({ id, label: environment.name || getExecutionHostLabel(id) })
+    hosts.push({ id, label: environment.name || getExecutionHostLabel(id), reportedOnly: false })
   }
   return hosts
 }
@@ -69,12 +81,14 @@ function useHostConnected(id: ExecutionHostId): boolean {
 function IndexHostRow({
   id,
   label,
+  reportedOnly,
   onAttention
 }: {
   id: ExecutionHostId
   label: string
+  reportedOnly: boolean
   onAttention: (id: string, attention: boolean) => void
-}): React.JSX.Element {
+}): React.JSX.Element | null {
   const connected = useHostConnected(id)
   const indexingEnabled = useAppStore(
     (state) => resolveAiVaultSearchSettings(state.settings).enabled
@@ -101,8 +115,16 @@ function IndexHostRow({
     ready: isSessionSearchIndexReady(status),
     hasStatus: status != null
   })
+  // Once a connected host has said search is on, a later failed read stays visible as an error.
+  // A disconnect forgets it, so a host that went away leaves the list again.
+  const [reported, setReported] = useState(false)
+  const reportsOn = connected && (reported || status?.enabled === true)
+  if (reported !== reportsOn) {
+    setReported(reportsOn)
+  }
+  const hidden = reportedOnly && !reportsOn
   const details = connected && !localOff ? sessionSearchStatusDetails(status) : []
-  const attention = indexStatusNeedsAttention(phase, details.length)
+  const attention = !hidden && indexStatusNeedsAttention(phase, details.length)
   useEffect(() => {
     onAttention(id, attention)
     return () => onAttention(id, false)
@@ -123,6 +145,9 @@ function IndexHostRow({
     )
   } else if (status && (phase === 'updating' || phase === 'ready')) {
     message = sessionSearchStatusMessage(status)
+  }
+  if (hidden) {
+    return null
   }
   return (
     <div className="space-y-1">
@@ -154,7 +179,13 @@ export function AiVaultIndexStatus(): React.JSX.Element {
   }, [])
   const shown = open || attention
   const rows = hosts.map((host) => (
-    <IndexHostRow key={host.id} id={host.id} label={host.label} onAttention={onAttention} />
+    <IndexHostRow
+      key={host.id}
+      id={host.id}
+      label={host.label}
+      reportedOnly={host.reportedOnly}
+      onAttention={onAttention}
+    />
   ))
   return (
     <div className="border-b border-sidebar-border px-3 py-1 text-xs text-muted-foreground">

@@ -8,13 +8,14 @@ import {
   normalizeWorkspaceAttachmentUpdate
 } from '../../../../../../shared/workspace-attachments'
 import { normalizeGitHubPRSuppressionUpdate } from '../../../../../../shared/worktree/github-pr-suppression'
+import type { WorktreeSlice } from '../../worktree-helpers'
 import type { WorktreeSliceGet, WorktreeSliceSet } from '../listing/worktree-slice-types'
 import { translate } from '@/i18n/i18n'
 import { isPositiveHostedReviewNumber } from '../../../../../../shared/hosted-review'
 import { displayNameUpdatePinsLabel } from '../../../../../../shared/worktree/display-name-provenance'
 import { parseWorkspaceKey } from '../../../../../../shared/workspace-scope'
 import { ORCA_SIDEBAR_INPUTS_IS_MAIN } from '../../../../../../shared/sidebar-inputs-switch'
-import { applyWorktreeUpdates, getRepoIdFromWorktreeId, type WorktreeSlice } from '../../worktree-helpers'
+import { applyWorktreeUpdates, getRepoIdFromWorktreeId } from '../../worktree-helpers'
 import { getHostedReviewCacheKey } from '../../hosted-review-cache-identity'
 import { getGitHubPRCacheKeyCandidates } from '../../../../../../shared/github/github-cache-key'
 import {
@@ -31,9 +32,8 @@ import {
   getHostedReviewPushTargetLookup,
   resolveGitHubReviewPushTarget
 } from './hosted-review-push-target'
-import { persistWorktreeMeta } from './worktree-meta-persist'
+import { persistWorktreeMeta, sidebarFieldsWriteFailure } from './worktree-meta-persist'
 import { withPendingSidebarRowWrites } from '@/lib/sidebar-pending-layer'
-import { sidebarFieldsErrorCode } from '../../../../../../fork/sidebar/sidebar-fields-applied'
 import { isRuntimeSelectorNotFoundError } from '../listing/runtime-worktree-rpc-errors'
 import { runtimeTargetForWorktreeOwner } from '../listing/worktree-owner-target'
 import { runtimeTargetForWorkspaceOwner } from '@/lib/resolve-owner'
@@ -295,7 +295,8 @@ export function createUpdateWorktreeMeta(
       void get().fetchWorktrees(getRepoIdFromWorktreeId(worktreeId))
       // Why: the refetch above reverts the optimistic write, so a caller that
       // closes its surface on this path shows the user a save that undid itself.
-      return { ok: false, error: err instanceof Error ? err.message : String(err), ...sidebarFieldsErrorCode(err) }
+      // fork: same result, plus the code when the host dropped group fields.
+      return sidebarFieldsWriteFailure(err)
     }
     return { ok: true }
   }

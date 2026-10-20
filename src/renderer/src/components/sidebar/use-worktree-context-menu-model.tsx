@@ -30,7 +30,7 @@ import {
   shouldRemoveProjectFromContextMenu
 } from './worktree-context-menu-policy'
 import { useWorktreeContextMenuCommands } from './use-worktree-context-menu-commands'
-import { worktreeContextMenuLabels } from '../../../../shared/fork-hooks/worktree-context-menu-labels'
+import { forkMenuLabel } from '../../../../shared/fork-hooks/worktree-context-menu-labels'
 import { useWorktreeParentPickerTransition } from './use-worktree-parent-picker-transition'
 import { useWorktreeContextMenuSecondaryActions } from './use-worktree-context-menu-secondary-actions'
 import { CLOSE_ALL_CONTEXT_MENUS_EVENT } from '@/lib/close-all-context-menus'
@@ -205,16 +205,14 @@ export function useWorktreeContextMenuModel({
     [activeContextWorktrees, repoMap]
   )
   const removesProject = shouldRemoveProjectFromContextMenu(repo, worktree)
-  // fork: one call; unregistered it returns upstream's English below unchanged.
-  const { sleepLabel, deleteLabel } = worktreeContextMenuLabels(
-    { isMultiContext, sleepCount: sleepableWorktrees.length, deleteCount: batchDeleteWorktrees.length },
-    {
-      sleepLabel: isMultiContext && sleepableWorktrees.length > 0 ? `Sleep ${sleepableWorktrees.length} Workspace${sleepableWorktrees.length === 1 ? '' : 's'}` : 'Sleep',
-      deleteLabel: isMultiContext && batchDeleteWorktrees.length > 0
-        ? `Delete ${batchDeleteWorktrees.length} Workspace${batchDeleteWorktrees.length === 1 ? '' : 's'}`
-        : 'Delete Selected'
-    }
-  )
+  const sleepLabel =
+    isMultiContext && sleepableWorktrees.length > 0
+      ? `Sleep ${sleepableWorktrees.length} Workspace${sleepableWorktrees.length === 1 ? '' : 's'}`
+      : 'Sleep'
+  const deleteLabel =
+    isMultiContext && batchDeleteWorktrees.length > 0
+      ? `Delete ${batchDeleteWorktrees.length} Workspace${batchDeleteWorktrees.length === 1 ? '' : 's'}`
+      : 'Delete Selected'
   const hasParentLink = hasWorktreeParentLink(
     worktree,
     worktreeLineageById,
@@ -383,7 +381,7 @@ export function useWorktreeContextMenuModel({
     contextWorkspaceStatus,
     createGroupDialogOpen,
     cyclicLineageIds,
-    deleteLabel,
+    deleteLabel: forkMenuLabel('delete', isMultiContext, batchDeleteWorktrees.length, deleteLabel),
     deletingContext,
     deletingSubtree,
     developerMenuRevealed,
@@ -413,7 +411,7 @@ export function useWorktreeContextMenuModel({
     setDeveloperMenuRevealed,
     setMenuOpenState,
     setMenuPoint,
-    sleepLabel,
+    sleepLabel: forkMenuLabel('sleep', isMultiContext, sleepableWorktrees.length, sleepLabel),
     sleepableWorktrees,
     subtreeSleepableWorktrees,
     suppressOpeningPointerEvent,

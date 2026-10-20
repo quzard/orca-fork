@@ -45,6 +45,22 @@ export function sidebarFieldsErrorCode(error: unknown): { code?: string } {
 }
 
 /**
+ * Upstream's `updateWorktreeMeta` failure result (`{ ok: false, error: message }`), plus the code
+ * when the error is this one. Lives here so the upstream store file stays within its line limit.
+ */
+export function sidebarFieldsWriteFailure(error: unknown): {
+  ok: false
+  error: string
+  code?: string
+} {
+  return {
+    ok: false,
+    error: error instanceof Error ? error.message : String(error),
+    ...sidebarFieldsErrorCode(error)
+  }
+}
+
+/**
  * Throws when the host's reply is missing a group or clear this write asked for. A write that asks
  * for neither is never checked, so every other worktree.set keeps upstream behaviour.
  */

@@ -3,8 +3,8 @@ import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { i18n } from '@/i18n/i18n'
 import {
+  forkMenuLabel,
   registerWorktreeContextMenuLabels,
-  worktreeContextMenuLabels,
   type WorktreeContextMenuLabelCounts
 } from '../../shared/fork-hooks/worktree-context-menu-labels'
 import { installForkLocaleOverlays } from '../i18n/locale-overlay'
@@ -28,6 +28,27 @@ function upstreamLabels({
       isMultiContext && deleteCount > 0
         ? `Delete ${deleteCount} Workspace${deleteCount === 1 ? '' : 's'}`
         : 'Delete Selected'
+  }
+}
+
+// The two calls upstream's model makes, one per label.
+function menuLabels(
+  counts: WorktreeContextMenuLabelCounts,
+  upstream: ReturnType<typeof upstreamLabels>
+) {
+  return {
+    sleepLabel: forkMenuLabel(
+      'sleep',
+      counts.isMultiContext,
+      counts.sleepCount,
+      upstream.sleepLabel
+    ),
+    deleteLabel: forkMenuLabel(
+      'delete',
+      counts.isMultiContext,
+      counts.deleteCount,
+      upstream.deleteLabel
+    )
   }
 }
 
@@ -56,7 +77,7 @@ describe('workspace context menu Sleep and Delete labels', () => {
     await i18n.changeLanguage('zh')
     for (const counts of cases) {
       const upstream = upstreamLabels(counts)
-      expect(worktreeContextMenuLabels(counts, upstream)).toBe(upstream)
+      expect(menuLabels(counts, upstream)).toEqual(upstream)
     }
   })
 
@@ -77,7 +98,7 @@ describe('workspace context menu Sleep and Delete labels', () => {
     registerForkWorktreeContextMenuLabels()
     await i18n.changeLanguage('zh')
     const labels = (counts: WorktreeContextMenuLabelCounts) =>
-      worktreeContextMenuLabels(counts, upstreamLabels(counts))
+      menuLabels(counts, upstreamLabels(counts))
     expect(labels({ isMultiContext: false, sleepCount: 3, deleteCount: 3 })).toEqual({
       sleepLabel: '休眠',
       deleteLabel: '删除所选'
@@ -92,7 +113,7 @@ describe('workspace context menu Sleep and Delete labels', () => {
     })
   })
 
-  it('upstream passes its own English through the single fork call', () => {
+  it('upstream passes its own English through one fork call per label', () => {
     const source = readFileSync(
       join(
         process.cwd(),
@@ -100,7 +121,13 @@ describe('workspace context menu Sleep and Delete labels', () => {
       ),
       'utf8'
     )
-    expect(source.match(/worktreeContextMenuLabels\(/g)).toHaveLength(1)
+    expect(source.match(/forkMenuLabel\(/g)).toHaveLength(2)
+    expect(source).toContain(
+      "deleteLabel: forkMenuLabel('delete', isMultiContext, batchDeleteWorktrees.length, deleteLabel)"
+    )
+    expect(source).toContain(
+      "sleepLabel: forkMenuLabel('sleep', isMultiContext, sleepableWorktrees.length, sleepLabel)"
+    )
     expect(source).toContain(
       "? `Sleep ${sleepableWorktrees.length} Workspace${sleepableWorktrees.length === 1 ? '' : 's'}`"
     )

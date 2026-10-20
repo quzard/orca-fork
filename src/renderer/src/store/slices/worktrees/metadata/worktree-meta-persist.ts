@@ -20,6 +20,7 @@ import type { ExecutionHostId } from '../../../../../../shared/execution-host'
 import { encodePushTargetClearForRuntimeRpc } from './hosted-review-link-mutation'
 import { encodeSidebarFieldClears } from '../../../../../../shared/fork-hooks/sidebar-field-clear'
 import { assertSidebarFieldsApplied } from '../../../../../../fork/sidebar/sidebar-fields-applied'
+export { sidebarFieldsWriteFailure } from '../../../../../../fork/sidebar/sidebar-fields-applied'
 
 type PendingDisplayNameWrite = {
   worktreeId: string

@@ -3,9 +3,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { encodePairingOffer } from '../../../shared/pairing'
+import { pairedRuntimeConnectionFromOffer } from '../../../shared/paired-runtime-connection'
 import { toRuntimeExecutionHostId } from '../../../shared/execution-host'
 import { addManagedOrcadEnvironment } from '../../../shared/runtime-environment-managed-orcad-store'
 import { addEnvironmentFromPairingCode } from '../../../shared/runtime-environment-store'
+import {
+  linkVerifiedRuntimeEnvironmentSshAccess,
+  prepareRuntimeEnvironmentSshAccessLink
+} from '../../../shared/runtime-environment-ssh-access-store'
 
 const mocks = vi.hoisted(() => ({
   userDataPath: '',
@@ -50,10 +55,10 @@ describe('AI Vault all-hosts runtime budget', () => {
   })
   afterEach(() => rmSync(mocks.userDataPath, { recursive: true, force: true }))
 
-  it('gives SSH-tunnelled servers the 15s relay budget and keeps direct ones on 3s', async () => {
+  it('gives SSH-deployed and SSH-access servers the 15s relay budget and keeps direct ones on 3s', async () => {
     addManagedOrcadEnvironment(mocks.userDataPath, {
-      id: 'new-sls',
-      name: 'new_sls',
+      id: 'ssh-server',
+      name: 'SSH server',
       pairingCode: pairingCode('ws://127.0.0.1:46768', 1),
       orcadDeployment: {
         sshTargetId: 'ssh-1',
@@ -68,7 +73,41 @@ describe('AI Vault all-hosts runtime budget', () => {
       pairingCode: pairingCode('ws://100.64.0.7:6768', 2),
       now: 100
     })
-    const hostInfos = ['new-sls', direct.id, 'unknown'].map((environmentId) => ({
+    const pairedOffer = {
+      v: 2 as const,
+      endpoint: 'wss://server.example/runtime',
+      publicKeyB64: Buffer.alloc(32, 3).toString('base64'),
+      deviceToken: 'token-3',
+      pairedDeviceId: 'paired-client'
+    }
+    const tunnel = {
+      sshTargetId: 'ssh-2',
+      sshTargetGeneration: 1,
+      localPort: 41_000,
+      remotePort: 6_768
+    }
+    const paired = addEnvironmentFromPairingCode(mocks.userDataPath, {
+      name: 'paired',
+      pairingCode: encodePairingOffer(pairedOffer),
+      now: 100
+    })
+    linkVerifiedRuntimeEnvironmentSshAccess(mocks.userDataPath, {
+      expectedEnvironment: prepareRuntimeEnvironmentSshAccessLink(mocks.userDataPath, {
+        expectedEnvironment: paired,
+        requestId: 'link-request',
+        ...tunnel,
+        targetFingerprint: 'target-fingerprint'
+      }),
+      requestId: 'link-request',
+      verifiedRuntimeId: 'paired-runtime',
+      verifiedConnection: pairedRuntimeConnectionFromOffer({
+        ...pairedOffer,
+        endpoint: 'ws://127.0.0.1:41000/runtime'
+      }),
+      tunnel,
+      now: 110
+    })
+    const hostInfos = ['ssh-server', paired.id, direct.id, 'unknown'].map((environmentId) => ({
       environmentId,
       executionHostId: toRuntimeExecutionHostId(environmentId)
     }))
@@ -85,7 +124,12 @@ describe('AI Vault all-hosts runtime budget', () => {
         options?.timeoutMs
       ])
     )
-    expect(budgets).toEqual({ 'new-sls': 15_000, [direct.id]: 3_000, unknown: 3_000 })
+    expect(budgets).toEqual({
+      'ssh-server': 15_000,
+      [paired.id]: 15_000,
+      [direct.id]: 3_000,
+      unknown: 3_000
+    })
   })
 
   it('falls back to the upstream 3s when the environment store cannot be read', () => {

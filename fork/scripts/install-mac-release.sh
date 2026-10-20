@@ -109,6 +109,10 @@ assert_packaged_artifacts() {
   '
 }
 
+# Upstream's pnpmfile links dependencies from a store outside the repo unless this is 0. The
+# Linux orcad containers mount only the repo, so node-pty must live in the repo's node_modules.
+export ORCA_PNPM_GLOBAL_VIRTUAL_STORE=0
+
 if [[ "$FAST" == false ]]; then
   # These Macs are Apple Silicon. The release job also installs x64 for the other package.
   pnpm install --frozen-lockfile --cpu=arm64

@@ -1,12 +1,14 @@
 import { execFileSync } from 'node:child_process'
 import {
   chmodSync,
+  copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync
 } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -74,6 +76,11 @@ describe('fork packaging', () => {
     }
     expect(installer).toContain('ORCA_REQUIRE_ORCAD_TEMPLATE=1')
     expect(installer).toContain('ORCA_MAC_RELEASE=0')
+    // The Linux orcad containers mount only the repo, so pnpm must not link deps from outside it.
+    expect(installer).toContain('export ORCA_PNPM_GLOBAL_VIRTUAL_STORE=0')
+    expect(installer.indexOf('export ORCA_PNPM_GLOBAL_VIRTUAL_STORE=0')).toBeLessThan(
+      installer.indexOf('pnpm install --frozen-lockfile --cpu=arm64')
+    )
     const localBuild = readFileSync(resolve('config/scripts/build-mac-local.mjs'), 'utf8')
     expect(localBuild).toContain('...builderArgs')
     expect(localBuild).toContain('process.argv.slice(2)')
@@ -117,6 +124,7 @@ describe('fork packaging', () => {
     expect(script).toContain('未找到 docker 可执行文件')
     expect(script).toContain('Docker 不可用')
     expect(script).not.toMatch(/^\s*pnpm\b/m)
+    expect(script.indexOf('check_node_pty_in_repo\nrun_slot')).toBeGreaterThan(0)
     execFileSync('bash', ['-n', resolve('fork/scripts/build-orcad-linux-prebuilds.sh')])
   })
 
@@ -214,6 +222,57 @@ describe('fork packaging', () => {
       ]) {
         rmSync(dir, { recursive: true, force: true })
       }
+    }
+  })
+
+  it('refuses to compile when node-pty or its deps resolve outside the repo', () => {
+    const repo = realpathSync(mkdtempSync(join(tmpdir(), 'orca-fork-pty-repo-')))
+    const store = realpathSync(mkdtempSync(join(tmpdir(), 'orca-fork-pty-store-')))
+    const pkg = (dir: string, name: string, deps: Record<string, string> = {}) => {
+      mkdirSync(dir, { recursive: true })
+      writeFileSync(join(dir, 'package.json'), JSON.stringify({ name, dependencies: deps }))
+    }
+    const check = () =>
+      execFileSync(
+        'bash',
+        [join(repo, 'fork/scripts/build-orcad-linux-prebuilds.sh'), '--check-node-pty'],
+        {
+          encoding: 'utf8',
+          env: { ...process.env, ORCA_NODE_RUNTIME_CACHE_DIR: join(repo, 'out/cache') },
+          stdio: ['ignore', 'pipe', 'pipe']
+        }
+      )
+    try {
+      mkdirSync(join(repo, 'fork/scripts'), { recursive: true })
+      mkdirSync(join(repo, 'config/scripts'), { recursive: true })
+      copyFileSync(
+        resolve('fork/scripts/build-orcad-linux-prebuilds.sh'),
+        join(repo, 'fork/scripts/build-orcad-linux-prebuilds.sh')
+      )
+      expect(check).toThrow(/解析不到 node-pty/)
+      // Global virtual store layout: node_modules/node-pty is a link into a store outside the repo.
+      const linked = join(store, 'node_modules/node-pty')
+      pkg(linked, 'node-pty', { 'node-addon-api': '^7.1.0' })
+      pkg(join(store, 'node_modules/node-addon-api'), 'node-addon-api')
+      mkdirSync(join(repo, 'node_modules'))
+      symlinkSync(linked, join(repo, 'node_modules/node-pty'))
+      expect(check).toThrow(/node-pty 不在仓库里[\s\S]*ORCA_PNPM_GLOBAL_VIRTUAL_STORE=0/)
+      // Project-local layout, but a dependency still links out of the repo.
+      rmSync(join(repo, 'node_modules/node-pty'))
+      const local = join(repo, 'node_modules/.pnpm/node-pty/node_modules/node-pty')
+      pkg(local, 'node-pty', { 'node-addon-api': '^7.1.0' })
+      symlinkSync(local, join(repo, 'node_modules/node-pty'))
+      symlinkSync(
+        join(store, 'node_modules/node-addon-api'),
+        join(repo, 'node_modules/.pnpm/node-pty/node_modules/node-addon-api')
+      )
+      expect(check).toThrow(/node-addon-api/)
+      rmSync(join(repo, 'node_modules/.pnpm/node-pty/node_modules/node-addon-api'))
+      pkg(join(repo, 'node_modules/.pnpm/node-pty/node_modules/node-addon-api'), 'node-addon-api')
+      expect(check).not.toThrow()
+    } finally {
+      rmSync(repo, { recursive: true, force: true })
+      rmSync(store, { recursive: true, force: true })
     }
   })
 

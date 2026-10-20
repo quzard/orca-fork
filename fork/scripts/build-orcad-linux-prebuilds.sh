@@ -67,6 +67,32 @@ container_cache_path() {
   esac
 }
 
+# 容器只挂仓库。pnpm 的全局依赖存储会把 node-pty 链到仓库外，容器里就解析不到。
+# 编译前在宿主机上确认 node-pty 和它的依赖实际都在仓库里。
+check_node_pty_in_repo() {
+  local outside
+  if ! outside="$(node --input-type=commonjs -e '
+    const { realpathSync } = require("fs")
+    const { dirname, join } = require("path")
+    const root = process.argv[1]
+    const from = join(root, "config", "scripts")
+    const pkg = realpathSync(require.resolve("node-pty/package.json", { paths: [from] }))
+    const deps = Object.keys(require(pkg).dependencies || {})
+    const paths = [pkg, ...deps.map((dep) =>
+      realpathSync(require.resolve(`${dep}/package.json`, { paths: [dirname(pkg)] }))
+    )]
+    process.stdout.write(paths.filter((p) => !p.startsWith(`${root}/`)).join("\n"))
+  ' "$REPO_ROOT")"; then
+    echo '解析不到 node-pty。先在仓库里 pnpm install。' >&2
+    return 1
+  fi
+  if [[ -n "$outside" ]]; then
+    printf '%s\n' 'node-pty 不在仓库里，容器只挂载仓库，编译会失败：' "$outside" >&2
+    echo '请用 ORCA_PNPM_GLOBAL_VIRTUAL_STORE=0 重新 pnpm install --frozen-lockfile。' >&2
+    return 1
+  fi
+}
+
 run_slot() {
   local slot="$1"
   local platform="$2"
@@ -149,6 +175,10 @@ if [[ "${1:-}" == --print-container-cache ]]; then
   container_cache_path
   exit 0
 fi
+if [[ "${1:-}" == --check-node-pty ]]; then
+  check_node_pty_in_repo
+  exit 0
+fi
 
 # launchd 没有登录 shell 的 PATH。OrbStack 的 docker 在应用包的 xbin，不一定有 ~/.orbstack/bin。
 if ! command -v docker >/dev/null 2>&1; then
@@ -172,6 +202,7 @@ if ! docker_err="$(docker info 2>&1 >/dev/null)"; then
   exit 1
 fi
 
+check_node_pty_in_repo
 run_slot linux-x64-glibc linux/amd64 "$IMAGE_LINUX_X64_GLIBC" 1 0
 run_slot linux-arm64-glibc linux/arm64 "$IMAGE_LINUX_ARM64_GLIBC" 1 0
 run_slot linux-x64-glibc217 linux/amd64 "$IMAGE_LINUX_X64_GLIBC217" 0 1

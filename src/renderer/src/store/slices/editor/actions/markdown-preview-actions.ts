@@ -19,6 +19,7 @@ import {
   previewEditorTabsOf,
   recordPromotedEditorTabsInLayoutOwner
 } from '../tabs/editor-tab-layout-owner'
+import { forkMarkdownPreviewSourceFields } from '../../../../../../shared/fork-hooks/markdown-preview-source-fields'
 
 export function createMarkdownPreviewActions(
   set: EditorSet,
@@ -100,6 +101,7 @@ export function createMarkdownPreviewActions(
         file.externalSshTargetId ??
         initialState.openFiles.find((openFile) => openFile.id === sourceFileId)?.externalSshTargetId
       const anchor = options?.anchor || undefined
+      const forkFields = forkMarkdownPreviewSourceFields(initialState.openFiles, sourceFileId)
       set((s) => {
         const existing = s.openFiles.find((openFile) => openFile.id === id)
         const worktreeId = file.worktreeId
@@ -114,6 +116,7 @@ export function createMarkdownPreviewActions(
             existing.externalSshTargetId !== externalSshTargetId ||
             existing.markdownPreviewSourceFileId !== sourceFileId ||
             existing.markdownPreviewAnchor !== anchor ||
+            existing.terminalArtifactGrantId !== forkFields.terminalArtifactGrantId ||
             existing.mode !== 'markdown-preview'
           return needsUpdate
             ? {
@@ -129,7 +132,8 @@ export function createMarkdownPreviewActions(
                         externalSshTargetId,
                         markdownPreviewSourceFileId: sourceFileId,
                         markdownPreviewAnchor: anchor,
-                        mode: 'markdown-preview' as const
+                        mode: 'markdown-preview' as const,
+                        ...forkFields
                       }
                     : openFile
                 ),
@@ -149,7 +153,8 @@ export function createMarkdownPreviewActions(
           externalSshTargetId,
           markdownPreviewSourceFileId: sourceFileId,
           markdownPreviewAnchor: anchor,
-          mode: 'markdown-preview'
+          mode: 'markdown-preview',
+          ...forkFields
         }
 
         return {

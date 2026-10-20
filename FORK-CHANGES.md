@@ -92,6 +92,10 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 
 上游在「全部主机」里给每台 Orca 服务器 3 秒（单独看一台是 15 秒），经 SSH 隧道连的托管服务器常常超时、整台变空。环境记录是 `connectionDependency: 'ssh-tunnel'` 的服务器（SSH 部署的 orcad、SSH 访问）改用 SSH 中继的 15 秒；局域网、Tailscale 直连的和读不到记录时仍是 3 秒。`src/main/ipc/ai-vault.ts` 只改一行，调 `src/fork/main/ai-vault/all-host-runtime-timeout.ts`。
 
+## F045 远端终端链接文件的 Markdown 预览
+
+Orca 服务器工作区里，终端打印的工作区外路径（如 `/tmp/...`）点开后，源标签带着服务器发的只读授权 `terminalArtifactGrantId`。上游「打开预览」新建的 `(preview)` 标签只复制 `externalSshTargetId`，不带授权，读取时被当成本机外部文件，报「External local files are not available for remote workspaces.」。`src/shared/fork-hooks/markdown-preview-source-fields.ts` 让预览从源标签复制授权并设为只读（新建和已有预览两条路径都走，`needsUpdate` 也比较授权）；`markdown-preview-actions.ts` 只加一个调用，`src/fork/editor/markdown-preview-grant.ts` 在 `register-renderer.tsx` 登记。源标签没有授权时不加字段。重启后授权丢失、闲置 10 分钟过期都是上游行为，没有改：需要从终端重新点链接。
+
 ## 历史会话（已登记）
 
 - 列表默认看所有主机。多台主机先有可折叠的主机行，下面是完整目录；只有一台主机时不重复主机行。新组默认收起，标题栏一次收起主机和目录。

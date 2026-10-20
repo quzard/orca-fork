@@ -93,6 +93,19 @@ describe('scope path aliases', () => {
     ])
   })
 
+  it('stays silent for a scope path this host does not have, like another host workspace', async () => {
+    root = await mkdtemp(join(tmpdir(), 'orca-vault-alias-'))
+    const otherHostPath = join(root, 'home', 'remote-user', 'lite-lifecycle')
+    const scanned = { sessions: [{ cwd: '/elsewhere' }], issues: [] }
+    const result = await attachScopePathAliases(
+      { scopePaths: [otherHostPath] },
+      async () => scanned
+    )
+
+    expect(result.issues).toEqual([])
+    expect(result.sessions).toEqual([{ cwd: '/elsewhere' }])
+  })
+
   it('aliases a cwd spelled through another symlink, like macOS /var -> /private/var', async () => {
     root = await mkdtemp(join(tmpdir(), 'orca-vault-alias-'))
     const privateVar = join(root, 'private-var')

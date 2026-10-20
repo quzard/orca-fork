@@ -82,7 +82,7 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 
 ## F022 软链目录上的 Cursor 会话
 
-扫描前把作用域路径做 `realpath`。会话的 `cwd` 仍是恢复用的原路径；`cwdAliases` 只参与匹配、深度和归属。更长的工作区路径优先，避免父目录抢走子仓库的会话。会话记录的 cwd 换了一种软链写法（例如 macOS 的 `/var` 实际是 `/private/var`）或目录已经不在时，按 cwd 最深的现存上级做 `realpath` 后再匹配；每次扫描每个不同的 cwd 只查一次，只在有别名时才查。失效链接记一条 scope 问题，扫描继续。本机和 orcad 都登记这条策略（`src/fork/main/ai-vault/scope-aliases.ts`）。
+扫描前把作用域路径做 `realpath`。会话的 `cwd` 仍是恢复用的原路径；`cwdAliases` 只参与匹配、深度和归属。更长的工作区路径优先，避免父目录抢走子仓库的会话。会话记录的 cwd 换了一种软链写法（例如 macOS 的 `/var` 实际是 `/private/var`）或目录已经不在时，按 cwd 最深的现存上级做 `realpath` 后再匹配；每次扫描每个不同的 cwd 只查一次，只在有别名时才查。失效链接记一条 scope 问题，扫描继续；本机根本没有的路径（全部主机时发给每台主机的别台工作区）不记，同上游。本机和 orcad 都登记这条策略（`src/fork/main/ai-vault/scope-aliases.ts`）。
 
 ## F041 普通目录的终端生命周期
 

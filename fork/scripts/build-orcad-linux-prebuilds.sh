@@ -76,14 +76,19 @@ check_node_pty_in_repo() {
     const { dirname, join } = require("path")
     const root = process.argv[1]
     const from = join(root, "config", "scripts")
-    const pkg = realpathSync(require.resolve("node-pty/package.json", { paths: [from] }))
+    const locate = (name, base) => {
+      try {
+        return realpathSync(require.resolve(`${name}/package.json`, { paths: [base] }))
+      } catch {
+        console.error(`解析不到 ${name}。先在仓库里 pnpm install --frozen-lockfile。`)
+        process.exit(1)
+      }
+    }
+    const pkg = locate("node-pty", from)
     const deps = Object.keys(require(pkg).dependencies || {})
-    const paths = [pkg, ...deps.map((dep) =>
-      realpathSync(require.resolve(`${dep}/package.json`, { paths: [dirname(pkg)] }))
-    )]
+    const paths = [pkg, ...deps.map((dep) => locate(dep, dirname(pkg)))]
     process.stdout.write(paths.filter((p) => !p.startsWith(`${root}/`)).join("\n"))
   ' "$REPO_ROOT")"; then
-    echo '解析不到 node-pty。先在仓库里 pnpm install。' >&2
     return 1
   fi
   if [[ -n "$outside" ]]; then

@@ -1,4 +1,4 @@
-import { realpath } from 'node:fs/promises'
+import { lstat, realpath } from 'node:fs/promises'
 import { basename, dirname } from 'node:path'
 import type { AiVaultAgent, AiVaultScanIssue } from '../../../shared/ai-vault-types'
 import { normalizeRuntimePathSeparators } from '../../../shared/cross-platform-path'
@@ -36,6 +36,10 @@ export async function attachScopePathAliases<Options, Result>(
         aliases.set(normalizeScopePath(scopePath), normalizeScopePath(resolved))
       }
     } catch {
+      // 本机没有这条路径：多主机扫描把别的主机的工作区也发过来，这不是失效链接，静默跳过（同上游）。
+      if (!(await pathEntryExists(scopePath))) {
+        continue
+      }
       issues.push({
         agent: SCOPE_ISSUE_AGENT,
         kind: 'scope',
@@ -81,6 +85,16 @@ function cachedLooseRealpath(): (pathValue: string) => Promise<string> {
     return pending
   }
   return resolve
+}
+
+/** The entry itself exists here (a dangling link still counts), whether or not it resolves. */
+async function pathEntryExists(pathValue: string): Promise<boolean> {
+  try {
+    await lstat(pathValue)
+    return true
+  } catch {
+    return false
+  }
 }
 
 function scopePathsOf(options: unknown): readonly string[] {

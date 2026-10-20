@@ -267,6 +267,13 @@ describe('fork packaging', () => {
         join(repo, 'node_modules/.pnpm/node-pty/node_modules/node-addon-api')
       )
       expect(check).toThrow(/node-addon-api/)
+      // A missing dependency is named as itself, not reported as a missing node-pty.
+      rmSync(join(repo, 'node_modules/.pnpm/node-pty/node_modules/node-addon-api'))
+      expect(check).toThrow(/解析不到 node-addon-api/)
+      symlinkSync(
+        join(store, 'node_modules/node-addon-api'),
+        join(repo, 'node_modules/.pnpm/node-pty/node_modules/node-addon-api')
+      )
       rmSync(join(repo, 'node_modules/.pnpm/node-pty/node_modules/node-addon-api'))
       pkg(join(repo, 'node_modules/.pnpm/node-pty/node_modules/node-addon-api'), 'node-addon-api')
       expect(check).not.toThrow()

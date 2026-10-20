@@ -88,6 +88,10 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 
 `folder:<id>` 在 `resolveWorktreeSelector` 之前解析。没有这个文件夹时仍抛 `selector_not_found`。`stopExact` 把该结果放进存活刷新用的工作区列表，因为文件夹不在原来的 resolved map 里。
 
+## F044 全部主机时经 SSH 的 Orca 服务器
+
+上游在「全部主机」里给每台 Orca 服务器 3 秒（单独看一台是 15 秒），经 SSH 隧道连的托管服务器常常超时、整台变空。环境记录是 `connectionDependency: 'ssh-tunnel'` 的服务器（SSH 部署的 orcad、SSH 访问）改用 SSH 中继的 15 秒；局域网、Tailscale 直连的和读不到记录时仍是 3 秒。`src/main/ipc/ai-vault.ts` 只改一行，调 `src/fork/main/ai-vault/all-host-runtime-timeout.ts`。
+
 ## 历史会话（已登记）
 
 - 列表默认看所有主机。多台主机先有可折叠的主机行，下面是完整目录；只有一台主机时不重复主机行。新组默认收起，标题栏一次收起主机和目录。

@@ -11,11 +11,8 @@ import { displayNameUpdatePinsLabel } from '../../../../shared/worktree/display-
 import { getWorkspaceStatusWarning } from '../../../../shared/workspace-status-warning'
 import { createWorktreeWithStartupAgent } from '../../../agent-launch/startup-agent-worktree-create'
 import { defineMethod } from '../core'
-import {
-  buildManagedWorktreeCreateArgs,
-  sidebarGroupIdSetPatch,
-  worktreeCreateRepoSelector, worktreeSetLineage
-} from './worktree-create-args'
+import { buildManagedWorktreeCreateArgs, worktreeCreateRepoSelector } from './worktree-create-args'
+import { sidebarGroupIdSetPatch, worktreeSetLineage } from './worktree-create-args'
 import { resolvePairedCallerHostId } from './paired-caller-host-id'
 import { resolveRuntimeNavigationTarget } from '../../../../shared/runtime-navigation'
 import { resolveRpcWorkspaceCreatorProvenance } from '../workspace-creator-context'

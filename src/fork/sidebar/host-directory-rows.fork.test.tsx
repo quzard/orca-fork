@@ -381,7 +381,7 @@ describe('host-directory sidebar rows', () => {
     const rows = hostDirectoryRows({
       repos: [entry],
       worktrees: [workspace('wt-web', 'web', '/srv/wt/web', 'main', DEVBOX)]
-    })
+    }).map((row) => (row.type === 'item' ? { ...row, hostContextLabel: 'devbox' } : row))
     const sectioned = addHostSectionRows({
       rows,
       hostOptions: [
@@ -395,6 +395,8 @@ describe('host-directory sidebar rows', () => {
       retainSingleHostHeader: true
     })
     expect(sectioned.some((row) => row.type === 'host-header' && row.hostId === DEVBOX)).toBe(true)
+    const kept = sectioned.find((row) => row.type === 'item')
+    expect(kept?.type === 'item' ? kept.hostContextLabel : 'missing').toBeUndefined()
     const plain = addHostSectionRows({
       rows,
       hostOptions: [
@@ -406,6 +408,8 @@ describe('host-directory sidebar rows', () => {
       preferProjectGrouping: true
     })
     expect(plain.some((row) => row.type === 'host-header')).toBe(false)
+    const labeled = plain.find((row) => row.type === 'item')
+    expect(labeled?.type === 'item' ? labeled.hostContextLabel : undefined).toBe('devbox')
   })
 })
 

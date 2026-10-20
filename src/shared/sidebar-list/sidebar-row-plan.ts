@@ -83,13 +83,19 @@ export type SidebarRowPlanInputs = {
 }
 
 /** Plans the sidebar's sections once; `render` emits rows for a collapse state. */
-export function planSidebarRows(inputs: SidebarRowPlanInputs) {
+export function planSidebarRows(
+  inputs: SidebarRowPlanInputs
+): ReturnType<typeof planBuiltinSidebarRows> {
   // fork: 已登记模式拥有整份行计划。内置 id 不会命中。
   const registeredPlan = takeRegisteredSidebarRowPlan(inputs)
   if (registeredPlan) {
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: buildRowPlan returns the same occurrence plan and render pair this function returns.
-    return registeredPlan as ReturnType<typeof planSidebarRows>
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: 已登记模式返回的 occurrencePlan 和 render 与内置计划同一形状。不能用 ReturnType<typeof planSidebarRows>，那会绕回自身，调用方读到 unknown。
+    return registeredPlan as ReturnType<typeof planBuiltinSidebarRows>
   }
+  return planBuiltinSidebarRows(inputs)
+}
+
+function planBuiltinSidebarRows(inputs: SidebarRowPlanInputs) {
   const {
     groupBy,
     worktrees,

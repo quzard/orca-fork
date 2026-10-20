@@ -43,11 +43,8 @@ import { adoptWslHostLoginEnvironment } from './orcad-wsl-host-login-environment
 import { installOrcadProcessErrorGuards } from './orcad-process-error-guards'
 import { orcadWsPortOptions } from './orcad-ws-port-policy'
 import { ORCA_LAYOUT_OWNER_IS_MAIN } from '../../shared/layout-owner-switch'
-<<<<<<< HEAD
 import { installForkOrcadHost } from '../../fork/main/register-main'
-=======
 import { placeUnshownLiveTerminalsAtStartup } from '../runtime/terminal/adoption/unshown-live-terminal-placement'
->>>>>>> 997d34b04389665795966ec4c0325b5cbfabf9ee
 
 export { parseArgs }
 

@@ -11,15 +11,12 @@ import { displayNameUpdatePinsLabel } from '../../../../shared/worktree/display-
 import { getWorkspaceStatusWarning } from '../../../../shared/workspace-status-warning'
 import { createWorktreeWithStartupAgent } from '../../../agent-launch/startup-agent-worktree-create'
 import { defineMethod } from '../core'
-<<<<<<< HEAD
 import {
   buildManagedWorktreeCreateArgs,
   sidebarGroupIdSetPatch,
+  worktreeCreateRepoSelector,
   worktreeSetLineage
 } from './worktree-create-args'
-=======
-import { buildManagedWorktreeCreateArgs, worktreeCreateRepoSelector } from './worktree-create-args'
->>>>>>> 997d34b04389665795966ec4c0325b5cbfabf9ee
 import { resolvePairedCallerHostId } from './paired-caller-host-id'
 import { resolveRuntimeNavigationTarget } from '../../../../shared/runtime-navigation'
 import { resolveRpcWorkspaceCreatorProvenance } from '../workspace-creator-context'

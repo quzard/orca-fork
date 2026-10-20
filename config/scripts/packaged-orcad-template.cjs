@@ -165,11 +165,8 @@ async function finalizePackagedOrcadTemplate(resourcesDir, options) {
     }
     resealOrcadTemplateManifest(templateDir, machO)
   }
-<<<<<<< HEAD
-  verifyPackagedOrcadTemplate(resourcesDir, resolveForkOrcadTemplateTargets())
-=======
-  compactPackagedOrcadRipgrep(resourcesDir)
->>>>>>> 997d34b04389665795966ec4c0325b5cbfabf9ee
+  // fork: 收窄目标时，压缩前的校验也只查这个子集，未设置则仍是全部目标。
+  compactPackagedOrcadRipgrep(resourcesDir, resolveForkOrcadTemplateTargets())
 }
 
 /** `inner-signing-list.txt` lines are app-relative Windows paths; keep the template's. */
@@ -190,15 +187,11 @@ function resealSignedWindowsApp(appDir, signedListFile) {
     return
   }
   resealOrcadTemplateManifest(join(resourcesDir, ORCAD_TEMPLATE_RESOURCE_DIR), signed)
-<<<<<<< HEAD
-  verifyPackagedOrcadTemplate(resourcesDir, resolveForkOrcadTemplateTargets())
-=======
   resealSignedPackagedRipgrep(
     resourcesDir,
     signedAppPaths.filter((path) => path.startsWith('resources/')).map((path) => path.slice(10))
   )
-  verifyPackagedOrcadTemplate(resourcesDir)
->>>>>>> 997d34b04389665795966ec4c0325b5cbfabf9ee
+  verifyPackagedOrcadTemplate(resourcesDir, resolveForkOrcadTemplateTargets())
   console.log(`[packaged-orcad-template] resealed ${signed.length} signed template file(s)`)
 }
 

@@ -215,66 +215,6 @@ export function renderWorktreeSectionHeaderRow(args: {
       )}
       style={isActiveStickyHeader ? undefined : { transform: getVirtualRowTransform(vItem.start) }}
     >
-<<<<<<< HEAD
-      <div
-        id={getWorktreeOptionId(row.key)}
-        role="button"
-        tabIndex={0}
-        aria-expanded={showHeaderCollapseAffordance ? !isHeaderCollapsed : undefined}
-        data-repo-header-id={projectIdForHeader}
-        data-repo-header-index={repoHeaderIndex}
-        data-repo-header-bucket={repoHeaderBucketKey}
-        data-repo-header-section-end={
-          projectIdForHeader
-            ? headerDrag.repoHeaderSectionEndByRepoId.get(projectIdForHeader)
-            : undefined
-        }
-        // Why: row keeps handle attrs so indent/padding still arms drag; grab
-        // cursor lives only on the title surface so … / + never inherit it.
-        data-repo-header-drag-handle={isDraggableRepoHeader ? '' : undefined}
-        data-project-group-header-id={projectGroupIdForHeader}
-        data-project-group-header-index={projectGroupHeaderIndex}
-        data-project-group-header-bucket={projectGroupHeaderBucketKey}
-        data-project-group-header-section-end={
-          projectGroupIdForHeader
-            ? headerDrag.projectGroupHeaderSectionEndByGroupId.get(projectGroupIdForHeader)
-            : undefined
-        }
-        data-project-group-header-drag-handle={isDraggableProjectGroupHeader ? '' : undefined}
-        data-workspace-sidebar-group={row.key}
-        data-workspace-status-drop-target={headerWorkspaceStatus ? '' : undefined}
-        data-workspace-status={headerWorkspaceStatus ?? undefined}
-        data-workspace-pin-drop-target={isPinnedHeader ? '' : undefined}
-        className={cn(
-          // Why: no row-level grab — only the title surface below shows the hand;
-          // actions use cursor-pointer so … / + never look reorderable.
-          'group relative flex h-7 w-full items-center gap-1.5 pr-2 text-left transition-all',
-          !(isDraggableRepoHeader || isDraggableProjectGroupHeader) && 'cursor-pointer',
-          ctx.highlightedRevealRowKey === row.key &&
-            'rounded-md bg-worktree-sidebar-accent ring-1 ring-worktree-sidebar-ring/50',
-          (isDraggingThis || isDraggingThisProjectGroup) &&
-            'bg-accent/80 ring-1 ring-ring/40 shadow-md rounded-md scale-[1.01]',
-          headerWorkspaceStatus &&
-            ctx.dragOverStatus === headerWorkspaceStatus &&
-            'rounded-md bg-worktree-sidebar-accent ring-1 ring-worktree-sidebar-ring/40',
-          isPinnedHeader &&
-            ctx.pinDragOver &&
-            'rounded-md bg-worktree-sidebar-accent ring-1 ring-worktree-sidebar-ring/40',
-          row.repo && 'overflow-hidden'
-        )}
-        style={{
-          // Why: non-project headers like "All" are flat-list labels; don't reserve project hierarchy indent.
-          paddingLeft:
-            isRepoHeader || isProjectGroupHeader
-              ? getProjectGroupHeaderPaddingLeft(row.projectGroupDepth ?? 0)
-              : WORKTREE_SECTION_HEADER_PADDING_LEFT
-        }}
-        onDragOver={
-          isPinnedHeader
-            ? ctx.onWorkspacePinDragOver
-            : headerWorkspaceStatus
-              ? (event) => ctx.onWorkspaceStatusDragOver(event, headerWorkspaceStatus)
-=======
       <ProjectHeaderHostTooltip label={label} context={hostContext}>
         <div
           id={getWorktreeOptionId(row.key)}
@@ -288,7 +228,6 @@ export function renderWorktreeSectionHeaderRow(args: {
           data-repo-header-section-end={
             projectIdForHeader
               ? headerDrag.repoHeaderSectionEndByRepoId.get(projectIdForHeader)
->>>>>>> 997d34b04389665795966ec4c0325b5cbfabf9ee
               : undefined
           }
           // Why: row keeps handle attrs so indent/padding still arms drag; grab
@@ -303,6 +242,7 @@ export function renderWorktreeSectionHeaderRow(args: {
               : undefined
           }
           data-project-group-header-drag-handle={isDraggableProjectGroupHeader ? '' : undefined}
+          data-workspace-sidebar-group={row.key}
           data-workspace-status-drop-target={headerWorkspaceStatus ? '' : undefined}
           data-workspace-status={headerWorkspaceStatus ?? undefined}
           data-workspace-pin-drop-target={isPinnedHeader ? '' : undefined}
@@ -434,27 +374,6 @@ export function renderWorktreeSectionHeaderRow(args: {
               </div>
             ) : null}
 
-<<<<<<< HEAD
-          {row.repo && repoChrome ? (
-            <RepoHeaderProjectActionsMenu
-              repo={row.repo}
-              label={label}
-              projectGroups={ctx.projectGroups}
-              actions={ctx.projectActions}
-            />
-          ) : null}
-
-          {row.repo && repoChrome ? (
-            <RepoHeaderCreateWorkspaceButton
-              repo={row.repo}
-              label={label}
-              createState={createState}
-              onCreateForRepo={ctx.projectActions.onCreateForRepo}
-            />
-          ) : null}
-        </ProjectHeaderActions>
-      </div>
-=======
             {isProjectGroupHeader && !row.repo && projectGroupIdForHeader ? (
               <ProjectGroupHeaderMenu
                 groupId={projectGroupIdForHeader}
@@ -475,7 +394,7 @@ export function renderWorktreeSectionHeaderRow(args: {
               />
             ) : null}
 
-            {row.repo && ctx.groupBy === 'repo' ? (
+            {row.repo && repoChrome ? (
               <RepoHeaderProjectActionsMenu
                 repo={row.repo}
                 label={label}
@@ -484,7 +403,7 @@ export function renderWorktreeSectionHeaderRow(args: {
               />
             ) : null}
 
-            {row.repo && ctx.groupBy === 'repo' ? (
+            {row.repo && repoChrome ? (
               <RepoHeaderCreateWorkspaceButton
                 repo={row.repo}
                 label={label}
@@ -495,7 +414,6 @@ export function renderWorktreeSectionHeaderRow(args: {
           </ProjectHeaderActions>
         </div>
       </ProjectHeaderHostTooltip>
->>>>>>> 997d34b04389665795966ec4c0325b5cbfabf9ee
     </div>
   )
 }

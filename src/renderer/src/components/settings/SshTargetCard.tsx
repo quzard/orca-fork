@@ -25,11 +25,8 @@ import {
   type SshTargetServerDialog
 } from './SshTargetServerStatus'
 import { translate } from '@/i18n/i18n'
-<<<<<<< HEAD
-import { withForkSshStatusLabels } from '../../../../fork/ssh/ssh-status-labels'
-=======
 import { cn } from '@/lib/utils'
->>>>>>> 997d34b04389665795966ec4c0325b5cbfabf9ee
+import { withForkSshStatusLabels } from '../../../../fork/ssh/ssh-status-labels'
 
 // ── Shared status helpers ────────────────────────────────────────────
 

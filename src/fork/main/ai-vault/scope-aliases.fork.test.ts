@@ -1,5 +1,5 @@
 import { realpathSync } from 'node:fs'
-import { mkdir, mkdtemp, rm, symlink } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, rm, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -105,6 +105,26 @@ describe('scope path aliases', () => {
     expect(result.issues).toEqual([])
     expect(result.sessions).toEqual([{ cwd: '/elsewhere' }])
   })
+
+  it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
+    'still reports a scope path it is not allowed to read',
+    async () => {
+      root = await mkdtemp(join(tmpdir(), 'orca-vault-alias-'))
+      const locked = join(root, 'locked')
+      const scopePath = join(locked, 'project')
+      await mkdir(scopePath, { recursive: true })
+      await chmod(locked, 0o000)
+      try {
+        const result = await attachScopePathAliases({ scopePaths: [scopePath] }, async () => ({
+          sessions: [],
+          issues: []
+        }))
+        expect(result.issues).toEqual([expect.objectContaining({ kind: 'scope', path: scopePath })])
+      } finally {
+        await chmod(locked, 0o700)
+      }
+    }
+  )
 
   it('aliases a cwd spelled through another symlink, like macOS /var -> /private/var', async () => {
     root = await mkdtemp(join(tmpdir(), 'orca-vault-alias-'))

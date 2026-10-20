@@ -37,7 +37,7 @@ export async function attachScopePathAliases<Options, Result>(
       }
     } catch {
       // 本机没有这条路径：多主机扫描把别的主机的工作区也发过来，这不是失效链接，静默跳过（同上游）。
-      if (!(await pathEntryExists(scopePath))) {
+      if (await isAbsentPath(scopePath)) {
         continue
       }
       issues.push({
@@ -87,13 +87,14 @@ function cachedLooseRealpath(): (pathValue: string) => Promise<string> {
   return resolve
 }
 
-/** The entry itself exists here (a dangling link still counts), whether or not it resolves. */
-async function pathEntryExists(pathValue: string): Promise<boolean> {
+// 只有确实没有这条路径（ENOENT、ENOTDIR）才算别台主机的路径；没权限等其他错误照常记 scope 问题。
+async function isAbsentPath(pathValue: string): Promise<boolean> {
   try {
     await lstat(pathValue)
-    return true
-  } catch {
     return false
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException | undefined)?.code
+    return code === 'ENOENT' || code === 'ENOTDIR'
   }
 }
 

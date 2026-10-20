@@ -11,11 +11,15 @@ import { displayNameUpdatePinsLabel } from '../../../../shared/worktree/display-
 import { getWorkspaceStatusWarning } from '../../../../shared/workspace-status-warning'
 import { createWorktreeWithStartupAgent } from '../../../agent-launch/startup-agent-worktree-create'
 import { defineMethod } from '../core'
+<<<<<<< HEAD
 import {
   buildManagedWorktreeCreateArgs,
   sidebarGroupIdSetPatch,
   worktreeSetLineage
 } from './worktree-create-args'
+=======
+import { buildManagedWorktreeCreateArgs, worktreeCreateRepoSelector } from './worktree-create-args'
+>>>>>>> 997d34b04389665795966ec4c0325b5cbfabf9ee
 import { resolvePairedCallerHostId } from './paired-caller-host-id'
 import { resolveRuntimeNavigationTarget } from '../../../../shared/runtime-navigation'
 import { resolveRpcWorkspaceCreatorProvenance } from '../workspace-creator-context'
@@ -100,9 +104,9 @@ export const WORKTREE_METHODS = [
       // Why: a mobile create interrupted by a connection migration is retried with
       // the same clientMutationId; dedupe so the host returns the in-flight/created
       // worktree instead of spawning a duplicate. No key (desktop/CLI) runs plainly.
-      context.runtime.dedupeWorktreeCreate(params.repo, params.clientMutationId, async () => {
+      context.runtime.dedupeWorktreeCreate(params, params.clientMutationId, async () => {
         const { runtime } = context
-        const repo = await runtime.showRepo(params.repo)
+        const repo = await runtime.showRepo(worktreeCreateRepoSelector(params))
         const automationProvenance = resolveAutomationWorkspaceProvenance({
           authority: runtime,
           repoSelector: params.repo,
@@ -217,7 +221,7 @@ export const WORKTREE_METHODS = [
     permission: 'workspace',
     params: WorktreeSortOrder,
     handler: async (params, { runtime }) =>
-      runtime.persistManagedWorktreeSortOrder(params.orderedIds)
+      runtime.persistManagedWorktreeSortOrder(params.orderedIds, params.hostIds)
   }),
   defineMethod({
     name: 'worktree.resolvePrBase',

@@ -14,8 +14,7 @@ import { defineMethod } from '../core'
 import {
   buildManagedWorktreeCreateArgs,
   sidebarGroupIdSetPatch,
-  worktreeCreateRepoSelector,
-  worktreeSetLineage
+  worktreeCreateRepoSelector, worktreeSetLineage
 } from './worktree-create-args'
 import { resolvePairedCallerHostId } from './paired-caller-host-id'
 import { resolveRuntimeNavigationTarget } from '../../../../shared/runtime-navigation'

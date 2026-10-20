@@ -60,11 +60,7 @@ function getRepoHostId(
   return defaultHostId
 }
 
-function getRowHostId(
-  row: Row,
-  defaultHostId: ExecutionHostId,
-  preferRowHostId = false
-): ExecutionHostId | null {
+function getRowHostId(row: Row, defaultHostId: ExecutionHostId, preferRowHostId = false): ExecutionHostId | null {
   switch (row.type) {
     case 'item':
       return getWorktreeExecutionHostId(row.worktree, row.repo, defaultHostId)
@@ -208,10 +204,7 @@ export function addHostSectionRows(args: {
   ) {
     return [...args.rows]
   }
-  if (
-    !args.retainSingleHostHeader &&
-    ((visibleHostIds && visibleHostIds.length <= 1) || args.hostOptions.length <= 1)
-  ) {
+  if (!args.retainSingleHostHeader && ((visibleHostIds && visibleHostIds.length <= 1) || args.hostOptions.length <= 1)) {
     return [...args.rows]
   }
 

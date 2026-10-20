@@ -19,7 +19,6 @@ import {
   previewEditorTabsOf,
   recordPromotedEditorTabsInLayoutOwner
 } from '../tabs/editor-tab-layout-owner'
-import { forkMarkdownPreviewSourceFields } from '../../../../../../shared/fork-hooks/markdown-preview-source-fields'
 
 type FileReadAuthority = Pick<
   OpenFile,
@@ -121,7 +120,6 @@ export function createMarkdownPreviewActions(
           initialState.openFiles.find((openFile) => openFile.id === id)
       )
       const anchor = options?.anchor || undefined
-      const forkFields = forkMarkdownPreviewSourceFields(initialState.openFiles, sourceFileId)
       set((s) => {
         const existing = s.openFiles.find((openFile) => openFile.id === id)
         const worktreeId = file.worktreeId
@@ -142,7 +140,6 @@ export function createMarkdownPreviewActions(
             existing.readOnly !== readOnly ||
             existing.markdownPreviewSourceFileId !== sourceFileId ||
             existing.markdownPreviewAnchor !== anchor ||
-            existing.terminalArtifactGrantId !== forkFields.terminalArtifactGrantId ||
             existing.mode !== 'markdown-preview'
           return needsUpdate
             ? {
@@ -163,8 +160,7 @@ export function createMarkdownPreviewActions(
                           : {}),
                         markdownPreviewSourceFileId: sourceFileId,
                         markdownPreviewAnchor: anchor,
-                        mode: 'markdown-preview' as const,
-                        ...forkFields
+                        mode: 'markdown-preview' as const
                       }
                     : openFile
                 ),
@@ -186,8 +182,7 @@ export function createMarkdownPreviewActions(
           readOnly,
           markdownPreviewSourceFileId: sourceFileId,
           markdownPreviewAnchor: anchor,
-          mode: 'markdown-preview',
-          ...forkFields
+          mode: 'markdown-preview'
         }
 
         return {

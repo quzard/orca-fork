@@ -36,7 +36,6 @@ import {
 import { registerComposerSeed } from './sidebar/register-composer-seed'
 import { installForkLocaleOverlays } from './i18n/locale-overlay'
 import { registerForkWorktreeContextMenuLabels } from './sidebar/context-menu-labels'
-import { registerMarkdownPreviewGrant } from './editor/markdown-preview-grant'
 
 /** Renderer hooks. Kept out of the node program so it can read the app store. */
 export function registerForkRendererModules(): void {
@@ -65,7 +64,6 @@ export function registerForkRendererModules(): void {
   })
   registerComposerSeed()
   registerForkWorktreeContextMenuLabels()
-  registerMarkdownPreviewGrant()
   registerOpenInLauncher({
     id: CURSOR_REMOTE_SSH_LAUNCHER_ID,
     label: CURSOR_OPEN_IN_LABEL,

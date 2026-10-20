@@ -24,7 +24,7 @@ def nlines(rev,f):
     d=g('diff',*against(rev),'--',f); return sum(1 for l in d.splitlines() if l[:1] in '+-' and l[:3] not in ('+++','---'))
 st=[l.split('\t') for l in g('diff','--name-status',*against(REV)).splitlines()]
 FORKROOT=re.compile(r'^(src/fork/|fork/|docs/fork/|src/shared/fork-hooks/|FORK-CHANGES\.md)')
-FEAT=[('markdown-preview','F045 Markdown 预览授权'),('project-group','SB 侧栏/项目组'),('open-in','OPEN 打开方式'),('editor-launch','OPEN 打开方式'),('post-import','F003/F025 批量导入'),('composer','SB 新建工作区'),('quick-creation','SB 新建工作区'),('computer-use','F006 权限窗口'),('main.swift','F006 权限窗口'),('ai-vault','AIV 历史会话'),('AiVault','AIV 历史会话'),('session-scanner','AIV 历史会话'),
+FEAT=[('project-group','SB 侧栏/项目组'),('open-in','OPEN 打开方式'),('editor-launch','OPEN 打开方式'),('post-import','F003/F025 批量导入'),('composer','SB 新建工作区'),('quick-creation','SB 新建工作区'),('computer-use','F006 权限窗口'),('main.swift','F006 权限窗口'),('ai-vault','AIV 历史会话'),('AiVault','AIV 历史会话'),('session-scanner','AIV 历史会话'),
 ('ssh','SSH 状态'),('Ssh','SSH 状态'),('i18n','I18N 界面中文'),('skill','SKL 技能 pin'),('Skill','SKL 技能 pin'),
 ('sidebar','SB 侧栏'),('Sidebar','SB 侧栏'),('worktree','SB 侧栏/工作区'),('Worktree','SB 侧栏/工作区'),('workspace','SB 侧栏/工作区'),('Workspace','SB 侧栏/工作区'),('repo','SB 侧栏/工作区'),
 ('mac-auto-update','F040 Mac 构建发布'),('mac-release','F040 Mac 构建发布'),('publish-','F040 Mac 构建发布'),('install-mac','F040 Mac 构建发布'),('updater','UPD 应用内更新'),('update','UPD 应用内更新'),('terminal','TERM 终端'),('Terminal','TERM 终端'),('safe-storage','F038 密钥存储'),('secret','F038 密钥存储'),

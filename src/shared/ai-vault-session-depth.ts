@@ -1,4 +1,4 @@
-import { forkSessionComparisonCwds } from './fork-hooks/ai-vault-cwd'
+import { forkSessionMatches } from './fork-hooks/ai-vault-cwd'
 import { createAiVaultScopeCwdMatcher } from './ai-vault-scope-cwd-match'
 import type { AiVaultListArgs, AiVaultListResult } from './ai-vault-types'
 
@@ -54,13 +54,9 @@ export function truncateAiVaultListResult(
   }
   const inScope = scopePaths.length > 0 ? createAiVaultScopeCwdMatcher(scopePaths) : null
   let outOfScopeCount = 0
-  const sessions = result.sessions.filter((session) => {
-    // fork: 没有别名时只比对原来的 cwd；有别名时一并比对。匹配仍走上游的文件路径命名空间。
-    const scoped =
-      inScope !== null &&
-      forkSessionComparisonCwds(session).some((cwd) => inScope(cwd, session.filePath))
-    return scoped || outOfScopeCount++ < depth
-  })
+  const sessions = result.sessions.filter(
+    (session) => forkSessionMatches(session, inScope) || outOfScopeCount++ < depth
+  )
   return {
     ...result,
     sessions,

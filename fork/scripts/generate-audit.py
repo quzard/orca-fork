@@ -109,8 +109,8 @@ for s,*fs in st:
         a=nlines_prd0(f); b=nlines(REV,f)
         if b<a:
             d='shrink'
-            how='排除列表改成通配' if 'tsconfig' in f else ('恢复上游内容，fork 断言搬到 src/fork' if '.test.' in f else '逻辑搬进 src/fork，上游只留调用')
-            why=f'PR D：上游文件里的 fork 改动 {a}→{b} 行（{how}）'
+            # 只记行数变化，不猜原因：减少可能来自 PR D 的搬迁，也可能来自同步时上游改写或格式化。
+            why=f'上游文件里的 fork 改动比 PR #6 之前少：{a}→{b} 行'
         else: d='keep'; why=f'上游文件，fork 改动 {b} 行，已是最小写法'
     if s=='M' and not FORKROOT.match(f): tot1+=nlines(REV,f); tot0+=nlines_prd0(f)
     cnt[d]+=1; rows.append(f'| `{f}` | {feat(f)} | {d} | {why} |')

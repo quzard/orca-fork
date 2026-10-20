@@ -43,12 +43,7 @@ function registeredGroupHeader(
     label: group.label,
     count: group.items.length + folderPairs.length,
     icon: { kind: 'project' },
-    hostWorktreeCounts: getLaneHostWorktreeCounts(
-      group.items,
-      folderPairs,
-      repoMap,
-      defaultHostId
-    ),
+    hostWorktreeCounts: getLaneHostWorktreeCounts(group.items, folderPairs, repoMap, defaultHostId),
     hostWorktreeIds: getLaneHostWorktreeIds(group.items, folderPairs, repoMap, defaultHostId),
     worktreeIds: group.items.map((worktree) => worktree.id)
   }

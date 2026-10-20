@@ -56,7 +56,9 @@ const orcadTemplateNodeModulesExtraResource = {
 // afterPack so their new hashes can be resealed into the manifest before the app is sealed.
 const orcadTemplateMacSignIgnore = [
   '/orcad-template/',
-  ...(Array.isArray(forkPackagingHooks.extraMacSignIgnore) ? forkPackagingHooks.extraMacSignIgnore : [])
+  ...(Array.isArray(forkPackagingHooks.extraMacSignIgnore)
+    ? forkPackagingHooks.extraMacSignIgnore
+    : [])
 ]
 
 // Mach-O thin (both byte orders, 32/64-bit) and fat headers.

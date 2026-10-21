@@ -58,6 +58,7 @@ import {
 } from './worktree-visibility-use-global'
 import { createWorktreeVisibilitySourceMutation } from './worktree-visibility-source-mutation'
 import { createBrowserUuid } from '@/lib/browser-uuid'
+import { selectDetectedWorktreesByRepo } from '@/store/workspace-record-selectors'
 
 export default function WorktreeVisibilityDialog(): React.JSX.Element | null {
   const activeModal = useAppStore((s) => s.activeModal)
@@ -66,7 +67,7 @@ export default function WorktreeVisibilityDialog(): React.JSX.Element | null {
   const repos = useAppStore((s) => s.repos)
   const updateRepo = useAppStore((s) => s.updateRepo)
   const fetchWorktrees = useAppStore((s) => s.fetchWorktrees)
-  const detectedWorktreesByRepo = useAppStore((s) => s.detectedWorktreesByRepo)
+  const detectedWorktreesByRepo = useAppStore((s) => selectDetectedWorktreesByRepo(s))
   const settings = useAppStore((s) => s.settings)
   const [actionState, setActionState] = useState<NewExternalWorktreesInboxActionState | null>(null)
   const [busyPath, setBusyPath] = useState<string | null>(null)

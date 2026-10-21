@@ -53,6 +53,11 @@ import {
   type AiVaultSessionListKeyboard
 } from './use-ai-vault-session-keyboard-navigation'
 import { useAiVaultPanelHandle, type AiVaultPanelProps } from './ai-vault-panel-handle'
+<<<<<<< HEAD
+=======
+import { aiVaultSearchHitHostLabels } from './ai-vault-search-hit-hosts'
+import { selectFolderWorkspaces, selectWorktreesByRepo } from '@/store/workspace-record-selectors'
+>>>>>>> b3f1607c84ea5b65415129067c4fae6fc30e5294
 
 export default function AiVaultPanel({
   ref,
@@ -75,10 +80,10 @@ export default function AiVaultPanel({
     useShallow((state) => ({
       projects: state.projects,
       settings: state.settings,
-      folderWorkspaces: state.folderWorkspaces,
+      folderWorkspaces: selectFolderWorkspaces(state),
       projectGroups: state.projectGroups,
       repos: state.repos,
-      worktreesByRepo: state.worktreesByRepo
+      worktreesByRepo: selectWorktreesByRepo(state)
     }))
   )
   const settings = useAppStore((s) => s.settings)

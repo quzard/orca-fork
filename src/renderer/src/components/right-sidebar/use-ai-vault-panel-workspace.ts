@@ -1,6 +1,7 @@
 import { useShallow } from 'zustand/react/shallow'
 import { useAppStore } from '@/store'
 import { useActiveRepo, useActiveWorktree, useActiveWorktreeId } from '@/store/selectors'
+import { selectFolderWorkspaces, selectWorktreesByRepo } from '@/store/workspace-record-selectors'
 import {
   selectAiVaultPanelWorkspace,
   type AiVaultPanelWorkspace,
@@ -22,4 +23,18 @@ export function useAiVaultPanelWorkspace(
   return workspace
     ? { workspaceId: workspace.worktreeId, ...bound }
     : { workspaceId: activeWorktreeId, worktree: activeWorktree, repo: activeRepo }
+}
+
+/** 恢复会话时要看的工作区快照。放在这里，面板文件才能留在行数上限内。 */
+export function useAiVaultResumeTargetState() {
+  return useAppStore(
+    useShallow((state) => ({
+      projects: state.projects,
+      settings: state.settings,
+      folderWorkspaces: selectFolderWorkspaces(state),
+      projectGroups: state.projectGroups,
+      repos: state.repos,
+      worktreesByRepo: selectWorktreesByRepo(state)
+    }))
+  )
 }

@@ -7,6 +7,7 @@
  * deploy model. Exposure is now something an operator asks for by name.
  */
 import { isIP } from 'node:net'
+import { bindOrcadStopTerminalAdmission } from './orcad-stop-terminal-admission'
 
 export const ORCAD_LOOPBACK_BIND_HOST = '127.0.0.1'
 const ALL_INTERFACES_V4 = '0.0.0.0'
@@ -54,6 +55,18 @@ export function bindHostIsNetworkExposed(host: string): boolean {
     return !host.startsWith('127.')
   }
   return host !== '::1'
+}
+
+/**
+ * 解析监听地址，并在 RPC 开始监听前接上终端准入。
+ * 停机已经开始时，之后进来的终端要算进这次退出；两步放在一次调用里，orcad-entry 才能留在行数上限内。
+ */
+export function resolveOrcadServeBind(
+  raw: string | undefined,
+  admission: { holdUntilExit(): void }
+): string {
+  bindOrcadStopTerminalAdmission(admission)
+  return resolveOrcadBindHost(raw)
 }
 
 /** One line for the startup log, so an exposed deployment is never a silent default. */

@@ -20,7 +20,7 @@ import {
   prepareOrcadSecretStore,
   runOrcadQuitHandlers
 } from './orcad-host-adapters'
-import { describeOrcadBindExposure, resolveOrcadBindHost } from './orcad-bind-address'
+import { describeOrcadBindExposure, resolveOrcadServeBind } from './orcad-bind-address'
 import {
   flushOrcadProfileStoreForShutdown,
   installOrcadShutdownSignals,
@@ -31,7 +31,6 @@ import { ORCAD_USAGE, parseArgs, resolveOrcadWebClientRoot } from './orcad-comma
 import type { OrcadRuntimeCleanup } from './orcad-runtime-lifetime'
 import { installOrcadStopRequestListeners } from './orcad-stop-request-listener'
 import { prepareOrcadManagedStop } from './orcad-managed-stop-admission'
-import { bindOrcadStopTerminalAdmission } from './orcad-stop-terminal-admission'
 import type { OrcadHandle, OrcadOptions } from './orcad-start-contract'
 import { beginOrcadIdleExit, bindOrcadIdleShutdown } from './orcad-managed-idle-exit-host'
 import { orcadAutomationsKeepHostBusy, startOrcadAutomations } from './orcad-automations'
@@ -341,8 +340,7 @@ async function startOrcadRuntime(
     console.error('[orcad-migration] installing pending shell history failed:', error)
   })
 
-  const bindHost = resolveOrcadBindHost(options.bind)
-  bindOrcadStopTerminalAdmission(runtime.terminalUpdateAdmission)
+  const bindHost = resolveOrcadServeBind(options.bind, runtime.terminalUpdateAdmission)
   const rpc = new OrcaRuntimeRpcServer({
     runtime,
     userDataPath: runtimeUserDataPath,

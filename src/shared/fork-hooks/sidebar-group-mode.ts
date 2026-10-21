@@ -2,6 +2,7 @@
 import type { PersistedUIState } from '../persisted-ui-state-types'
 import type { ProjectGroup } from '../project-group-types'
 import type { Repo } from '../repo-types'
+import type { planSidebarRows } from '../sidebar-list/sidebar-row-plan'
 import type { Worktree } from '../worktree/types'
 
 const BUILTIN_GROUP_BY_IDS = new Set(['none', 'workspace-status', 'repo', 'pr-status'])
@@ -33,10 +34,9 @@ export type SidebarPlanArgs = {
   projectGrouping?: unknown
 }
 
-export type SidebarRowPlan = {
-  occurrencePlan: { bySection?: unknown; preferredByIdentity?: unknown }
-  render: (collapsedGroups: Set<string>) => unknown[]
-}
+// 与上游 planSidebarRows 的返回值同一类型，分区带 group（含 repoIds）。
+// 以前只声明了 bySection / preferredByIdentity，缺 group 时类型检查发现不了。
+export type SidebarRowPlan = ReturnType<typeof planSidebarRows>
 
 export type SidebarGroupMode = {
   id: string

@@ -86,11 +86,10 @@ export type SidebarRowPlanInputs = {
 export function planSidebarRows(
   inputs: SidebarRowPlanInputs
 ): ReturnType<typeof planBuiltinSidebarRows> {
-  // fork: 已登记模式拥有整份行计划。内置 id 不会命中。
+  // fork: 已登记模式拥有整份行计划，类型与本函数返回值相同。内置 id 不会命中。
   const registeredPlan = takeRegisteredSidebarRowPlan(inputs)
   if (registeredPlan) {
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: 已登记模式返回的 occurrencePlan 和 render 与内置计划同一形状。不能用 ReturnType<typeof planSidebarRows>，那会绕回自身，调用方读到 unknown。
-    return registeredPlan as ReturnType<typeof planBuiltinSidebarRows>
+    return registeredPlan
   }
   return planBuiltinSidebarRows(inputs)
 }

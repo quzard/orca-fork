@@ -37,3 +37,6 @@ export function installForkOrcadHost(installHostAdapters: () => void): void {
   registerForkMainModules()
   installHostAdapters()
 }
+
+// 转出给 orcad-entry 已有的那一行 import。监听地址和终端准入不是 fork 行为，只为留在 300 行上限内。
+export { resolveOrcadServeBind } from './orcad-serve-bind'

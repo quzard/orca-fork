@@ -30,8 +30,7 @@ import {
   selectMenuScopedMap,
   shouldRemoveProjectFromContextMenu
 } from './worktree-context-menu-policy'
-import { useWorktreeContextMenuCommands } from './use-worktree-context-menu-commands'
-import { forkMenuLabel } from '../../../../shared/fork-hooks/worktree-context-menu-labels'
+import { forkMenuLabel, useWorktreeContextMenuCommands } from './use-worktree-context-menu-commands'
 import { useWorktreeParentPickerTransition } from './use-worktree-parent-picker-transition'
 import { useWorktreeContextMenuSecondaryActions } from './use-worktree-context-menu-secondary-actions'
 import { CLOSE_ALL_CONTEXT_MENUS_EVENT } from '@/lib/close-all-context-menus'

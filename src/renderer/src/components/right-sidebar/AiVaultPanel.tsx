@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { useShallow } from 'zustand/react/shallow'
 import { toast } from 'sonner'
 import { useAppStore } from '@/store'
 import { useAllWorktrees, useProjectHostSetupProjection, useRepos } from '@/store/selectors'
@@ -43,6 +42,7 @@ import { AiVaultScanProgressStrip } from './AiVaultScanProgressStrip'
 import { useAiVaultScanProgress } from './ai-vault-scan-progress-store'
 import { aiVaultLocalScanKey } from '../../../../shared/ai-vault-local-scan-key'
 import {
+  useAiVaultResumeTargetState,
   useForkAiVaultGroups,
   useForkVaultHostMenu,
   useSearchHostLabels
@@ -53,7 +53,6 @@ import {
   type AiVaultSessionListKeyboard
 } from './use-ai-vault-session-keyboard-navigation'
 import { useAiVaultPanelHandle, type AiVaultPanelProps } from './ai-vault-panel-handle'
-import { selectFolderWorkspaces, selectWorktreesByRepo } from '@/store/workspace-record-selectors'
 
 export default function AiVaultPanel({
   ref,
@@ -72,16 +71,7 @@ export default function AiVaultPanel({
   const repos = useRepos()
   const allWorktrees = useAllWorktrees()
   const projectHostSetupProjection = useProjectHostSetupProjection()
-  const resumeTargetState = useAppStore(
-    useShallow((state) => ({
-      projects: state.projects,
-      settings: state.settings,
-      folderWorkspaces: selectFolderWorkspaces(state),
-      projectGroups: state.projectGroups,
-      repos: state.repos,
-      worktreesByRepo: selectWorktreesByRepo(state)
-    }))
-  )
+  const resumeTargetState = useAiVaultResumeTargetState()
   const settings = useAppStore((s) => s.settings)
   const agentCmdOverrides = settings?.agentCmdOverrides
   const paneActions = useAiVaultOriginalPaneActions()

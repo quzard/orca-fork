@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { useAppStore } from '@/store'
+import { selectFolderWorkspaces, selectWorktreesByRepo } from '@/store/workspace-record-selectors'
 import type { Repo } from '../../shared/repo-types'
 import type { Worktree } from '../../shared/worktree/types'
 import { getWorktreeExecutionHostId, type ExecutionHostId } from '../../shared/execution-host'
@@ -100,6 +102,24 @@ export function useSearchHostLabels(
   return useMemo(
     () => (searching ? aiVaultSearchHitHostLabels(hits, hostOptions) : null),
     [hits, hostOptions, searching]
+  )
+}
+
+/**
+ * 恢复会话时要看的工作区快照。
+ * 这段计算原在 AiVaultPanel 里，面板已经顶到 400 行，才挪到这里。
+ * 这不是 fork 功能：快照内容和原来的 useAppStore 选择器一样。
+ */
+export function useAiVaultResumeTargetState() {
+  return useAppStore(
+    useShallow((state) => ({
+      projects: state.projects,
+      settings: state.settings,
+      folderWorkspaces: selectFolderWorkspaces(state),
+      projectGroups: state.projectGroups,
+      repos: state.repos,
+      worktreesByRepo: selectWorktreesByRepo(state)
+    }))
   )
 }
 

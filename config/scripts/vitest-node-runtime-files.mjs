@@ -28,13 +28,10 @@ const NODE_RUNTIME_INCLUDE = [
   'src/renderer/src/components/terminal-pane/pty-input-write-queue.test.ts',
   'src/renderer/src/lib/react-commit-cascade-observer.test.ts',
   'src/renderer/src/lib/react-commit-cascade-telemetry.test.ts',
-<<<<<<< HEAD
   // Fork: worktree.set clear runs against the real SQLite runtime store.
   'src/fork/sidebar/sidebar-field-clear.fork.test.ts',
   // Fork: the group-delete test imports persistence-test-harness, which loads SQLite.
   'src/fork/main/project-group-delete.fork.test.ts',
-  ...SQLITE_RUNTIME_INCLUDE,
-=======
   // These reach Node SQLite through a shared helper or a dynamic import, which the scan skips.
   'tests/e2e/native-chat-startup-option-pickers.unit.test.ts',
   'src/main/ai-vault/session-document-consumer-replacement.test.ts',
@@ -85,7 +82,6 @@ const NODE_RUNTIME_INCLUDE = [
   'src/main/runtime/worktree-agent-first-surface.test.ts',
   'src/main/runtime/runtime-client-agent-launch-settings-durability.test.ts',
   'tests/e2e/host-agent-launch-settings-hook-bookkeeping.unit.test.ts',
->>>>>>> b3f1607c84ea5b65415129067c4fae6fc30e5294
   'src/cli/**/*.test.ts',
   'src/main/persistence/**/*.test.ts',
   'src/main/persistence*.test.ts',

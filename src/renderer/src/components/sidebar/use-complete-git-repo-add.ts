@@ -9,11 +9,8 @@ import {
 import { compareWorktreeDisplayName } from '@/lib/worktree-display-name-order'
 import { finishProjectAddWithDefaultCheckout } from './project-added-default-checkout'
 import type { ExecutionHostId } from '../../../../shared/execution-host'
-<<<<<<< HEAD
 import { withForkPostImportHandoff } from '../../../../shared/fork-hooks/post-import'
-=======
 import { selectWorktreesByRepo } from '@/store/workspace-record-selectors'
->>>>>>> b3f1607c84ea5b65415129067c4fae6fc30e5294
 
 type CompleteGitRepoAddOptions = {
   closeModal: () => void

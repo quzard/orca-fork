@@ -53,11 +53,7 @@ import {
   type AiVaultSessionListKeyboard
 } from './use-ai-vault-session-keyboard-navigation'
 import { useAiVaultPanelHandle, type AiVaultPanelProps } from './ai-vault-panel-handle'
-<<<<<<< HEAD
-=======
-import { aiVaultSearchHitHostLabels } from './ai-vault-search-hit-hosts'
 import { selectFolderWorkspaces, selectWorktreesByRepo } from '@/store/workspace-record-selectors'
->>>>>>> b3f1607c84ea5b65415129067c4fae6fc30e5294
 
 export default function AiVaultPanel({
   ref,

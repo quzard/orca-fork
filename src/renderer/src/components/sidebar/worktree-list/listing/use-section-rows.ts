@@ -42,14 +42,11 @@ import {
 import type { ExecutionHostRegistryEntry } from '../../../../../../shared/execution-host-registry'
 import { buildSidebarHostOptions } from '../../sidebar-host-options'
 import { selectPendingWorktreeCreationKeys } from './pending-worktree-creation-keys'
-<<<<<<< HEAD
 import {
   getSidebarGroupModeLabelsVersion,
   subscribeSidebarGroupModeLabels
 } from '../../../../../../shared/fork-hooks/sidebar-group-mode'
-=======
 import { selectWorktreesByRepo } from '@/store/workspace-record-selectors'
->>>>>>> b3f1607c84ea5b65415129067c4fae6fc30e5294
 
 type SectionRowsArgs = {
   agentSendTargetWorktreeId?: string | null

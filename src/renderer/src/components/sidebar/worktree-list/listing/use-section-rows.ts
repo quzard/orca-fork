@@ -46,6 +46,7 @@ import {
   getSidebarGroupModeLabelsVersion,
   subscribeSidebarGroupModeLabels
 } from '../../../../../../shared/fork-hooks/sidebar-group-mode'
+import { selectWorktreesByRepo } from '@/store/workspace-record-selectors'
 
 type SectionRowsArgs = {
   agentSendTargetWorktreeId?: string | null
@@ -77,7 +78,7 @@ type SectionRowsArgs = {
 // tier wrapped around them.
 export function useSidebarSectionRows(args: SectionRowsArgs) {
   const { repos, worktrees, repoMap, defaultHostId } = args
-  const worktreesByRepo = useAppStore((s) => s.worktreesByRepo)
+  const worktreesByRepo = useAppStore((s) => selectWorktreesByRepo(s))
   const sshTargetLabels = useAppStore((s) => s.sshTargetLabels)
   const sshConnectionStates = useAppStore((s) => s.sshConnectionStates)
   const runtimeEnvironments = useAppStore((s) => s.runtimeEnvironments)

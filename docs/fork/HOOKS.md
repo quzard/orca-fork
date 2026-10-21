@@ -48,7 +48,7 @@ Upstream files with a small fork rule and no fork call: `src/renderer/src/compon
 - The node project includes `src/fork/**/*.ts`. Fork code that imports the renderer is `.tsx`, so the node project never sees it.
 - Main-process-only fork code lives under `src/fork/main/`. The web projects exclude `src/fork/main/**` and `src/fork/**/*.fork.test.ts` (node tests); renderer fork tests are `.fork.test.tsx`.
 - `src/fork/tsconfig-boundaries.mjs` fails when a fork file imports a file outside a project that includes it. `pnpm typecheck` (`pnpm tc`) and `typecheck:ci` run it before tsc, and `src/fork/tsconfig-boundaries.fork.test.ts` runs it in the test suite.
-- A fork test that uses the real SQLite runtime store must be listed in `NODE_RUNTIME_INCLUDE` (`config/scripts/vitest-node-runtime-files.mjs`); `config/scripts/vitest-sqlite-runtime-boundary.test.ts` enforces it.
+- A fork test that uses the real SQLite runtime store must be listed in `NODE_RUNTIME_INCLUDE` (`config/scripts/vitest-node-runtime-files.mjs`). `findSqliteRuntimeTests()` also appends direct importers to `getNodeRuntimeInclude()`; the two fork SQLite tests stay on the explicit list because a dynamic import or shared helper is invisible to that scan.
 
 ## Release feed
 

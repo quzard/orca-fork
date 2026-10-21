@@ -59,7 +59,7 @@ import {
   OPENS_EVERY_STRUCTURED_CHAT,
   projectStructuredAiVaultSessions
 } from '../ai-vault/structured-session-ownership'
-import { forkAiVaultAllHostRuntimeTimeout } from '../../fork/main/ai-vault/all-host-runtime-timeout'
+import { allHostsRuntimeScanTimeoutMs } from './ai-vault-all-host-timeouts'
 import { registerAiVaultScanProgressBroadcast } from './ai-vault-scan-progress-broadcast'
 
 type AiVaultHandlerOptions = AiVaultSessionSources &
@@ -156,7 +156,7 @@ async function scanAiVaultSessionsByHostScope(
               listArgs: args ? { ...args, afterFingerprint: undefined } : undefined,
               options: {
                 signal,
-                timeoutMs: forkAiVaultAllHostRuntimeTimeout(hostInfo)
+                timeoutMs: allHostsRuntimeScanTimeoutMs(hostInfo)
               }
             })
         })

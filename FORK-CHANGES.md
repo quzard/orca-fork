@@ -82,20 +82,20 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 
 ## F022 软链目录上的 Cursor 会话
 
-扫描前把作用域路径做 `realpath`。会话的 `cwd` 仍是恢复用的原路径；`cwdAliases` 只参与匹配、深度和归属。更长的工作区路径优先，避免父目录抢走子仓库的会话。会话记录的 cwd 换了一种软链写法（例如 macOS 的 `/var` 实际是 `/private/var`）或目录已经不在时，按 cwd 最深的现存上级做 `realpath` 后再匹配；每次扫描每个不同的 cwd 只查一次，只在有别名时才查。失效链接记一条 scope 问题，扫描继续；本机根本没有的路径（ENOENT、ENOTDIR，全部主机时发给每台主机的别台工作区）不记，同上游；没权限等其他读不到的情况照记。本机和 orcad 都登记这条策略（`src/fork/main/ai-vault/scope-aliases.ts`）。
+只保留工作区归属。上游的范围、深度和项目匹配已经读 `cwdAliases`；`resolveWorktreeInfoFromCandidates` 不读别名，所以 `ai-vault-session-worktree.ts` 仍通过 `src/shared/fork-hooks/ai-vault-cwd.ts` 按最短剩余路径排序。没有别名时排序与上游相同。
 
 ## F041 普通目录的终端生命周期
 
 `folder:<id>` 在 `resolveWorktreeSelector` 之前解析。没有这个文件夹时仍抛 `selector_not_found`。`stopExact` 把该结果放进存活刷新用的工作区列表，因为文件夹不在原来的 resolved map 里。
 
-## F044 全部主机时经 SSH 的 Orca 服务器
+## F044 全部主机时经 SSH 的 Orca 服务器（已移除）
 
-上游在「全部主机」里给每台 Orca 服务器 3 秒（单独看一台是 15 秒），经 SSH 隧道连的托管服务器常常超时、整台变空。环境记录是 `connectionDependency: 'ssh-tunnel'` 的服务器（SSH 部署的 orcad、SSH 访问）改用 SSH 中继的 15 秒；局域网、Tailscale 直连的和读不到记录时仍是 3 秒。`src/main/ipc/ai-vault.ts` 只改一行，调 `src/fork/main/ai-vault/all-host-runtime-timeout.ts`。
+上游已经覆盖（#31226）：保存的环境记录对 SSH 一律带 `connectionDependency: 'ssh-tunnel'`（`runtime-environments.ts` 里的收窄）。全部主机扫描按这个字段给 SSH 隧道 15 秒，其余 3 秒。fork 的超时回退已删除，`src/main/ipc/ai-vault.ts` 回到上游。
 
 ## 历史会话（已登记）
 
 - 列表默认看所有主机。多台主机先有可折叠的主机行，下面是完整目录；只有一台主机时不重复主机行。新组默认收起，标题栏一次收起主机和目录。
-- 全文搜索保持命中顺序。多台主机的命中在行上标出来源。历史面板里不另显示索引状态（以前 fork 在列表上方逐主机列出，已删除），索引状态只在上游的设置「智能体会话搜索」页里看。主机菜单把没有会话、不是当前主机、也没连上的远端收进「其他已配置主机」。
+- 全文搜索保持命中顺序。多台主机的命中在行上标出来源，由上游 #31261 提供（环境名和 i18n 提示）。历史面板里不另显示索引状态（以前 fork 在列表上方逐主机列出，已删除），索引状态只在上游的设置「智能体会话搜索」页里看。主机菜单把没有会话、不是当前主机、也没连上的远端收进「其他已配置主机」。
 - `src/fork/ai-vault/agents-panel-empty-profile.fork.test.tsx` 用空配置渲染整个「Agents」面板（登记了 fork 的面板插槽和列表呈现），检查不会报 React #185（Maximum update depth exceeded）：fork 插槽以前在 zustand 选择器里每次新建数组，`useSyncExternalStore` 一直重渲染，右侧栏崩溃。
 - 扫描进程的内存按本机内存计算，下限仍是 384 MiB。工具输出按块写入索引，索引版本 +1，旧的截断索引会重建。
 - 启动时浏览器分区的代理改成后台应用，不再挡住第一个窗口。每个分区在排队时同步标成「代理未就绪」，请求守卫会扣住该分区的请求直到代理生效，失败则取消请求，所以不会有请求先走直连。`src/fork/main/startup/browser-session-proxy.fork.test.ts` 验证这一点。

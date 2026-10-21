@@ -8,10 +8,9 @@ Paths below are generic. Each item is the behavior a registered build must show.
 
 ## F022 Symlinked Cursor sessions
 
-- [ ] A scope path that is a symlink is realpath'd. The scan also receives the resolved path.
-- [ ] A session whose `cwd` is the resolved directory gets `cwdAliases` set to the symlink path (plus any child suffix). `cwd` itself does not change, so resume still uses it.
-- [ ] A dangling scope symlink becomes a scope issue. The scan still returns the other sessions.
-- [ ] Workspace match, depth, and project/worktree attribution consult `cwdAliases`. With no aliases, matching uses `cwd` only.
+- [ ] Scope, depth, and project matching read `cwdAliases` from upstream. The fork does not realpath a session cwd.
+- [ ] Worktree attribution still reads `cwdAliases` and prefers the workspace that leaves the shortest remainder.
+- [ ] With no aliases, worktree matching uses `cwd` only, same as upstream.
 - [ ] When both `/home/user` and `/home/user/link` own a session via an alias, `/home/user/link` wins.
 - [ ] `cwdAliases` survives list-result validation.
 

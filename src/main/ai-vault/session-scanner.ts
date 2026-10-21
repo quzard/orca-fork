@@ -22,7 +22,6 @@ import type { AiVaultScanOptions } from './session-scanner-types'
 import { clampPositiveInteger } from './session-scanner-values'
 import { throwIfAiVaultScanCancelled } from './ai-vault-scan-cancellation'
 import { DEFAULT_AI_VAULT_SCAN_LIMIT } from '../../shared/ai-vault-session-depth'
-import { runForkAiVaultScan } from '../../shared/fork-hooks/ai-vault'
 import { withDevinSessionsDbScan } from './session-scanner-devin-db'
 import { withOpenCodeSqliteScanScope } from './session-scanner-opencode-sqlite-scan-scope'
 
@@ -40,10 +39,7 @@ const SESSION_PARSE_CANDIDATE_MULTIPLIER = 2
 export async function scanAiVaultSessions(
   options: AiVaultScanOptions = {}
 ): Promise<AiVaultListResult> {
-  // fork: 扫描装饰器与 scope 别名。都未登记时直接扫描，不多一次 await。
-  return runForkAiVaultScan(options, (next) =>
-    withOpenCodeSqliteScanScope(() => scanAiVaultSessionStores(next))
-  )
+  return withOpenCodeSqliteScanScope(() => scanAiVaultSessionStores(options))
 }
 
 async function scanAiVaultSessionStores(options: AiVaultScanOptions): Promise<AiVaultListResult> {

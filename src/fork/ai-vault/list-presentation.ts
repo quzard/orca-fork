@@ -132,19 +132,6 @@ export function visibleAiVaultGroups<Session extends HostSession>(
   return { groups: visible, hostHeaderCounts }
 }
 
-export function searchHostLabels(
-  groups: readonly HostGroup<HostSession>[]
-): ((hostId: string) => string | undefined) | undefined {
-  if (groups.length !== 1 || groups[0]?.label !== null) {
-    return undefined
-  }
-  const hosts = hostOrder(groups)
-  if (hosts.length < 2) {
-    return undefined
-  }
-  return (hostId) => hostLabel(hostId)
-}
-
 export function registerAiVaultListPresentation(): void {
   registerAiVaultFolderLabel(fullDirectoryLabel)
   registerAiVaultWrapGroupLabels(true)

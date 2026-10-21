@@ -1,20 +1,10 @@
-// fork: 历史扫描装饰器、路径别名、面板插槽，以及分组/堆内存/索引策略。未注册时保持上游。
+// fork: 面板插槽，以及分组、堆内存和索引策略。未注册时保持上游。
 
 import type { ExecutionHostScope } from '../execution-host'
-
-export type AiVaultScanDecorator = <Options, Result>(
-  options: Options,
-  scan: (options: Options) => Promise<Result>
-) => Promise<Result>
-
-export type AiVaultScopeAliasHook = (
-  scopePaths: readonly string[]
-) => readonly string[] | Promise<readonly string[]>
 
 export type AiVaultToolIndexPolicy = 'capped' | 'chunk'
 
 export type AiVaultForkServicePolicy = {
-  scopeAliases: boolean
   toolIndex: AiVaultToolIndexPolicy
   schemaOffset: number
 }
@@ -30,8 +20,6 @@ export type AiVaultPanelSlotId = (typeof AI_VAULT_PANEL_SLOT_IDS)[number]
 
 type SlotRender = () => unknown
 
-let scanDecorator: AiVaultScanDecorator | undefined
-let scopeAliasHook: AiVaultScopeAliasHook | undefined
 const panelSlots = new Map<AiVaultPanelSlotId, SlotRender>()
 let serviceHeapMiB: (() => number) | undefined
 let servicePolicy: AiVaultForkServicePolicy | undefined
@@ -44,7 +32,6 @@ let collapseAll: (() => void) | undefined
 let defaultHostScope: ExecutionHostScope | undefined
 let wrapGroupLabels = false
 let groupSessionCounts: ReadonlyMap<string, number> | undefined
-let searchHostLabel: ((hostId: string) => string | undefined) | undefined
 let hostMenuDecoration:
   | (<T extends { id: string; label: string; secondary?: boolean }>(
       options: readonly T[],
@@ -56,14 +43,6 @@ export type VaultHostMenuContext = {
   historyHostIds: readonly string[]
   activeHostId: string | null
   connectedSshTargetIds: readonly string[]
-}
-
-export function registerAiVaultScanDecorator(next: AiVaultScanDecorator): void {
-  scanDecorator = next
-}
-
-export function registerAiVaultScopeAliasHook(next: AiVaultScopeAliasHook): void {
-  scopeAliasHook = next
 }
 
 export function registerAiVaultPanelSlot(id: AiVaultPanelSlotId, render: SlotRender): void {
@@ -179,16 +158,6 @@ export function readAiVaultGroupSessionCount(key: string): number | undefined {
   return groupSessionCounts?.get(key)
 }
 
-export function registerAiVaultSearchHostLabel(
-  next: ((hostId: string) => string | undefined) | undefined
-): void {
-  searchHostLabel = next
-}
-
-export function readAiVaultSearchHostLabel(hostId: string): string | undefined {
-  return searchHostLabel?.(hostId)
-}
-
 export function registerVaultHostMenuDecoration(
   next: <T extends { id: string; label: string; secondary?: boolean }>(
     options: readonly T[],
@@ -206,8 +175,6 @@ export function decorateVaultHostMenu<T extends { id: string; label: string; sec
 }
 
 export function resetAiVaultForkHooksForTests(): void {
-  scanDecorator = undefined
-  scopeAliasHook = undefined
   panelSlots.clear()
   serviceHeapMiB = undefined
   servicePolicy = undefined
@@ -220,28 +187,5 @@ export function resetAiVaultForkHooksForTests(): void {
   defaultHostScope = undefined
   wrapGroupLabels = false
   groupSessionCounts = undefined
-  searchHostLabel = undefined
   hostMenuDecoration = undefined
-}
-
-type ScopeOptions = { scopePaths?: readonly string[] }
-
-export async function runForkAiVaultScan<Options extends ScopeOptions, Result>(
-  options: Options,
-  scan: (options: Options) => Promise<Result>
-): Promise<Result> {
-  if (!scopeAliasHook && !scanDecorator) {
-    return scan(options)
-  }
-  let prepared = options
-  if (scopeAliasHook && options.scopePaths && options.scopePaths.length > 0) {
-    const scopePaths = await scopeAliasHook(options.scopePaths)
-    if (scopePaths !== options.scopePaths) {
-      prepared = { ...options, scopePaths: [...scopePaths] }
-    }
-  }
-  if (!scanDecorator) {
-    return scan(prepared)
-  }
-  return scanDecorator(prepared, scan)
 }

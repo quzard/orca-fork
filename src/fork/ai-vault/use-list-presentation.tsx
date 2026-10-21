@@ -2,17 +2,19 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAppStore } from '@/store'
 import type { Repo } from '../../shared/repo-types'
 import type { Worktree } from '../../shared/worktree/types'
-import { getWorktreeExecutionHostId } from '../../shared/execution-host'
+import { getWorktreeExecutionHostId, type ExecutionHostId } from '../../shared/execution-host'
+import type { AiVaultSession } from '../../shared/ai-vault-types'
+import type { AiVaultHostScopeOption } from '../../renderer/src/components/right-sidebar/ai-vault-host-scope'
+import { aiVaultSearchHitHostLabels } from '../../renderer/src/components/right-sidebar/ai-vault-search-hit-hosts'
 import type { AiVaultSessionListGroup } from '../../renderer/src/components/right-sidebar/ai-vault-session-filters'
 import {
   applyAiVaultListGroups,
   decorateVaultHostMenu,
   publishAiVaultGroupSessionCounts,
-  registerAiVaultSearchHostLabel,
   setAiVaultCollapseAllHandler,
   shouldCollapseNewAiVaultGroups
 } from '../../shared/fork-hooks/ai-vault'
-import { searchHostLabels, visibleAiVaultGroups } from './list-presentation'
+import { visibleAiVaultGroups } from './list-presentation'
 import { publishAiVaultPanelStatus } from './panel-status'
 
 /**
@@ -69,11 +71,6 @@ export function useForkAiVaultGroups(
   }, [presented.hostHeaderCounts])
 
   useEffect(() => {
-    registerAiVaultSearchHostLabel(searchHostLabels(partitioned))
-    return () => registerAiVaultSearchHostLabel(undefined)
-  }, [partitioned])
-
-  useEffect(() => {
     const hosts = new Set<string>()
     for (const group of partitioned) {
       for (const session of group.sessions) {
@@ -88,6 +85,22 @@ export function useForkAiVaultGroups(
   }, [partitioned, status.loading, status.sessionCount])
 
   return presented.groups
+}
+
+/**
+ * 搜索命中跨多台主机时，给出每台主机的名称。
+ * 这段计算原在 AiVaultPanel 里，面板已经顶到 400 行，才挪到这里。
+ * 这不是 fork 功能：只有一台主机时返回 null，行上不标来源。
+ */
+export function useSearchHostLabels(
+  searching: boolean,
+  hits: readonly Pick<AiVaultSession, 'executionHostId'>[],
+  hostOptions: readonly AiVaultHostScopeOption[]
+): ReadonlyMap<ExecutionHostId, string> | null {
+  return useMemo(
+    () => (searching ? aiVaultSearchHitHostLabels(hits, hostOptions) : null),
+    [hits, hostOptions, searching]
+  )
 }
 
 /** The history host menu with the fork's "other configured hosts" grouping. Unregistered, unchanged. */

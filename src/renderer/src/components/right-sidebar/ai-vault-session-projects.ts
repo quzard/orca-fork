@@ -1,7 +1,4 @@
-import {
-  createNormalizedAiVaultScopeCwdMatcher,
-  sessionFileExecutionNamespace
-} from '../../../../shared/ai-vault-scope-cwd-match'
+import { createNormalizedAiVaultScopeCwdMatcher } from '../../../../shared/ai-vault-scope-cwd-match'
 import { resolveActiveProjectKey } from './ai-vault-project-key'
 import { toAiVaultProjectKey } from '../../../../shared/ai-vault-project-key'
 import {
@@ -17,14 +14,14 @@ import type { Repo } from '../../../../shared/repo-types'
 import type { Worktree } from '../../../../shared/worktree/types'
 import { normalizeRuntimePathForComparison } from '../../../../shared/cross-platform-path'
 import {
+  aiVaultSessionProjectCwdKey,
+  matchAiVaultProjectCandidates
+} from './ai-vault-session-project-candidates'
+import {
   folderGroupKey,
   folderLabel,
   type AiVaultSessionProject
 } from '../../../../shared/ai-vault-session-filters'
-import {
-  forkSessionCwdCacheKey,
-  matchForkCwdCandidates
-} from '../../../../shared/fork-hooks/ai-vault-cwd'
 
 // Preserve renderer imports of the renderer-free descriptor.
 export type { AiVaultSessionProject } from '../../../../shared/ai-vault-session-filters'
@@ -109,11 +106,7 @@ export function buildAiVaultSessionProjectById({
       projectsByCwd = new Map()
       projectsByHostAndCwd.set(host, projectsByCwd)
     }
-    // fork: 没有别名时第二段就是原来的 cwd，键与上游的「命名空间 + cwd」相同；有别名时把别名算进键。
-    const cwdKey = JSON.stringify([
-      sessionFileExecutionNamespace(session.filePath),
-      forkSessionCwdCacheKey(session)
-    ])
+    const cwdKey = aiVaultSessionProjectCwdKey(session)
     let project = projectsByCwd.get(cwdKey)
     if (!project) {
       project = resolveSessionProject(session, candidates, projectLabelByKey)
@@ -275,13 +268,7 @@ function resolveSessionProject(
     return { kind: 'unknown', key: 'unknown', label: '' }
   }
 
-  // fork: 软链别名选更具体的路径。没有别名时仍按原来的 cwd 排序，归属判断带上上游的文件路径。
-  const matches = matchForkCwdCandidates(session, candidates, {
-    normalize: normalizeRuntimePathForComparison,
-    owns: (candidate, path) => candidate.ownsNormalizedCwd(path, session.filePath),
-    pathLength: (candidate) => candidate.normalizedPath.length,
-    tieBreak: compareCandidates
-  })
+  const matches = matchAiVaultProjectCandidates(session, cwd, candidates, compareCandidates)
   const sessionHostId = normalizeExecutionHostId(session.executionHostId)
   const hostMatches = sessionHostId
     ? matches.filter((candidate) => candidate.hostKey === sessionHostId)

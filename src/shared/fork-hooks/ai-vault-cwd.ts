@@ -3,7 +3,7 @@ import type { AiVaultSession } from '../ai-vault-types'
 type AliasSession = Pick<AiVaultSession, 'cwd' | 'cwdAliases'>
 
 /** Cwd plus symlink aliases. With no aliases this is the original cwd alone. */
-export function forkSessionComparisonCwds(session: AliasSession): readonly string[] {
+function forkSessionComparisonCwds(session: AliasSession): readonly string[] {
   if (!session.cwd) {
     return []
   }
@@ -12,24 +12,6 @@ export function forkSessionComparisonCwds(session: AliasSession): readonly strin
     return [session.cwd]
   }
   return [session.cwd, ...aliases]
-}
-
-/** Whether the session's cwd or any symlink alias matches. A null matcher matches nothing. */
-export function forkSessionMatches(
-  session: AliasSession & Pick<AiVaultSession, 'filePath'>,
-  match: ((cwd: string, filePath: string) => boolean) | null
-): boolean {
-  return (
-    match !== null && forkSessionComparisonCwds(session).some((cwd) => match(cwd, session.filePath))
-  )
-}
-
-/** Cache key for project attribution. No aliases keeps the original cwd, including null. */
-export function forkSessionCwdCacheKey(session: AliasSession): string | null {
-  if (!session.cwd || !session.cwdAliases || session.cwdAliases.length === 0) {
-    return session.cwd
-  }
-  return JSON.stringify([session.cwd, ...session.cwdAliases])
 }
 
 /** Alias-aware owner order. Without aliases this is the original cwd filter and tie-break. */

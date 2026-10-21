@@ -44,7 +44,8 @@ import { useAiVaultScanProgress } from './ai-vault-scan-progress-store'
 import { aiVaultLocalScanKey } from '../../../../shared/ai-vault-local-scan-key'
 import {
   useForkAiVaultGroups,
-  useForkVaultHostMenu
+  useForkVaultHostMenu,
+  useSearchHostLabels
 } from '../../../../fork/ai-vault/use-list-presentation'
 import { useAiVaultPanelWorkspace } from './use-ai-vault-panel-workspace'
 import {
@@ -232,6 +233,7 @@ export default function AiVaultPanel({
     loading: searching ? search.loading : loading,
     sessionCount: sessions.length
   })
+  const searchHitHostLabels = useSearchHostLabels(searching, filteredSessions, hostScopeOptions)
 
   const copyText = useCallback(async (text: string, label: string): Promise<void> => {
     await window.api.ui.writeClipboardText(text)
@@ -335,6 +337,7 @@ export default function AiVaultPanel({
           <AiVaultSessionVirtualList
             key={searching ? search.resetKey : 'history'}
             searchHits={searching ? searchHits : undefined}
+            searchHitHostLabels={searchHitHostLabels}
             groups={forkGroups}
             collapsedGroups={collapsedGroups}
             loading={searching ? search.loading : loading}

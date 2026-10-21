@@ -27,7 +27,6 @@ import { resolveAiVaultSessionRowChatActions } from './ai-vault-session-chat-act
 import type { AiVaultResumeInChatEligibility } from './ai-vault-session-resume-in-chat'
 import type { AiVaultSearchHit } from '../../../../shared/ai-vault-search-types'
 import { canResumeAiVaultSearchHit, hasAiVaultSearchHitPath } from './ai-vault-search-session'
-import { readAiVaultSearchHostLabel } from '../../../../shared/fork-hooks/ai-vault'
 
 export type AiVaultListRow =
   | { type: 'group'; group: AiVaultSessionGroup }
@@ -66,6 +65,7 @@ export function AiVaultVirtualRow({
   onOpenCwd,
   onRequestDelete,
   searchHits,
+  searchHitHostLabels,
   selected,
   onSelect,
   onPickSession
@@ -102,6 +102,7 @@ export function AiVaultVirtualRow({
   onOpenCwd: (session: AiVaultSession) => void
   onRequestDelete: (session: AiVaultSession) => void
   searchHits?: ReadonlyMap<string, AiVaultSearchHit>
+  searchHitHostLabels?: ReadonlyMap<string, string> | null
   /** Set only where rows are keyboard-selectable. */
   selected?: boolean
   onSelect?: () => void
@@ -209,9 +210,7 @@ export function AiVaultVirtualRow({
         <VaultSessionRow
           session={row.session}
           searchHit={searchHit}
-          hostLabel={
-            searchHit ? readAiVaultSearchHostLabel(row.session.executionHostId) : undefined
-          }
+          sourceHostLabel={searchHitHostLabels?.get(row.session.executionHostId)}
           liveState={getSessionLiveState(row.session)}
           resumeStartup={resumeStartup}
           realHomeResumeStartup={

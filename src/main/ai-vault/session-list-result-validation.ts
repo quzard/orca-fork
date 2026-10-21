@@ -52,8 +52,12 @@ const aiVaultSessionSchema = z.object({
   sessionId: z.string(),
   title: z.string(),
   cwd: z.string().nullable(),
-  // fork: optional symlink aliases. Absent on older hosts.
-  cwdAliases: z.array(z.string()).max(AI_VAULT_SCOPE_PATHS_MAX_COUNT).optional(),
+  // Why catch: a malformed alias list must cost only the aliases, never the whole row.
+  cwdAliases: z
+    .array(z.string().min(1).max(4096))
+    .max(AI_VAULT_SCOPE_PATHS_MAX_COUNT)
+    .optional()
+    .catch(undefined),
   branch: z.string().nullable(),
   model: z.string().nullable(),
   filePath: z.string(),

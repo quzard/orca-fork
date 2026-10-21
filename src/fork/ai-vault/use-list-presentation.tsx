@@ -2,7 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAppStore } from '@/store'
 import type { Repo } from '../../shared/repo-types'
 import type { Worktree } from '../../shared/worktree/types'
-import { getWorktreeExecutionHostId } from '../../shared/execution-host'
+import type { AiVaultSession } from '../../shared/ai-vault-types'
+import { getWorktreeExecutionHostId, type ExecutionHostId } from '../../shared/execution-host'
+import type { AiVaultHostScopeOption } from '../../renderer/src/components/right-sidebar/ai-vault-host-scope'
+import { aiVaultSearchHitHostLabels } from '../../renderer/src/components/right-sidebar/ai-vault-search-hit-hosts'
 import type { AiVaultSessionListGroup } from '../../renderer/src/components/right-sidebar/ai-vault-session-filters'
 import {
   applyAiVaultListGroups,
@@ -88,6 +91,21 @@ export function useForkAiVaultGroups(
   }, [partitioned, status.loading, status.sessionCount])
 
   return presented.groups
+}
+
+/**
+ * 搜索命中跨多台主机时，给出每台主机的名称。计算放在这里，是因为面板文件已经顶到行数上限。
+ * 只有一台主机时返回 null，行上不标来源。
+ */
+export function useSearchHostLabels(
+  searching: boolean,
+  hits: readonly Pick<AiVaultSession, 'executionHostId'>[],
+  hostOptions: readonly AiVaultHostScopeOption[]
+): ReadonlyMap<ExecutionHostId, string> | null {
+  return useMemo(
+    () => (searching ? aiVaultSearchHitHostLabels(hits, hostOptions) : null),
+    [hits, hostOptions, searching]
+  )
 }
 
 /** The history host menu with the fork's "other configured hosts" grouping. Unregistered, unchanged. */

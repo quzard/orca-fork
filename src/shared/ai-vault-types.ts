@@ -118,7 +118,7 @@ export type AiVaultSession = {
   sessionId: string
   title: string
   cwd: string | null
-  /** Realpath aliases of the registered workspace. Matching only; resume keeps `cwd`. */
+  /** The host's spellings of `cwd` under a symlinked scope path. Scope matching only; resume reads `cwd`. */
   cwdAliases?: string[]
   branch: string | null
   model: string | null

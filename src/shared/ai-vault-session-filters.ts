@@ -7,10 +7,9 @@ import {
   normalizeRuntimePathSeparators
 } from './cross-platform-path'
 import { readAiVaultFolderLabel } from './fork-hooks/ai-vault'
-import { forkSessionComparisonCwds } from './fork-hooks/ai-vault-cwd'
 import { isClipboardTextByteLengthOverLimit } from './clipboard-text'
 import { splitAiVaultSearchQuery } from './ai-vault-search-query-operators'
-import { createAiVaultScopeCwdMatcher } from './ai-vault-scope-cwd-match'
+import { aiVaultSessionInScope, createAiVaultScopeCwdMatcher } from './ai-vault-scope-cwd-match'
 import type {
   AiVaultAgent,
   AiVaultGroup,
@@ -101,8 +100,7 @@ export function filterAiVaultSessions(
       return false
     }
     if (filters.scope === 'workspace') {
-      // fork: 没有别名时只比对原来的 cwd；有别名时一并比对。匹配仍走上游的文件路径命名空间。
-      if (!forkSessionComparisonCwds(session).some((cwd) => inWorkspace(cwd, session.filePath))) {
+      if (!aiVaultSessionInScope(inWorkspace, session)) {
         return false
       }
     }

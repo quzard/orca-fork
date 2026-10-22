@@ -1,9 +1,14 @@
 import { app } from 'electron'
+<<<<<<< HEAD
 import { is } from '@electron-toolkit/utils'
 import {
   FORK_UPSTREAM_RELEASE_BLOCKED,
   forkReleaseFeedDecision
 } from '../../shared/fork-hooks/update-feed'
+=======
+import { isMacInstallRequested } from '../updater-mac-install'
+import type { UpdateCheckOptions } from '../../shared/update-status-types'
+>>>>>>> 814bb59ef67549917beca178854fad5aee7dfe04
 import type { ReleaseChannel } from '../../shared/release-channel'
 import type { UpdateCheckOptions } from '../../shared/update-status-types'
 import { isMacInstallRequested } from '../updater-mac-install'
@@ -19,7 +24,7 @@ export abstract class UpdaterMenuChecks extends UpdaterScheduling {
     ) {
       return
     }
-    if (!app.isPackaged || is.dev) {
+    if (!app.isPackaged) {
       this.sendStatus({ state: 'not-available', userInitiated: true })
       return
     }

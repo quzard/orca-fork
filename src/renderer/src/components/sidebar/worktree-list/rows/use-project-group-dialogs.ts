@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { useAppStore } from '@/store'
+import { projectRemovalTargets } from '../../removal-unsaved-files'
+import { confirmUnsavedDiscard } from '@/store/slices/worktrees/teardown/removed-workspace-unsaved-files'
 import { translate } from '@/i18n/i18n'
 import { selectProjectGroupRemovalTargets } from '@/store/slices/project-group-removal-targets'
 import type { ProjectGroup } from '../../../../../../shared/project-group-types'
@@ -9,7 +11,14 @@ import {
   getRepoExecutionHostId,
   type ExecutionHostId
 } from '../../../../../../shared/execution-host'
+<<<<<<< HEAD
 import { resolveDeleteProjectGroupRemoveContainedProjects } from '../../../../../../shared/fork-hooks/project-group-delete'
+=======
+import {
+  selectDetectedWorktreesByRepo,
+  selectWorktreesByRepo
+} from '@/store/workspace-record-selectors'
+>>>>>>> 814bb59ef67549917beca178854fad5aee7dfe04
 
 export type ProjectGroupNameDialogState =
   | { type: 'create-from-repo'; repo: Repo }
@@ -166,6 +175,21 @@ export function useProjectGroupDialogs(args: {
   )
   const removeContainedProjects =
     deleteProjectCount > 0 && deleteDialog?.removeContainedProjects === true
+  const worktreesByRepo = useAppStore((s) => selectWorktreesByRepo(s))
+  const detectedWorktreesByRepo = useAppStore((s) => selectDetectedWorktreesByRepo(s))
+  const deleteUnsavedTargets = useMemo(
+    () =>
+      removeContainedProjects && deleteTargets
+        ? projectRemovalTargets(
+            { worktreesByRepo, detectedWorktreesByRepo },
+            deleteTargets.projects.map((project) => ({
+              repoId: project.id,
+              hostId: project.hostId
+            }))
+          )
+        : [],
+    [deleteTargets, detectedWorktreesByRepo, removeContainedProjects, worktreesByRepo]
+  )
 
   const handleDeleteProjectGroup = useCallback(
     (groupId: string, groupName: string, hostId?: ExecutionHostId) => {
@@ -178,20 +202,32 @@ export function useProjectGroupDialogs(args: {
     if (!deleteDialog) {
       return
     }
+    const confirmedDiscards = confirmUnsavedDiscard(useAppStore.getState, deleteUnsavedTargets)
     try {
       reportProjectGroupDeleteFailures(
         await deleteProjectGroupWithContainedProjects(deleteDialog.groupId, {
+<<<<<<< HEAD
           // fork: 未登记附加选项时返回原布尔值。
           removeContainedProjects:
             resolveDeleteProjectGroupRemoveContainedProjects(removeContainedProjects),
           hostId: deleteDialog.hostId
+=======
+          removeContainedProjects,
+          hostId: deleteDialog.hostId,
+          confirmedDiscards
+>>>>>>> 814bb59ef67549917beca178854fad5aee7dfe04
         })
       )
     } finally {
       // Why: deleting contained projects can unmount this dialog before its close handler runs, so the parent owns cleanup.
       setDeleteDialog(null)
     }
-  }, [deleteProjectGroupWithContainedProjects, removeContainedProjects, deleteDialog])
+  }, [
+    deleteProjectGroupWithContainedProjects,
+    removeContainedProjects,
+    deleteDialog,
+    deleteUnsavedTargets
+  ])
 
   return {
     nameDialog,
@@ -201,6 +237,7 @@ export function useProjectGroupDialogs(args: {
     deleteProjectCount,
     deleteProjectNames,
     removeContainedProjects,
+    deleteUnsavedTargets,
     handleCreateGroupFromRepo,
     handleMoveProjectToGroup,
     handleRemoveProjectFromGroup,

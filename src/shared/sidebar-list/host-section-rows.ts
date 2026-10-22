@@ -335,7 +335,18 @@ export function addHostSectionRows(args: {
       count: countWorkspaceRows(hostRows)
     })
     if (!collapsed) {
+<<<<<<< HEAD
       result.push(...clearHostRowLabel(hostRows, args.retainSingleHostHeader === true))
+=======
+      // The enclosing host header already names the owner of cards and notices.
+      result.push(
+        ...hostRows.map((row) =>
+          'hostContextLabel' in row && row.hostContextLabel
+            ? { ...row, hostContextLabel: undefined }
+            : row
+        )
+      )
+>>>>>>> 814bb59ef67549917beca178854fad5aee7dfe04
     }
   }
 

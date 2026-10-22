@@ -25,6 +25,7 @@ import type {
   ImportedWorktreesCardCandidate,
   NewExternalWorktreesInboxCandidate,
   PendingCreationRef,
+  RepoOfWorktree,
   Row,
   WorktreeGroupBy
 } from './row-types'
@@ -56,6 +57,7 @@ export type SectionAppendContext = {
   collapsedGroups: Set<string>
   workspaceStatuses: readonly WorkspaceStatusDefinition[]
   repoMap: Map<string, Repo>
+  repoOf: RepoOfWorktree
   defaultHostId: ExecutionHostId
   hostLabelById: ReadonlyMap<string, string> | undefined
   projectIndex: ProjectGroupingIndex | null
@@ -78,6 +80,7 @@ export function appendOrderedGroups(
     collapsedGroups,
     workspaceStatuses,
     repoMap,
+    repoOf,
     defaultHostId,
     hostLabelById,
     projectIndex,
@@ -121,13 +124,13 @@ export function appendOrderedGroups(
                 hostWorktreeCounts: getLaneHostWorktreeCounts(
                   group.items,
                   folderPairs,
-                  repoMap,
+                  repoOf,
                   defaultHostId
                 ),
                 hostWorktreeIds: getLaneHostWorktreeIds(
                   group.items,
                   folderPairs,
-                  repoMap,
+                  repoOf,
                   defaultHostId
                 ),
                 worktreeIds: group.items.map((worktree) => worktree.id)
@@ -143,13 +146,13 @@ export function appendOrderedGroups(
                 hostWorktreeCounts: getLaneHostWorktreeCounts(
                   group.items,
                   folderPairs,
-                  repoMap,
+                  repoOf,
                   defaultHostId
                 ),
                 hostWorktreeIds: getLaneHostWorktreeIds(
                   group.items,
                   folderPairs,
-                  repoMap,
+                  repoOf,
                   defaultHostId
                 ),
                 worktreeIds: group.items.map((worktree) => worktree.id)
@@ -203,7 +206,7 @@ export function appendOrderedGroups(
         groupBy === 'repo'
           ? getMixedHostContextLabels(group, repoMap, projectIndex, hostLabelById)
           : undefined
-      appendWorktreeRows(result, repoMap, occurrencePlan, {
+      appendWorktreeRows(result, repoOf, occurrencePlan, {
         collapsedGroups,
         groupDepth: projectGroupDepth,
         sectionKey: key,

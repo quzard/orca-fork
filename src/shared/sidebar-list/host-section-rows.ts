@@ -14,7 +14,7 @@ import type { SshConnectionStatus } from '../ssh-types'
 import type { Repo } from '../repo-types'
 import type { Row } from './row-types'
 import { getFolderWorkspaceHostId } from './folder-workspace-host-id'
-import { clearHostRowLabel, sidebarModeRetainsHostHeaders } from '../fork-hooks/sidebar-group-mode'
+import { sidebarModeRetainsHostHeaders } from '../fork-hooks/sidebar-group-mode'
 
 export { sidebarModeRetainsHostHeaders }
 
@@ -61,11 +61,7 @@ function getRepoHostId(
   return defaultHostId
 }
 
-function getRowHostId(
-  row: Row,
-  defaultHostId: ExecutionHostId,
-  preferRowHostId = false
-): ExecutionHostId | null {
+function getRowHostId(row: Row, defaultHostId: ExecutionHostId, preferRowHostId = false): ExecutionHostId | null {
   switch (row.type) {
     case 'item':
       return getWorktreeExecutionHostId(row.worktree, row.repo, defaultHostId)
@@ -209,10 +205,7 @@ export function addHostSectionRows(args: {
   ) {
     return [...args.rows]
   }
-  if (
-    !args.retainSingleHostHeader &&
-    ((visibleHostIds && visibleHostIds.length <= 1) || args.hostOptions.length <= 1)
-  ) {
+  if (!args.retainSingleHostHeader && ((visibleHostIds && visibleHostIds.length <= 1) || args.hostOptions.length <= 1)) {
     return [...args.rows]
   }
 
@@ -335,7 +328,14 @@ export function addHostSectionRows(args: {
       count: countWorkspaceRows(hostRows)
     })
     if (!collapsed) {
-      result.push(...clearHostRowLabel(hostRows, args.retainSingleHostHeader === true))
+      // The enclosing host header already names the owner of cards and notices.
+      result.push(
+        ...hostRows.map((row) =>
+          'hostContextLabel' in row && row.hostContextLabel
+            ? { ...row, hostContextLabel: undefined }
+            : row
+        )
+      )
     }
   }
 

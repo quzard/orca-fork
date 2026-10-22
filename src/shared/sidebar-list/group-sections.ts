@@ -25,6 +25,7 @@ import type {
   ImportedWorktreesCardCandidate,
   NewExternalWorktreesInboxCandidate,
   PendingCreationRef,
+  RepoOfWorktree,
   Row,
   WorktreeGroupBy
 } from './row-types'
@@ -34,7 +35,7 @@ function registeredGroupHeader(
   key: string,
   group: WorktreeGroupEntry,
   folderPairs: NonNullable<WorktreeGroupEntry['folderWorkspaces']>,
-  repoMap: Map<string, Repo>,
+  repoOf: RepoOfWorktree,
   defaultHostId: ExecutionHostId
 ): GroupHeaderRow {
   return {
@@ -43,8 +44,8 @@ function registeredGroupHeader(
     label: group.label,
     count: group.items.length + folderPairs.length,
     icon: { kind: 'project' },
-    hostWorktreeCounts: getLaneHostWorktreeCounts(group.items, folderPairs, repoMap, defaultHostId),
-    hostWorktreeIds: getLaneHostWorktreeIds(group.items, folderPairs, repoMap, defaultHostId),
+    hostWorktreeCounts: getLaneHostWorktreeCounts(group.items, folderPairs, repoOf, defaultHostId),
+    hostWorktreeIds: getLaneHostWorktreeIds(group.items, folderPairs, repoOf, defaultHostId),
     worktreeIds: group.items.map((worktree) => worktree.id)
   }
 }
@@ -56,6 +57,7 @@ export type SectionAppendContext = {
   collapsedGroups: Set<string>
   workspaceStatuses: readonly WorkspaceStatusDefinition[]
   repoMap: Map<string, Repo>
+  repoOf: RepoOfWorktree
   defaultHostId: ExecutionHostId
   hostLabelById: ReadonlyMap<string, string> | undefined
   projectIndex: ProjectGroupingIndex | null
@@ -78,6 +80,7 @@ export function appendOrderedGroups(
     collapsedGroups,
     workspaceStatuses,
     repoMap,
+    repoOf,
     defaultHostId,
     hostLabelById,
     projectIndex,
@@ -94,7 +97,7 @@ export function appendOrderedGroups(
     const repo = group.repo
     const folderPairs = group.folderWorkspaces ?? []
     const header = forkGroupMode
-      ? registeredGroupHeader(key, group, folderPairs, repoMap, defaultHostId)
+      ? registeredGroupHeader(key, group, folderPairs, repoOf, defaultHostId)
       : groupBy === 'repo'
         ? {
             type: 'header' as const,
@@ -121,13 +124,13 @@ export function appendOrderedGroups(
                 hostWorktreeCounts: getLaneHostWorktreeCounts(
                   group.items,
                   folderPairs,
-                  repoMap,
+                  repoOf,
                   defaultHostId
                 ),
                 hostWorktreeIds: getLaneHostWorktreeIds(
                   group.items,
                   folderPairs,
-                  repoMap,
+                  repoOf,
                   defaultHostId
                 ),
                 worktreeIds: group.items.map((worktree) => worktree.id)
@@ -143,13 +146,13 @@ export function appendOrderedGroups(
                 hostWorktreeCounts: getLaneHostWorktreeCounts(
                   group.items,
                   folderPairs,
-                  repoMap,
+                  repoOf,
                   defaultHostId
                 ),
                 hostWorktreeIds: getLaneHostWorktreeIds(
                   group.items,
                   folderPairs,
-                  repoMap,
+                  repoOf,
                   defaultHostId
                 ),
                 worktreeIds: group.items.map((worktree) => worktree.id)
@@ -203,7 +206,7 @@ export function appendOrderedGroups(
         groupBy === 'repo'
           ? getMixedHostContextLabels(group, repoMap, projectIndex, hostLabelById)
           : undefined
-      appendWorktreeRows(result, repoMap, occurrencePlan, {
+      appendWorktreeRows(result, repoOf, occurrencePlan, {
         collapsedGroups,
         groupDepth: projectGroupDepth,
         sectionKey: key,

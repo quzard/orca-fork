@@ -15,7 +15,6 @@ const {
 vi.mock('electron', () => moduleFactories.electron())
 vi.mock('electron-updater', () => moduleFactories.electronUpdater())
 vi.mock('../main/electron-updater-loader', () => moduleFactories.electronUpdaterLoader())
-vi.mock('@electron-toolkit/utils', () => moduleFactories.electronToolkitUtils())
 vi.mock('../main/ipc/pty/kill-all', () => moduleFactories.ptyKillAll())
 vi.mock('../main/linux-update-package-type', () => moduleFactories.linuxUpdatePackageType())
 vi.mock('../main/updater-lifecycle-diagnostics', () =>

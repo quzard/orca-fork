@@ -1,5 +1,4 @@
 import { app } from 'electron'
-import { is } from '@electron-toolkit/utils'
 import { FORK_UPSTREAM_RELEASE_BLOCKED, isForkBuild } from '../../shared/fork-hooks/update-feed'
 import {
   DEV_CHANNEL_PLATFORM_LABEL,
@@ -91,7 +90,7 @@ export abstract class UpdaterBuildSelection extends UpdaterMenuChecks {
 
   /** Pins the updater at one exact release tag and checks it, so a dev can move to any published build on any channel — including an older one. */
   protected async checkForPinnedBuild(channel: ReleaseChannel, tag: string): Promise<void> {
-    if (!app.isPackaged || is.dev) {
+    if (!app.isPackaged) {
       this.sendStatus({ state: 'not-available', userInitiated: true })
       return
     }

@@ -1,5 +1,4 @@
 import { app } from 'electron'
-import { is } from '@electron-toolkit/utils'
 import {
   FORK_UPSTREAM_RELEASE_BLOCKED,
   forkReleaseFeedDecision
@@ -19,7 +18,7 @@ export abstract class UpdaterMenuChecks extends UpdaterScheduling {
     ) {
       return
     }
-    if (!app.isPackaged || is.dev) {
+    if (!app.isPackaged) {
       this.sendStatus({ state: 'not-available', userInitiated: true })
       return
     }

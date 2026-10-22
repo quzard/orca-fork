@@ -15,6 +15,10 @@ import {
   getDeleteProjectGroupDialogOption,
   setDeleteProjectGroupDialogOptionChecked
 } from '../../../../shared/fork-hooks/project-group-delete'
+import type { WorktreePurgeTarget } from '@/store/slices/worktree-helpers'
+import { RemovalUnsavedFilesNotice } from './RemovalUnsavedFilesNotice'
+
+const NO_UNSAVED_TARGETS: readonly WorktreePurgeTarget[] = []
 
 type ProjectGroupDeleteDialogProps = {
   open: boolean
@@ -25,6 +29,8 @@ type ProjectGroupDeleteDialogProps = {
   onRemoveContainedProjectsChange: (removeContainedProjects: boolean) => void
   onOpenChange: (open: boolean) => void
   onConfirm: () => Promise<void> | void
+  /** Workspaces the contained-project removal closes. */
+  unsavedTargets?: readonly WorktreePurgeTarget[]
 }
 
 export function ProjectGroupDeleteDialog({
@@ -35,7 +41,8 @@ export function ProjectGroupDeleteDialog({
   removeContainedProjects,
   onRemoveContainedProjectsChange,
   onOpenChange,
-  onConfirm
+  onConfirm,
+  unsavedTargets = NO_UNSAVED_TARGETS
 }: ProjectGroupDeleteDialogProps): React.JSX.Element {
   const [deleting, setDeleting] = useState(false)
   const [wasOpen, setWasOpen] = useState(open)
@@ -110,6 +117,7 @@ export function ProjectGroupDeleteDialog({
       }}
     >
       <DialogContent
+        surface="security"
         ref={handleDialogContentRef}
         className="max-w-sm sm:max-w-sm"
         showCloseButton={false}
@@ -214,6 +222,7 @@ export function ProjectGroupDeleteDialog({
             </span>
           </div>
         ) : null}
+        <RemovalUnsavedFilesNotice targets={unsavedTargets} enabled={open} />
         <DialogFooter>
           <Button
             type="button"

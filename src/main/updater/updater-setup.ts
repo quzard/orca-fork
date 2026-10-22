@@ -1,6 +1,5 @@
 import { app, powerMonitor } from 'electron'
 import type { BrowserWindow } from 'electron'
-import { is } from '@electron-toolkit/utils'
 import { forkReleaseFeedDecision, isForkBuild } from '../../shared/fork-hooks/update-feed'
 import { forkAutoInstallOnQuit } from '../../fork/main/fork-background-download'
 import type { ReleaseBuild, ReleaseChannel } from '../../shared/release-channel'
@@ -139,10 +138,7 @@ export class UpdaterSetup extends UpdaterDownloadInstall {
       this.sendErrorStatus(`The server update did not complete: ${serveHandoffFailure}`, true)
     }
 
-    if (!app.isPackaged && !is.dev) {
-      return
-    }
-    if (is.dev) {
+    if (!app.isPackaged) {
       return
     }
 

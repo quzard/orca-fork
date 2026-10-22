@@ -35,7 +35,7 @@
 - 删除项目组只取消分组。上游「同时移除包含的项目」勾选还在；登记的附加项默认勾上时，这个标志被改成不移除。文件夹工作区留在列表里，变成未分组。主进程也一样（`src/fork/main/project-group-delete.ts`，在 `register-main.ts` 登记，桌面和 orcad 都有）：上游 `deleteProjectGroup` 会连同组删掉它拥有的文件夹工作区，删除后界面重新拉列表时它们就消失了（磁盘上的目录还在）；现在只把 `sidebarGroupId` 设成 `null`，被删的组拥有的工作区从组上补齐缺少的 `folderPath`、`connectionId`、`executionHostId`，仍在原主机上；它们的会话标签页也保留。加载时这些失去所属组的文件夹工作区不再被丢弃，并且一律取消分组（`src/shared/folder-workspaces.ts`），已经存有这种工作区的配置也一样。数据模型里文件夹工作区必须有 `projectGroupId`（合成的 `repoId` 和迁移清单都要求它），没有“无组”的写法，所以保留的工作区仍记着已删组的 id，凡是按 id 找组的地方都要接受找不到：迁移到 orcad 时目标端不再因为组不在而报 `orcad_migration_folder_workspace_project_group_missing`（`orcad-catalog-records.ts`）；Status、PR、None 分组方式给这种已取消分组的工作区配一个用它自己路径和主机的替身组，照样列出（`folder-workspace-lanes.ts`，被隐藏主机的组仍隐藏它的工作区）；agent 状态按工作区自己的 `connectionId` / `executionHostId` 判断主机（`restored-status-dead-terminal-sweep.ts`）。其余按 id 找组的地方本来就允许找不到。对话框里没有“同时删除文件夹工作区”的选项，上游“同时移除包含的项目”勾选仍照旧移除项目。
 - 从 Orca 移除单个工作区只归档，不删目录、不删 git 分支。多主机归属不清时中止。顺序与上游删除一致：先在宿主上归档，成功后才停掉它的浏览器和终端；归档失败时终端保持运行。找不到所属仓库的孤立工作区先停再移出列表。
 - 隐藏工作区可搜索、可恢复。选择器显示目录、分支、分组和路径。设置里的项目列表可以多选后移除，只从 Orca 注销，不删目录。
-- 卡片左侧用淡色、从左侧截断的目录前缀。主机标题下不再重复主机名。项目组只有一个工作区、且仓库路径不在组的父目录下时，卡片去掉父目录前缀。
+- 卡片左侧用淡色、从左侧截断的目录前缀。项目组只有一个工作区、且仓库路径不在组的父目录下时，卡片去掉父目录前缀。
 - 已保存的 `groupBy: repo` 在登记后读成 host-directory。未登记时 `repo` 仍是原来的项目标题。
 - SSH 状态行上的主机类型和连接状态不换行。状态名由 `src/fork/ssh/ssh-status-labels.tsx` 翻译：`SshTargetCard` 的 `STATUS_LABELS` 保持上游的英文字面量，外面包一层 `withForkSshStatusLabels`，读取时翻译。中文来自 fork 的 zh 覆盖层（见下方「界面中文」），其他语言显示英文。参考实现已经去掉远程工作区同步冲突按钮，这里不把那套界面加回来。
 - 旧远端刷新如果省略 `sidebarGroupId`，本机保留原来的分组。显式 `null` 仍表示取消分组。

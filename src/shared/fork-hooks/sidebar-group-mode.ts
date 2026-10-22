@@ -126,27 +126,6 @@ export function sidebarModeRetainsHostHeaders(groupBy: string): boolean {
   return lookupSidebarGroupMode(groupBy)?.retainHostHeaders === true
 }
 
-// 行上可选的主机名。未登记清理函数时原样返回，和上游一致。
-type HostLabeledRow = { type: string; hostContextLabel?: string }
-
-type ClearHostRowLabel = <T extends HostLabeledRow>(
-  rows: readonly T[],
-  retainSingleHostHeader: boolean
-) => readonly T[]
-
-let clearHostRowLabelImpl: ClearHostRowLabel | undefined
-
-export function registerClearHostRowLabel(next: ClearHostRowLabel): void {
-  clearHostRowLabelImpl = next
-}
-
-export function clearHostRowLabel<T extends HostLabeledRow>(
-  rows: readonly T[],
-  retainSingleHostHeader: boolean
-): readonly T[] {
-  return clearHostRowLabelImpl?.(rows, retainSingleHostHeader) ?? rows
-}
-
 export function registeredReplacementForBuiltinGroupBy(
   groupBy: string
 ): PersistedUIState['groupBy'] | undefined {

@@ -14,9 +14,7 @@ import type { SshConnectionStatus } from '../ssh-types'
 import type { Repo } from '../repo-types'
 import type { Row } from './row-types'
 import { getFolderWorkspaceHostId } from './folder-workspace-host-id'
-import { sidebarModeRetainsHostHeaders } from '../fork-hooks/sidebar-group-mode'
-
-export { sidebarModeRetainsHostHeaders }
+import { forkHostSectionRows } from '../fork-hooks/sidebar-group-mode'
 
 export type HostHeaderRow = {
   type: 'host-header'
@@ -61,7 +59,7 @@ function getRepoHostId(
   return defaultHostId
 }
 
-function getRowHostId(row: Row, defaultHostId: ExecutionHostId, preferRowHostId = false): ExecutionHostId | null {
+function getRowHostId(row: Row, defaultHostId: ExecutionHostId): ExecutionHostId | null {
   switch (row.type) {
     case 'item':
       return getWorktreeExecutionHostId(row.worktree, row.repo, defaultHostId)
@@ -72,10 +70,6 @@ function getRowHostId(row: Row, defaultHostId: ExecutionHostId, preferRowHostId 
     case 'folder-workspace':
       return getFolderWorkspaceHostId(row.folderWorkspace, row.projectGroup, defaultHostId)
     case 'header':
-      // fork: host-directory headers carry their own host. Other modes leave hostId unset.
-      if (preferRowHostId && row.hostId) {
-        return row.hostId
-      }
       return row.repo ? getRepoHostId(row.repo, defaultHostId) : null
   }
 }
@@ -175,7 +169,7 @@ function getProjectGroupHeaderDepth(row: Row): number | null {
     : null
 }
 
-export function addHostSectionRows(args: {
+function sectionHostRows(args: {
   rows: readonly Row[]
   hostOptions: readonly HostSectionOption[]
   workspaceHostScope: ExecutionHostScope
@@ -191,21 +185,18 @@ export function addHostSectionRows(args: {
   // and host is context inside it. Explicit host filters still keep host
   // headers as an operational/troubleshooting view.
   preferProjectGrouping?: boolean
-  // fork: host-directory keeps a host title even when one host is visible.
-  retainSingleHostHeader?: boolean
 }): HostSectionRow[] {
   const visibleHostIds =
     args.visibleWorkspaceHostIds ??
     (args.workspaceHostScope === ALL_EXECUTION_HOSTS_SCOPE ? null : [args.workspaceHostScope])
   if (
-    !args.retainSingleHostHeader &&
     args.preferProjectGrouping &&
     args.workspaceHostScope === ALL_EXECUTION_HOSTS_SCOPE &&
     !args.visibleWorkspaceHostIds
   ) {
     return [...args.rows]
   }
-  if (!args.retainSingleHostHeader && ((visibleHostIds && visibleHostIds.length <= 1) || args.hostOptions.length <= 1)) {
+  if ((visibleHostIds && visibleHostIds.length <= 1) || args.hostOptions.length <= 1) {
     return [...args.rows]
   }
 
@@ -246,7 +237,7 @@ export function addHostSectionRows(args: {
   }
 
   for (const row of args.rows) {
-    const rowHostId = getRowHostId(row, args.defaultHostId, args.retainSingleHostHeader === true)
+    const rowHostId = getRowHostId(row, args.defaultHostId)
     if (rowHostId) {
       const hostRows = rowsByHostId.get(rowHostId) ?? []
       const localizedPendingRows = localizePendingRowsForHost(pendingRows, rowHostId)
@@ -300,7 +291,7 @@ export function addHostSectionRows(args: {
   // Why: a lone host section is pure noise — the grouping only earns its keep
   // when there are at least two host sections to tell apart. Registered-but-
   // empty hosts stay visible in the scope picker, not as headers.
-  if (rowsByHostId.size <= 1 && !args.retainSingleHostHeader) {
+  if (rowsByHostId.size <= 1) {
     return [...args.rows]
   }
 
@@ -340,4 +331,12 @@ export function addHostSectionRows(args: {
   }
 
   return result
+}
+
+// fork: 单主机标题，以及目录标题行使用自己的 hostId，都在这一次调用里。
+// 未登记时参数无效，上面的函数体与上游一致。
+export function addHostSectionRows(
+  args: Parameters<typeof sectionHostRows>[0] & { retainSingleHostHeader?: boolean }
+): HostSectionRow[] {
+  return forkHostSectionRows(args, sectionHostRows)
 }

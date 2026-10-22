@@ -30,10 +30,7 @@ import {
   deferHostSectionCollapse,
   scopeHostSectionCollapse
 } from '../../../../../../shared/sidebar-list/host-section-collapse'
-import {
-  addHostSectionRows,
-  sidebarModeRetainsHostHeaders
-} from '../../../../../../shared/sidebar-list/host-section-rows'
+import { addHostSectionRows } from '../../../../../../shared/sidebar-list/host-section-rows'
 import { collectRenderedSidebarRowKeys } from './rendered-row-keys'
 import {
   mergeDraggedHostSectionOrder,
@@ -44,6 +41,7 @@ import { buildSidebarHostOptions } from '../../sidebar-host-options'
 import { selectPendingWorktreeCreationKeys } from './pending-worktree-creation-keys'
 import {
   getSidebarGroupModeLabelsVersion,
+  sidebarModeRetainsHostHeaders,
   subscribeSidebarGroupModeLabels
 } from '../../../../../../shared/fork-hooks/sidebar-group-mode'
 import { selectWorktreesByRepo } from '@/store/workspace-record-selectors'

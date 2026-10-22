@@ -6,7 +6,7 @@ GitHub Actions on this fork stay disabled. Neither job calls `workflow_dispatch`
 
 ## Cloud agent: merge and checks
 
-Run on a fresh Linux checkout with Node 24 and pnpm 12.8.1. No git identity setup is needed: the script sets `GIT_AUTHOR_*` / `GIT_COMMITTER_*` to `quzard <30899719+quzard@users.noreply.github.com>` for its own merge, pin and conflict commits.
+Run on a fresh Linux checkout with Node 24 and pnpm 12.14.0. No git identity setup is needed: the script sets `GIT_AUTHOR_*` / `GIT_COMMITTER_*` to `quzard <30899719+quzard@users.noreply.github.com>` for its own merge, pin and conflict commits.
 
 ```bash
 bash fork/scripts/daily-sync.sh

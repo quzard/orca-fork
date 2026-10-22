@@ -162,3 +162,26 @@ function delegateRegisteredSidebarRowPlan(
   }
   return built
 }
+
+// 主机分区的额外行为。未登记时 addHostSectionRows 只跑上游。
+type HostSectionDelegate = <A extends { retainSingleHostHeader?: boolean }, R>(
+  args: A,
+  build: (args: A) => R
+) => R
+
+let hostSectionDelegate: HostSectionDelegate | undefined
+
+export function registerForkHostSectionRows(delegate: HostSectionDelegate): void {
+  hostSectionDelegate = delegate
+}
+
+/** 上游主机分区的唯一 fork 入口。没登记，或这次不要保留单主机标题时，结果与直接调用 build 相同。 */
+export function forkHostSectionRows<A extends { retainSingleHostHeader?: boolean }, R>(
+  args: A,
+  build: (args: A) => R
+): R {
+  if (!hostSectionDelegate || args.retainSingleHostHeader !== true) {
+    return build(args)
+  }
+  return hostSectionDelegate(args, build)
+}

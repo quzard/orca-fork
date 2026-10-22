@@ -411,6 +411,93 @@ describe('host-directory sidebar rows', () => {
     const labeled = plain.find((row) => row.type === 'item')
     expect(labeled?.type === 'item' ? labeled.hostContextLabel : undefined).toBe('devbox')
   })
+
+  it('groups a directory header by its own hostId and keeps that single host title', () => {
+    // 标题上的仓库在本机，hostId 在另一台机器。上游只认仓库，会把这行留在本机或提前返回。
+    const header = {
+      type: 'header' as const,
+      key: 'services',
+      label: 'Services',
+      count: 0,
+      icon: { kind: 'project' as const },
+      hostId: DEVBOX,
+      repo: repo('web', '/srv/wt/web', 'web')
+    }
+    const args = {
+      rows: [header],
+      hostOptions: [
+        {
+          id: DEVBOX,
+          kind: 'ssh' as const,
+          label: 'devbox',
+          detail: 'devbox',
+          health: 'available' as const
+        }
+      ],
+      workspaceHostScope: 'all' as const,
+      defaultHostId: 'local' as const,
+      localHostLabel: 'Local',
+      preferProjectGrouping: true
+    }
+    const sectioned = addHostSectionRows({ ...args, retainSingleHostHeader: true })
+    expect(
+      sectioned.map((row) =>
+        row.type === 'host-header' ? row.hostId : row.type === 'header' ? row.key : row.type
+      )
+    ).toEqual([DEVBOX, 'services'])
+    expect(sectioned.find((row) => row.type === 'header')).toBe(header)
+    const plain = addHostSectionRows(args)
+    expect(plain.some((row) => row.type === 'host-header')).toBe(false)
+    expect(plain.find((row) => row.type === 'header')).toBe(header)
+  })
+
+  it('keeps one host title per host when project grouping would skip them', () => {
+    const rows = hostDirectoryRows({
+      repos: [repo('web', '/srv/wt/web', 'web', DEVBOX), repo('api', '/srv/wt/api', 'api', MINI)],
+      worktrees: [
+        workspace('wt-dev', 'web', '/srv/wt/web', 'dev', DEVBOX),
+        workspace('wt-mini', 'api', '/srv/wt/api', 'mini', MINI)
+      ]
+    })
+    const hostOptions = [
+      {
+        id: DEVBOX,
+        kind: 'ssh' as const,
+        label: 'devbox',
+        detail: 'devbox',
+        health: 'available' as const
+      },
+      {
+        id: MINI,
+        kind: 'ssh' as const,
+        label: 'mini',
+        detail: 'mini',
+        health: 'available' as const
+      }
+    ]
+    const sectioned = addHostSectionRows({
+      rows,
+      hostOptions,
+      workspaceHostScope: 'all',
+      defaultHostId: 'local',
+      localHostLabel: 'Local',
+      preferProjectGrouping: true,
+      retainSingleHostHeader: true
+    })
+    expect(sectioned.flatMap((row) => (row.type === 'host-header' ? [row.hostId] : []))).toEqual([
+      DEVBOX,
+      MINI
+    ])
+    const plain = addHostSectionRows({
+      rows,
+      hostOptions,
+      workspaceHostScope: 'all',
+      defaultHostId: 'local',
+      localHostLabel: 'Local',
+      preferProjectGrouping: true
+    })
+    expect(plain.some((row) => row.type === 'host-header')).toBe(false)
+  })
 })
 
 describe('project group delete ungroups', () => {

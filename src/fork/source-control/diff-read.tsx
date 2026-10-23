@@ -5,7 +5,8 @@ import type { WorkspaceRepositoryDiffInput } from '../../shared/fork-hooks/works
 import {
   FORK_GIT_WORKSPACE_BRANCH_DIFF_METHOD,
   FORK_GIT_WORKSPACE_DIFF_METHOD,
-  FORK_GIT_WORKSPACE_REPOSITORIES_METHOD
+  FORK_GIT_WORKSPACE_REPOSITORIES_METHOD,
+  WORKSPACE_REPOSITORY_DISCOVERY_SKIP_MS
 } from '../git-workspace/constants'
 import type { WorkspaceRepositoryList } from '../git-workspace/types'
 import { desktopGitRouteServesWorkspaceRepos } from './desktop-git-route'
@@ -15,6 +16,33 @@ import {
   repositoryForRootRelativePath
 } from './discovered-repos'
 import { callWorkspaceGit } from './rpc-client'
+
+const discoverySkips = new Map<string, number>()
+
+export function clearDiscoverySkipsForTests(): void {
+  discoverySkips.clear()
+}
+
+function discoverySkipped(worktreeId: string, now = Date.now()): boolean {
+  const until = discoverySkips.get(worktreeId)
+  if (until === undefined) {
+    return false
+  }
+  if (until <= now) {
+    discoverySkips.delete(worktreeId)
+    return false
+  }
+  return true
+}
+
+function rememberDiscoverySkip(worktreeId: string): void {
+  discoverySkips.set(worktreeId, Date.now() + WORKSPACE_REPOSITORY_DISCOVERY_SKIP_MS)
+}
+
+// diff 输入没有 executionHostId，只能用 connectionId。漏掉的 ssh: 或 runtime: 会在发现请求里被拒绝，再退回上游。
+function localRouteCanDiscover(input: WorkspaceRepositoryDiffInput): boolean {
+  return desktopGitRouteServesWorkspaceRepos({ connectionId: input.connectionId })
+}
 
 function oldPathInside(repositoryPath: string, oldPath: string | undefined): string | undefined {
   if (!oldPath) {
@@ -70,7 +98,7 @@ function nestedDiff(
 
 async function hostCanDiscover(input: WorkspaceRepositoryDiffInput): Promise<boolean> {
   if (input.target.kind !== 'environment') {
-    return desktopGitRouteServesWorkspaceRepos({ connectionId: input.connectionId })
+    return localRouteCanDiscover(input)
   }
   try {
     return await runtimeEnvironmentSupportsCapability(
@@ -84,6 +112,7 @@ async function hostCanDiscover(input: WorkspaceRepositoryDiffInput): Promise<boo
 
 async function discoverThenRead(input: WorkspaceRepositoryDiffInput): Promise<unknown> {
   if (!(await hostCanDiscover(input))) {
+    rememberDiscoverySkip(input.file.worktreeId)
     return input.readUpstream()
   }
   try {
@@ -95,6 +124,7 @@ async function discoverThenRead(input: WorkspaceRepositoryDiffInput): Promise<un
     rememberDiscoveredRepositories(input.file.worktreeId, list.repositories)
   } catch {
     // 方法不存在、路由拒绝或扫描超时：这次还不知道路径在哪，退回上游。
+    rememberDiscoverySkip(input.file.worktreeId)
     return input.readUpstream()
   }
   const match = repositoryForRootRelativePath(input.file.worktreeId, input.file.relativePath)
@@ -116,11 +146,11 @@ export function readNestedRepositoryDiff(
     const match = repositoryForRootRelativePath(input.file.worktreeId, input.file.relativePath)
     return match ? nestedDiff(input, match) : null
   }
+  if (discoverySkipped(input.file.worktreeId)) {
+    return null
+  }
   // 桌面 ssh: 行同步跳过，不发发现请求。远端主机要等能力探测，所以走异步。
-  if (
-    input.target.kind !== 'environment' &&
-    !desktopGitRouteServesWorkspaceRepos({ connectionId: input.connectionId })
-  ) {
+  if (input.target.kind !== 'environment' && !localRouteCanDiscover(input)) {
     return null
   }
   return discoverThenRead(input)

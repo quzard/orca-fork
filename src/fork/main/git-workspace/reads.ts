@@ -1,6 +1,8 @@
 import { assertGitDiffWithinTransportBudget } from '../../../shared/git-diff-transport-budget'
 import { remoteRpcContentBudget } from '../../../shared/remote-rpc-content-budget'
 import type { GitBranchCompareResult, GitDiffResult } from '../../../shared/git-diff-compare-types'
+import type { GitRuntimeOptions } from '../../../main/git/git-runtime-options'
+import { resolveRefOid } from '../../../main/git/source-control/compare-ref-oids'
 import { getBranchDiff } from '../../../main/git/status'
 import {
   localGitOptionsForTarget,
@@ -65,6 +67,22 @@ async function openRepository(
   return { target, gitOptions, entry }
 }
 
+async function baseCommitOid(
+  repoPath: string,
+  ref: string | null,
+  gitOptions: GitRuntimeOptions
+): Promise<string | null> {
+  if (!ref) {
+    return null
+  }
+  try {
+    const oid = await resolveRefOid(repoPath, ref, { ...gitOptions, admissionTier: 'background' })
+    return oid || null
+  } catch {
+    return null
+  }
+}
+
 function compareKey(target: RuntimeGitTarget, repositoryPath: string, branch: string) {
   return {
     hostId: target.worktree.hostId ?? target.executionHostId,
@@ -119,6 +137,7 @@ export async function readWorkspaceRepositoryStatus(
     head: status.head ?? null,
     refresh
   })
+  const baseOid = await baseCommitOid(opened.entry.realPath, compareTarget.ref, opened.gitOptions)
   return {
     repositoryPath: opened.entry.repositoryPath,
     uninitialized: false,
@@ -127,7 +146,8 @@ export async function readWorkspaceRepositoryStatus(
     entries: status.entries,
     ...(status.upstreamStatus ? { upstreamStatus: status.upstreamStatus } : {}),
     ...(status.didHitLimit ? { didHitLimit: true } : {}),
-    compareTarget
+    compareTarget,
+    baseOid
   }
 }
 

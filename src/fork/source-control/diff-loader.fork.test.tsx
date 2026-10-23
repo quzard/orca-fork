@@ -20,7 +20,7 @@ import {
   clearDiscoveredRepositoriesForTests,
   rememberDiscoveredRepositories
 } from './discovered-repos'
-import { readNestedRepositoryDiff } from './diff-read'
+import { clearDiscoverySkipsForTests, readNestedRepositoryDiff } from './diff-read'
 
 const OID = 'a'.repeat(40)
 const BASE = 'b'.repeat(40)
@@ -90,6 +90,7 @@ describe('nested repository diff hook', () => {
 
   beforeEach(() => {
     clearDiscoveredRepositoriesForTests()
+    clearDiscoverySkipsForTests()
     resetWorkspaceRepositoryDiffForTests()
     registerWorkspaceRepositoryDiff(readNestedRepositoryDiff)
     rememberDiscoveredRepositories('wt-1', [
@@ -284,6 +285,19 @@ describe('nested repository diff hook', () => {
       expect.anything(),
       expect.anything()
     )
+    mocks.callRuntimeRpc.mockClear()
+    mocks.getRuntimeGitDiff.mockClear()
+    await act(async () => {
+      await load!(
+        file({
+          id: 'file-again',
+          filePath: '/ws/libs/core/src/b.ts',
+          relativePath: 'libs/core/src/b.ts'
+        })
+      )
+    })
+    expect(mocks.callRuntimeRpc).not.toHaveBeenCalled()
+    expect(mocks.getRuntimeGitDiff).toHaveBeenCalled()
   })
 
   it('skips discovery when the remote host lacks the capability', async () => {
@@ -301,6 +315,18 @@ describe('nested repository diff hook', () => {
     expect(mocks.supports).toHaveBeenCalledWith('env-old', expect.any(String))
     expect(mocks.callRuntimeRpc).not.toHaveBeenCalled()
     expect(mocks.getRuntimeGitDiff).toHaveBeenCalled()
+    mocks.supports.mockClear()
+    await act(async () => {
+      await load!(
+        file({
+          id: 'file-again',
+          filePath: '/ws/libs/core/src/b.ts',
+          relativePath: 'libs/core/src/b.ts'
+        })
+      )
+    })
+    expect(mocks.supports).not.toHaveBeenCalled()
+    expect(mocks.callRuntimeRpc).not.toHaveBeenCalled()
   })
 
   it('skips discovery for a desktop SSH row', async () => {

@@ -24,6 +24,8 @@ describe('branch compare polling', () => {
     expect(branchCompareDue(false, current, seen, seen.at)).toBe(false)
     expect(branchCompareDue(true, current, seen, seen.at)).toBe(true)
     expect(branchCompareDue(false, status({ head: 'bbb' }), seen, seen.at)).toBe(true)
+    expect(branchCompareDue(false, status({ baseOid: 'new' }), seen, seen.at)).toBe(true)
+    expect(branchCompareDue(false, status({ baseOid: 'old' }), seen, seen.at)).toBe(false)
     expect(
       branchCompareDue(
         false,

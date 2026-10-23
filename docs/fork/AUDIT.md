@@ -2,8 +2,8 @@
 
 由 `fork/scripts/generate-audit.py` 生成，改了 fork 文件后重新运行并用 oxfmt 格式化。每个和上游 814bb59ef6 不同的文件一行，另列已恢复成上游和已删除的文件。`src/fork/audit-table.fork.test.ts` 检查表和仓库一致。
 
-共 409 行：delete 8，keep 374，revert-to-upstream 4，shrink 23；⚠ 不确定 1 个（保留）。
-上游文件（不含 fork 目录）里的 fork 改动行数：PR #6 之前（b7755e6357）1705，现在 1616。
+共 410 行：delete 8，keep 375，revert-to-upstream 4，shrink 23；⚠ 不确定 1 个（保留）。
+上游文件（不含 fork 目录）里的 fork 改动行数：PR #6 之前（b7755e6357）1705，现在 1621。
 
 | 文件                                                                                    | 功能                     | 决定               | 原因                                                                                                                                                                                                                            |
 | --------------------------------------------------------------------------------------- | ------------------------ | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -208,6 +208,7 @@
 | `src/fork/source-control/diff-read.tsx`                                                 | F047 工作区仓库          | keep               | fork 自有文件                                                                                                                                                                                                                   |
 | `src/fork/source-control/discovered-repos.ts`                                           | F047 工作区仓库          | keep               | fork 自有文件                                                                                                                                                                                                                   |
 | `src/fork/source-control/i18n.fork.test.tsx`                                            | I18N 界面中文            | keep               | fork 自有文件（测试）                                                                                                                                                                                                           |
+| `src/fork/source-control/poll-base-advance.fork.test.tsx`                               | F047 工作区仓库          | keep               | fork 自有文件（测试）                                                                                                                                                                                                           |
 | `src/fork/source-control/poll-workspace-repos.tsx`                                      | F047 工作区仓库          | keep               | fork 自有文件                                                                                                                                                                                                                   |
 | `src/fork/source-control/register.tsx`                                                  | F047 工作区仓库          | keep               | fork 自有文件                                                                                                                                                                                                                   |
 | `src/fork/source-control/repo-section.tsx`                                              | F047 工作区仓库          | keep               | fork 自有文件                                                                                                                                                                                                                   |

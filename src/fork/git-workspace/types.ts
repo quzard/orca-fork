@@ -32,4 +32,6 @@ export type WorkspaceRepositoryStatus = {
   upstreamStatus?: GitUpstreamStatus
   didHitLimit?: boolean
   compareTarget: CompareTargetResolution
+  // 比较目标 ref 的当前提交。HEAD 不变时它前进了就要重做分支比较。
+  baseOid?: string | null
 }

@@ -29,7 +29,7 @@ type ObservedCompare = {
   at: number
 }
 
-// 分支比较在第一次、手动刷新、HEAD 或比较目标变了时做。同一 HEAD 下基线提交仍可能前进，所以过了间隔再比。
+// 第一次、手动刷新、HEAD、比较目标或基线提交变了就做分支比较。旧响应没有基线提交时，过了间隔再比。
 export function branchCompareDue(
   refresh: boolean,
   status: WorkspaceRepositoryStatus,
@@ -44,6 +44,10 @@ export function branchCompareDue(
     return true
   }
   if (previous.head !== status.head || previous.ref !== ref) {
+    return true
+  }
+  // status.baseOid 是这次 rev-parse 的结果。没带这个字段的旧响应不拿它做比较。
+  if (status.baseOid !== undefined && status.baseOid !== previous.baseOid) {
     return true
   }
   return now - previous.at >= WORKSPACE_REPOSITORY_BRANCH_COMPARE_INTERVAL_MS
@@ -174,7 +178,7 @@ export function useWorkspaceRepositoryPoll(args: {
                 observed.set(repository.repositoryPath, {
                   head: status.head,
                   ref,
-                  baseOid: compare.summary.baseOid,
+                  baseOid: status.baseOid ?? compare.summary.baseOid,
                   at: Date.now()
                 })
                 setCompares((prev) => ({ ...prev, [repository.repositoryPath]: compare }))

@@ -17,10 +17,7 @@ import { resolveWorkspaceCompareTarget } from './compare-target'
 import { CompareTargetStore } from './compare-target-store'
 import { discoverWorkspaceRepositories } from './discover'
 import { assertFilePathInsideRepository, locateWorkspaceRepository } from './guard'
-import {
-  listedNestedRepositoryRoots,
-  omitNestedRepositoryEntries
-} from './root-status-entries'
+import { listedNestedRepositoryRoots, omitNestedRepositoryEntries } from './root-status-entries'
 
 type RpcClient = {
   clientKind?: 'mobile' | 'runtime'

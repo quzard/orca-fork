@@ -131,6 +131,7 @@ export function ForkSourceControlScope({
       </div>
       {shown === SOURCE_CONTROL_SCOPE_WORKSPACE && target && model.worktreePath ? (
         <WorkspaceRepositoriesView
+          key={worktreeId}
           target={target}
           worktreeId={worktreeId}
           worktreePath={model.worktreePath}

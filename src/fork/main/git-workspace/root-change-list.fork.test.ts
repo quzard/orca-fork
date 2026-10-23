@@ -137,9 +137,9 @@ describe('root repository change list', () => {
     )
     expect(unstagedGitlink?.status).toBe('modified')
     expect(unstagedPaths).toContain('task-demo.txt')
-    expect(unstagedPaths.some((path) => path === 'demo-console' || path.startsWith('demo-console/'))).toBe(
-      false
-    )
+    expect(
+      unstagedPaths.some((path) => path === 'demo-console' || path.startsWith('demo-console/'))
+    ).toBe(false)
     expect(repositoryHasChanges(unstaged, undefined)).toBe(true)
 
     git(ws, ['add', 'demo-api'])
@@ -150,9 +150,9 @@ describe('root repository change list', () => {
     )
     expect(stagedGitlink?.status).toBe('modified')
     expect(stagedPaths).toContain('task-demo.txt')
-    expect(stagedPaths.some((path) => path === 'demo-console' || path.startsWith('demo-console/'))).toBe(
-      false
-    )
+    expect(
+      stagedPaths.some((path) => path === 'demo-console' || path.startsWith('demo-console/'))
+    ).toBe(false)
     expect(repositoryHasChanges(staged, undefined)).toBe(true)
   }, 120_000)
 })

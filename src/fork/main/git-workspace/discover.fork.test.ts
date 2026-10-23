@@ -50,12 +50,16 @@ describe('workspace repository discovery', () => {
     mkdirSync(join(ws, 'demo-empty'), { recursive: true })
     writeFileSync(
       join(ws, '.gitmodules'),
-      '[submodule "demo-api"]\n\tpath = demo-api\n\turl = ../demo-api.git\n[submodule "demo-empty"]\n\tpath = demo-empty\n\turl = ../demo-empty.git\n'
+      '[submodule "demo-api"]\n\tpath = demo-api\n\turl = ../demo-api.git\n[submodule "demo-empty"]\n\tpath = demo-empty\n\turl = ../demo-empty.git\n[submodule "demo-lib"]\n\tpath = demo-api/vendor/demo-lib\n\turl = ../demo-lib.git\n'
     )
+    initRepo(join(ws, 'node_modules'))
     initRepo(join(ws, 'node_modules', 'pkg'))
+    initRepo(join(ws, '.demo-cache'))
     const outside = join(root, 'outside')
     initRepo(outside)
     symlinkSync(outside, join(ws, 'linked-out'))
+    // 指回工作区内部的深层检出。目录项是软链，realpath 仍在工作区里。
+    symlinkSync(join(ws, 'demo-api', 'vendor', 'demo-lib'), join(ws, 'linked-in'))
     return ws
   }
 
@@ -70,11 +74,15 @@ describe('workspace repository discovery', () => {
     expect(byPath.get('demo-api')).toMatchObject({ kind: 'nested', uninitialized: false, depth: 1 })
     expect(byPath.get('demo-web')).toMatchObject({ kind: 'nested', uninitialized: false, depth: 1 })
     expect(statSync(join(ws, 'demo-web', '.git')).isFile()).toBe(true)
-    // 子仓库里已初始化的子模块、更深层的 worktree、依赖目录和逃出工作区的软链都不是一组。
+    // 根 .gitmodules 里已检出的深层子模块不收进「其他」。删掉「已有 .git 就跳过」后它会出现。
     expect(byPath.has('demo-api/vendor/demo-lib')).toBe(false)
     expect(byPath.has('svc/api')).toBe(false)
+    expect(byPath.has('node_modules')).toBe(false)
     expect(byPath.has('node_modules/pkg')).toBe(false)
+    expect(byPath.has('.demo-cache')).toBe(false)
     expect(byPath.has('linked-out')).toBe(false)
+    // 软链指向工作区内部也不列。去掉「软链目录不跟」后，demo-lib 会借 linked-in 出现。
+    expect(byPath.has('linked-in')).toBe(false)
     // 未初始化子模块留在结果里，界面收进「其他」，不作为普通仓库栏。
     expect(byPath.get('demo-empty')).toMatchObject({ kind: 'submodule', uninitialized: true })
     expect(found.repositories.map((repository) => repository.realPath)).toEqual([

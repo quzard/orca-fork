@@ -155,14 +155,19 @@ async function addFirstLevelChildren(
   } catch {
     return
   }
-  const names = entries
-    .filter((entry) => entry.isDirectory() && !entry.isSymbolicLink())
-    .map((entry) => entry.name)
-    .sort((left, right) => left.localeCompare(right))
-  for (const name of names) {
+  const children = entries
+    .filter((entry) => entry.isDirectory() || entry.isSymbolicLink())
+    .filter((entry) => !entry.name.startsWith('.') && entry.name !== 'node_modules')
+    .sort((left, right) => left.name.localeCompare(right.name))
+  for (const entry of children) {
     if (stop()) {
       return
     }
+    // 软链目录不跟。指回工作区内部的也不跟，否则深层检出可以借软链出现在第一层。
+    if (entry.isSymbolicLink()) {
+      continue
+    }
+    const name = entry.name
     const absolute = join(worktreePath, name)
     if (!(await hasGitMarker(absolute))) {
       continue

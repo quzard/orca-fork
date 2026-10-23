@@ -264,7 +264,9 @@ describe('workspace repository groups', () => {
     expect(localStorage.getItem(SOURCE_CONTROL_ONLY_CHANGED_STORAGE_KEY)).toBe('1')
     // 还没有状态的 demo-console 先留着。确定没有改动的根仓库和 demo-api 去掉。「其他」也去掉。
     expect(repoPaths()).toEqual(['demo-web', 'demo-console'])
-    expect(container.querySelector(`[data-testid="${SOURCE_CONTROL_REPO_OTHER_TEST_ID}"]`)).toBeNull()
+    expect(
+      container.querySelector(`[data-testid="${SOURCE_CONTROL_REPO_OTHER_TEST_ID}"]`)
+    ).toBeNull()
     act(() => root.unmount())
     root = createRoot(container)
     await render(groups(clean))
@@ -309,6 +311,25 @@ describe('workspace repository groups', () => {
           '': finishedCompare('unborn-head'),
           'demo-api': finishedCompare('no-merge-base'),
           'demo-web': finishedCompare('loading')
+        }
+      })
+    )
+    expect(repoPaths()).toEqual(['demo-web'])
+  })
+
+  it('filters out a sibling whose compare failed and that has no uncommitted files', async () => {
+    localStorage.setItem(SOURCE_CONTROL_ONLY_CHANGED_STORAGE_KEY, '1')
+    await render(
+      groups({
+        statuses: {
+          '': status('', []),
+          'demo-api': status('demo-api', []),
+          'demo-web': status('demo-web', ['a.ts'])
+        },
+        compares: {
+          '': compare(0, 0),
+          'demo-api': finishedCompare('error'),
+          'demo-web': compare(1, 0)
         }
       })
     )

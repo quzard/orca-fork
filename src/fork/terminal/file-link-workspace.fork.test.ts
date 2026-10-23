@@ -17,11 +17,13 @@ import {
   applyTerminalFileLinkStayStorageEvent,
   forgetClosedTerminalFileLinkStays,
   loadTerminalFileLinkStay,
+  nextTerminalFileLinkStayClosures,
   pruneTerminalFileLinkStays,
   rememberTerminalFileLinkStay,
   resetTerminalFileLinkStayCacheForTests,
   saveTerminalFileLinkStay,
   shouldSkipTerminalFileLinkStaySync,
+  terminalFileLinkSessionHydrated,
   terminalFileLinkStayKey
 } from './file-link-stay'
 
@@ -173,5 +175,21 @@ describe('terminal file-link stay map', () => {
     expect(shouldSkipTerminalFileLinkStaySync(true, true, false)).toBe(false)
     expect(shouldSkipTerminalFileLinkStaySync(true, true, true)).toBe(true)
     expect(shouldSkipTerminalFileLinkStaySync(false, true, true)).toBe(false)
+    expect(terminalFileLinkSessionHydrated(true, false)).toBe(false)
+    expect(terminalFileLinkSessionHydrated(true, true)).toBe(true)
+  })
+
+  it('keeps a mark a snapshot omits until the next openFiles change still lacks it', () => {
+    const home = { worktreeId: 'folder:home', filePath: '/Users/me/x.html' }
+    const omitted = nextTerminalFileLinkStayClosures([], [home], [])
+    expect(omitted.confirmed).toEqual([])
+    expect(omitted.pending).toEqual([home])
+
+    const restored = nextTerminalFileLinkStayClosures(omitted.pending, [], [home])
+    expect(restored.confirmed).toEqual([])
+    expect(restored.pending).toEqual([])
+
+    const closed = nextTerminalFileLinkStayClosures(omitted.pending, [], [])
+    expect(closed.confirmed).toEqual([home])
   })
 })

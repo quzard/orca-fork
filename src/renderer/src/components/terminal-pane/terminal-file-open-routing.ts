@@ -277,6 +277,7 @@ export function openDetectedFilePath(
         worktreeId: targetWorktreeId || '',
         runtimeEnvironmentId: clientLocal ? null : runtimeEnvironmentId,
         ...keptOpen?.fileFields,
+        // Why: a tab's owner must match its workspace's to be editable; this one is this computer's.
         ...(clientLocal && targetWorktreeId === worktreeId ? { readOnly: true } : {}),
         // Why: the grant is the only authority to read a host file outside its workspaces.
         ...(hostGrantId !== null ? { readOnly: true, terminalArtifactGrantId: hostGrantId } : {}),

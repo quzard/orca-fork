@@ -13,9 +13,11 @@ import {
   applyTerminalFileLinkStayStorageEvent,
   forgetClosedTerminalFileLinkStays,
   loadTerminalFileLinkStay,
+  nextTerminalFileLinkStayClosures,
   pruneTerminalFileLinkStays,
   rememberTerminalFileLinkStay,
-  shouldSkipTerminalFileLinkStaySync
+  shouldSkipTerminalFileLinkStaySync,
+  terminalFileLinkSessionHydrated
 } from './file-link-stay'
 
 const SEARCH_KEYWORDS = ['terminal', 'file', 'link', 'workspace', 'folder', 'chat']
@@ -78,27 +80,37 @@ function watchClosedTerminalFileLinkStays(): void {
     })
   }
   let openFiles = useAppStore.getState().openFiles
+  let pendingClosed: { worktreeId: string; filePath: string }[] = []
   let pruned = false
-  if (useAppStore.getState().workspaceSessionReady === true) {
+  const initial = useAppStore.getState()
+  if (terminalFileLinkSessionHydrated(initial.workspaceSessionReady, initial.hydrationSucceeded)) {
     pruned = true
     pruneTerminalFileLinkStays(openFiles)
   }
   useAppStore.subscribe((state) => {
-    const ready = state.workspaceSessionReady === true
-    if (shouldSkipTerminalFileLinkStaySync(state.openFiles === openFiles, ready, pruned)) {
+    const hydrated = terminalFileLinkSessionHydrated(
+      state.workspaceSessionReady,
+      state.hydrationSucceeded
+    )
+    if (shouldSkipTerminalFileLinkStaySync(state.openFiles === openFiles, hydrated, pruned)) {
       return
     }
     const previous = openFiles
     openFiles = state.openFiles
-    if (!ready) {
+    if (!hydrated) {
       return
     }
     if (!pruned) {
       pruned = true
+      pendingClosed = []
       pruneTerminalFileLinkStays(openFiles)
       return
     }
-    forgetClosedTerminalFileLinkStays(previous, openFiles)
+    const next = nextTerminalFileLinkStayClosures(pendingClosed, previous, openFiles)
+    if (next.confirmed.length > 0) {
+      forgetClosedTerminalFileLinkStays(next.confirmed, openFiles)
+    }
+    pendingClosed = next.pending
   })
 }
 

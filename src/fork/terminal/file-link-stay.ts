@@ -144,6 +144,31 @@ export function pruneTerminalFileLinkStays(openFiles: readonly OpenPath[]): void
   })
 }
 
+/** 启动失败也会把 workspaceSessionReady 设上，但文件列表是空的。只有会话真的恢复过才清标记。 */
+export function terminalFileLinkSessionHydrated(
+  sessionReady: boolean,
+  hydrationSucceeded: boolean
+): boolean {
+  return sessionReady && hydrationSucceeded
+}
+
+/**
+ * 配对网页客户端的主机快照可能先漏掉标签、下一次再带回来。
+ * 刚消失的路径先记下，下一次打开列表里还没有才删。
+ */
+export function nextTerminalFileLinkStayClosures(
+  pending: readonly OpenPath[],
+  previouslyOpen: readonly OpenPath[],
+  currentlyOpen: readonly OpenPath[]
+): { confirmed: OpenPath[]; pending: OpenPath[] } {
+  const live = new Set(
+    currentlyOpen.map((file) => terminalFileLinkStayKey(file.worktreeId, file.filePath))
+  )
+  const absent = (file: OpenPath): boolean =>
+    !live.has(terminalFileLinkStayKey(file.worktreeId, file.filePath))
+  return { confirmed: pending.filter(absent), pending: previouslyOpen.filter(absent) }
+}
+
 /** openFiles 还是同一个数组，并且要么还没恢复、要么已经清过，就不要再分配。 */
 export function shouldSkipTerminalFileLinkStaySync(
   openFilesUnchanged: boolean,

@@ -321,11 +321,9 @@ export function TerminalPane({
         updateSettings={updateSettings}
       />
     ) : null,
-    matchesSettingsSearch(searchQuery, [
-      ...getTerminalPaneInteractionSearchEntries(),
-      ...getTerminalRightClickToPasteSearchEntry(),
-      ...terminalFileLinkWorkspaceSearchEntries()
-    ]) ? (
+    matchesSettingsSearch(searchQuery, getTerminalPaneInteractionSearchEntries()) ||
+    matchesSettingsSearch(searchQuery, getTerminalRightClickToPasteSearchEntry()) ||
+    matchesSettingsSearch(searchQuery, terminalFileLinkWorkspaceSearchEntries()) ? (
       <TerminalInteractionSection
         key="pane-interaction"
         settings={settings}

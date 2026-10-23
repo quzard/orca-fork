@@ -1,7 +1,8 @@
 // 开关缺省为开；只有显式 false 才回到上游。未登记的钩子必须保持上游。
 import { tmpdir } from 'node:os'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getDefaultPersistedState } from '../../shared/constants'
+import type { GlobalSettings } from '../../shared/global-settings-types'
 import {
   registerTerminalFileLinkWorkspace,
   terminalFileLinkKeepsCurrentWorkspace,
@@ -12,6 +13,17 @@ import {
   type SettingsMutationOperations
 } from '../../main/persistence/applying-settings/settings-update'
 import { terminalFileLinksOpenInCurrentWorkspace } from './file-link-workspace'
+import {
+  forgetClosedTerminalFileLinkStays,
+  loadTerminalFileLinkStay,
+  resetTerminalFileLinkStayCacheForTests,
+  saveTerminalFileLinkStay
+} from './file-link-stay'
+
+function storedSetting(value: boolean): Partial<GlobalSettings> {
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the profile JSON keeps this boolean beside GlobalSettings; the upstream type does not list it.
+  return { terminalFileLinksOpenInCurrentWorkspace: value } as Partial<GlobalSettings>
+}
 
 vi.mock('electron', () => ({
   app: { getPath: () => '/tmp' },
@@ -65,21 +77,59 @@ describe('terminal file-link workspace hook', () => {
 describe('terminalFileLinksOpenInCurrentWorkspace persistence', () => {
   it('keeps an explicit off through the same settings write as other terminal preferences', () => {
     const operations = makeOperations()
-    expect(operations.state.settings.terminalFileLinksOpenInCurrentWorkspace).toBe(true)
+    expect(terminalFileLinksOpenInCurrentWorkspace(operations.state.settings)).toBe(true)
 
-    updateSettings(operations, { terminalFileLinksOpenInCurrentWorkspace: false })
+    updateSettings(operations, storedSetting(false))
 
-    expect(operations.state.settings.terminalFileLinksOpenInCurrentWorkspace).toBe(false)
+    expect(terminalFileLinksOpenInCurrentWorkspace(operations.state.settings)).toBe(false)
     expect(operations.notifySettingsChanged).not.toHaveBeenCalled()
-    updateSettings(
-      operations,
-      { terminalFileLinksOpenInCurrentWorkspace: true },
-      { notifyListeners: true }
-    )
-    expect(operations.state.settings.terminalFileLinksOpenInCurrentWorkspace).toBe(true)
+    updateSettings(operations, storedSetting(true), { notifyListeners: true })
+    expect(terminalFileLinksOpenInCurrentWorkspace(operations.state.settings)).toBe(true)
     expect(operations.notifySettingsChanged).toHaveBeenCalledWith(
       expect.objectContaining({ terminalFileLinksOpenInCurrentWorkspace: true }),
       undefined
     )
+  })
+})
+
+describe('terminal file-link stay map', () => {
+  const storage = new Map<string, string>()
+
+  beforeEach(() => {
+    storage.clear()
+    resetTerminalFileLinkStayCacheForTests()
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (key: string) => storage.get(key) ?? null,
+        setItem: (key: string, value: string) => {
+          storage.set(key, value)
+        }
+      }
+    })
+  })
+
+  it('remembers a host read across a cache reset and drops it when the tab closes', () => {
+    const hostRead = { worktreeId: 'folder:home', relativePath: 'x.html' }
+    saveTerminalFileLinkStay('editor:a', hostRead)
+    saveTerminalFileLinkStay('editor:local', null)
+    resetTerminalFileLinkStayCacheForTests()
+
+    expect(loadTerminalFileLinkStay('editor:a')).toEqual({ read: hostRead })
+    expect(loadTerminalFileLinkStay('editor:local')).toEqual({ read: null })
+    expect(loadTerminalFileLinkStay('editor:other')).toBeNull()
+
+    forgetClosedTerminalFileLinkStays(new Set(['editor:a']), new Set(['editor:local']))
+    expect(loadTerminalFileLinkStay('editor:a')).toBeNull()
+    expect(loadTerminalFileLinkStay('editor:local')).toEqual({ read: null })
+  })
+
+  it('leaves a restored mark alone when that id was not open yet', () => {
+    saveTerminalFileLinkStay('editor:restored', {
+      worktreeId: 'folder:home',
+      relativePath: 'x.html'
+    })
+    forgetClosedTerminalFileLinkStays(new Set(), new Set())
+    expect(loadTerminalFileLinkStay('editor:restored')?.read?.relativePath).toBe('x.html')
   })
 })

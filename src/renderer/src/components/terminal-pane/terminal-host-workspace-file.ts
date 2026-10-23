@@ -13,7 +13,6 @@ import {
   TERMINAL_PATH_CROSS_WORKSPACE_RUNTIME_CAPABILITY,
   type RuntimeTerminalPathResolution
 } from '../../../../shared/runtime-file-contracts'
-import { terminalFileLinkKeepsCurrentWorkspace } from '../../../../shared/fork-hooks/terminal-file-link-workspace'
 
 export type HostWorkspaceFile = {
   kind: 'host'
@@ -106,9 +105,7 @@ export async function resolveHostWorkspaceFile(
     {
       worktree: toRuntimeWorktreeSelector(context.worktreeId),
       pathText: absolutePath,
-      // Why: unregistered, still ask which workspace holds the path. Registered and on, the host
-      // answers as it does for a path outside every workspace (grant, or no file).
-      crossWorkspace: !terminalFileLinkKeepsCurrentWorkspace(),
+      crossWorkspace: true,
       // Why: the host grants a file outside its workspaces only to the terminal that printed it.
       ...(terminalHandle ? { terminal: terminalHandle } : {})
     },

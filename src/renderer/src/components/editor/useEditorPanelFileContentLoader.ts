@@ -28,7 +28,7 @@ import { isFloatingWorkspaceId } from '../../../../shared/floating-workspace-wor
 import { chatScratchFileAddress } from '@/runtime/runtime-chat-scratch-file-address'
 import { stampCleanTabDiskBaseline } from './editor-clean-tab-disk-baseline'
 import { applyEditorFileLoadFailure } from './editor-deleted-file-reload'
-import { terminalFileLinkKeepsCurrentWorkspace } from '../../../../shared/fork-hooks/terminal-file-link-workspace'
+import { terminalFileLinkStay } from '../../../../shared/fork-hooks/terminal-file-link-workspace'
 
 const inFlightFileReads = new Map<string, InFlightContentRead<FileContent>>()
 
@@ -165,18 +165,20 @@ export function useEditorPanelFileContentLoader({
             const route = isFloatingWorkspaceId(worktreeId)
               ? null
               : findWorkspaceFileRoute(currentState, executionHostId, filePath)
-            // Why: this also runs for a tab just opened from a terminal, and reparent activates the owner.
-            if (
-              route &&
-              route.worktreeId !== worktreeId &&
-              !terminalFileLinkKeepsCurrentWorkspace()
-            ) {
+            // Why: only a terminal/chat link this fork marked stays put. Other absolute tabs still reparent.
+            const stay = terminalFileLinkStay(id)
+            if (route && route.worktreeId !== worktreeId && !stay) {
               await reownRestoredFile(route, runtimeEnvironmentId ?? null)
               return
+            }
+            if (stay?.read) {
+              readWorktreeId = stay.read.worktreeId
+              readRelativePath = stay.read.relativePath
             }
             if (
               runtimeEnvironmentId &&
               !route &&
+              !stay?.read &&
               !restoredOpenFile.terminalArtifactGrantId &&
               !chatScratchFileAddress(filePath)
             ) {

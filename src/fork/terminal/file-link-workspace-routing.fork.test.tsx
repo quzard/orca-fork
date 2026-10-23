@@ -9,18 +9,25 @@ import {
   flushDoubleRaf,
   installTerminalLinkTestEnvironment
 } from '@/components/terminal-pane/terminal-link-handlers-test-harness'
-import { registerTerminalFileLinkWorkspace } from '../../shared/fork-hooks/terminal-file-link-workspace'
+import {
+  registerTerminalFileLinkWorkspace,
+  type TerminalFileLinkHostRead
+} from '../../shared/fork-hooks/terminal-file-link-workspace'
 
 const findWorkspaceFileRouteMock = vi.hoisted(() => vi.fn())
 const doubles = createTerminalLinkTestDoubles()
 const { storeState, statMock, openFileMock, runtimeEnvironmentCallMock } = doubles
 
 let keepInCurrent = true
+const remembered: { fileId: string; hostRead: TerminalFileLinkHostRead | null }[] = []
 
 registerTerminalFileLinkWorkspace({
   keepsCurrentWorkspace: () => keepInCurrent,
   renderSetting: () => null,
-  searchEntries: () => []
+  searchEntries: () => [],
+  rememberStay: (fileId, hostRead) => {
+    remembered.push({ fileId, hostRead })
+  }
 })
 
 vi.mock('@/store', () => ({
@@ -72,18 +79,18 @@ function hostAnswers(result: unknown): void {
 
 beforeEach(() => {
   keepInCurrent = true
+  remembered.length = 0
   findWorkspaceFileRouteMock.mockReset()
-  findWorkspaceFileRouteMock.mockReturnValue(HOME_ROUTE)
+  findWorkspaceFileRouteMock.mockReturnValue(null)
 })
 
 describe('terminal file links stay in the clicked workspace', () => {
-  it('does not ask a paired runtime which other workspace holds a path outside this one', async () => {
-    storeState.openFiles = [{ filePath: HOME_FILE, worktreeId: 'folder:home' }]
+  it('reads a paired-runtime file from the owning host workspace without activating it', async () => {
     hostAnswers({
-      worktree: 'wt-feat',
-      relativePath: null,
+      worktree: 'folder:home',
+      relativePath: HOME_ROUTE.relativePath,
       absolutePath: HOME_FILE,
-      exists: false,
+      exists: true,
       isDirectory: false
     })
 
@@ -93,10 +100,9 @@ describe('terminal file links stay in the clicked workspace', () => {
     expect(runtimeEnvironmentCallMock).toHaveBeenCalledWith(
       expect.objectContaining({
         method: 'files.resolveTerminalPath',
-        params: expect.objectContaining({ pathText: HOME_FILE, crossWorkspace: false })
+        params: expect.objectContaining({ pathText: HOME_FILE, crossWorkspace: true })
       })
     )
-    expect(findWorkspaceFileRouteMock).not.toHaveBeenCalled()
     expect(activateAndRevealWorkspace).not.toHaveBeenCalledWith('folder:home', expect.anything())
     expect(activateAndRevealWorkspace).toHaveBeenCalledWith('wt-feat', {
       providesInitialSurface: true,
@@ -107,11 +113,17 @@ describe('terminal file links stay in the clicked workspace', () => {
         filePath: HOME_FILE,
         relativePath: HOME_FILE,
         worktreeId: 'wt-feat',
-        runtimeEnvironmentId: null,
+        runtimeEnvironmentId: 'env-1',
         readOnly: true
       }),
       { forceContentReload: true }
     )
+    expect(remembered).toEqual([
+      {
+        fileId: HOME_FILE,
+        hostRead: { worktreeId: 'folder:home', relativePath: HOME_ROUTE.relativePath }
+      }
+    ])
   })
 
   it('still opens a file inside the clicked workspace as that workspace file', async () => {
@@ -136,6 +148,31 @@ describe('terminal file links stay in the clicked workspace', () => {
       { forceContentReload: true }
     )
     expect(openFileMock.mock.calls[0]?.[0]).not.toHaveProperty('readOnly')
+    expect(remembered).toEqual([])
+  })
+
+  it('opens a path owned by another workspace read-only without activating it', async () => {
+    const filePath = '/sibling/docs/SKILL.md'
+    findWorkspaceFileRouteMock.mockReturnValue({
+      worktreeId: 'folder:notes',
+      relativePath: 'docs/SKILL.md',
+      executionHostId: 'local'
+    })
+
+    openDetectedFilePath(filePath, null, null, doubles.deps)
+    await flushDoubleRaf()
+
+    expect(activateAndRevealWorkspace).not.toHaveBeenCalledWith('folder:notes', expect.anything())
+    expect(openFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath,
+        relativePath: filePath,
+        worktreeId: 'wt-1',
+        readOnly: true
+      }),
+      { forceContentReload: true }
+    )
+    expect(remembered).toEqual([{ fileId: filePath, hostRead: null }])
   })
 
   it('does not adopt a sibling workspace that already has the same path open', async () => {
@@ -145,18 +182,25 @@ describe('terminal file links stay in the clicked workspace', () => {
     openDetectedFilePath(filePath, 12, null, doubles.deps)
     await flushDoubleRaf()
 
-    expect(findWorkspaceFileRouteMock).not.toHaveBeenCalled()
+    expect(findWorkspaceFileRouteMock).toHaveBeenCalled()
     expect(activateAndRevealWorkspace).not.toHaveBeenCalledWith('folder:notes', expect.anything())
     expect(openFileMock).toHaveBeenCalledWith(
-      expect.objectContaining({ filePath, relativePath: filePath, worktreeId: 'wt-1' }),
+      expect.objectContaining({
+        filePath,
+        relativePath: filePath,
+        worktreeId: 'wt-1',
+        readOnly: true
+      }),
       { forceContentReload: true }
     )
+    expect(remembered).toEqual([{ fileId: filePath, hostRead: null }])
   })
 
   it('keeps a direct SSH link in the terminal workspace when another workspace contains the path', async () => {
     vi.mocked(getConnectionId).mockImplementation((worktreeId) =>
       worktreeId === 'wt-ssh' ? 'ssh-1' : null
     )
+    findWorkspaceFileRouteMock.mockReturnValue(HOME_ROUTE)
     storeState.openFiles = [{ filePath: HOME_FILE, worktreeId: 'folder:home' }]
 
     openDetectedFilePath(HOME_FILE, null, null, {
@@ -168,14 +212,15 @@ describe('terminal file links stay in the clicked workspace', () => {
     expect(statMock).toHaveBeenCalledWith(
       expect.objectContaining({ filePath: HOME_FILE, connectionId: 'ssh-1' })
     )
-    expect(findWorkspaceFileRouteMock).not.toHaveBeenCalled()
+    expect(findWorkspaceFileRouteMock).toHaveBeenCalled()
     expect(activateAndRevealWorkspace).not.toHaveBeenCalledWith('folder:home', expect.anything())
     expect(openFileMock).toHaveBeenCalledWith(
       expect.objectContaining({
         filePath: HOME_FILE,
         relativePath: HOME_FILE,
         worktreeId: 'wt-ssh',
-        externalSshTargetId: 'ssh-1'
+        externalSshTargetId: 'ssh-1',
+        readOnly: true
       }),
       { forceContentReload: true }
     )

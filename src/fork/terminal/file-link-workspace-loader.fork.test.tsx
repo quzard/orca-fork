@@ -4,7 +4,10 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { OpenFile } from '@/store/slices/editor'
-import { registerTerminalFileLinkWorkspace } from '../../shared/fork-hooks/terminal-file-link-workspace'
+import {
+  registerTerminalFileLinkWorkspace,
+  type TerminalFileLinkStay
+} from '../../shared/fork-hooks/terminal-file-link-workspace'
 import {
   useEditorPanelFileContentLoader,
   type EditorPanelFileContentLoader
@@ -18,7 +21,7 @@ const mocks = vi.hoisted(() => ({
   getState: vi.fn()
 }))
 
-let keepInCurrent = true
+const stays = new Map<string, TerminalFileLinkStay>()
 
 vi.mock('@/lib/connection-context', () => ({
   getConnectionIdForFile: vi.fn(() => null),
@@ -90,11 +93,12 @@ describe('editor load of a terminal file link', () => {
   let openFiles: OpenFile[]
 
   beforeEach(() => {
-    keepInCurrent = true
+    stays.clear()
     registerTerminalFileLinkWorkspace({
-      keepsCurrentWorkspace: () => keepInCurrent,
+      keepsCurrentWorkspace: () => true,
       renderSetting: () => null,
-      searchEntries: () => []
+      searchEntries: () => [],
+      lookupStay: (fileId) => stays.get(fileId) ?? null
     })
     openFiles = []
     load = null
@@ -139,13 +143,46 @@ describe('editor load of a terminal file link', () => {
     container.remove()
   })
 
-  it('reads a freshly opened absolute path in the clicked workspace', async () => {
+  it('still reparents an unmarked absolute path onto the workspace that contains it', async () => {
     const tab = externalTab()
     openFiles = [tab]
 
     await act(async () => load!(HOME_FILE, tab.id, SOURCE, HOME_FILE))
 
-    expect(mocks.findWorkspaceFileRoute).toHaveBeenCalled()
+    expect(mocks.migrateRestoredEditorFileOwner).toHaveBeenCalledWith(tab.id, HOME_ROUTE, null)
+    expect(mocks.readEditorCsvFileContent).not.toHaveBeenCalled()
+  })
+
+  it('reads a restored terminal link from the host workspace without reparenting', async () => {
+    const tab = externalTab({
+      id: 'editor:wt-ha:env-1:generated.png',
+      readOnly: true,
+      runtimeEnvironmentId: 'env-1'
+    })
+    stays.set(tab.id, { read: { worktreeId: HOME, relativePath: HOME_ROUTE.relativePath } })
+    openFiles = [tab]
+
+    await act(async () => load!(HOME_FILE, tab.id, SOURCE, HOME_FILE))
+
+    expect(mocks.migrateRestoredEditorFileOwner).not.toHaveBeenCalled()
+    expect(mocks.readEditorCsvFileContent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath: HOME_FILE,
+        relativePath: HOME_ROUTE.relativePath,
+        worktreeId: HOME,
+        terminalArtifactGrantId: undefined
+      }),
+      expect.anything()
+    )
+  })
+
+  it('keeps a marked local tab in place and still reads its absolute path', async () => {
+    const tab = externalTab()
+    stays.set(tab.id, { read: null })
+    openFiles = [tab]
+
+    await act(async () => load!(HOME_FILE, tab.id, SOURCE, HOME_FILE))
+
     expect(mocks.migrateRestoredEditorFileOwner).not.toHaveBeenCalled()
     expect(mocks.readEditorCsvFileContent).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -155,37 +192,5 @@ describe('editor load of a terminal file link', () => {
       }),
       expect.anything()
     )
-  })
-
-  it('does not reparent a host grant onto the wider workspace that also contains the path', async () => {
-    const tab = externalTab({
-      id: `${HOME_FILE}:grant`,
-      readOnly: true,
-      runtimeEnvironmentId: 'env-1',
-      terminalArtifactGrantId: 'g-1'
-    })
-    openFiles = [tab]
-
-    await act(async () => load!(HOME_FILE, tab.id, SOURCE, HOME_FILE))
-
-    expect(mocks.migrateRestoredEditorFileOwner).not.toHaveBeenCalled()
-    expect(mocks.readEditorCsvFileContent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        worktreeId: SOURCE,
-        terminalArtifactGrantId: 'g-1'
-      }),
-      expect.anything()
-    )
-  })
-
-  it('reparents onto the owning workspace when the setting is off', async () => {
-    keepInCurrent = false
-    const tab = externalTab({ id: `${HOME_FILE}:off` })
-    openFiles = [tab]
-
-    await act(async () => load!(HOME_FILE, tab.id, SOURCE, HOME_FILE))
-
-    expect(mocks.migrateRestoredEditorFileOwner).toHaveBeenCalledWith(tab.id, HOME_ROUTE, null)
-    expect(mocks.readEditorCsvFileContent).not.toHaveBeenCalled()
   })
 })

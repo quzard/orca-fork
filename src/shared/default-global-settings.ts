@@ -133,7 +133,6 @@ export function buildDefaultSettings(args: {
     openLinksInAppModifierInverts: false,
     terminalLinkActionPopoverEnabled: true,
     terminalLinkClickBehavior: 'actions',
-    terminalFileLinksOpenInCurrentWorkspace: true,
     terminalUrlMiddleClickBehavior: 'open',
     experimentalNativeChat: false,
     nativeChatResumeWorkOnRestart: false,

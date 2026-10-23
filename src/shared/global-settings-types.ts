@@ -220,8 +220,6 @@ export type GlobalSettings = GlobalSettingsBase & {
   terminalLinkActionPopoverEnabled?: boolean
   /** Plain-click behavior for terminal links; optional for profiles saved before this setting existed. */
   terminalLinkClickBehavior?: 'actions' | 'open' | 'none'
-  /** Terminal file links stay in the clicked workspace. Absent means on; false follows the workspace that contains the path. */
-  terminalFileLinksOpenInCurrentWorkspace?: boolean
   /** Middle mouse URL behavior; defaults to opening the primary routed destination. */
   terminalUrlMiddleClickBehavior?: 'open' | 'actions' | 'none'
   /** New supported agent launches use structured Chat UI; off defaults to terminal UI. */

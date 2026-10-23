@@ -29,7 +29,12 @@ import { captureEditorOpenLinkIntent } from '@/store/slices/editor/tabs/editor-o
 import { cancelPendingEditorLineRevealFrames } from '@/store/slices/editor/focus/editor-focus-reveal'
 import { showOpenInGroupRefusedToast } from './terminal-file-open-in-group-toast'
 import { isExplicitEditorScopeKept } from '@/lib/editor-file-link-open'
-import { terminalFileLinkKeepsCurrentWorkspace } from '../../../../shared/fork-hooks/terminal-file-link-workspace'
+import {
+  rememberTerminalFileLinkStay,
+  terminalFileLinkKeptOpen,
+  terminalFileLinkKeepsCurrentWorkspace,
+  type TerminalFileLinkKeptOpen
+} from '../../../../shared/fork-hooks/terminal-file-link-workspace'
 
 export {
   getTerminalFileContext,
@@ -110,6 +115,9 @@ export function openDetectedFilePath(
     let hostWorkspaceFile: HostWorkspaceFile | null = null
     let hostGrantId: string | null = null
     let clientLocal = false
+    let keptOpen: TerminalFileLinkKeptOpen | null = null
+    let keptHostRoot: string | null = null
+    const sourceWorktreeId = worktreeId
     if (!fileContext.sourceHostResolved) {
       // Why: with no owner the host is unknown — refuse rather than touch this machine's files.
       deps.onOpenFailure?.({
@@ -160,11 +168,29 @@ export function openDetectedFilePath(
         }
         statResult = { isDirectory: linkOwner.isDirectory, escapesWorktree: false }
       } else if (linkOwner) {
-        hostWorkspaceFile = linkOwner
-        // Why: the host already stat'ed the path inside the workspace that holds it; open it there.
-        ;({ worktreeId, worktreePath, absolutePath: mappedFilePath } = hostWorkspaceFile)
-        fileContext = { ...fileContext, worktreeId, worktreePath }
-        statResult = { isDirectory: hostWorkspaceFile.isDirectory, escapesWorktree: false }
+        const ownerRelativePath = toWorktreeRelativePath(
+          linkOwner.absolutePath,
+          linkOwner.worktreePath
+        )
+        const kept = terminalFileLinkKeptOpen({
+          sourceWorktreeId,
+          ownerWorktreeId: linkOwner.worktreeId,
+          ownerRelativePath,
+          openElsewhere: false
+        })
+        if (kept) {
+          // Why: the host named the owner, but the tab stays in the clicked workspace and reads that route.
+          keptOpen = kept
+          keptHostRoot = linkOwner.worktreePath
+          mappedFilePath = linkOwner.absolutePath
+          statResult = { isDirectory: linkOwner.isDirectory, escapesWorktree: true }
+        } else {
+          hostWorkspaceFile = linkOwner
+          // Why: the host already stat'ed the path inside the workspace that holds it; open it there.
+          ;({ worktreeId, worktreePath, absolutePath: mappedFilePath } = hostWorkspaceFile)
+          fileContext = { ...fileContext, worktreeId, worktreePath }
+          statResult = { isDirectory: hostWorkspaceFile.isDirectory, escapesWorktree: false }
+        }
       } else {
         statResult = await statUserOpenedPath(fileContext, mappedFilePath)
       }
@@ -210,7 +236,15 @@ export function openDetectedFilePath(
     if (openWithSystemDefault && !canOpenWithSystemDefault && hostGrantId === null) {
       // Why: the popover names Shift+Cmd/Ctrl "Download & open with default app", and the OS
       // cannot launch a remote path, so the direct gesture must reach the same download.
-      await downloadAndOpenRemoteTerminalFile(fileContext, mappedFilePath)
+      const downloadContext =
+        keptOpen?.hostRead && keptHostRoot
+          ? {
+              ...fileContext,
+              worktreeId: keptOpen.hostRead.worktreeId,
+              worktreePath: keptHostRoot
+            }
+          : fileContext
+      await downloadAndOpenRemoteTerminalFile(downloadContext, mappedFilePath)
       return
     }
 
@@ -231,17 +265,29 @@ export function openDetectedFilePath(
         relativePath = maybeRelative
       }
     } else if (
+      !keptOpen &&
       hostGrantId === null &&
       !isFloatingWorkspaceId(worktreeId) &&
-      // Why: a file already open in another workspace is still this click's workspace when the fork says so.
-      !terminalFileLinkKeepsCurrentWorkspace() &&
-      store.openFiles.some(
+      (terminalFileLinkKeepsCurrentWorkspace() ||
+        store.openFiles.some(
+          (openFile) => openFile.filePath === mappedFilePath && openFile.worktreeId !== worktreeId
+        ))
+    ) {
+      const openElsewhere = store.openFiles.some(
         (openFile) => openFile.filePath === mappedFilePath && openFile.worktreeId !== worktreeId
       )
-    ) {
       // Why: early resolution is only needed to avoid an existing sibling-tab collision.
       const siblingRoute = findWorkspaceFileRoute(store, targetExecutionHostId, mappedFilePath)
-      if (siblingRoute) {
+      const kept = terminalFileLinkKeptOpen({
+        sourceWorktreeId: worktreeId,
+        ownerWorktreeId: siblingRoute?.worktreeId ?? null,
+        ownerRelativePath: null,
+        openElsewhere
+      })
+      if (kept) {
+        // Why: two editable copies of one path can autosave over each other, so this copy is read-only.
+        keptOpen = kept
+      } else if (siblingRoute && openElsewhere) {
         targetWorktreeId = siblingRoute.worktreeId
         targetExecutionHostId = siblingRoute.executionHostId
         relativePath = siblingRoute.relativePath
@@ -267,6 +313,7 @@ export function openDetectedFilePath(
         worktreeId: targetWorktreeId || '',
         runtimeEnvironmentId: clientLocal ? null : runtimeEnvironmentId,
         // Why: a tab's owner must match its workspace's to be editable; this one is this computer's.
+        ...(keptOpen ? { readOnly: true } : {}),
         ...(clientLocal && targetWorktreeId === worktreeId ? { readOnly: true } : {}),
         // Why: the grant is the only authority to read a host file outside its workspaces.
         ...(hostGrantId !== null ? { readOnly: true, terminalArtifactGrantId: hostGrantId } : {}),
@@ -282,6 +329,9 @@ export function openDetectedFilePath(
       position: { line, column },
       isCurrentRequest: () => requestId === latestOpenDetectedFilePathRequestId
     })
+    if (keptOpen && opened.surface === 'editor') {
+      rememberTerminalFileLinkStay(opened.fileId, keptOpen.hostRead)
+    }
     if (opened.surface === 'refused') {
       refuseExplicitNonEditorRoute()
     }

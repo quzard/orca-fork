@@ -334,6 +334,54 @@ describe('terminal file-link stay hydration', () => {
     expect(state.openFiles.find((file) => file.id === 'other')?.readOnly).toBeUndefined()
   })
 
+  it('forgets a marked tab closed in the same update that demotes another tab', () => {
+    const markedPath = '/Users/me/kept.html'
+    const nested = '/Users/me/nas/x.txt'
+    saveTerminalFileLinkStay('wt-marked', markedPath)
+    registerTerminalFileLinkWorkspaceSetting()
+    findRoute.mockReturnValue({
+      worktreeId: 'wt-nas',
+      relativePath: 'x.txt',
+      executionHostId: 'local'
+    })
+    setState({
+      workspaceSessionReady: true,
+      hydrationSucceeded: true,
+      worktreesByRepo: {},
+      folderWorkspaces: [],
+      openFiles: [
+        {
+          id: 'marked',
+          worktreeId: 'wt-marked',
+          filePath: markedPath,
+          mode: 'edit',
+          readOnly: true
+        },
+        { id: 'outer', worktreeId: 'wt-home', filePath: nested, mode: 'edit' }
+      ]
+    })
+    expect(loadTerminalFileLinkStay('wt-marked', markedPath)).toBe(true)
+
+    setState({
+      openFiles: [
+        { id: 'outer', worktreeId: 'wt-home', filePath: nested, mode: 'edit' },
+        { id: 'inner', worktreeId: 'wt-nas', filePath: nested, mode: 'edit' }
+      ]
+    })
+    expect(state.openFiles.find((file) => file.id === 'outer')?.readOnly).toBe(true)
+    expect(loadTerminalFileLinkStay('wt-marked', markedPath)).toBe(true)
+    expect(loadTerminalFileLinkStay('wt-home', nested)).toBe(true)
+
+    setState({
+      openFiles: [
+        ...state.openFiles,
+        { id: 'other', worktreeId: 'wt-b', filePath: '/repo/b.ts', mode: 'edit' }
+      ]
+    })
+    expect(loadTerminalFileLinkStay('wt-marked', markedPath)).toBe(false)
+    expect(loadTerminalFileLinkStay('wt-home', nested)).toBe(true)
+  })
+
   it('retries a path whose owner was unknown when another tab changes', () => {
     registerTerminalFileLinkWorkspaceSetting()
     const filePath = '/Users/me/nas/x.txt'

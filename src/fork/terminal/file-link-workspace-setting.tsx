@@ -187,7 +187,7 @@ function watchClosedTerminalFileLinkStays(): void {
     }
     window.addEventListener('storage', stayStorageListener)
   }
-  let openFiles = useAppStore.getState().openFiles
+  let openFiles: readonly OpenFile[] = useAppStore.getState().openFiles
   let drafts = useAppStore.getState().editorDrafts
   let catalog = useAppStore.getState()
   const unresolved = new Set<string>()
@@ -204,31 +204,13 @@ function watchClosedTerminalFileLinkStays(): void {
     drafts = initial.editorDrafts
     useAppStore.setState({ openFiles: initialDemoted })
   }
-  unwatchClosedTabs = useAppStore.subscribe((state) => {
-    const hydrated = terminalFileLinkSessionHydrated(
-      state.workspaceSessionReady,
-      state.hydrationSucceeded
-    )
-    const filesChanged = state.openFiles !== openFiles
-    const draftsChanged = state.editorDrafts !== drafts
-    const recheckAll = workspaceCatalogChanged(state, catalog)
-    catalog = state
-    if (recheckAll || filesChanged || draftsChanged) {
-      const demoted = shallowerCopyDemotion(state, openFiles, drafts, unresolved, recheckAll)
-      if (demoted && typeof useAppStore.setState === 'function') {
-        openFiles = demoted
-        drafts = state.editorDrafts
-        useAppStore.setState({ openFiles: demoted })
-        return
-      }
-    }
-    drafts = state.editorDrafts
-    if (shouldSkipTerminalFileLinkStaySync(!filesChanged, hydrated, pruned)) {
+  function noteOpenFileList(nextFiles: readonly OpenFile[], sessionHydrated: boolean): void {
+    if (shouldSkipTerminalFileLinkStaySync(nextFiles === openFiles, sessionHydrated, pruned)) {
       return
     }
     const previous = openFiles
-    openFiles = state.openFiles
-    if (!hydrated) {
+    openFiles = nextFiles
+    if (!sessionHydrated) {
       return
     }
     if (!pruned) {
@@ -242,6 +224,29 @@ function watchClosedTerminalFileLinkStays(): void {
       forgetClosedTerminalFileLinkStays(next.confirmed, openFiles)
     }
     pendingClosed = next.pending
+  }
+  unwatchClosedTabs = useAppStore.subscribe((state) => {
+    const hydrated = terminalFileLinkSessionHydrated(
+      state.workspaceSessionReady,
+      state.hydrationSucceeded
+    )
+    const filesChanged = state.openFiles !== openFiles
+    const draftsChanged = state.editorDrafts !== drafts
+    const recheckAll = workspaceCatalogChanged(state, catalog)
+    catalog = state
+    if (recheckAll || filesChanged || draftsChanged) {
+      const demoted = shallowerCopyDemotion(state, openFiles, drafts, unresolved, recheckAll)
+      if (demoted && typeof useAppStore.setState === 'function') {
+        // 降级会换掉保存的列表。先按这次的新旧列表记下关掉的标记，否则要等下次启动才清。
+        noteOpenFileList(state.openFiles, hydrated)
+        openFiles = demoted
+        drafts = state.editorDrafts
+        useAppStore.setState({ openFiles: demoted })
+        return
+      }
+    }
+    drafts = state.editorDrafts
+    noteOpenFileList(state.openFiles, hydrated)
   })
 }
 

@@ -409,14 +409,15 @@ describe('terminal file links stay in the clicked workspace', () => {
 
   it('opens a remote html file in the clicked workspace editor when the real preview plan is outside the worktree', async () => {
     const filePath = '/home/me/.answer-me-with-html/pages/x.html'
-    storeState.repos = [
+    // 替身类型没有 repos；真实预览计划要从仓库读连接，运行时仍挂上。
+    Object.assign(storeState, { repos: [
       {
         id: 'runtime-repo',
         displayName: 'Runtime',
         connectionId: null,
         executionHostId: 'runtime:env-1'
       }
-    ]
+    ] })
     storeState.worktreesByRepo = {
       'runtime-repo': [
         {
@@ -431,9 +432,8 @@ describe('terminal file links stay in the clicked workspace', () => {
       status: 'unsupported',
       reason: 'outside-worktree'
     })
-    previewPlan.mockImplementation(
-      (state: never, worktreeId: string, path: string, clientLocal?: boolean) =>
-        realPreviewPlan.current?.(state, worktreeId, path, clientLocal)
+    previewPlan.mockImplementation((state: never, worktreeId: string, path: string) =>
+      realPreviewPlan.current?.(state, worktreeId, path)
     )
     openPreview.mockReturnValue({ status: 'doc-preview' })
     hostAnswers({
@@ -468,14 +468,15 @@ describe('terminal file links stay in the clicked workspace', () => {
       worktreeId === 'wt-ssh' ? 'ssh-1' : null
     )
     findWorkspaceFileRouteMock.mockReturnValue(HOME_ROUTE)
-    storeState.repos = [
+    // 替身类型没有 repos；真实预览计划要从仓库读连接，运行时仍挂上。
+    Object.assign(storeState, { repos: [
       {
         id: 'repo-ssh',
         displayName: 'SSH',
         connectionId: 'ssh-1',
         executionHostId: 'ssh:ssh-1'
       }
-    ]
+    ] })
     storeState.worktreesByRepo = {
       'repo-ssh': [
         {
@@ -487,9 +488,8 @@ describe('terminal file links stay in the clicked workspace', () => {
       ]
     }
     expect(realPlan('wt-ssh', filePath)).toEqual({ status: 'doc-preview' })
-    previewPlan.mockImplementation(
-      (state: never, worktreeId: string, path: string, clientLocal?: boolean) =>
-        realPreviewPlan.current?.(state, worktreeId, path, clientLocal)
+    previewPlan.mockImplementation((state: never, worktreeId: string, path: string) =>
+      realPreviewPlan.current?.(state, worktreeId, path)
     )
     openPreview.mockReturnValue({ status: 'doc-preview' })
 

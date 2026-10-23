@@ -204,7 +204,7 @@ describe('terminal file-link stay hydration', () => {
     findRoute.mockImplementation((_state, _host, filePath: string) =>
       filePath === nested
         ? { worktreeId: 'wt-nas', relativePath: 'x.txt', executionHostId: 'local' }
-        : null
+        : { worktreeId: 'wt-home', relativePath: 'other.txt', executionHostId: 'local' }
     )
     setState({
       worktreesByRepo: {},
@@ -228,5 +228,143 @@ describe('terminal file-link stay hydration', () => {
     expect(paths).toContain(nested)
     expect(paths).not.toContain(other)
     expect(state.openFiles.find((file) => file.id === 'outer')?.readOnly).toBe(true)
+  })
+
+  it('demotes both copies when the workspace list arrives after they are open', () => {
+    registerTerminalFileLinkWorkspaceSetting()
+    const filePath = '/Users/me/nas/x.txt'
+    const route = { worktreeId: 'wt-nas', relativePath: 'x.txt', executionHostId: 'local' }
+    findRoute.mockReturnValue(route)
+    setState({
+      openFiles: [
+        { id: 'outer', worktreeId: 'wt-home', filePath, mode: 'edit' },
+        { id: 'inner', worktreeId: 'wt-nas', filePath, mode: 'edit' }
+      ]
+    })
+    expect(findRoute).not.toHaveBeenCalled()
+    expect(state.openFiles.find((file) => file.id === 'outer')?.readOnly).toBeUndefined()
+
+    setState({ worktreesByRepo: { 'repo-ssh': [] } })
+
+    expect(findRoute).toHaveBeenCalled()
+    expect(state.openFiles.map((file) => [file.id, file.readOnly])).toEqual([
+      ['outer', true],
+      ['inner', undefined]
+    ])
+    expect(loadTerminalFileLinkStay('wt-home', filePath)).toBe(true)
+  })
+
+  it('demotes both copies when only the folder workspace list arrives late', () => {
+    registerTerminalFileLinkWorkspaceSetting()
+    const filePath = '/Users/me/nas/x.txt'
+    findRoute.mockReturnValue({
+      worktreeId: 'wt-nas',
+      relativePath: 'x.txt',
+      executionHostId: 'local'
+    })
+    setState({
+      openFiles: [
+        { id: 'outer', worktreeId: 'wt-home', filePath, mode: 'edit' },
+        { id: 'inner', worktreeId: 'wt-nas', filePath, mode: 'edit' }
+      ]
+    })
+    expect(state.openFiles.find((file) => file.id === 'outer')?.readOnly).toBeUndefined()
+
+    setState({ folderWorkspaces: [] })
+
+    expect(state.openFiles.find((file) => file.id === 'outer')?.readOnly).toBe(true)
+  })
+
+  it('keeps a dirty outer tab writable when the workspace list arrives, then demotes it once clean', () => {
+    registerTerminalFileLinkWorkspaceSetting()
+    const filePath = '/Users/me/nas/x.txt'
+    const inner = { id: 'inner', worktreeId: 'wt-nas', filePath, mode: 'edit' as const }
+    findRoute.mockReturnValue({
+      worktreeId: 'wt-nas',
+      relativePath: 'x.txt',
+      executionHostId: 'local'
+    })
+    setState({
+      openFiles: [
+        { id: 'outer', worktreeId: 'wt-home', filePath, mode: 'edit', isDirty: true },
+        inner
+      ]
+    })
+    setState({ worktreesByRepo: {}, folderWorkspaces: [] })
+    expect(state.openFiles.find((file) => file.id === 'outer')?.readOnly).toBeUndefined()
+
+    setState({
+      openFiles: [
+        { id: 'outer', worktreeId: 'wt-home', filePath, mode: 'edit', isDirty: false },
+        inner
+      ]
+    })
+    expect(state.openFiles.find((file) => file.id === 'outer')?.readOnly).toBe(true)
+  })
+
+  it('demotes both writable copies when the setting turns on', () => {
+    registerTerminalFileLinkWorkspaceSetting()
+    const filePath = '/Users/me/nas/x.txt'
+    const other = '/Users/me/other.txt'
+    findRoute.mockImplementation((_state, _host, path: string) =>
+      path === filePath
+        ? { worktreeId: 'wt-nas', relativePath: 'x.txt', executionHostId: 'local' }
+        : { worktreeId: 'wt-home', relativePath: 'other.txt', executionHostId: 'local' }
+    )
+    setState({
+      settings: { terminalFileLinksOpenInCurrentWorkspace: false },
+      worktreesByRepo: {},
+      folderWorkspaces: [],
+      openFiles: [
+        { id: 'other', worktreeId: 'wt-home', filePath: other, mode: 'edit' },
+        { id: 'outer', worktreeId: 'wt-home', filePath, mode: 'edit' },
+        { id: 'inner', worktreeId: 'wt-nas', filePath, mode: 'edit' }
+      ]
+    })
+    expect(state.openFiles.find((file) => file.id === 'outer')?.readOnly).toBeUndefined()
+    findRoute.mockClear()
+
+    setState({ settings: {} })
+
+    const paths = findRoute.mock.calls.map((call) => call[2])
+    expect(paths).toContain(filePath)
+    expect(paths).toContain(other)
+    expect(state.openFiles.find((file) => file.id === 'outer')?.readOnly).toBe(true)
+    expect(state.openFiles.find((file) => file.id === 'inner')?.readOnly).toBeUndefined()
+    expect(state.openFiles.find((file) => file.id === 'other')?.readOnly).toBeUndefined()
+  })
+
+  it('retries a path whose owner was unknown when another tab changes', () => {
+    registerTerminalFileLinkWorkspaceSetting()
+    const filePath = '/Users/me/nas/x.txt'
+    const other = '/Users/me/other.txt'
+    findRoute.mockReturnValue(null)
+    setState({ worktreesByRepo: {}, folderWorkspaces: [] })
+    setState({
+      openFiles: [
+        { id: 'outer', worktreeId: 'wt-home', filePath, mode: 'edit' },
+        { id: 'inner', worktreeId: 'wt-nas', filePath, mode: 'edit' }
+      ]
+    })
+    expect(state.openFiles.find((file) => file.id === 'outer')?.readOnly).toBeUndefined()
+
+    findRoute.mockReturnValue({
+      worktreeId: 'wt-nas',
+      relativePath: 'x.txt',
+      executionHostId: 'local'
+    })
+    findRoute.mockClear()
+    setState({
+      openFiles: [
+        { id: 'outer', worktreeId: 'wt-home', filePath, mode: 'edit' },
+        { id: 'inner', worktreeId: 'wt-nas', filePath, mode: 'edit' },
+        { id: 'extra', worktreeId: 'wt-home', filePath: other, mode: 'edit' }
+      ]
+    })
+
+    const paths = findRoute.mock.calls.map((call) => call[2])
+    expect(paths).toContain(filePath)
+    expect(state.openFiles.find((file) => file.id === 'outer')?.readOnly).toBe(true)
+    expect(state.openFiles.find((file) => file.id === 'inner')?.readOnly).toBeUndefined()
   })
 })

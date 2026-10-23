@@ -96,47 +96,83 @@ function tabHasUnsavedEdits(state: AppState, file: OpenFile): boolean {
   return recordId !== undefined && state.editorBuffers?.[recordId]?.isDirty === true
 }
 
-function applyShallowerCopyDemotion(
+// 工作区列表或开关晚到时，两张可写标签都没变，仍要整表再查。
+function workspaceCatalogChanged(state: AppState, previous: AppState): boolean {
+  return (
+    state.settings !== previous.settings ||
+    state.worktreesByRepo !== previous.worktreesByRepo ||
+    state.folderWorkspaces !== previous.folderWorkspaces
+  )
+}
+
+function ownerLookupPaths(
+  recheckAll: boolean,
+  previousFiles: readonly OpenFile[] | null,
+  state: AppState,
+  previousDrafts: Record<string, string> | undefined,
+  unresolved: ReadonlySet<string>
+): Set<string> | null {
+  if (recheckAll || previousFiles === null) {
+    return null
+  }
+  const touched = terminalFileLinkCopyTouchedPaths(
+    previousFiles,
+    state.openFiles,
+    previousDrafts,
+    state.editorDrafts
+  )
+  // 上次没解析出归属的路径，这次即使标签没变也再查。
+  for (const filePath of unresolved) {
+    touched.add(filePath)
+  }
+  return touched
+}
+
+function retainUnresolvedEditPaths(unresolved: Set<string>, openFiles: readonly OpenFile[]): void {
+  const retryable = new Set(
+    openFiles
+      .filter((file) => file.readOnly !== true && (file.mode === undefined || file.mode === 'edit'))
+      .map((file) => file.filePath)
+  )
+  for (const filePath of unresolved) {
+    if (!retryable.has(filePath)) {
+      unresolved.delete(filePath)
+    }
+  }
+}
+
+function shallowerCopyDemotion(
   state: AppState,
   previousFiles: readonly OpenFile[] | null,
-  previousDrafts: Record<string, string> | undefined
-): boolean {
+  previousDrafts: Record<string, string> | undefined,
+  unresolved: Set<string>,
+  recheckAll: boolean
+): OpenFile[] | null {
   if (!terminalFileLinksOpenInCurrentWorkspace(state.settings)) {
-    return false
+    return null
   }
-  const touched =
-    previousFiles === null
-      ? null
-      : terminalFileLinkCopyTouchedPaths(
-          previousFiles,
-          state.openFiles,
-          previousDrafts,
-          state.editorDrafts
-        )
-  const demoted =
-    state.worktreesByRepo == null && state.folderWorkspaces == null
-      ? null
-      : demoteShallowerWritableCopies(
-          state.openFiles,
-          (file) => {
-            if (touched && !touched.has(file.filePath)) {
-              return null
-            }
-            const route = findWorkspaceFileRoute(
-              state,
-              getOpenFileExecutionHostId(file),
-              file.filePath
-            )
-            return route && route.worktreeId !== file.worktreeId ? route.worktreeId : null
-          },
-          getOpenFileExecutionHostId,
-          (file) => tabHasUnsavedEdits(state, file)
-        )
-  if (!demoted || typeof useAppStore.setState !== 'function') {
-    return false
+  retainUnresolvedEditPaths(unresolved, state.openFiles)
+  if (state.worktreesByRepo == null && state.folderWorkspaces == null) {
+    return null
   }
-  useAppStore.setState({ openFiles: demoted })
-  return true
+  const touched = ownerLookupPaths(recheckAll, previousFiles, state, previousDrafts, unresolved)
+  return demoteShallowerWritableCopies(
+    state.openFiles,
+    (file) => {
+      if (touched && !touched.has(file.filePath)) {
+        return null
+      }
+      const route = findWorkspaceFileRoute(state, getOpenFileExecutionHostId(file), file.filePath)
+      if (route) {
+        unresolved.delete(file.filePath)
+      } else {
+        unresolved.add(file.filePath)
+      }
+      return route && route.worktreeId !== file.worktreeId ? route.worktreeId : null
+    },
+    getOpenFileExecutionHostId,
+    (file) => tabHasUnsavedEdits(state, file)
+  )
 }
 
 function watchClosedTerminalFileLinkStays(): void {
@@ -153,6 +189,8 @@ function watchClosedTerminalFileLinkStays(): void {
   }
   let openFiles = useAppStore.getState().openFiles
   let drafts = useAppStore.getState().editorDrafts
+  let catalog = useAppStore.getState()
+  const unresolved = new Set<string>()
   let pendingClosed: { worktreeId: string; filePath: string }[] = []
   let pruned = false
   const initial = useAppStore.getState()
@@ -160,9 +198,11 @@ function watchClosedTerminalFileLinkStays(): void {
     pruned = true
     pruneTerminalFileLinkStays(openFiles)
   }
-  if (applyShallowerCopyDemotion(initial, null, undefined)) {
-    openFiles = useAppStore.getState().openFiles
-    drafts = useAppStore.getState().editorDrafts
+  const initialDemoted = shallowerCopyDemotion(initial, null, undefined, unresolved, true)
+  if (initialDemoted && typeof useAppStore.setState === 'function') {
+    openFiles = initialDemoted
+    drafts = initial.editorDrafts
+    useAppStore.setState({ openFiles: initialDemoted })
   }
   unwatchClosedTabs = useAppStore.subscribe((state) => {
     const hydrated = terminalFileLinkSessionHydrated(
@@ -171,10 +211,16 @@ function watchClosedTerminalFileLinkStays(): void {
     )
     const filesChanged = state.openFiles !== openFiles
     const draftsChanged = state.editorDrafts !== drafts
-    if ((filesChanged || draftsChanged) && applyShallowerCopyDemotion(state, openFiles, drafts)) {
-      openFiles = useAppStore.getState().openFiles
-      drafts = useAppStore.getState().editorDrafts
-      return
+    const recheckAll = workspaceCatalogChanged(state, catalog)
+    catalog = state
+    if (recheckAll || filesChanged || draftsChanged) {
+      const demoted = shallowerCopyDemotion(state, openFiles, drafts, unresolved, recheckAll)
+      if (demoted && typeof useAppStore.setState === 'function') {
+        openFiles = demoted
+        drafts = state.editorDrafts
+        useAppStore.setState({ openFiles: demoted })
+        return
+      }
     }
     drafts = state.editorDrafts
     if (shouldSkipTerminalFileLinkStaySync(!filesChanged, hydrated, pruned)) {

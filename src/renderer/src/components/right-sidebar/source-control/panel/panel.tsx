@@ -1,4 +1,5 @@
 import { translate } from '@/i18n/i18n'
+import { renderSourceControlScope } from '../../../../../../shared/fork-hooks/source-control-scope'
 import { SourceControlPanelReady } from './panel-ready'
 import { useSourceControlPanelModel } from './use-panel-model'
 
@@ -28,13 +29,14 @@ export function SourceControlPanel() {
     )
   }
 
-  return (
+  return renderSourceControlScope(
     <SourceControlPanelReady
       activeRepo={activeRepo}
       activeWorktree={activeWorktree}
       currentWorktreeId={activeWorktree.id}
       model={model}
       worktreePath={worktreePath}
-    />
+    />,
+    model
   )
 }

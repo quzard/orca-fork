@@ -37,6 +37,7 @@ import { registerComposerSeed } from './sidebar/register-composer-seed'
 import { installForkLocaleOverlays } from './i18n/locale-overlay'
 import { registerForkWorktreeContextMenuLabels } from './sidebar/context-menu-labels'
 import { registerTerminalFileLinkWorkspaceSetting } from './terminal/file-link-workspace-setting'
+import { registerWorkspaceRepositorySourceControl } from './source-control/register'
 
 /** Renderer hooks. Kept out of the node program so it can read the app store. */
 export function registerForkRendererModules(): void {
@@ -92,4 +93,5 @@ export function registerForkRendererModules(): void {
   )
   enableWorkspacePortForward()
   registerAiVaultRendererModules()
+  registerWorkspaceRepositorySourceControl()
 }

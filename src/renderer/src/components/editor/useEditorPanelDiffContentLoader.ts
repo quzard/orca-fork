@@ -12,6 +12,7 @@ import { getRuntimeGitScope } from '@/runtime/runtime-git-client-context'
 import type { DiffContent, InFlightContentRead } from './editor-panel-content-types'
 import { canUseChangesModeForFile } from './editor-panel-file-mode'
 import type { EditorPanelContentLoadOptions } from './useEditorPanelExternalContentEvents'
+import { forkWorkspaceRepositoryDiff } from '../../../../shared/fork-hooks/workspace-repository-diff'
 import { stampCleanTabDiskBaseline } from './editor-clean-tab-disk-baseline'
 
 const inFlightDiffReads = new Map<string, InFlightContentRead<DiffContent>>()
@@ -97,8 +98,16 @@ export function useEditorPanelDiffContentLoader({
         let pending = inFlightDiffReads.get(key)
         if (!pending) {
           // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: every branch resolves a git diff result, which DiffContent mirrors.
-          const promise = (
-            effectiveDiffSource === 'commit'
+          const promise = (forkWorkspaceRepositoryDiff({
+            file,
+            worktreePath,
+            connectionId,
+            target: fileTarget,
+            effectiveDiffSource: effectiveDiffSource ?? '',
+            compareAgainstHead,
+            branchCompare
+          }) ??
+            (effectiveDiffSource === 'commit'
               ? commitCompare
                 ? getRuntimeGitCommitDiff(
                     {
@@ -146,8 +155,7 @@ export function useEditorPanelDiffContentLoader({
                       staged: effectiveDiffSource === 'staged',
                       compareAgainstHead
                     }
-                  )
-          ) as Promise<DiffContent>
+                  ))) as Promise<DiffContent>
           pending = { externalEventGeneration: options?.externalEventGeneration, promise }
           inFlightDiffReads.set(key, pending)
           queueMicrotask(() => {

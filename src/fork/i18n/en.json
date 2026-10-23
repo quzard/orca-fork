@@ -6,6 +6,35 @@
       "otherHosts": "Other configured hosts",
       "scanning": "Scanning history…"
     },
+    "sourceControl": {
+      "compare": {
+        "change": "Use",
+        "clear": "Clear",
+        "placeholder": "origin/main"
+      },
+      "empty": "No git repositories in this workspace.",
+      "group": {
+        "branch": "Branch changes",
+        "staged": "Staged",
+        "unstaged": "Unstaged",
+        "untracked": "Untracked"
+      },
+      "loading": "Looking for repositories…",
+      "refresh": "Refresh",
+      "repo": {
+        "aheadBehind": "{{ahead}} ahead, {{behind}} behind",
+        "noCompareTarget": "No compare target",
+        "root": "This workspace",
+        "uninitialized": "Uninitialized submodule"
+      },
+      "scope": {
+        "current": "Current repo",
+        "updateHost": "Update the host to compare nested repositories",
+        "workspace": "Workspace repos"
+      },
+      "timedOut": "Repository search timed out.",
+      "truncated": "Some repositories were not listed."
+    },
     "settings": {
       "confirmRemove": "Confirm",
       "removeProjects": "Remove {{value0}}",

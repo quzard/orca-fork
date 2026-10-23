@@ -1433,6 +1433,12 @@ export const RPC_PARAMS_BY_METHOD = {
 // graph reaches into src/main. Listing them keeps the gap visible instead of absent.
 export const RPC_METHODS_WITHOUT_SHARED_PARAMS: readonly string[] = [
   'emulator.install',
+  'git.workspaceRepositories',
+  'git.workspaceRepositories.branchCompare',
+  'git.workspaceRepositories.branchDiff',
+  'git.workspaceRepositories.diff',
+  'git.workspaceRepositories.setCompareTarget',
+  'git.workspaceRepositories.status',
   'orchestration.send',
   'orchestration.taskUpdate'
 ]

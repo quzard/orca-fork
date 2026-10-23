@@ -12,6 +12,7 @@ import {
 import { BROWSER_RUNTIME_CAPABILITIES } from './browser-runtime-capabilities'
 import { DEVICE_KEY_RUNTIME_CAPABILITIES } from './device-key-capability'
 import { FILES_RUNTIME_CAPABILITIES } from './files-runtime-capabilities'
+import { FORK_RUNTIME_CAPABILITIES } from './fork-hooks/git-workspace-capability'
 import { HOST_RUNTIME_CAPABILITIES } from './host-runtime-capabilities'
 import { MOBILE_RUNTIME_CAPABILITIES } from './mobile-runtime-capabilities'
 import { ORCAD_RUNTIME_CAPABILITIES } from './orcad-runtime-capabilities'
@@ -154,7 +155,8 @@ export const RUNTIME_CAPABILITIES = [
   ...BROWSER_RUNTIME_CAPABILITIES,
   ...SOURCE_CONTROL_RUNTIME_CAPABILITIES,
   ...TASK_SOURCE_RUNTIME_CAPABILITIES,
-  ...AI_VAULT_RUNTIME_CAPABILITIES
+  ...AI_VAULT_RUNTIME_CAPABILITIES,
+  ...FORK_RUNTIME_CAPABILITIES
 ] as const
 
 export type RuntimeCapability = (typeof RUNTIME_CAPABILITIES)[number] | (string & {})

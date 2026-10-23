@@ -6,6 +6,35 @@
       "otherHosts": "其他已配置主机",
       "scanning": "正在扫描历史…"
     },
+    "sourceControl": {
+      "compare": {
+        "change": "使用",
+        "clear": "清除",
+        "placeholder": "origin/main"
+      },
+      "empty": "这个工作区里没有 git 仓库。",
+      "group": {
+        "branch": "分支变更",
+        "staged": "已暂存",
+        "unstaged": "未暂存",
+        "untracked": "未跟踪"
+      },
+      "loading": "正在查找仓库…",
+      "refresh": "刷新",
+      "repo": {
+        "aheadBehind": "领先 {{ahead}}，落后 {{behind}}",
+        "noCompareTarget": "未设置比较目标",
+        "root": "当前工作区",
+        "uninitialized": "未初始化的子模块"
+      },
+      "scope": {
+        "current": "当前仓库",
+        "updateHost": "请先更新这台主机，才能查看嵌套仓库",
+        "workspace": "工作区仓库"
+      },
+      "timedOut": "查找仓库超时。",
+      "truncated": "还有仓库没有列出来。"
+    },
     "settings": {
       "confirmRemove": "确认",
       "removeProjects": "移除 {{value0}}",

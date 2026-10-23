@@ -26,7 +26,7 @@ st=[l.split('\t') for l in g('diff','--name-status',*against(REV)).splitlines()]
 FORKROOT=re.compile(r'^(src/fork/|fork/|docs/fork/|src/shared/fork-hooks/|FORK-CHANGES\.md)')
 FEAT=[('project-group','SB 侧栏/项目组'),('open-in','OPEN 打开方式'),('editor-launch','OPEN 打开方式'),('post-import','F003/F025 批量导入'),('composer','SB 新建工作区'),('quick-creation','SB 新建工作区'),('computer-use','F006 权限窗口'),('main.swift','F006 权限窗口'),('ai-vault','AIV 历史会话'),('AiVault','AIV 历史会话'),('session-scanner','AIV 历史会话'),
 ('ssh','SSH 状态'),('Ssh','SSH 状态'),('i18n','I18N 界面中文'),('skill','SKL 技能 pin'),('Skill','SKL 技能 pin'),
-('sidebar','SB 侧栏'),('Sidebar','SB 侧栏'),('worktree','SB 侧栏/工作区'),('Worktree','SB 侧栏/工作区'),('file-link-nested','F046 终端文件链接'),('file-link-workspace','F046 终端文件链接'),('file-link-stay','F046 终端文件链接'),('workspace','SB 侧栏/工作区'),('Workspace','SB 侧栏/工作区'),('repo','SB 侧栏/工作区'),
+('sidebar','SB 侧栏'),('Sidebar','SB 侧栏'),('worktree','SB 侧栏/工作区'),('Worktree','SB 侧栏/工作区'),('file-link-nested','F046 终端文件链接'),('file-link-workspace','F046 终端文件链接'),('file-link-stay','F046 终端文件链接'),('git-workspace','F047 工作区仓库'),('source-control','F047 工作区仓库'),('workspace-repository','F047 工作区仓库'),('workspace','SB 侧栏/工作区'),('Workspace','SB 侧栏/工作区'),('repo','SB 侧栏/工作区'),
 ('mac-auto-update','F040 Mac 构建发布'),('mac-release','F040 Mac 构建发布'),('publish-','F040 Mac 构建发布'),('install-mac','F040 Mac 构建发布'),('updater','UPD 应用内更新'),('update','UPD 应用内更新'),('terminal','TERM 终端'),('Terminal','TERM 终端'),('safe-storage','F038 密钥存储'),('secret','F038 密钥存储'),
 ('mac-','F040 Mac 构建发布'),('publish','F040 Mac 构建发布'),('install','F040 Mac 构建发布'),('release','F040 Mac 构建发布'),('daily-sync','F040 每日同步'),('sync','F040 每日同步'),
 ('node-runtime','F040 Node 运行时'),('packaging','F040 Mac 构建发布'),('electron-builder','F040 Mac 构建发布'),('directory-browse','F007（已移除，守护测试）')]
@@ -96,6 +96,13 @@ OVR={
 'src/renderer/src/components/settings/TerminalInteractionSection.tsx':('keep','F046：终端交互设置里渲染这个开关'),
 'src/renderer/src/components/settings/TerminalPane.tsx':('keep','F046：搜索能命中这个开关时仍显示终端交互区'),
 'src/renderer/src/components/settings/terminal-search.ts':('keep','F046：设置搜索索引加上这个开关'),
+'src/renderer/src/components/right-sidebar/source-control/panel/panel.tsx':('keep','F047：git 仓库面板用 renderSourceControlScope 包一层，文件夹工作区仍走原来的提前返回'),
+'src/renderer/src/components/editor/useEditorPanelDiffContentLoader.ts':('keep','F047：嵌套仓库里的文件 diff 交给 fork 钩子，未命中时仍是上游读取'),
+'src/main/runtime/rpc/methods/index.ts':('keep','F047：摊开 FORK_GIT_WORKSPACE_METHODS，本机、orcad 和配对运行时同一份方法表'),
+'src/main/runtime/construction/runtime-construction.ts':('keep','F047：git 命令面装好后绑定 fork 的工作区目标解析；方法在更下层子类上，这里做结构转换'),
+'src/shared/protocol-version.ts':('keep','F047：RUNTIME_CAPABILITIES 摊进 fork.git.workspace-repositories.v1，常量放在 shared 以免 CLI 依赖 src/fork'),
+'src/main/runtime/rpc/rpc-params-type-parity.ts':('keep','F047：六个 fork 方法的参数 schema 在 src/fork，不进共享 catalog，记在未编目名单里'),
+'src/shared/rpc-contract/rpc-params-catalog.generated.ts':('keep','F047：生成器把六个新方法记进 RPC_METHODS_WITHOUT_SHARED_PARAMS，不手改'),
 }
 REVERTED={'src/main/electron-updater-mac-staging-contract.test.ts':'PR D：fork 用例搬到 src/fork/main/*.fork.test.ts',
  'src/main/host/safe-storage-availability.test.ts':'PR D：fork 用例搬到 src/fork/main/*.fork.test.ts',

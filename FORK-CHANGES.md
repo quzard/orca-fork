@@ -112,6 +112,20 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 
 未登记这个钩子时，调用保持上游。
 
+## F047 工作区里的多个仓库（只读）
+
+一个需求目录常常是 Orca 工作区，根上还有好几份 git 检出（前端、客户端、后端、控制台各自的 feature 分支，很多是 `git worktree add`）。以前源代码管理只看根仓库，嵌套仓库里的改动看不见。
+
+源代码管理多一个范围开关，按工作区记在本地：当前仓库（和上游完全一样）或工作区仓库。工作区范围里每个仓库一栏，有相对路径、分支、领先/落后，以及已暂存、未暂存、未跟踪、相对主干的提交。点文件打开 diff。比较目标存在这台主机上，键是主机、工作区绝对路径、仓库相对路径和分支；没有覆盖时用上游的 `getBaseRefDefault`（`origin/HEAD`，然后 `origin/main`、`origin/master`），再没有就显示未设置。不写工作区自己的 baseRef，也不查 MR/PR。
+
+发现复用上游 `scanNestedRepos`，但根自己是仓库时仍往下扫（`.git` 目录或 worktree 的 `.git` 文件都算）。不理会根上的 `.gitignore`（根仓库经常把嵌套检出忽略掉），仍跳过上游的 `node_modules`、`dist`、`vendor` 等目录。`.gitmodules` 里的子模块补进来，没初始化的标出来。默认深度 3，有数量上限和超时，按 realpath 去重。根仓库自己也占一行。
+
+新 RPC 是 `git.workspaceRepositories` 和它的 `status`、`branchCompare`、`diff`、`branchDiff`、`setCompareTarget`。不往上游的 `git.status` 等参数里加 `repositoryPath`：旧主机会丢掉不认识的字段，静默返回根仓库。能力 `fork.git.workspace-repositories.v1` 放在 `src/shared/fork-hooks/git-workspace-capability.ts` 再摊进 `RUNTIME_CAPABILITIES`，这样 CLI 工程不用包含 `src/fork`。渲染进程对本地桌面视为已有这个能力；配对或托管主机用 `runtimeEnvironmentSupportsCapability`，没有就灰掉开关。`repositoryPath` 不能逃出工作区，realpath 也不能顺着软链跑出去，并且必须在这次发现结果里。
+
+git 目标解析器在 `runtime-construction.ts` 里绑定。`resolveRuntimeGitTarget` 声明在更下层的子类上，`orca-runtime.ts` 又顶着行数上限，所以这里做一次结构转换，不把方法挪到最终类上。
+
+这一步只读。暂存、取消暂存和提交留到下一步。
+
 ## F041 普通目录的终端生命周期
 
 `folder:<id>` 在 `resolveWorktreeSelector` 之前解析。没有这个文件夹时仍抛 `selector_not_found`。`stopExact` 把该结果放进存活刷新用的工作区列表，因为文件夹不在原来的 resolved map 里。

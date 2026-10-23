@@ -1,20 +1,17 @@
-// 终端链接留下的标签要在重启后仍从原主机路径读取，且不能写进上游的 OpenFile 结构。
-// 按文件 id 存在本机 localStorage；标签关掉就删。未登记钩子时上游碰不到这份记录。
-import type {
-  TerminalFileLinkHostRead,
-  TerminalFileLinkStay
-} from '../../shared/fork-hooks/terminal-file-link-workspace'
+// 终端链接留下的标签按「工作区 + 路径」记在本机。文件 id 会随恢复顺序变化，路径不会。
+// 只记有没有留下，读取时再向当前工作区列表要归属。未登记钩子时上游碰不到这份记录。
 
 const STORAGE_KEY = 'orca.fork.terminal-file-link-stay'
 
-type StoredStay = {
-  readWorktreeId?: string
-  readRelativePath?: string
-}
+type StayMap = Record<string, true>
 
-type StayMap = Record<string, StoredStay>
+type OpenPath = { worktreeId: string; filePath: string }
 
 let cache: StayMap | null = null
+
+export function terminalFileLinkStayKey(worktreeId: string, filePath: string): string {
+  return `${worktreeId}\0${filePath}`
+}
 
 function browserStorage(): Storage | null {
   try {
@@ -29,88 +26,131 @@ function readStoredMap(value: unknown): StayMap {
     return {}
   }
   const map: StayMap = {}
-  for (const [fileId, entry] of Object.entries(value)) {
-    if (!entry || typeof entry !== 'object') {
-      continue
+  for (const [key, entry] of Object.entries(value)) {
+    if (entry) {
+      map[key] = true
     }
-    const readWorktreeId =
-      'readWorktreeId' in entry && typeof entry.readWorktreeId === 'string'
-        ? entry.readWorktreeId
-        : undefined
-    const readRelativePath =
-      'readRelativePath' in entry && typeof entry.readRelativePath === 'string'
-        ? entry.readRelativePath
-        : undefined
-    map[fileId] = { readWorktreeId, readRelativePath }
   }
   return map
 }
 
-function load(): StayMap {
-  if (cache) {
-    return cache
-  }
-  const raw = browserStorage()?.getItem(STORAGE_KEY)
-  if (!raw) {
-    cache = {}
-    return cache
-  }
+function parseStored(raw: string): StayMap {
   try {
-    cache = readStoredMap(JSON.parse(raw))
+    return readStoredMap(JSON.parse(raw))
   } catch {
-    cache = {}
+    return {}
+  }
+}
+
+function readDisk(): StayMap {
+  const raw = browserStorage()?.getItem(STORAGE_KEY)
+  return raw ? parseStored(raw) : {}
+}
+
+function load(): StayMap {
+  if (!cache) {
+    cache = readDisk()
   }
   return cache
 }
 
-function persist(map: StayMap): void {
+/** 写入前重读，避免另一个网页标签页刚写过的记录被这份缓存盖掉。 */
+function update(mutate: (map: StayMap) => boolean): void {
+  const map = readDisk()
+  if (!mutate(map)) {
+    return
+  }
   cache = map
   browserStorage()?.setItem(STORAGE_KEY, JSON.stringify(map))
 }
 
-export function saveTerminalFileLinkStay(
-  fileId: string,
-  hostRead: TerminalFileLinkHostRead | null
+export function applyTerminalFileLinkStayStorageEvent(
+  key: string | null,
+  value: string | null
 ): void {
-  const map = load()
-  map[fileId] = hostRead
-    ? { readWorktreeId: hostRead.worktreeId, readRelativePath: hostRead.relativePath }
-    : {}
-  persist(map)
-}
-
-export function loadTerminalFileLinkStay(fileId: string): TerminalFileLinkStay | null {
-  const entry = load()[fileId]
-  if (!entry) {
-    return null
-  }
-  if (entry.readWorktreeId && entry.readRelativePath) {
-    return {
-      read: { worktreeId: entry.readWorktreeId, relativePath: entry.readRelativePath }
-    }
-  }
-  return { read: null }
-}
-
-export function forgetTerminalFileLinkStay(fileId: string): void {
-  const map = load()
-  if (!(fileId in map)) {
+  if (key !== STORAGE_KEY) {
     return
   }
-  delete map[fileId]
-  persist(map)
+  cache = value ? parseStored(value) : {}
 }
 
-/** 只删这一轮从打开变成关闭的 id，避免会话还没恢复时把重启后的记录清掉。 */
-export function forgetClosedTerminalFileLinkStays(
-  previouslyOpen: ReadonlySet<string>,
-  currentlyOpen: ReadonlySet<string>
+export function saveTerminalFileLinkStay(worktreeId: string, filePath: string): void {
+  const stayKey = terminalFileLinkStayKey(worktreeId, filePath)
+  update((map) => {
+    if (map[stayKey]) {
+      return false
+    }
+    map[stayKey] = true
+    return true
+  })
+}
+
+export function loadTerminalFileLinkStay(worktreeId: string, filePath: string): boolean {
+  return load()[terminalFileLinkStayKey(worktreeId, filePath)] === true
+}
+
+/** 已经打开的可编辑标签不会变成只读，这种情况下不记标记，避免下次按只读路径去读它。 */
+export function rememberTerminalFileLinkStay(
+  worktreeId: string,
+  filePath: string,
+  openFile: { readOnly?: boolean } | undefined
 ): void {
-  for (const fileId of previouslyOpen) {
-    if (!currentlyOpen.has(fileId)) {
-      forgetTerminalFileLinkStay(fileId)
+  if (openFile?.readOnly !== true) {
+    return
+  }
+  saveTerminalFileLinkStay(worktreeId, filePath)
+}
+
+export function forgetTerminalFileLinkStay(worktreeId: string, filePath: string): void {
+  const stayKey = terminalFileLinkStayKey(worktreeId, filePath)
+  update((map) => {
+    if (!map[stayKey]) {
+      return false
+    }
+    delete map[stayKey]
+    return true
+  })
+}
+
+/** 只删这一轮从打开变成关闭的路径，避免会话还没恢复时把重启后的记录清掉。 */
+export function forgetClosedTerminalFileLinkStays(
+  previouslyOpen: readonly OpenPath[],
+  currentlyOpen: readonly OpenPath[]
+): void {
+  const live = new Set(
+    currentlyOpen.map((file) => terminalFileLinkStayKey(file.worktreeId, file.filePath))
+  )
+  for (const file of previouslyOpen) {
+    if (!live.has(terminalFileLinkStayKey(file.worktreeId, file.filePath))) {
+      forgetTerminalFileLinkStay(file.worktreeId, file.filePath)
     }
   }
+}
+
+/** 会话已经恢复之后，打开列表里没有的记录删掉（崩溃、工作区没了、恢复时工作区无效）。 */
+export function pruneTerminalFileLinkStays(openFiles: readonly OpenPath[]): void {
+  const live = new Set(
+    openFiles.map((file) => terminalFileLinkStayKey(file.worktreeId, file.filePath))
+  )
+  update((map) => {
+    let changed = false
+    for (const key of Object.keys(map)) {
+      if (!live.has(key)) {
+        delete map[key]
+        changed = true
+      }
+    }
+    return changed
+  })
+}
+
+/** openFiles 还是同一个数组，并且要么还没恢复、要么已经清过，就不要再分配。 */
+export function shouldSkipTerminalFileLinkStaySync(
+  openFilesUnchanged: boolean,
+  sessionReady: boolean,
+  prunedAfterHydration: boolean
+): boolean {
+  return openFilesUnchanged && (prunedAfterHydration || !sessionReady)
 }
 
 export function resetTerminalFileLinkStayCacheForTests(): void {

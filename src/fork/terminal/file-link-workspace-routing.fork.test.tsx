@@ -9,24 +9,21 @@ import {
   flushDoubleRaf,
   installTerminalLinkTestEnvironment
 } from '@/components/terminal-pane/terminal-link-handlers-test-harness'
-import {
-  registerTerminalFileLinkWorkspace,
-  type TerminalFileLinkHostRead
-} from '../../shared/fork-hooks/terminal-file-link-workspace'
+import { registerTerminalFileLinkWorkspace } from '../../shared/fork-hooks/terminal-file-link-workspace'
 
 const findWorkspaceFileRouteMock = vi.hoisted(() => vi.fn())
 const doubles = createTerminalLinkTestDoubles()
 const { storeState, statMock, openFileMock, runtimeEnvironmentCallMock } = doubles
 
 let keepInCurrent = true
-const remembered: { fileId: string; hostRead: TerminalFileLinkHostRead | null }[] = []
+const remembered: { worktreeId: string; filePath: string }[] = []
 
 registerTerminalFileLinkWorkspace({
   keepsCurrentWorkspace: () => keepInCurrent,
   renderSetting: () => null,
   searchEntries: () => [],
-  rememberStay: (fileId, hostRead) => {
-    remembered.push({ fileId, hostRead })
+  rememberStay: (worktreeId, filePath) => {
+    remembered.push({ worktreeId, filePath })
   }
 })
 
@@ -118,12 +115,7 @@ describe('terminal file links stay in the clicked workspace', () => {
       }),
       { forceContentReload: true }
     )
-    expect(remembered).toEqual([
-      {
-        fileId: HOME_FILE,
-        hostRead: { worktreeId: 'folder:home', relativePath: HOME_ROUTE.relativePath }
-      }
-    ])
+    expect(remembered).toEqual([{ worktreeId: 'wt-feat', filePath: HOME_FILE }])
   })
 
   it('still opens a file inside the clicked workspace as that workspace file', async () => {
@@ -172,7 +164,7 @@ describe('terminal file links stay in the clicked workspace', () => {
       }),
       { forceContentReload: true }
     )
-    expect(remembered).toEqual([{ fileId: filePath, hostRead: null }])
+    expect(remembered).toEqual([{ worktreeId: 'wt-1', filePath }])
   })
 
   it('does not adopt a sibling workspace that already has the same path open', async () => {
@@ -193,7 +185,7 @@ describe('terminal file links stay in the clicked workspace', () => {
       }),
       { forceContentReload: true }
     )
-    expect(remembered).toEqual([{ fileId: filePath, hostRead: null }])
+    expect(remembered).toEqual([{ worktreeId: 'wt-1', filePath }])
   })
 
   it('keeps a direct SSH link in the terminal workspace when another workspace contains the path', async () => {

@@ -10,9 +10,12 @@ import {
 import { forkTranslate } from '../i18n/fork-translate'
 import { terminalFileLinksOpenInCurrentWorkspace } from './file-link-workspace'
 import {
+  applyTerminalFileLinkStayStorageEvent,
   forgetClosedTerminalFileLinkStays,
   loadTerminalFileLinkStay,
-  saveTerminalFileLinkStay
+  pruneTerminalFileLinkStays,
+  rememberTerminalFileLinkStay,
+  shouldSkipTerminalFileLinkStaySync
 } from './file-link-stay'
 
 const SEARCH_KEYWORDS = ['terminal', 'file', 'link', 'workspace', 'folder', 'chat']
@@ -68,11 +71,34 @@ function watchClosedTerminalFileLinkStays(): void {
     return
   }
   watchingClosedTabs = true
-  let openIds = new Set(useAppStore.getState().openFiles.map((file) => file.id))
+  // 节点测试没有 window。网页里另一个标签页改了存储时，用那份记录替换缓存。
+  if (typeof window !== 'undefined') {
+    window.addEventListener('storage', (event) => {
+      applyTerminalFileLinkStayStorageEvent(event.key, event.newValue)
+    })
+  }
+  let openFiles = useAppStore.getState().openFiles
+  let pruned = false
+  if (useAppStore.getState().workspaceSessionReady === true) {
+    pruned = true
+    pruneTerminalFileLinkStays(openFiles)
+  }
   useAppStore.subscribe((state) => {
-    const next = new Set(state.openFiles.map((file) => file.id))
-    forgetClosedTerminalFileLinkStays(openIds, next)
-    openIds = next
+    const ready = state.workspaceSessionReady === true
+    if (shouldSkipTerminalFileLinkStaySync(state.openFiles === openFiles, ready, pruned)) {
+      return
+    }
+    const previous = openFiles
+    openFiles = state.openFiles
+    if (!ready) {
+      return
+    }
+    if (!pruned) {
+      pruned = true
+      pruneTerminalFileLinkStays(openFiles)
+      return
+    }
+    forgetClosedTerminalFileLinkStays(previous, openFiles)
   })
 }
 
@@ -84,7 +110,10 @@ export function registerTerminalFileLinkWorkspaceSetting(): void {
       <TerminalFileLinkWorkspaceSetting settings={settings} updateSettings={updateSettings} />
     ),
     searchEntries: terminalFileLinkWorkspaceSettingSearchEntries,
-    rememberStay: saveTerminalFileLinkStay,
+    rememberStay: (worktreeId, filePath, fileId) => {
+      const openFile = useAppStore.getState().openFiles.find((file) => file.id === fileId)
+      rememberTerminalFileLinkStay(worktreeId, filePath, openFile)
+    },
     lookupStay: loadTerminalFileLinkStay
   })
   watchClosedTerminalFileLinkStays()

@@ -166,19 +166,18 @@ export function useEditorPanelFileContentLoader({
               ? null
               : findWorkspaceFileRoute(currentState, executionHostId, filePath)
             // Why: only a terminal/chat link this fork marked stays put. Other absolute tabs still reparent.
-            const stay = terminalFileLinkStay(id)
+            const stay = terminalFileLinkStay(worktreeId, filePath)
             if (route && route.worktreeId !== worktreeId && !stay) {
               await reownRestoredFile(route, runtimeEnvironmentId ?? null)
               return
             }
-            if (stay?.read) {
-              readWorktreeId = stay.read.worktreeId
-              readRelativePath = stay.read.relativePath
+            if (stay && route && route.worktreeId !== worktreeId) {
+              readWorktreeId = route.worktreeId
+              readRelativePath = route.relativePath
             }
             if (
               runtimeEnvironmentId &&
               !route &&
-              !stay?.read &&
               !restoredOpenFile.terminalArtifactGrantId &&
               !chatScratchFileAddress(filePath)
             ) {

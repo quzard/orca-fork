@@ -14,10 +14,15 @@ import {
 } from '../../main/persistence/applying-settings/settings-update'
 import { terminalFileLinksOpenInCurrentWorkspace } from './file-link-workspace'
 import {
+  applyTerminalFileLinkStayStorageEvent,
   forgetClosedTerminalFileLinkStays,
   loadTerminalFileLinkStay,
+  pruneTerminalFileLinkStays,
+  rememberTerminalFileLinkStay,
   resetTerminalFileLinkStayCacheForTests,
-  saveTerminalFileLinkStay
+  saveTerminalFileLinkStay,
+  shouldSkipTerminalFileLinkStaySync,
+  terminalFileLinkStayKey
 } from './file-link-stay'
 
 function storedSetting(value: boolean): Partial<GlobalSettings> {
@@ -94,6 +99,8 @@ describe('terminalFileLinksOpenInCurrentWorkspace persistence', () => {
 
 describe('terminal file-link stay map', () => {
   const storage = new Map<string, string>()
+  const home = { worktreeId: 'folder:home', filePath: '/Users/me/x.html' }
+  const local = { worktreeId: 'wt-a', filePath: '/repo/a.ts' }
 
   beforeEach(() => {
     storage.clear()
@@ -109,27 +116,62 @@ describe('terminal file-link stay map', () => {
     })
   })
 
-  it('remembers a host read across a cache reset and drops it when the tab closes', () => {
-    const hostRead = { worktreeId: 'folder:home', relativePath: 'x.html' }
-    saveTerminalFileLinkStay('editor:a', hostRead)
-    saveTerminalFileLinkStay('editor:local', null)
+  it('remembers a stay across a cache reset and drops it when the tab closes', () => {
+    saveTerminalFileLinkStay(home.worktreeId, home.filePath)
+    saveTerminalFileLinkStay(local.worktreeId, local.filePath)
     resetTerminalFileLinkStayCacheForTests()
 
-    expect(loadTerminalFileLinkStay('editor:a')).toEqual({ read: hostRead })
-    expect(loadTerminalFileLinkStay('editor:local')).toEqual({ read: null })
-    expect(loadTerminalFileLinkStay('editor:other')).toBeNull()
+    expect(loadTerminalFileLinkStay(home.worktreeId, home.filePath)).toBe(true)
+    expect(loadTerminalFileLinkStay(local.worktreeId, local.filePath)).toBe(true)
+    expect(loadTerminalFileLinkStay('wt-a', home.filePath)).toBe(false)
 
-    forgetClosedTerminalFileLinkStays(new Set(['editor:a']), new Set(['editor:local']))
-    expect(loadTerminalFileLinkStay('editor:a')).toBeNull()
-    expect(loadTerminalFileLinkStay('editor:local')).toEqual({ read: null })
+    forgetClosedTerminalFileLinkStays([home], [local])
+    expect(loadTerminalFileLinkStay(home.worktreeId, home.filePath)).toBe(false)
+    expect(loadTerminalFileLinkStay(local.worktreeId, local.filePath)).toBe(true)
   })
 
-  it('leaves a restored mark alone when that id was not open yet', () => {
-    saveTerminalFileLinkStay('editor:restored', {
-      worktreeId: 'folder:home',
-      relativePath: 'x.html'
-    })
-    forgetClosedTerminalFileLinkStays(new Set(), new Set())
-    expect(loadTerminalFileLinkStay('editor:restored')?.read?.relativePath).toBe('x.html')
+  it('does not mark a tab that stayed editable', () => {
+    rememberTerminalFileLinkStay(local.worktreeId, local.filePath, { readOnly: undefined })
+    expect(loadTerminalFileLinkStay(local.worktreeId, local.filePath)).toBe(false)
+    rememberTerminalFileLinkStay(local.worktreeId, local.filePath, { readOnly: true })
+    expect(loadTerminalFileLinkStay(local.worktreeId, local.filePath)).toBe(true)
+  })
+
+  it('prunes marks that are not open once the session has hydrated', () => {
+    saveTerminalFileLinkStay(home.worktreeId, home.filePath)
+    saveTerminalFileLinkStay(local.worktreeId, local.filePath)
+    pruneTerminalFileLinkStays([local])
+    expect(loadTerminalFileLinkStay(home.worktreeId, home.filePath)).toBe(false)
+    expect(loadTerminalFileLinkStay(local.worktreeId, local.filePath)).toBe(true)
+  })
+
+  it('keeps another tab’s write when this tab saves afterwards', () => {
+    saveTerminalFileLinkStay(local.worktreeId, local.filePath)
+    const key = 'orca.fork.terminal-file-link-stay'
+    const foreign = {
+      ...JSON.parse(storage.get(key) ?? '{}'),
+      [terminalFileLinkStayKey(home.worktreeId, home.filePath)]: true
+    }
+    storage.set(key, JSON.stringify(foreign))
+    saveTerminalFileLinkStay('wt-b', '/repo/b.ts')
+    expect(loadTerminalFileLinkStay(home.worktreeId, home.filePath)).toBe(true)
+    expect(loadTerminalFileLinkStay('wt-b', '/repo/b.ts')).toBe(true)
+  })
+
+  it('applies a storage event from another tab before the next read', () => {
+    saveTerminalFileLinkStay(local.worktreeId, local.filePath)
+    applyTerminalFileLinkStayStorageEvent(
+      'orca.fork.terminal-file-link-stay',
+      JSON.stringify({ [terminalFileLinkStayKey(home.worktreeId, home.filePath)]: true })
+    )
+    expect(loadTerminalFileLinkStay(local.worktreeId, local.filePath)).toBe(false)
+    expect(loadTerminalFileLinkStay(home.worktreeId, home.filePath)).toBe(true)
+  })
+
+  it('skips a store update that did not replace openFiles before hydration finishes', () => {
+    expect(shouldSkipTerminalFileLinkStaySync(true, false, false)).toBe(true)
+    expect(shouldSkipTerminalFileLinkStaySync(true, true, false)).toBe(false)
+    expect(shouldSkipTerminalFileLinkStaySync(true, true, true)).toBe(true)
+    expect(shouldSkipTerminalFileLinkStaySync(false, true, true)).toBe(false)
   })
 })

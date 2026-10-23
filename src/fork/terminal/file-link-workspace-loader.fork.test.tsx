@@ -4,10 +4,7 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { OpenFile } from '@/store/slices/editor'
-import {
-  registerTerminalFileLinkWorkspace,
-  type TerminalFileLinkStay
-} from '../../shared/fork-hooks/terminal-file-link-workspace'
+import { registerTerminalFileLinkWorkspace } from '../../shared/fork-hooks/terminal-file-link-workspace'
 import {
   useEditorPanelFileContentLoader,
   type EditorPanelFileContentLoader
@@ -21,7 +18,8 @@ const mocks = vi.hoisted(() => ({
   getState: vi.fn()
 }))
 
-const stays = new Map<string, TerminalFileLinkStay>()
+const stays = new Set<string>()
+let keepInCurrent = true
 
 vi.mock('@/lib/connection-context', () => ({
   getConnectionIdForFile: vi.fn(() => null),
@@ -39,7 +37,14 @@ vi.mock('@/lib/file-owner-runtime-target', () => {
   const local = { kind: 'local' as const }
   return {
     getRuntimeTargetForFileOwner: () => local,
-    requireRuntimeTargetForFileOwner: () => local,
+    requireRuntimeTargetForFileOwner: (
+      _state: unknown,
+      _worktreeId: unknown,
+      runtimeEnvironmentId?: string | null
+    ) =>
+      runtimeEnvironmentId
+        ? { kind: 'environment' as const, environmentId: runtimeEnvironmentId }
+        : local,
     getRuntimeTargetForWorktreeOwner: () => local
   }
 })
@@ -91,16 +96,19 @@ describe('editor load of a terminal file link', () => {
   let root: Root
   let load: EditorPanelFileContentLoader | null
   let openFiles: OpenFile[]
+  let loadError: string | undefined
 
   beforeEach(() => {
     stays.clear()
+    keepInCurrent = true
     registerTerminalFileLinkWorkspace({
-      keepsCurrentWorkspace: () => true,
+      keepsCurrentWorkspace: () => keepInCurrent,
       renderSetting: () => null,
       searchEntries: () => [],
-      lookupStay: (fileId) => stays.get(fileId) ?? null
+      lookupStay: (worktreeId, path) => stays.has(`${worktreeId}\0${path}`)
     })
     openFiles = []
+    loadError = undefined
     load = null
     mocks.findWorkspaceFileRoute.mockReset()
     mocks.findWorkspaceFileRoute.mockReturnValue(HOME_ROUTE)
@@ -131,7 +139,13 @@ describe('editor load of a terminal file link', () => {
           }
         },
         outstandingFileReadsRef: { current: {} },
-        setFileContents: () => {}
+        setFileContents: (update) => {
+          if (typeof update !== 'function') {
+            return
+          }
+          const next = update({})
+          loadError = Object.values(next).find((value) => value.loadError)?.loadError
+        }
       })
       return null
     }
@@ -159,7 +173,7 @@ describe('editor load of a terminal file link', () => {
       readOnly: true,
       runtimeEnvironmentId: 'env-1'
     })
-    stays.set(tab.id, { read: { worktreeId: HOME, relativePath: HOME_ROUTE.relativePath } })
+    stays.add(`${SOURCE}\0${HOME_FILE}`)
     openFiles = [tab]
 
     await act(async () => load!(HOME_FILE, tab.id, SOURCE, HOME_FILE))
@@ -176,9 +190,35 @@ describe('editor load of a terminal file link', () => {
     )
   })
 
+  it('reparents a marked tab again when the setting is off', async () => {
+    keepInCurrent = false
+    const tab = externalTab()
+    stays.add(`${SOURCE}\0${HOME_FILE}`)
+    openFiles = [tab]
+
+    await act(async () => load!(HOME_FILE, tab.id, SOURCE, HOME_FILE))
+
+    expect(mocks.migrateRestoredEditorFileOwner).toHaveBeenCalledWith(tab.id, HOME_ROUTE, null)
+    expect(mocks.readEditorCsvFileContent).not.toHaveBeenCalled()
+  })
+
+  it('uses the upstream external-file error when the owning workspace is gone', async () => {
+    const tab = externalTab({ readOnly: true, runtimeEnvironmentId: 'env-1' })
+    stays.add(`${SOURCE}\0${HOME_FILE}`)
+    mocks.findWorkspaceFileRoute.mockReturnValue(null)
+    openFiles = [tab]
+
+    await act(async () => load!(HOME_FILE, tab.id, SOURCE, HOME_FILE))
+
+    expect(mocks.migrateRestoredEditorFileOwner).not.toHaveBeenCalled()
+    expect(mocks.readEditorCsvFileContent).not.toHaveBeenCalled()
+    expect(loadError).toBe('External local files are not available for remote workspaces.')
+  })
+
   it('keeps a marked local tab in place and still reads its absolute path', async () => {
     const tab = externalTab()
-    stays.set(tab.id, { read: null })
+    stays.add(`${SOURCE}\0${HOME_FILE}`)
+    mocks.findWorkspaceFileRoute.mockReturnValue(null)
     openFiles = [tab]
 
     await act(async () => load!(HOME_FILE, tab.id, SOURCE, HOME_FILE))

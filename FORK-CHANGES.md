@@ -88,6 +88,20 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 
 只保留工作区归属。上游的范围、深度和项目匹配已经读 `cwdAliases`；`resolveWorktreeInfoFromCandidates` 不读别名，所以 `ai-vault-session-worktree.ts` 仍通过 `src/shared/fork-hooks/ai-vault-cwd.ts` 按最短剩余路径排序。没有别名时排序与上游相同。
 
+## F045 终端文件链接留在当前工作区
+
+设置「在当前工作区打开终端文件链接」缺省为开（没写过这个字段也是开），放在设置的终端交互里，和别的全局设置一样存在配置里。关掉之后，上游行为不变。
+
+点终端里的文件路径时，上游会在三条路上切到「文件夹包含这个路径」的另一个工作区，家目录这种根特别宽的文件夹工作区尤其明显（上游 [#25838](https://github.com/stablyai/orca/issues/25838)）：
+
+- 配对的运行时（本机 orcad，或 SSH 上的远端运行时）会问主机 `files.resolveTerminalPath`，`crossWorkspace: true`。路径不在当前工作区、但在同一台主机的另一个工作区里时，主机回报那个工作区，界面激活它再打开文件。开关打开时改成 `crossWorkspace: false`：主机不再找别的工作区，路径按「不在任何工作区里」处理。终端打出来、且主机允许的文件拿到只读授权，在当前工作区打开；其余和上游对工作区外路径一样，要么拒绝，要么落成本机只读文件。
+- 文件已经在另一个工作区打开时，`openDetectedFilePath` 会直接沿用那个工作区。开关打开时不沿用，仍在点击时所在的工作区开一张外部文件标签。
+- 标签已经以绝对路径留在当前工作区之后，编辑器加载仍会 `findWorkspaceFileRoute`，找到包含该路径的工作区就 `migrateRestoredEditorFileOwner`。新打开的标签也走这里，而 `reparentRestoredEditorFileOwner` 在这张标签是当前文件时调用 `setActiveWorktree`，窗口跟着切过去。开关打开时不重挂，标签留在原来的工作区。直接 SSH（没有运行时环境）不会问主机挑工作区，切走靠的就是这一条和上一条；文件仍用原来的 SSH 连接读取，和上游对「不在任何工作区里」的路径一样。纯本地的绝对路径用用户点名的文件权限读取，可以改，和它本来就不属于任何工作区时一样。
+
+路径本来就在当前工作区里时不经过这三条，仍然按相对路径打开，可读可改。另一个工作区的根更宽（比如家目录）也抢不走它。
+
+未登记这个钩子时，三处调用都保持上游。
+
 ## F041 普通目录的终端生命周期
 
 `folder:<id>` 在 `resolveWorktreeSelector` 之前解析。没有这个文件夹时仍抛 `selector_not_found`。`stopExact` 把该结果放进存活刷新用的工作区列表，因为文件夹不在原来的 resolved map 里。

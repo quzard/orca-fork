@@ -12,7 +12,9 @@
       "selectAllProjects": "选择所有项目",
       "selectProject": "选择项目",
       "sshTargetRemove": "删除",
-      "sshTargetRemoving": "正在删除"
+      "sshTargetRemoving": "正在删除",
+      "terminalFileLinkWorkspace": "在当前工作区打开终端文件链接",
+      "terminalFileLinkWorkspaceDescription": "在某个工作区的终端里点击文件路径时，在该工作区打开，即使另一个工作区的文件夹包含这个路径。"
     },
     "sidebar": {
       "archivedWorkspaces": "已从 Orca 移除（{{value0}}）",

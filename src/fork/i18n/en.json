@@ -12,7 +12,9 @@
       "selectAllProjects": "Select all projects",
       "selectProject": "Select project",
       "sshTargetRemove": "Remove",
-      "sshTargetRemoving": "Removing"
+      "sshTargetRemoving": "Removing",
+      "terminalFileLinkWorkspace": "Open terminal file links in the current workspace",
+      "terminalFileLinkWorkspaceDescription": "A file path clicked in a workspace terminal opens in that workspace, including when another workspace folder contains the path."
     },
     "sidebar": {
       "archivedWorkspaces": "Removed from Orca ({{value0}})",

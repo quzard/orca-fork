@@ -29,6 +29,7 @@ import { captureEditorOpenLinkIntent } from '@/store/slices/editor/tabs/editor-o
 import { cancelPendingEditorLineRevealFrames } from '@/store/slices/editor/focus/editor-focus-reveal'
 import { showOpenInGroupRefusedToast } from './terminal-file-open-in-group-toast'
 import { isExplicitEditorScopeKept } from '@/lib/editor-file-link-open'
+import { terminalFileLinkKeepsCurrentWorkspace } from '../../../../shared/fork-hooks/terminal-file-link-workspace'
 
 export {
   getTerminalFileContext,
@@ -232,6 +233,8 @@ export function openDetectedFilePath(
     } else if (
       hostGrantId === null &&
       !isFloatingWorkspaceId(worktreeId) &&
+      // Why: a file already open in another workspace is still this click's workspace when the fork says so.
+      !terminalFileLinkKeepsCurrentWorkspace() &&
       store.openFiles.some(
         (openFile) => openFile.filePath === mappedFilePath && openFile.worktreeId !== worktreeId
       )

@@ -28,6 +28,7 @@ import { isFloatingWorkspaceId } from '../../../../shared/floating-workspace-wor
 import { chatScratchFileAddress } from '@/runtime/runtime-chat-scratch-file-address'
 import { stampCleanTabDiskBaseline } from './editor-clean-tab-disk-baseline'
 import { applyEditorFileLoadFailure } from './editor-deleted-file-reload'
+import { terminalFileLinkKeepsCurrentWorkspace } from '../../../../shared/fork-hooks/terminal-file-link-workspace'
 
 const inFlightFileReads = new Map<string, InFlightContentRead<FileContent>>()
 
@@ -164,7 +165,12 @@ export function useEditorPanelFileContentLoader({
             const route = isFloatingWorkspaceId(worktreeId)
               ? null
               : findWorkspaceFileRoute(currentState, executionHostId, filePath)
-            if (route && route.worktreeId !== worktreeId) {
+            // Why: this also runs for a tab just opened from a terminal, and reparent activates the owner.
+            if (
+              route &&
+              route.worktreeId !== worktreeId &&
+              !terminalFileLinkKeepsCurrentWorkspace()
+            ) {
               await reownRestoredFile(route, runtimeEnvironmentId ?? null)
               return
             }

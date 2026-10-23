@@ -1,4 +1,3 @@
-import { BrowserWindow } from 'electron'
 import type { Store } from '../persistence'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import {
@@ -6,16 +5,13 @@ import {
   type SkillDiscoveryResult,
   type SkillDiscoveryTarget
 } from '../../shared/skills'
-import type {
-  SkillFreshnessInventory,
-  SkillUpdateRun,
-  SkillUpdateStartResult
-} from '../../shared/skill-freshness'
-import { inventorySkillFreshness } from '../skills/skill-freshness-inventory'
-import { SkillUpdateRunner } from '../skills/skill-update-run'
-import { skillUpdateFailedNames } from '../skills/skill-update-outcome'
 import {
-  clearSkillDiscoveryCaches,
+  BundledSkillExecuteRequestSchema,
+  BundledSkillPlanRequestSchema,
+  type BundledSkillInstallResult,
+  type BundledSkillPlan
+} from '../../shared/bundled-skill-plan'
+import {
   discoverSkillsOnTarget,
   resolveSkillDiscoveryTarget
 } from '../skills/skill-discovery-target'
@@ -32,6 +28,7 @@ export function registerSkillsHandlers(store: Store, runtime?: OrcaRuntimeServic
       refresh: parsedTarget?.refresh === true
     })
   }
+<<<<<<< HEAD
   const scanInventory = (): Promise<SkillFreshnessInventory> =>
     // Why: the update command targets this machine's global homes. WSL and SSH
     // inventories stay out until their installer rail has an equivalent proof.
@@ -56,39 +53,28 @@ export function registerSkillsHandlers(store: Store, runtime?: OrcaRuntimeServic
       }
     }
   })
+=======
+>>>>>>> 68828708505aaefe0402e8df994da9365a6f9e19
 
   handleMainWindowSkillIpc(
     'skills:discover',
     async (_event, target?: SkillDiscoveryTarget): Promise<SkillDiscoveryResult> => discover(target)
   )
 
-  if (runtime) {
-    registerSkillCloudIpcHandlers(runtime, discover)
+  if (!runtime) {
+    return
   }
+  registerSkillCloudIpcHandlers(runtime, discover)
 
+  // Local host only; paired hosts plan Orca's skills over RPC.
   handleMainWindowSkillIpc(
-    'skills:freshnessInventory',
-    async (): Promise<SkillFreshnessInventory> => {
-      return scanInventory()
-    }
+    'skills:bundledPlan',
+    async (_event, value: unknown): Promise<BundledSkillPlan> =>
+      runtime.planLocalBundledSkills(BundledSkillPlanRequestSchema.parse(value ?? {}))
   )
-
   handleMainWindowSkillIpc(
-    'skills:startUpdateRun',
-    async (_event, names: string[]): Promise<SkillUpdateStartResult> => {
-      return runner.start(Array.isArray(names) ? names : [])
-    }
+    'skills:bundledExecute',
+    async (_event, value: unknown): Promise<BundledSkillInstallResult> =>
+      runtime.executeLocalBundledSkills(BundledSkillExecuteRequestSchema.parse(value))
   )
-
-  handleMainWindowSkillIpc('skills:cancelUpdateRun', async (): Promise<void> => {
-    runner.cancel()
-  })
-
-  handleMainWindowSkillIpc('skills:acknowledgeUpdateRun', async (): Promise<void> => {
-    runner.acknowledge()
-  })
-
-  handleMainWindowSkillIpc('skills:getUpdateRun', async (): Promise<SkillUpdateRun> => {
-    return runner.getState()
-  })
 }

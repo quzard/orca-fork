@@ -151,6 +151,7 @@ export class FolderWorkspacePersistenceOperations {
         | 'smartAt'
         | 'lastTerminalUseAt'
         | 'diffComments'
+        | 'externalConversations'
       >
     > &
       WorkspaceAttachmentMutation
@@ -270,6 +271,9 @@ export class FolderWorkspacePersistenceOperations {
     }
     if (updates.diffComments !== undefined) {
       workspace.diffComments = updates.diffComments
+    }
+    if (updates.externalConversations !== undefined) {
+      workspace.externalConversations = updates.externalConversations
     }
     workspace.updatedAt = Date.now()
     this.scheduleSave()

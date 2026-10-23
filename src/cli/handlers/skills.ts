@@ -1,10 +1,8 @@
-import { spawn } from 'node:child_process'
 import type { CommandHandler } from '../dispatch'
-import { RuntimeClientError } from '../runtime-client'
-import { getRepeatedStringFlag } from '../flags'
 import { writeStdoutLine } from '../stdout-line'
-import { loadCanonicalGuides, type BundledSkillGuide } from './bundled-skill-guide-table'
+import { loadCanonicalGuides } from './bundled-skill-guide-table'
 import { SKILL_GUIDE_GET_HANDLER } from './skill-guide-get'
+<<<<<<< HEAD
 import { resolveCliCommand, withCliRuntimeOnPath } from '../../shared/node-cli-command-resolution'
 import {
   getSpawnArgsForWindows,
@@ -262,11 +260,13 @@ function createSkillMutationHandler(verb: SkillMutationVerb): CommandHandler {
     process.exitCode = await runNpxSkills(npxArgs)
   }
 }
+=======
+import { createSkillMutationHandler } from './bundled-skill-install-command'
+>>>>>>> 68828708505aaefe0402e8df994da9365a6f9e19
 
 export const SKILL_HANDLERS: Record<string, CommandHandler> = {
   'skills list': async ({ json }) => {
-    // Why: generated registry order is not a user-facing contract, while stable
-    // canonical sorting keeps agent-visible output reproducible across builds.
+    // Canonical sorting keeps output stable across generated-registry changes.
     const topics = (await loadCanonicalGuides()).map((guide) => ({
       name: guide.name,
       description: guide.description.replace(/\s+/g, ' ').trim()

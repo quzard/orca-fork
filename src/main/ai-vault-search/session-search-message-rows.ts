@@ -80,15 +80,20 @@ export function* searchMessageRows(
 ): Generator<TranscriptMessage> {
   for (const message of messages) {
     if (message.role === 'tool') {
+<<<<<<< HEAD
       if (readAiVaultToolIndexPolicy() === 'chunk') {
         for (const text of textChunks(message.text)) {
           yield { ...message, text }
         }
         continue
       }
+=======
+      const text = sliceAtCodeUnitLimit(message.text, TOOL_ROW_CHARS)
+>>>>>>> 68828708505aaefe0402e8df994da9365a6f9e19
       yield {
         ...message,
-        text: sliceAtCodeUnitLimit(message.text, TOOL_ROW_CHARS)
+        text,
+        ...(text.length < message.text.length ? { textTruncated: true as const } : {})
       }
       continue
     }
@@ -111,8 +116,8 @@ export function insertSearchMessage(
 ): void {
   const text = message.text
   const id = db
-    .prepare('INSERT INTO messages(session_row_id, role, ts) VALUES (?, ?, ?)')
-    .run(sessionId, message.role, message.timestamp).lastInsertRowid
+    .prepare('INSERT INTO messages(session_row_id, role, ts, text_truncated) VALUES (?, ?, ?, ?)')
+    .run(sessionId, message.role, message.timestamp, message.textTruncated ? 1 : 0).lastInsertRowid
   const user = message.role === 'user' ? text : ''
   const assistant = message.role === 'assistant' ? text : ''
   const tool = message.role === 'tool' ? text : ''

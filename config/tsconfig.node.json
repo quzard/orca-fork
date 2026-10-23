@@ -14,9 +14,12 @@
     "./scripts/happy-dom-animation-cancel.ts",
     "./scripts/vitest-node-runtime-pool.ts",
     "../src/main/**/*",
+<<<<<<< HEAD
     "../src/fork/**/*.ts",
     "../src/cli/skills-source-commit.ts",
     "../src/renderer/src/lib/skill-freshness-display-status.ts",
+=======
+>>>>>>> 68828708505aaefe0402e8df994da9365a6f9e19
     "../src/renderer/src/store/slices/worktrees/create/worktree-create-payload.ts",
     "../src/renderer/src/components/native-chat/native-chat-resolution-receipt.ts",
     "../src/renderer/src/components/native-chat/structured-agent-question-projection.ts",

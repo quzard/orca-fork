@@ -32,7 +32,9 @@ export const GitWorkspaceRepositoryParams = WorktreeSelector.extend({
   admissionTier: OptionalGitAdmissionTier
 })
 
-export const GitWorkspaceRepositoryStatusParams = GitWorkspaceRepositoryParams
+export const GitWorkspaceRepositoryStatusParams = GitWorkspaceRepositoryParams.extend({
+  refresh: z.boolean().optional()
+})
 
 export const GitWorkspaceRepositoryBranchCompareParams = GitWorkspaceRepositoryParams.extend({
   baseRef: gitRef

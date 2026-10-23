@@ -42,6 +42,20 @@ function sameKey(entry: CompareTargetEntry, key: CompareTargetKey): boolean {
   )
 }
 
+// 同一个文件的写串成一队。两个窗口的请求都在这个进程里，先读后写不能交错。
+const writeQueues = new Map<string, Promise<void>>()
+
+function enqueueWrite(filePath: string, write: () => void): Promise<void> {
+  const previous = writeQueues.get(filePath) ?? Promise.resolve()
+  const task = previous.then(write, write)
+  const settled = task.then(
+    () => undefined,
+    () => undefined
+  )
+  writeQueues.set(filePath, settled)
+  return task
+}
+
 export class CompareTargetStore {
   constructor(private readonly filePath: string) {}
 
@@ -70,20 +84,22 @@ export class CompareTargetStore {
   }
 
   // ref 为 null 时删掉这一档。先写临时文件再 rename，读到的永远是完整 JSON。
-  set(key: CompareTargetKey, ref: string | null): void {
-    const entries = this.read().filter((entry) => !sameKey(entry, key))
-    if (ref !== null) {
-      entries.push({ ...key, ref })
-    }
-    const temporary = `${this.filePath}.${process.pid}.${Date.now()}.tmp`
-    const body: CompareTargetFile = { version: 1, entries }
-    mkdirSync(dirname(this.filePath), { recursive: true })
-    try {
-      writeFileSync(temporary, `${JSON.stringify(body)}\n`, { encoding: 'utf8', mode: 0o600 })
-      renameSync(temporary, this.filePath)
-    } catch (error) {
-      rmSync(temporary, { force: true })
-      throw error
-    }
+  set(key: CompareTargetKey, ref: string | null): Promise<void> {
+    return enqueueWrite(this.filePath, () => {
+      const entries = this.read().filter((entry) => !sameKey(entry, key))
+      if (ref !== null) {
+        entries.push({ ...key, ref })
+      }
+      const temporary = `${this.filePath}.${process.pid}.${Date.now()}.tmp`
+      const body: CompareTargetFile = { version: 1, entries }
+      mkdirSync(dirname(this.filePath), { recursive: true })
+      try {
+        writeFileSync(temporary, `${JSON.stringify(body)}\n`, { encoding: 'utf8', mode: 0o600 })
+        renameSync(temporary, this.filePath)
+      } catch (error) {
+        rmSync(temporary, { force: true })
+        throw error
+      }
+    })
   }
 }

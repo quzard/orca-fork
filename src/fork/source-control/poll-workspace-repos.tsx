@@ -21,6 +21,24 @@ export type WorkspaceRepositoryPoll = {
   compares: Readonly<Record<string, GitBranchCompareResult>>
 }
 
+type ObservedHead = { head: string | null; ref: string | null }
+
+// 分支比较只在第一次、手动刷新、HEAD 或比较目标变了的时候做。状态仍按间隔轮询。
+export function branchCompareDue(
+  refresh: boolean,
+  status: WorkspaceRepositoryStatus,
+  previous: ObservedHead | undefined
+): boolean {
+  const ref = status.compareTarget.ref
+  if (!ref || status.uninitialized) {
+    return false
+  }
+  if (refresh || !previous) {
+    return true
+  }
+  return previous.head !== status.head || previous.ref !== ref
+}
+
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
     if (signal.aborted) {
@@ -86,6 +104,7 @@ export function useWorkspaceRepositoryPoll(args: {
     const signal = controller.signal
     let backoff = WORKSPACE_REPOSITORY_POLL_BACKOFF_START_MS
     let first = true
+    const observed = new Map<string, ObservedHead>()
     const worktree = toRuntimeWorktreeSelector(worktreeId)
 
     const cycle = async (): Promise<void> => {
@@ -116,7 +135,8 @@ export function useWorkspaceRepositoryPoll(args: {
                 {
                   worktree,
                   repositoryPath: repository.repositoryPath,
-                  admissionTier: 'status'
+                  admissionTier: 'status',
+                  ...(refresh ? { refresh: true } : {})
                 },
                 signal
               )
@@ -125,7 +145,8 @@ export function useWorkspaceRepositoryPoll(args: {
               }
               setStatuses((prev) => ({ ...prev, [repository.repositoryPath]: status }))
               const ref = status.compareTarget.ref
-              if (!ref || status.uninitialized) {
+              const due = branchCompareDue(refresh, status, observed.get(repository.repositoryPath))
+              if (!due || !ref) {
                 return
               }
               const compare = await callWorkspaceGit<GitBranchCompareResult>(
@@ -140,6 +161,7 @@ export function useWorkspaceRepositoryPoll(args: {
                 signal
               )
               if (!signal.aborted) {
+                observed.set(repository.repositoryPath, { head: status.head, ref })
                 setCompares((prev) => ({ ...prev, [repository.repositoryPath]: compare }))
               }
             } catch {

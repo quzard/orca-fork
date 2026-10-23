@@ -111,6 +111,57 @@ describe('source control scope switch', () => {
     expect(mocks.callRuntimeRpc).not.toHaveBeenCalled()
   })
 
+  it('asks the SSH host Orca when that environment has the capability', async () => {
+    mocks.supports.mockResolvedValue(true)
+    await render(
+      <ForkSourceControlScope
+        upstream={<div data-testid="upstream" />}
+        model={model({ kind: 'environment', environmentId: 'env-ssh' })}
+      />
+    )
+    const button = container.querySelector(
+      `[data-testid="${SOURCE_CONTROL_SCOPE_WORKSPACE_TEST_ID}"]`
+    ) as HTMLButtonElement
+    await vi.waitFor(() => expect(button.disabled).toBe(false))
+    await act(async () => {
+      button.click()
+    })
+    await vi.waitFor(() => expect(mocks.callRuntimeRpc).toHaveBeenCalled())
+    expect(mocks.callRuntimeRpc).toHaveBeenCalledWith(
+      { kind: 'environment', environmentId: 'env-ssh' },
+      FORK_GIT_WORKSPACE_REPOSITORIES_METHOD,
+      expect.objectContaining({ worktree: 'id:wt-1', refresh: false }),
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
+  })
+
+  it('greys out a desktop SSH repo and sends nothing', async () => {
+    await render(
+      <ForkSourceControlScope
+        upstream={<div data-testid="upstream" />}
+        model={{
+          ...model({ kind: 'local' }),
+          activeRepoExecutionHostId: 'ssh:box',
+          activeConnectionId: 'box'
+        }}
+      />
+    )
+    const workspace = container.querySelector(
+      `[data-testid="${SOURCE_CONTROL_SCOPE_WORKSPACE_TEST_ID}"]`
+    ) as HTMLButtonElement
+    expect(workspace.disabled).toBe(true)
+    expect(
+      container.querySelector(`[data-testid="${SOURCE_CONTROL_SCOPE_UPDATE_HOST_TEST_ID}"]`)
+        ?.textContent
+    ).toContain('SSH')
+    await act(async () => {
+      workspace.click()
+    })
+    expect(mocks.supports).not.toHaveBeenCalled()
+    expect(mocks.callRuntimeRpc).not.toHaveBeenCalled()
+    expect(container.querySelector('[data-testid="upstream"]')).not.toBeNull()
+  })
+
   it('greys out the switch and sends nothing when the host lacks the capability', async () => {
     mocks.supports.mockResolvedValue(false)
     localStorage.setItem(SOURCE_CONTROL_SCOPE_STORAGE_KEY, JSON.stringify({ 'wt-1': 'workspace' }))

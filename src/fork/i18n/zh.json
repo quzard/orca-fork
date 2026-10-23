@@ -29,6 +29,7 @@
       },
       "scope": {
         "current": "当前仓库",
+        "remoteHost": "这台电脑不能读取 SSH 主机上的嵌套仓库。请用那台主机上的 Orca。",
         "updateHost": "请先更新这台主机，才能查看嵌套仓库",
         "workspace": "工作区仓库"
       },

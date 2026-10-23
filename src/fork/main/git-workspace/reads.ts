@@ -4,6 +4,7 @@ import type { GitBranchCompareResult, GitDiffResult } from '../../../shared/git-
 import { getBranchDiff } from '../../../main/git/status'
 import {
   localGitOptionsForTarget,
+  requireLocalRuntimeGitRoute,
   requireRuntimeGitProvider,
   type RuntimeGitTarget
 } from '../../../main/runtime/runtime-git-command-target'
@@ -36,13 +37,20 @@ function providerFor(target: RuntimeGitTarget, signal?: AbortSignal) {
   })
 }
 
+async function ownedTarget(worktree: string): Promise<RuntimeGitTarget> {
+  const target = await forkGitTargetResolver()(worktree)
+  // ssh: 和 runtime: 的仓库不在这台机器上。先拒绝，避免用远端路径扫客户端磁盘。
+  requireLocalRuntimeGitRoute(target)
+  return target
+}
+
 async function openRepository(
   worktree: string,
   repositoryPath: string,
   refresh: boolean,
   signal?: AbortSignal
 ) {
-  const target = await forkGitTargetResolver()(worktree)
+  const target = await ownedTarget(worktree)
   const gitOptions = localGitOptionsForTarget(target)
   const discovery = await discoverWorkspaceRepositories(target.worktree.path, {
     gitOptions,
@@ -71,7 +79,7 @@ export async function listWorkspaceRepositories(
   refresh: boolean,
   signal?: AbortSignal
 ): Promise<WorkspaceRepositoryList> {
-  const target = await forkGitTargetResolver()(worktree)
+  const target = await ownedTarget(worktree)
   return discoverWorkspaceRepositories(target.worktree.path, {
     gitOptions: localGitOptionsForTarget(target),
     refresh,
@@ -83,7 +91,8 @@ export async function readWorkspaceRepositoryStatus(
   worktree: string,
   repositoryPath: string,
   admissionTier: 'interactive' | 'status' | 'background' | undefined,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  refresh = false
 ): Promise<WorkspaceRepositoryStatus> {
   const opened = await openRepository(worktree, repositoryPath, false, signal)
   if (opened.entry.uninitialized) {
@@ -106,7 +115,9 @@ export async function readWorkspaceRepositoryStatus(
     store: CompareTargetStore.fromUserData(),
     key: compareKey(opened.target, opened.entry.repositoryPath, branch ?? ''),
     repoAbsolutePath: opened.entry.realPath,
-    gitOptions: opened.gitOptions
+    gitOptions: opened.gitOptions,
+    head: status.head ?? null,
+    refresh
   })
   return {
     repositoryPath: opened.entry.repositoryPath,
@@ -200,7 +211,7 @@ export async function writeWorkspaceCompareTarget(
   ref: string | null
 ): Promise<{ repositoryPath: string; branch: string; ref: string | null }> {
   const opened = await openRepository(worktree, repositoryPath, false)
-  CompareTargetStore.fromUserData().set(
+  await CompareTargetStore.fromUserData().set(
     compareKey(opened.target, opened.entry.repositoryPath, branch),
     ref
   )

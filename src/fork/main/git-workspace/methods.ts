@@ -41,7 +41,8 @@ export const FORK_GIT_WORKSPACE_METHODS = [
         params.worktree,
         params.repositoryPath,
         params.admissionTier,
-        signal
+        signal,
+        params.refresh === true
       )
   }),
   defineMethod({

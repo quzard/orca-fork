@@ -13,7 +13,8 @@ import {
 } from '../../shared/fork-hooks/workspace-repository-diff'
 import {
   FORK_GIT_WORKSPACE_BRANCH_DIFF_METHOD,
-  FORK_GIT_WORKSPACE_DIFF_METHOD
+  FORK_GIT_WORKSPACE_DIFF_METHOD,
+  FORK_GIT_WORKSPACE_REPOSITORIES_METHOD
 } from '../git-workspace/constants'
 import {
   clearDiscoveredRepositoriesForTests,
@@ -155,7 +156,7 @@ describe('nested repository diff hook', () => {
     expect(mocks.callRuntimeRpc).not.toHaveBeenCalled()
   })
 
-  it('does not take over a commit diff or a cold cache', async () => {
+  it('does not take over a commit diff', async () => {
     await act(async () => {
       await load!(
         file({
@@ -174,20 +175,82 @@ describe('nested repository diff hook', () => {
     })
     expect(mocks.getRuntimeGitCommitDiff).toHaveBeenCalled()
     expect(mocks.callRuntimeRpc).not.toHaveBeenCalled()
+  })
 
+  it('discovers a nested file before reading its diff when the cache is cold', async () => {
     clearDiscoveredRepositoriesForTests()
-    mocks.getRuntimeGitDiff.mockClear()
+    mocks.callRuntimeRpc.mockImplementation(async (_target: unknown, method: string) => {
+      if (method === FORK_GIT_WORKSPACE_REPOSITORIES_METHOD) {
+        return {
+          repositories: [
+            {
+              repositoryPath: 'libs/core',
+              kind: 'nested',
+              uninitialized: false,
+              depth: 2,
+              realPath: '/ws/libs/core'
+            }
+          ],
+          truncated: false,
+          timedOut: false
+        }
+      }
+      return diffBody
+    })
     await act(async () => {
       await load!(
         file({
-          id: 'file-2',
           filePath: '/ws/libs/core/src/a.ts',
           relativePath: 'libs/core/src/a.ts'
         })
       )
     })
+    expect(mocks.callRuntimeRpc).toHaveBeenCalledWith(
+      { kind: 'local' },
+      FORK_GIT_WORKSPACE_REPOSITORIES_METHOD,
+      expect.objectContaining({ worktree: 'id:wt-1', refresh: false }),
+      {}
+    )
+    expect(mocks.callRuntimeRpc).toHaveBeenCalledWith(
+      { kind: 'local' },
+      FORK_GIT_WORKSPACE_DIFF_METHOD,
+      expect.objectContaining({ repositoryPath: 'libs/core', filePath: 'src/a.ts' }),
+      {}
+    )
+    expect(mocks.getRuntimeGitDiff).not.toHaveBeenCalled()
+  })
+
+  it('keeps a root file on the upstream diff after a cold discovery', async () => {
+    clearDiscoveredRepositoriesForTests()
+    mocks.callRuntimeRpc.mockResolvedValue({
+      repositories: [
+        {
+          repositoryPath: 'libs/core',
+          kind: 'nested',
+          uninitialized: false,
+          depth: 2,
+          realPath: '/ws/libs/core'
+        }
+      ],
+      truncated: false,
+      timedOut: false
+    })
+    await act(async () => {
+      await load!(file({ id: 'file-2' }))
+    })
+    expect(mocks.callRuntimeRpc).toHaveBeenCalledWith(
+      { kind: 'local' },
+      FORK_GIT_WORKSPACE_REPOSITORIES_METHOD,
+      expect.objectContaining({ worktree: 'id:wt-1' }),
+      {}
+    )
     expect(mocks.getRuntimeGitDiff).toHaveBeenCalled()
-    expect(mocks.callRuntimeRpc).not.toHaveBeenCalled()
+    expect(mocks.callRuntimeRpc).not.toHaveBeenCalledWith(
+      { kind: 'local' },
+      FORK_GIT_WORKSPACE_DIFF_METHOD,
+      expect.anything(),
+      expect.anything()
+    )
   })
 
   it('reads a nested branch diff through the fork method', async () => {

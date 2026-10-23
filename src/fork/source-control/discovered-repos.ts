@@ -13,7 +13,11 @@ export function clearDiscoveredRepositoriesForTests(): void {
   byWorktree.clear()
 }
 
-// 冷缓存返回 null：根文件继续走上游 diff，不在每次打开时再发发现请求。
+export function hasDiscoveredRepositories(worktreeId: string): boolean {
+  return byWorktree.has(worktreeId)
+}
+
+// 还没扫过这个工作区时返回 null 的是「没有记录」，不是「路径不在嵌套仓库里」。
 export function repositoryForRootRelativePath(
   worktreeId: string,
   relativePath: string

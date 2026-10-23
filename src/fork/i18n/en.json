@@ -29,6 +29,7 @@
       },
       "scope": {
         "current": "Current repo",
+        "remoteHost": "This computer can't read nested repositories on an SSH host. Use that host's Orca.",
         "updateHost": "Update the host to compare nested repositories",
         "workspace": "Workspace repos"
       },

@@ -7,6 +7,8 @@ export type SourceControlScopeModel = {
   worktreePath?: string | null
   rightSidebarTab?: string
   activeRepoTarget?: RuntimeClientTarget | null
+  activeRepoExecutionHostId?: string | null
+  activeConnectionId?: string | null
 }
 
 type SourceControlScopeRenderer = (upstream: ReactNode, model: SourceControlScopeModel) => ReactNode

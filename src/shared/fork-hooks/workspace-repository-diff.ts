@@ -18,6 +18,8 @@ export type WorkspaceRepositoryDiffInput = {
     headOid?: string | null
     mergeBase?: string | null
   } | null
+  // 发现结果说这不是嵌套仓库时，用上游读取。冷缓存不能先返回 null，否则会拿根仓库去 diff。
+  readUpstream: () => Promise<unknown>
 }
 
 type WorkspaceRepositoryDiffReader = (

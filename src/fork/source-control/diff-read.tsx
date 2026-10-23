@@ -2,9 +2,15 @@ import { toRuntimeWorktreeSelector } from '@/runtime/runtime-worktree-selector'
 import type { WorkspaceRepositoryDiffInput } from '../../shared/fork-hooks/workspace-repository-diff'
 import {
   FORK_GIT_WORKSPACE_BRANCH_DIFF_METHOD,
-  FORK_GIT_WORKSPACE_DIFF_METHOD
+  FORK_GIT_WORKSPACE_DIFF_METHOD,
+  FORK_GIT_WORKSPACE_REPOSITORIES_METHOD
 } from '../git-workspace/constants'
-import { repositoryForRootRelativePath } from './discovered-repos'
+import type { WorkspaceRepositoryList } from '../git-workspace/types'
+import {
+  hasDiscoveredRepositories,
+  rememberDiscoveredRepositories,
+  repositoryForRootRelativePath
+} from './discovered-repos'
 import { callWorkspaceGit } from './rpc-client'
 
 function oldPathInside(repositoryPath: string, oldPath: string | undefined): string | undefined {
@@ -16,21 +22,10 @@ function oldPathInside(repositoryPath: string, oldPath: string | undefined): str
   return normalized.startsWith(prefix) ? normalized.slice(prefix.length) : undefined
 }
 
-// 同步返回。未命中嵌套仓库时是 null，调用方不额外 await。
-export function readNestedRepositoryDiff(
-  input: WorkspaceRepositoryDiffInput
+function readMatchedDiff(
+  input: WorkspaceRepositoryDiffInput,
+  match: { repositoryPath: string; filePath: string }
 ): Promise<unknown> | null {
-  if (
-    !input.effectiveDiffSource ||
-    input.effectiveDiffSource === 'commit' ||
-    input.effectiveDiffSource.startsWith('combined')
-  ) {
-    return null
-  }
-  const match = repositoryForRootRelativePath(input.file.worktreeId, input.file.relativePath)
-  if (!match) {
-    return null
-  }
   const worktree = toRuntimeWorktreeSelector(input.file.worktreeId)
   if (input.effectiveDiffSource === 'branch') {
     const compare = input.branchCompare
@@ -58,4 +53,37 @@ export function readNestedRepositoryDiff(
     staged: input.effectiveDiffSource === 'staged',
     compareAgainstHead: input.compareAgainstHead
   })
+}
+
+async function discoverThenRead(input: WorkspaceRepositoryDiffInput): Promise<unknown> {
+  const list = await callWorkspaceGit<WorkspaceRepositoryList>(
+    input.target,
+    FORK_GIT_WORKSPACE_REPOSITORIES_METHOD,
+    { worktree: toRuntimeWorktreeSelector(input.file.worktreeId), refresh: false }
+  )
+  rememberDiscoveredRepositories(input.file.worktreeId, list.repositories)
+  const match = repositoryForRootRelativePath(input.file.worktreeId, input.file.relativePath)
+  // 发现失败不能退回根仓库。只有确认不在嵌套仓库里才用上游读取。
+  if (!match) {
+    return input.readUpstream()
+  }
+  return readMatchedDiff(input, match) ?? input.readUpstream()
+}
+
+// 提交 diff 和已经扫过、确定不在嵌套仓库里的路径同步返回 null。缓存是冷的时先发现。
+export function readNestedRepositoryDiff(
+  input: WorkspaceRepositoryDiffInput
+): Promise<unknown> | null {
+  if (
+    !input.effectiveDiffSource ||
+    input.effectiveDiffSource === 'commit' ||
+    input.effectiveDiffSource.startsWith('combined')
+  ) {
+    return null
+  }
+  if (!hasDiscoveredRepositories(input.file.worktreeId)) {
+    return discoverThenRead(input)
+  }
+  const match = repositoryForRootRelativePath(input.file.worktreeId, input.file.relativePath)
+  return match ? readMatchedDiff(input, match) : null
 }

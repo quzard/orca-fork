@@ -126,6 +126,8 @@ git 目标解析器在 `runtime-construction.ts` 里绑定。`resolveRuntimeGitT
 
 这一步只读。暂存、取消暂存和提交留到下一步。
 
+`ssh:` 和 `runtime:` 的工作区在读任何文件之前就拒绝：桌面进程不能按远端路径扫自己的磁盘。托管 SSH 主机的请求目标是 `environment`，方法在那台主机的 orcad 上执行，开关等能力探测通过再打开。桌面上直接标成 `ssh:` 的仓库扫不了，开关灰掉并说明要用那台主机上的 Orca。默认比较目标按仓库、分支和 HEAD 记住，手动刷新或 HEAD 变了才重算；分支比较也只在这时候做，未提交状态仍在面板可见时按间隔轮询。比较目标的写入在进程内排队，再原子改名。diff 标签如果还没发现过嵌套仓库，会先要一份清单，确认路径落在某个仓库里才读那份 diff，不会退回根仓库。
+
 ## F041 普通目录的终端生命周期
 
 `folder:<id>` 在 `resolveWorktreeSelector` 之前解析。没有这个文件夹时仍抛 `selector_not_found`。`stopExact` 把该结果放进存活刷新用的工作区列表，因为文件夹不在原来的 resolved map 里。

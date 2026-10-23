@@ -73,6 +73,23 @@ function compare(ahead: number, behind: number): GitBranchCompareResult {
   }
 }
 
+function finishedCompare(
+  status: 'loading' | 'error' | 'invalid-base' | 'unborn-head' | 'no-merge-base'
+): GitBranchCompareResult {
+  return {
+    summary: {
+      baseRef: 'origin/main',
+      baseOid: null,
+      compareRef: 'HEAD',
+      headOid: 'abc',
+      mergeBase: null,
+      changedFiles: 0,
+      status
+    },
+    entries: []
+  }
+}
+
 function groups(args: {
   statuses: Record<string, WorkspaceRepositoryStatus>
   compares: Record<string, GitBranchCompareResult>
@@ -256,6 +273,45 @@ describe('workspace repository groups', () => {
         .querySelector(`[data-testid="${SOURCE_CONTROL_ONLY_CHANGED_TEST_ID}"]`)
         ?.getAttribute('aria-pressed')
     ).toBe('true')
+    expect(repoPaths()).toEqual(['demo-web'])
+  })
+
+  it('keeps a root gitlink as a change and drops a finished compare that is not ready', async () => {
+    localStorage.setItem(SOURCE_CONTROL_ONLY_CHANGED_STORAGE_KEY, '1')
+    await render(
+      groups({
+        statuses: {
+          '': status('', ['demo-api']),
+          'demo-api': status('demo-api', []),
+          'demo-web': status('demo-web', [])
+        },
+        compares: {
+          '': finishedCompare('error'),
+          'demo-api': finishedCompare('loading'),
+          'demo-web': finishedCompare('invalid-base')
+        },
+        extra: [record('demo-console')]
+      })
+    )
+    // 根上的 gitlink 条目算有改动，比较出错也留着。还在 loading、以及还没有状态的仓库留着。
+    // 没有未提交文件、比较已经失败的 demo-web 去掉。
+    expect(repoPaths()).toEqual(['.', 'demo-api', 'demo-console'])
+    expect(header('.').getAttribute('aria-expanded')).toBe('true')
+    expect(header('.').textContent).toContain('1 changed')
+    await render(
+      groups({
+        statuses: {
+          '': status('', []),
+          'demo-api': status('demo-api', []),
+          'demo-web': status('demo-web', [])
+        },
+        compares: {
+          '': finishedCompare('unborn-head'),
+          'demo-api': finishedCompare('no-merge-base'),
+          'demo-web': finishedCompare('loading')
+        }
+      })
+    )
     expect(repoPaths()).toEqual(['demo-web'])
   })
 })

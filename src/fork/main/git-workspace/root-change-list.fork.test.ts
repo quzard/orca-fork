@@ -10,6 +10,7 @@ import {
   setAppEnvironment
 } from '../../../shared/app-environment'
 import type { RuntimeGitTarget } from '../../../main/runtime/runtime-git-command-target'
+import { repositoryHasChanges } from '../../source-control/repo-order'
 import { bindForkGitTargetResolver, resetForkGitTargetResolverForTests } from './bind-target'
 import { clearWorkspaceRepositoryDiscoveryCache } from './discover'
 import { readWorkspaceRepositoryStatus } from './reads'
@@ -44,6 +45,32 @@ function norm(path: string): string {
   return path.replace(/\\/g, '/').replace(/\/+$/, '')
 }
 
+function openLocalWorkspace(ws: string): void {
+  bindForkGitTargetResolver(async () => {
+    const target = {
+      executionHostId: 'local' as const,
+      worktree: { path: ws, hostId: 'host-a' as const }
+    }
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: 本地 git 只读 path、hostId 和 executionHostId。
+    return target as unknown as RuntimeGitTarget
+  })
+}
+
+function registerCheckedOutSubmodule(ws: string, name: string, source: string): void {
+  const oid = execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: source,
+    encoding: 'utf8'
+  }).trim()
+  writeFileSync(
+    join(ws, '.gitmodules'),
+    `[submodule "${name}"]\n\tpath = ${name}\n\turl = ../${name}-src\n`
+  )
+  git(ws, ['add', '.gitmodules'])
+  git(ws, ['update-index', '--add', '--cacheinfo', `160000,${oid},${name}`])
+  git(ws, ['commit', '-m', `add ${name}`])
+  git(ws, ['-c', 'protocol.file.allow=always', 'clone', source, name])
+}
+
 describe('root repository change list', () => {
   let root = ''
   let previous: AppEnvironment | null = null
@@ -73,14 +100,7 @@ describe('root repository change list', () => {
     writeFileSync(join(ws, 'README'), 'ok\nedit\n')
     writeFileSync(join(ws, 'task-demo.txt'), 'keep\n')
     writeFileSync(join(ws, 'demo-api-notes.txt'), 'prefix\n')
-    bindForkGitTargetResolver(async () => {
-      const target = {
-        executionHostId: 'local' as const,
-        worktree: { path: ws, hostId: 'host-a' as const }
-      }
-      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: 本地 git 只读 path、hostId 和 executionHostId。
-      return target as unknown as RuntimeGitTarget
-    })
+    openLocalWorkspace(ws)
 
     const rootStatus = await readWorkspaceRepositoryStatus(ws, '', 'status')
     const paths = rootStatus.entries.map((entry) => norm(entry.path))
@@ -92,5 +112,47 @@ describe('root repository change list', () => {
 
     const nested = await readWorkspaceRepositoryStatus(ws, 'demo-api', 'status')
     expect(nested.entries.map((entry) => entry.path)).toContain('local.txt')
+  }, 120_000)
+
+  it('keeps a registered submodule gitlink and still hides a plain nested repo', async () => {
+    root = mkdtempSync(join(tmpdir(), 'orca-root-gitlink-'))
+    previous = hasAppEnvironment() ? getAppEnvironment() : null
+    setAppEnvironment(appEnvironment(join(root, 'user-data')))
+    const source = join(root, 'demo-api-src')
+    initRepo(source)
+    const ws = join(root, 'task-demo')
+    initRepo(ws)
+    registerCheckedOutSubmodule(ws, 'demo-api', source)
+    writeFileSync(join(ws, 'demo-api', 'lib.txt'), 'next\n')
+    git(join(ws, 'demo-api'), ['add', 'lib.txt'])
+    git(join(ws, 'demo-api'), ['commit', '-m', 'lib'])
+    initRepo(join(ws, 'demo-console'))
+    writeFileSync(join(ws, 'task-demo.txt'), 'keep\n')
+    openLocalWorkspace(ws)
+
+    const unstaged = await readWorkspaceRepositoryStatus(ws, '', 'status')
+    const unstagedPaths = unstaged.entries.map((entry) => norm(entry.path))
+    const unstagedGitlink = unstaged.entries.find(
+      (entry) => norm(entry.path) === 'demo-api' && entry.area === 'unstaged'
+    )
+    expect(unstagedGitlink?.status).toBe('modified')
+    expect(unstagedPaths).toContain('task-demo.txt')
+    expect(unstagedPaths.some((path) => path === 'demo-console' || path.startsWith('demo-console/'))).toBe(
+      false
+    )
+    expect(repositoryHasChanges(unstaged, undefined)).toBe(true)
+
+    git(ws, ['add', 'demo-api'])
+    const staged = await readWorkspaceRepositoryStatus(ws, '', 'status')
+    const stagedPaths = staged.entries.map((entry) => norm(entry.path))
+    const stagedGitlink = staged.entries.find(
+      (entry) => norm(entry.path) === 'demo-api' && entry.area === 'staged'
+    )
+    expect(stagedGitlink?.status).toBe('modified')
+    expect(stagedPaths).toContain('task-demo.txt')
+    expect(stagedPaths.some((path) => path === 'demo-console' || path.startsWith('demo-console/'))).toBe(
+      false
+    )
+    expect(repositoryHasChanges(staged, undefined)).toBe(true)
   }, 120_000)
 })

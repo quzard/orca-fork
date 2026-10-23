@@ -16,7 +16,16 @@ export function repositoryHasChanges(
   return summary?.status === 'ready' && (summary.commitsAhead ?? 0) > 0
 }
 
-// 状态还没到，或比较还没算完时不算「确定没改动」，过滤开关先留着它。
+// 比较已经结束、但给不出领先数的终态。还在 loading 或结果没到时不算。
+const COMPARE_FINISHED_WITHOUT_AHEAD = new Set<GitBranchCompareResult['summary']['status']>([
+  'invalid-base',
+  'unborn-head',
+  'no-merge-base',
+  'error'
+])
+
+// 状态还没到，或比较还在算时不算「确定没改动」，过滤开关先留着它。
+// 比较已经失败或没有基线，且没有未提交文件，就当作没改动。
 export function repositoryKnownUnchanged(
   status: WorkspaceRepositoryStatus | undefined,
   compare: GitBranchCompareResult | undefined
@@ -28,7 +37,13 @@ export function repositoryKnownUnchanged(
     return true
   }
   const summary = compare?.summary
-  return summary?.status === 'ready' && (summary.commitsAhead ?? 0) === 0
+  if (!summary || summary.status === 'loading') {
+    return false
+  }
+  if (summary.status === 'ready') {
+    return (summary.commitsAhead ?? 0) === 0
+  }
+  return COMPARE_FINISHED_WITHOUT_AHEAD.has(summary.status)
 }
 
 function byPath(left: WorkspaceRepositoryRecord, right: WorkspaceRepositoryRecord): number {

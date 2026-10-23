@@ -142,7 +142,7 @@ export async function readWorkspaceRepositoryStatus(
     refresh
   })
   const baseOid = await baseCommitOid(opened.entry.realPath, compareTarget.ref, opened.gitOptions)
-  // 根仓库的状态会把已经单独成栏的嵌套仓库目录报成未跟踪。只去掉这些仓库根及其内部路径。
+  // 根仓库会把嵌套检出报成未跟踪目录。只去掉未跟踪条目；gitlink 指针仍算根仓库的改动。
   const entries =
     opened.entry.repositoryPath === ''
       ? omitNestedRepositoryEntries(

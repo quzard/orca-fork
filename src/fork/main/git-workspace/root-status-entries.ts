@@ -31,5 +31,8 @@ export function omitNestedRepositoryEntries(
   if (roots.length === 0) {
     return [...entries]
   }
-  return entries.filter((entry) => !entryBelongsToNestedRepository(entry.path, roots))
+  // 未跟踪的嵌套目录不是根仓库的改动。暂存或未暂存的 gitlink 是根上的子模块指针，要留着。
+  return entries.filter(
+    (entry) => entry.area !== 'untracked' || !entryBelongsToNestedRepository(entry.path, roots)
+  )
 }

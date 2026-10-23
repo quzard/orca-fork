@@ -98,6 +98,18 @@ function realPlan(worktreeId: string, filePath: string) {
   if (!plan) {
     throw new Error('preview plan unavailable')
   }
+  // 真实预览计划要读工作区根路径；终端链接替身原来没有这个方法。
+  Object.assign(storeState, {
+    getKnownWorktreeById: (id: string) => {
+      for (const list of Object.values(storeState.worktreesByRepo)) {
+        const found = list.find((entry) => entry.id === id)
+        if (found) {
+          return found
+        }
+      }
+      return undefined
+    }
+  })
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the terminal-link double carries the catalog fields getWorkspaceFilePreviewPlan reads.
   return plan(storeState as never, worktreeId, filePath)
 }

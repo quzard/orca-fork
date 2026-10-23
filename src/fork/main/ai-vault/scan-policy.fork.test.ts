@@ -3,8 +3,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { searchMessageRows } from '../../../main/ai-vault-search/session-search-message-rows'
-import { openSessionSearchDatabase } from '../../../main/ai-vault-search/session-search-schema'
 import {
+  openSessionSearchDatabase,
+  SESSION_SEARCH_SCHEMA_VERSION
+} from '../../../main/ai-vault-search/session-search-schema'
+import {
+  aiVaultSearchSchemaVersion,
   registerAiVaultServiceHeap,
   registerAiVaultToolIndexPolicy,
   resetAiVaultForkHooksForTests
@@ -51,7 +55,8 @@ describe('scan policy', () => {
       const version = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()
       const value =
         version && typeof version === 'object' && 'value' in version ? version.value : undefined
-      expect(value).toBe('7')
+      // 上游 schema 版本再加上 fork 的偏移，整段工具结果分块后索引要重建。
+      expect(value).toBe(String(aiVaultSearchSchemaVersion(SESSION_SEARCH_SCHEMA_VERSION)))
       db.close()
     } finally {
       await rm(root, { recursive: true, force: true })

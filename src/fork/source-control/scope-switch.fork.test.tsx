@@ -23,10 +23,6 @@ vi.mock('@/runtime/runtime-rpc-client', () => ({
   runtimeEnvironmentSupportsCapability: mocks.supports
 }))
 
-vi.mock('@/lib/workspace-file-open', () => ({
-  openWorkspaceFile: vi.fn()
-}))
-
 vi.mock('@/store', () => ({
   useAppStore: Object.assign(() => ({}), { getState: () => ({}) })
 }))

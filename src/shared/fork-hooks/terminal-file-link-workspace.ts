@@ -206,6 +206,25 @@ export function terminalFileLinkWorkspaceSearchEntries(): TerminalFileLinkWorksp
 }
 
 /**
+ * 开关打开时，工作区外的直接 SSH 绝对路径会带 externalSshTargetId。
+ * 文档预览会把这种路径当成可预览文档，所以这里改由编辑器打开源码。
+ * 路径在 SSH 工作区里面、或开关关闭时，返回 false，调用方仍走上游预览。
+ */
+export function terminalHtmlKeepsEditorSource(
+  connectionId: string | null | undefined,
+  localTarget: boolean,
+  insideWorktree: boolean,
+  escapesWorktree: boolean
+): boolean {
+  return (
+    terminalFileLinkKeepsCurrentWorkspace() &&
+    Boolean(connectionId) &&
+    localTarget &&
+    (escapesWorktree || !insideWorktree)
+  )
+}
+
+/**
  * 终端链接打开前决定留在当前工作区还是改挂。
  * 未留下时，路径在当前根里仍收成相对路径，和上游一样。
  */

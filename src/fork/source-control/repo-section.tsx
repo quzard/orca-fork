@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { openWorkspaceFile } from '@/lib/workspace-file-open'
+import { openUncommittedEntry } from '@/components/right-sidebar/source-control/listing/open-uncommitted-entry'
+import { detectLanguage } from '@/lib/language-detect'
+import { useAppStore } from '@/store'
 import type {
   GitBranchChangeEntry,
   GitBranchCompareResult
@@ -80,12 +82,11 @@ export function WorkspaceRepoSection({
     entries: (status?.entries ?? []).filter((entry) => entry.area === area)
   }))
   const branchEntries = summary?.status === 'ready' ? (compare?.entries ?? []) : []
+  // 上游删了 workspace-file-open。未提交走现在的打开入口，分支 diff 走 store；路径仍加上仓库相对前缀。
   const openUncommitted = (entry: GitStatusEntry): void => {
-    openWorkspaceFile({
-      kind: 'uncommitted',
-      worktreeId,
-      worktreePath,
-      entry: { ...entry, path: rootRelative(repository.repositoryPath, entry.path) }
+    openUncommittedEntry(useAppStore.getState(), worktreeId, worktreePath, {
+      ...entry,
+      path: rootRelative(repository.repositoryPath, entry.path)
     })
   }
   const openBranch = (entry: GitBranchChangeEntry): void => {
@@ -98,19 +99,18 @@ export function WorkspaceRepoSection({
     ) {
       return
     }
-    openWorkspaceFile({
-      kind: 'branch',
+    const path = rootRelative(repository.repositoryPath, entry.path)
+    useAppStore.getState().openBranchDiff(
       worktreeId,
       worktreePath,
-      entry: {
+      {
         ...entry,
-        path: rootRelative(repository.repositoryPath, entry.path),
-        ...(entry.oldPath
-          ? { oldPath: rootRelative(repository.repositoryPath, entry.oldPath) }
-          : {})
+        path,
+        ...(entry.oldPath ? { oldPath: rootRelative(repository.repositoryPath, entry.oldPath) } : {})
       },
-      compare: summary
-    })
+      summary,
+      detectLanguage(path)
+    )
   }
   return (
     <section

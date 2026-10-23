@@ -92,7 +92,7 @@ describe('fork skill source commit', () => {
   })
 
   it('keeps one pin, inside the CLI tree, and production CLI never imports src/fork', () => {
-    // The desktop app and the CLI read the same file; there is no second copy to drift.
+    // 桌面安装命令读这一份 pin。上游 CLI 改为拷贝内置技能文件，不再按提交克隆，handler 不必引用它。
     expect(existsSync('src/fork/skills-source-commit.ts')).toBe(false)
     expect(readFileSync('src/fork/register.ts', 'utf8')).toContain(
       "from '../cli/skills-source-commit'"
@@ -103,9 +103,6 @@ describe('fork skill source commit', () => {
     expect(
       readFileSync('src/renderer/src/lib/agent-feature-install-commands.ts', 'utf8')
     ).toContain("import '../../../cli/skills-source-commit'")
-    expect(readFileSync('src/cli/handlers/skills.ts', 'utf8')).toContain(
-      "from '../skills-source-commit'"
-    )
     expect(readFileSync('src/cli/index.ts', 'utf8')).not.toContain('../fork/')
     const leaks = cliProductionSources('src/cli').flatMap((path) =>
       runtimeSpecifiers(readFileSync(path, 'utf8'))

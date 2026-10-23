@@ -31,7 +31,8 @@ import { showOpenInGroupRefusedToast } from './terminal-file-open-in-group-toast
 import { isExplicitEditorScopeKept, openLinkedFileInEditor } from './terminal-file-link-editor-open'
 import {
   keepTerminalLinkInSource,
-  resolveKeptTerminalFileLinkTarget
+  resolveKeptTerminalFileLinkTarget,
+  terminalHtmlKeepsEditorSource
 } from '../../../../shared/fork-hooks/terminal-file-link-workspace'
 
 export {
@@ -260,14 +261,20 @@ export function openDetectedFilePath(
       }
       // Why: the same gesture renders remote HTML too, through the doc preview; only an
       // unsupported plan (e.g. a paired doc outside the worktree) falls back to source.
-      const plan = getWorkspaceFilePreviewPlan(useAppStore.getState(), worktreeId, mappedFilePath)
-      if (plan.status === 'doc-preview') {
-        if (refuseExplicitNonEditorRoute()) {
+      // 留在当前工作区的 SSH 绝对路径会带 externalSshTargetId，预览不接手。
+      if (!terminalHtmlKeepsEditorSource(
+        fileContext.connectionId, fileContext.target.kind === 'local',
+        isPathInsideWorktree(mappedFilePath, worktreePath), statResult.escapesWorktree
+      )) {
+        const plan = getWorkspaceFilePreviewPlan(useAppStore.getState(), worktreeId, mappedFilePath)
+        if (plan.status === 'doc-preview') {
+          if (refuseExplicitNonEditorRoute()) {
+            return
+          }
+          activateAndRevealWorktree(worktreeId, { providesInitialSurface: true })
+          openFileInBrowserTab({ filePath: mappedFilePath, worktreeId })
           return
         }
-        activateAndRevealWorktree(worktreeId, { providesInitialSurface: true })
-        openFileInBrowserTab({ filePath: mappedFilePath, worktreeId })
-        return
       }
     }
 

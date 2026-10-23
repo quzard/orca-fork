@@ -129,7 +129,8 @@ export function keepTerminalLinkInSource(input: {
 /**
  * 开关打开时，路径属于别的工作区、已经在别的工作区打开、或当前根下面还有更深的工作区拥有它，留在这里并只读。
  * 可编辑的那一份属于根最深的工作区。开关关闭时只做上游那次「别处已打开就改挂」，
- * 路径在当前根里（含正好等于根）仍返回 null。调用方把 findWorkspaceFileRoute 传进来，
+ * 路径在当前根里（含正好等于根）仍返回 null。当前根是空串时不当作包含该路径。
+ * 调用方把 findWorkspaceFileRoute 传进来，
  * 未登记钩子的测试也不会漏掉这次改挂。浮动工作区、授权文件返回 null。
  */
 export function resolveSiblingTerminalFileLink<State extends { openFiles: readonly OpenFileRef[] }>(
@@ -154,8 +155,9 @@ export function resolveSiblingTerminalFileLink<State extends { openFiles: readon
   const openElsewhere = store.openFiles.some(
     (file) => file.filePath === filePath && file.worktreeId !== sourceWorktreeId
   )
-  // null：不在这个根里。''：正好是根，点根仍走上游的激活。
-  const relative = relativePathInsideRoot(sourceWorktreePath, filePath)
+  // null：不在这个根里，或根是空的（空串会被当成「/」的前缀，把任何绝对路径收成相对路径）。
+  // ''：正好是根，点根仍走上游的激活。
+  const relative = sourceWorktreePath ? relativePathInsideRoot(sourceWorktreePath, filePath) : null
   if (terminalFileLinkKeepsCurrentWorkspace()) {
     if (relative !== null) {
       if (relative.length === 0) {

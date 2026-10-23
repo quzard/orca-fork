@@ -9,15 +9,26 @@ import {
   flushDoubleRaf,
   installTerminalLinkTestEnvironment
 } from '@/components/terminal-pane/terminal-link-handlers-test-harness'
+import type * as FilePreview from '@/lib/file-preview'
 import { registerTerminalFileLinkWorkspace } from '../../shared/fork-hooks/terminal-file-link-workspace'
 
 const previewPlan = vi.hoisted(() => vi.fn())
 const openPreview = vi.hoisted(() => vi.fn())
+const realPreviewPlan = vi.hoisted(() => {
+  const holder: { current?: typeof FilePreview.getWorkspaceFilePreviewPlan } = {}
+  return holder
+})
 
-vi.mock('@/lib/file-preview', () => ({
-  getWorkspaceFilePreviewPlan: previewPlan,
-  openFileInBrowserTab: openPreview
-}))
+vi.mock('@/lib/file-preview', async () => {
+  const actual = await vi.importActual<typeof FilePreview>('@/lib/file-preview')
+  realPreviewPlan.current = actual.getWorkspaceFilePreviewPlan
+  return {
+    getWorkspaceFilePreviewPlan: (...args: Parameters<typeof actual.getWorkspaceFilePreviewPlan>) =>
+      previewPlan(...args),
+    openFileInBrowserTab: (...args: Parameters<typeof actual.openFileInBrowserTab>) =>
+      openPreview(...args)
+  }
+})
 
 const findWorkspaceFileRouteMock = vi.hoisted(() => vi.fn())
 const doubles = createTerminalLinkTestDoubles()
@@ -80,6 +91,15 @@ function hostAnswers(result: unknown): void {
     result,
     _meta: { runtimeId: 'remote-runtime' }
   })
+}
+
+function realPlan(worktreeId: string, filePath: string) {
+  const plan = realPreviewPlan.current
+  if (!plan) {
+    throw new Error('preview plan unavailable')
+  }
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the terminal-link double carries the catalog fields getWorkspaceFilePreviewPlan reads.
+  return plan(storeState as never, worktreeId, filePath)
 }
 
 const previewUnsupported = {
@@ -375,8 +395,35 @@ describe('terminal file links stay in the clicked workspace', () => {
     expect(openFileMock.mock.calls[0]?.[0]).not.toHaveProperty('readOnly')
   })
 
-  it('opens a remote html file in the clicked workspace editor when preview cannot render it', async () => {
+  it('opens a remote html file in the clicked workspace editor when the real preview plan is outside the worktree', async () => {
     const filePath = '/home/me/.answer-me-with-html/pages/x.html'
+    storeState.repos = [
+      {
+        id: 'runtime-repo',
+        displayName: 'Runtime',
+        connectionId: null,
+        executionHostId: 'runtime:env-1'
+      }
+    ]
+    storeState.worktreesByRepo = {
+      'runtime-repo': [
+        {
+          id: 'wt-feat',
+          repoId: 'runtime-repo',
+          path: '/repo/.orca/worktrees/feat-x',
+          hostId: 'runtime:env-1'
+        }
+      ]
+    }
+    expect(realPlan('wt-feat', filePath)).toMatchObject({
+      status: 'unsupported',
+      reason: 'outside-worktree'
+    })
+    previewPlan.mockImplementation(
+      (state: never, worktreeId: string, path: string, clientLocal?: boolean) =>
+        realPreviewPlan.current?.(state, worktreeId, path, clientLocal)
+    )
+    openPreview.mockReturnValue({ status: 'doc-preview' })
     hostAnswers({
       worktree: 'folder:home',
       relativePath: '.answer-me-with-html/pages/x.html',
@@ -388,6 +435,7 @@ describe('terminal file links stay in the clicked workspace', () => {
     openDetectedFilePath(filePath, null, null, featureWorktree)
     await flushDoubleRaf()
 
+    expect(previewPlan).toHaveBeenCalled()
     expect(openPreview).not.toHaveBeenCalled()
     expect(activateAndRevealWorkspace).not.toHaveBeenCalledWith('folder:home', expect.anything())
     expect(openFileMock).toHaveBeenCalledWith(
@@ -402,12 +450,36 @@ describe('terminal file links stay in the clicked workspace', () => {
     )
   })
 
-  it('opens a remote SSH html path as source in the clicked workspace', async () => {
+  it('opens a remote SSH html path as source because the external target skips a doc preview', async () => {
     const filePath = '/home/me/.answer-me-with-html/pages/x.html'
     vi.mocked(getConnectionId).mockImplementation((worktreeId) =>
       worktreeId === 'wt-ssh' ? 'ssh-1' : null
     )
     findWorkspaceFileRouteMock.mockReturnValue(HOME_ROUTE)
+    storeState.repos = [
+      {
+        id: 'repo-ssh',
+        displayName: 'SSH',
+        connectionId: 'ssh-1',
+        executionHostId: 'ssh:ssh-1'
+      }
+    ]
+    storeState.worktreesByRepo = {
+      'repo-ssh': [
+        {
+          id: 'wt-ssh',
+          repoId: 'repo-ssh',
+          path: '/home/me/project',
+          hostId: 'ssh:ssh-1'
+        }
+      ]
+    }
+    expect(realPlan('wt-ssh', filePath)).toEqual({ status: 'doc-preview' })
+    previewPlan.mockImplementation(
+      (state: never, worktreeId: string, path: string, clientLocal?: boolean) =>
+        realPreviewPlan.current?.(state, worktreeId, path, clientLocal)
+    )
+    openPreview.mockReturnValue({ status: 'doc-preview' })
 
     openDetectedFilePath(filePath, null, null, {
       worktreeId: 'wt-ssh',
@@ -415,6 +487,7 @@ describe('terminal file links stay in the clicked workspace', () => {
     })
     await flushDoubleRaf()
 
+    expect(previewPlan).not.toHaveBeenCalled()
     expect(openPreview).not.toHaveBeenCalled()
     expect(activateAndRevealWorkspace).not.toHaveBeenCalledWith('folder:home', expect.anything())
     expect(openFileMock).toHaveBeenCalledWith(
@@ -548,5 +621,33 @@ describe('terminal file links follow the owning workspace when the setting is of
       { forceContentReload: true }
     )
     expect(openFileMock.mock.calls[0]?.[0]).not.toHaveProperty('readOnly')
+  })
+
+  it('still adopts a sibling when the clicked workspace has no path', async () => {
+    keepInCurrent = false
+    const filePath = '/a/b'
+    storeState.openFiles = [{ filePath, worktreeId: 'folder:notes' }]
+    findWorkspaceFileRouteMock.mockReturnValue({
+      worktreeId: 'folder:notes',
+      relativePath: 'b',
+      executionHostId: 'local'
+    })
+
+    openDetectedFilePath(filePath, null, null, { worktreeId: 'wt-1', worktreePath: '' })
+    await flushDoubleRaf()
+
+    expect(findWorkspaceFileRouteMock).toHaveBeenCalled()
+    expect(activateAndRevealWorkspace).toHaveBeenCalledWith('folder:notes', {
+      providesInitialSurface: true,
+      executionHostId: 'local'
+    })
+    expect(openFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath,
+        relativePath: 'b',
+        worktreeId: 'folder:notes'
+      }),
+      { forceContentReload: true }
+    )
   })
 })

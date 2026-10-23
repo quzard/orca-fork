@@ -11,6 +11,7 @@ type Copy = {
   worktreeId: string
   mode: 'edit'
   readOnly?: true
+  isDirty?: boolean
   externalSshTargetId?: string
   runtimeEnvironmentId?: string | null
 }
@@ -85,6 +86,64 @@ describe('shallower writable copies', () => {
       expect(next?.map((file) => file.readOnly)).toEqual([true, undefined])
       expect(next?.map((file) => file.id)).toEqual(['outer', 'inner'])
     }
+  })
+
+  it('leaves a dirty outer tab writable', () => {
+    const outer: Copy = {
+      id: 'outer',
+      filePath: FILE,
+      worktreeId: 'wt-home',
+      mode: 'edit',
+      isDirty: true
+    }
+    const inner: Copy = { id: 'inner', filePath: FILE, worktreeId: 'wt-nas', mode: 'edit' }
+
+    expect(demote([outer, inner])).toBeNull()
+    expect(loadTerminalFileLinkStay('wt-home', FILE)).toBe(false)
+  })
+
+  it('leaves an outer tab writable while it still holds a draft', () => {
+    const outer: Copy = { id: 'outer', filePath: FILE, worktreeId: 'wt-home', mode: 'edit' }
+    const inner: Copy = { id: 'inner', filePath: FILE, worktreeId: 'wt-nas', mode: 'edit' }
+
+    const next = demoteShallowerWritableCopies(
+      [outer, inner],
+      () => 'wt-nas',
+      hostOf,
+      (file) => file.id === 'outer'
+    )
+
+    expect(next).toBeNull()
+    expect(loadTerminalFileLinkStay('wt-home', FILE)).toBe(false)
+  })
+
+  it('demotes the outer tab once its edits are gone', () => {
+    const dirty: Copy = {
+      id: 'outer',
+      filePath: FILE,
+      worktreeId: 'wt-home',
+      mode: 'edit',
+      isDirty: true
+    }
+    const clean: Copy = { id: 'outer', filePath: FILE, worktreeId: 'wt-home', mode: 'edit' }
+    const inner: Copy = { id: 'inner', filePath: FILE, worktreeId: 'wt-nas', mode: 'edit' }
+
+    expect(demote([dirty, inner])).toBeNull()
+    expect(demote([clean, inner])).toEqual([{ ...clean, readOnly: true }, inner])
+  })
+
+  it('does not demote when the deeper tab is read-only', () => {
+    const outer: Copy = { id: 'outer', filePath: FILE, worktreeId: 'wt-home', mode: 'edit' }
+    const inner: Copy = {
+      id: 'inner',
+      filePath: FILE,
+      worktreeId: 'wt-nas',
+      mode: 'edit',
+      readOnly: true
+    }
+
+    expect(demote([outer, inner])).toBeNull()
+    expect(loadTerminalFileLinkStay('wt-home', FILE)).toBe(false)
   })
 
   it('does not demote a tab on a different host', () => {

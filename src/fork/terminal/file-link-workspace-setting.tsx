@@ -9,9 +9,13 @@ import {
   type TerminalFileLinkWorkspaceSearchEntry
 } from '../../shared/fork-hooks/terminal-file-link-workspace'
 import { forkTranslate } from '../i18n/fork-translate'
+import type { OpenFile } from '@/store/slices/editor'
 import { findWorkspaceFileRoute } from '@/lib/runtime-workspace-file-route'
 import { getOpenFileExecutionHostId } from '@/lib/unified-tab-host-ownership'
-import { demoteShallowerWritableCopies } from './file-link-nested-copy'
+import {
+  demoteShallowerWritableCopies,
+  terminalFileLinkCopyTouchedPaths
+} from './file-link-nested-copy'
 import { terminalFileLinksOpenInCurrentWorkspace } from './file-link-workspace'
 import {
   applyTerminalFileLinkStayStorageEvent,
@@ -71,21 +75,53 @@ export function terminalFileLinkWorkspaceSettingSearchEntries(): TerminalFileLin
 }
 
 let watchingClosedTabs = false
+let unwatchClosedTabs: (() => void) | undefined
+let stayStorageListener: ((event: StorageEvent) => void) | undefined
 
 export function resetTerminalFileLinkWorkspaceWatchForTests(): void {
+  unwatchClosedTabs?.()
+  unwatchClosedTabs = undefined
+  if (stayStorageListener && typeof window !== 'undefined') {
+    window.removeEventListener('storage', stayStorageListener)
+  }
+  stayStorageListener = undefined
   watchingClosedTabs = false
 }
 
-function applyShallowerCopyDemotion(state: AppState): boolean {
+function tabHasUnsavedEdits(state: AppState, file: OpenFile): boolean {
+  if (state.editorDrafts?.[file.id] !== undefined) {
+    return true
+  }
+  const recordId = state.editorBufferIdOf?.[file.id]
+  return recordId !== undefined && state.editorBuffers?.[recordId]?.isDirty === true
+}
+
+function applyShallowerCopyDemotion(
+  state: AppState,
+  previousFiles: readonly OpenFile[] | null,
+  previousDrafts: Record<string, string> | undefined
+): boolean {
   if (!terminalFileLinksOpenInCurrentWorkspace(state.settings)) {
     return false
   }
+  const touched =
+    previousFiles === null
+      ? null
+      : terminalFileLinkCopyTouchedPaths(
+          previousFiles,
+          state.openFiles,
+          previousDrafts,
+          state.editorDrafts
+        )
   const demoted =
     state.worktreesByRepo == null && state.folderWorkspaces == null
       ? null
       : demoteShallowerWritableCopies(
           state.openFiles,
           (file) => {
+            if (touched && !touched.has(file.filePath)) {
+              return null
+            }
             const route = findWorkspaceFileRoute(
               state,
               getOpenFileExecutionHostId(file),
@@ -93,7 +129,8 @@ function applyShallowerCopyDemotion(state: AppState): boolean {
             )
             return route && route.worktreeId !== file.worktreeId ? route.worktreeId : null
           },
-          getOpenFileExecutionHostId
+          getOpenFileExecutionHostId,
+          (file) => tabHasUnsavedEdits(state, file)
         )
   if (!demoted || typeof useAppStore.setState !== 'function') {
     return false
@@ -109,11 +146,13 @@ function watchClosedTerminalFileLinkStays(): void {
   watchingClosedTabs = true
   // 节点测试没有 window。网页里另一个标签页改了存储时，用那份记录替换缓存。
   if (typeof window !== 'undefined') {
-    window.addEventListener('storage', (event) => {
+    stayStorageListener = (event) => {
       applyTerminalFileLinkStayStorageEvent(event.key, event.newValue)
-    })
+    }
+    window.addEventListener('storage', stayStorageListener)
   }
   let openFiles = useAppStore.getState().openFiles
+  let drafts = useAppStore.getState().editorDrafts
   let pendingClosed: { worktreeId: string; filePath: string }[] = []
   let pruned = false
   const initial = useAppStore.getState()
@@ -121,18 +160,24 @@ function watchClosedTerminalFileLinkStays(): void {
     pruned = true
     pruneTerminalFileLinkStays(openFiles)
   }
-  if (applyShallowerCopyDemotion(initial)) {
+  if (applyShallowerCopyDemotion(initial, null, undefined)) {
     openFiles = useAppStore.getState().openFiles
+    drafts = useAppStore.getState().editorDrafts
   }
-  useAppStore.subscribe((state) => {
+  unwatchClosedTabs = useAppStore.subscribe((state) => {
     const hydrated = terminalFileLinkSessionHydrated(
       state.workspaceSessionReady,
       state.hydrationSucceeded
     )
-    if (shouldSkipTerminalFileLinkStaySync(state.openFiles === openFiles, hydrated, pruned)) {
+    const filesChanged = state.openFiles !== openFiles
+    const draftsChanged = state.editorDrafts !== drafts
+    if ((filesChanged || draftsChanged) && applyShallowerCopyDemotion(state, openFiles, drafts)) {
+      openFiles = useAppStore.getState().openFiles
+      drafts = useAppStore.getState().editorDrafts
       return
     }
-    if (applyShallowerCopyDemotion(state)) {
+    drafts = state.editorDrafts
+    if (shouldSkipTerminalFileLinkStaySync(!filesChanged, hydrated, pruned)) {
       return
     }
     const previous = openFiles

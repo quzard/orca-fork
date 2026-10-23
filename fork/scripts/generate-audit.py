@@ -26,7 +26,7 @@ st=[l.split('\t') for l in g('diff','--name-status',*against(REV)).splitlines()]
 FORKROOT=re.compile(r'^(src/fork/|fork/|docs/fork/|src/shared/fork-hooks/|FORK-CHANGES\.md)')
 FEAT=[('project-group','SB 侧栏/项目组'),('open-in','OPEN 打开方式'),('editor-launch','OPEN 打开方式'),('post-import','F003/F025 批量导入'),('composer','SB 新建工作区'),('quick-creation','SB 新建工作区'),('computer-use','F006 权限窗口'),('main.swift','F006 权限窗口'),('ai-vault','AIV 历史会话'),('AiVault','AIV 历史会话'),('session-scanner','AIV 历史会话'),
 ('ssh','SSH 状态'),('Ssh','SSH 状态'),('i18n','I18N 界面中文'),('skill','SKL 技能 pin'),('Skill','SKL 技能 pin'),
-('sidebar','SB 侧栏'),('Sidebar','SB 侧栏'),('worktree','SB 侧栏/工作区'),('Worktree','SB 侧栏/工作区'),('file-link-workspace','F046 终端文件链接'),('file-link-stay','F046 终端文件链接'),('workspace','SB 侧栏/工作区'),('Workspace','SB 侧栏/工作区'),('repo','SB 侧栏/工作区'),
+('sidebar','SB 侧栏'),('Sidebar','SB 侧栏'),('worktree','SB 侧栏/工作区'),('Worktree','SB 侧栏/工作区'),('file-link-nested','F046 终端文件链接'),('file-link-workspace','F046 终端文件链接'),('file-link-stay','F046 终端文件链接'),('workspace','SB 侧栏/工作区'),('Workspace','SB 侧栏/工作区'),('repo','SB 侧栏/工作区'),
 ('mac-auto-update','F040 Mac 构建发布'),('mac-release','F040 Mac 构建发布'),('publish-','F040 Mac 构建发布'),('install-mac','F040 Mac 构建发布'),('updater','UPD 应用内更新'),('update','UPD 应用内更新'),('terminal','TERM 终端'),('Terminal','TERM 终端'),('safe-storage','F038 密钥存储'),('secret','F038 密钥存储'),
 ('mac-','F040 Mac 构建发布'),('publish','F040 Mac 构建发布'),('install','F040 Mac 构建发布'),('release','F040 Mac 构建发布'),('daily-sync','F040 每日同步'),('sync','F040 每日同步'),
 ('node-runtime','F040 Node 运行时'),('packaging','F040 Mac 构建发布'),('electron-builder','F040 Mac 构建发布'),('directory-browse','F007（已移除，守护测试）')]

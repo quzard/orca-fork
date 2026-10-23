@@ -1,12 +1,20 @@
 // 启动失败会把 workspaceSessionReady 设上，但 hydrationSucceeded 仍是 false，不能把标记清掉。
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-type StayFile = { id: string; worktreeId: string; filePath: string }
+type StayFile = {
+  id: string
+  worktreeId: string
+  filePath: string
+  mode?: 'edit'
+  readOnly?: true
+}
 type StayState = {
   openFiles: StayFile[]
   workspaceSessionReady: boolean
   hydrationSucceeded: boolean
   settings: object
+  worktreesByRepo?: object
+  folderWorkspaces?: unknown[]
 }
 
 const listeners = new Set<(state: StayState) => void>()
@@ -19,9 +27,16 @@ function setState(partial: Partial<StayState>): void {
   }
 }
 
+const findRoute = vi.hoisted(() => vi.fn())
+
+vi.mock('@/lib/runtime-workspace-file-route', () => ({
+  findWorkspaceFileRoute: findRoute
+}))
+
 vi.mock('@/store', () => ({
   useAppStore: {
     getState: () => state,
+    setState: (partial: Partial<StayState>) => setState(partial),
     subscribe: (listener: (next: StayState) => void) => {
       listeners.add(listener)
       return () => {
@@ -39,7 +54,10 @@ vi.mock('@/components/settings/SettingsFormControls', () => ({
   SettingsSwitchRow: () => null
 }))
 
-import { registerTerminalFileLinkWorkspaceSetting } from './file-link-workspace-setting'
+import {
+  registerTerminalFileLinkWorkspaceSetting,
+  resetTerminalFileLinkWorkspaceWatchForTests
+} from './file-link-workspace-setting'
 import {
   loadTerminalFileLinkStay,
   resetTerminalFileLinkStayCacheForTests,
@@ -55,7 +73,10 @@ describe('terminal file-link stay hydration', () => {
   beforeEach(() => {
     storage.clear()
     resetTerminalFileLinkStayCacheForTests()
+    resetTerminalFileLinkWorkspaceWatchForTests()
     listeners.clear()
+    findRoute.mockReset()
+    findRoute.mockReturnValue(null)
     state = {
       openFiles: [],
       workspaceSessionReady: false,
@@ -93,5 +114,31 @@ describe('terminal file-link stay hydration', () => {
 
     setState({ openFiles: [{ id: 'other', worktreeId: 'wt-b', filePath: '/repo/b.ts' }] })
     expect(loadTerminalFileLinkStay(WORKTREE, PATH)).toBe(false)
+  })
+
+  it('demotes an older writable outer tab when the nested workspace opens the same path', () => {
+    registerTerminalFileLinkWorkspaceSetting()
+    findRoute.mockReturnValue({
+      worktreeId: 'wt-nas',
+      relativePath: 'x.txt',
+      executionHostId: 'local'
+    })
+    const filePath = '/Users/me/nas/x.txt'
+
+    setState({
+      worktreesByRepo: {},
+      folderWorkspaces: [],
+      openFiles: [
+        { id: 'outer', worktreeId: 'wt-home', filePath, mode: 'edit' },
+        { id: 'inner', worktreeId: 'wt-nas', filePath, mode: 'edit' }
+      ]
+    })
+
+    expect(state.openFiles.map((file) => [file.id, file.readOnly])).toEqual([
+      ['outer', true],
+      ['inner', undefined]
+    ])
+    expect(loadTerminalFileLinkStay('wt-home', filePath)).toBe(true)
+    expect(loadTerminalFileLinkStay('wt-nas', filePath)).toBe(false)
   })
 })

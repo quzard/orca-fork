@@ -233,14 +233,11 @@ export function openDetectedFilePath(
         ? toRuntimeExecutionHostId(runtimeOwnerId)
         : getConnectionExecutionHostId(fileContext.connectionId))
     let relativePath = mappedFilePath
-    if (worktreePath && isPathInsideWorktree(mappedFilePath, worktreePath)) {
-      const maybeRelative = toWorktreeRelativePath(mappedFilePath, worktreePath)
-      // Why: a link out of the project keeps its absolute path, so the tab reads it as the file
-      // the user named, before and after a restart, instead of being refused as a project file.
-      if (maybeRelative !== null && maybeRelative.length > 0 && !statResult.escapesWorktree) {
-        relativePath = maybeRelative
-      }
-    } else if (!keptOpen) {
+    const insideSource =
+      Boolean(worktreePath) &&
+      isPathInsideWorktree(mappedFilePath, worktreePath) &&
+      !statResult.escapesWorktree
+    if (!keptOpen) {
       const sibling = resolveSiblingTerminalFileLink(
         store,
         worktreeId,
@@ -255,6 +252,14 @@ export function openDetectedFilePath(
         targetWorktreeId = sibling.route.worktreeId
         targetExecutionHostId = sibling.route.executionHostId
         relativePath = sibling.route.relativePath
+      }
+    }
+    if (!keptOpen && insideSource) {
+      const maybeRelative = toWorktreeRelativePath(mappedFilePath, worktreePath)
+      // Why: a link out of the project keeps its absolute path, so the tab reads it as the file
+      // the user named, before and after a restart, instead of being refused as a project file.
+      if (maybeRelative !== null && maybeRelative.length > 0) {
+        relativePath = maybeRelative
       }
     }
 

@@ -11,6 +11,14 @@ import {
 } from '@/components/terminal-pane/terminal-link-handlers-test-harness'
 import { registerTerminalFileLinkWorkspace } from '../../shared/fork-hooks/terminal-file-link-workspace'
 
+const previewPlan = vi.hoisted(() => vi.fn())
+const openPreview = vi.hoisted(() => vi.fn())
+
+vi.mock('@/lib/file-preview', () => ({
+  getWorkspaceFilePreviewPlan: previewPlan,
+  openFileInBrowserTab: openPreview
+}))
+
 const findWorkspaceFileRouteMock = vi.hoisted(() => vi.fn())
 const doubles = createTerminalLinkTestDoubles()
 const { storeState, statMock, openFileMock, runtimeEnvironmentCallMock } = doubles
@@ -74,11 +82,21 @@ function hostAnswers(result: unknown): void {
   })
 }
 
+const previewUnsupported = {
+  status: 'unsupported' as const,
+  message: 'outside',
+  reason: 'outside-worktree' as const
+}
+
 beforeEach(() => {
   keepInCurrent = true
   remembered.length = 0
   findWorkspaceFileRouteMock.mockReset()
   findWorkspaceFileRouteMock.mockReturnValue(null)
+  previewPlan.mockReset()
+  previewPlan.mockReturnValue(previewUnsupported)
+  openPreview.mockReset()
+  openPreview.mockReturnValue(previewUnsupported)
 })
 
 describe('terminal file links stay in the clicked workspace', () => {
@@ -188,6 +206,229 @@ describe('terminal file links stay in the clicked workspace', () => {
     expect(remembered).toEqual([{ worktreeId: 'wt-1', filePath }])
   })
 
+  it('keeps a nested path read-only in the outer workspace, then opens it editable in the deeper one', async () => {
+    const filePath = '/Users/me/nas/x.txt'
+    const nested = {
+      worktreeId: 'wt-nas',
+      relativePath: 'x.txt',
+      executionHostId: 'local' as const
+    }
+    findWorkspaceFileRouteMock.mockReturnValue(nested)
+
+    openDetectedFilePath(filePath, null, null, {
+      worktreeId: 'wt-home',
+      worktreePath: '/Users/me'
+    })
+    await flushDoubleRaf()
+
+    expect(activateAndRevealWorkspace).not.toHaveBeenCalledWith('wt-nas', expect.anything())
+    expect(openFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath,
+        relativePath: filePath,
+        worktreeId: 'wt-home',
+        readOnly: true
+      }),
+      { forceContentReload: true }
+    )
+    expect(remembered).toEqual([{ worktreeId: 'wt-home', filePath }])
+
+    openFileMock.mockClear()
+    vi.mocked(activateAndRevealWorkspace).mockClear()
+    openDetectedFilePath(filePath, null, null, {
+      worktreeId: 'wt-nas',
+      worktreePath: '/Users/me/nas'
+    })
+    await flushDoubleRaf()
+
+    expect(openFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath,
+        relativePath: 'x.txt',
+        worktreeId: 'wt-nas'
+      }),
+      { forceContentReload: true }
+    )
+    expect(openFileMock.mock.calls[0]?.[0]).not.toHaveProperty('readOnly')
+    expect(remembered).toEqual([{ worktreeId: 'wt-home', filePath }])
+  })
+
+  it('still opens the nested workspace editable when the outer workspace already has the file', async () => {
+    const filePath = '/Users/me/nas/x.txt'
+    storeState.openFiles = [{ filePath, worktreeId: 'wt-home' }]
+    findWorkspaceFileRouteMock.mockReturnValue({
+      worktreeId: 'wt-nas',
+      relativePath: 'x.txt',
+      executionHostId: 'local'
+    })
+
+    openDetectedFilePath(filePath, null, null, {
+      worktreeId: 'wt-nas',
+      worktreePath: '/Users/me/nas'
+    })
+    await flushDoubleRaf()
+
+    expect(openFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath,
+        relativePath: 'x.txt',
+        worktreeId: 'wt-nas'
+      }),
+      { forceContentReload: true }
+    )
+    expect(openFileMock.mock.calls[0]?.[0]).not.toHaveProperty('readOnly')
+    expect(remembered).toEqual([])
+  })
+
+  it('keeps a nested SSH path read-only on the outer host, in either click order', async () => {
+    const filePath = '/home/me/nas/x.txt'
+    vi.mocked(getConnectionId).mockImplementation((worktreeId) =>
+      worktreeId === 'wt-ssh' || worktreeId === 'wt-ssh-nas' ? 'ssh-1' : null
+    )
+    findWorkspaceFileRouteMock.mockReturnValue({
+      worktreeId: 'wt-ssh-nas',
+      relativePath: 'x.txt',
+      executionHostId: 'ssh:ssh-1'
+    })
+
+    openDetectedFilePath(filePath, null, null, {
+      worktreeId: 'wt-ssh',
+      worktreePath: '/home/me'
+    })
+    await flushDoubleRaf()
+
+    expect(activateAndRevealWorkspace).not.toHaveBeenCalledWith('wt-ssh-nas', expect.anything())
+    expect(openFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath,
+        relativePath: filePath,
+        worktreeId: 'wt-ssh',
+        externalSshTargetId: 'ssh-1',
+        readOnly: true
+      }),
+      { forceContentReload: true }
+    )
+
+    openFileMock.mockClear()
+    storeState.openFiles = [{ filePath, worktreeId: 'wt-ssh' }]
+    openDetectedFilePath(filePath, null, null, {
+      worktreeId: 'wt-ssh-nas',
+      worktreePath: '/home/me/nas'
+    })
+    await flushDoubleRaf()
+
+    expect(openFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath,
+        relativePath: 'x.txt',
+        worktreeId: 'wt-ssh-nas'
+      }),
+      { forceContentReload: true }
+    )
+    expect(openFileMock.mock.calls[0]?.[0]).not.toHaveProperty('readOnly')
+  })
+
+  it('keeps a nested runtime path read-only on the outer workspace, in either click order', async () => {
+    const filePath = '/repo/.orca/worktrees/feat-x/vendor/a.ts'
+    findWorkspaceFileRouteMock.mockReturnValue({
+      worktreeId: 'wt-vendor',
+      relativePath: 'a.ts',
+      executionHostId: 'runtime:env-1'
+    })
+    hostAnswers({ size: 1, isDirectory: false, mtime: 1 })
+    hostAnswers({ size: 1, isDirectory: false, mtime: 1 })
+
+    openDetectedFilePath(filePath, null, null, featureWorktree)
+    await flushDoubleRaf()
+
+    expect(activateAndRevealWorkspace).not.toHaveBeenCalledWith('wt-vendor', expect.anything())
+    expect(openFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath,
+        relativePath: filePath,
+        worktreeId: 'wt-feat',
+        runtimeEnvironmentId: 'env-1',
+        readOnly: true
+      }),
+      { forceContentReload: true }
+    )
+    expect(remembered).toEqual([{ worktreeId: 'wt-feat', filePath }])
+
+    openFileMock.mockClear()
+    storeState.openFiles = [{ filePath, worktreeId: 'wt-feat' }]
+    openDetectedFilePath(filePath, null, null, {
+      worktreeId: 'wt-vendor',
+      worktreePath: '/repo/.orca/worktrees/feat-x/vendor',
+      runtimeEnvironmentId: 'env-1'
+    })
+    await flushDoubleRaf()
+
+    expect(openFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath,
+        relativePath: 'a.ts',
+        worktreeId: 'wt-vendor',
+        runtimeEnvironmentId: 'env-1'
+      }),
+      { forceContentReload: true }
+    )
+    expect(openFileMock.mock.calls[0]?.[0]).not.toHaveProperty('readOnly')
+  })
+
+  it('opens a remote html file in the clicked workspace editor when preview cannot render it', async () => {
+    const filePath = '/home/me/.answer-me-with-html/pages/x.html'
+    hostAnswers({
+      worktree: 'folder:home',
+      relativePath: '.answer-me-with-html/pages/x.html',
+      absolutePath: filePath,
+      exists: true,
+      isDirectory: false
+    })
+
+    openDetectedFilePath(filePath, null, null, featureWorktree)
+    await flushDoubleRaf()
+
+    expect(openPreview).not.toHaveBeenCalled()
+    expect(activateAndRevealWorkspace).not.toHaveBeenCalledWith('folder:home', expect.anything())
+    expect(openFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath,
+        relativePath: filePath,
+        worktreeId: 'wt-feat',
+        runtimeEnvironmentId: 'env-1',
+        readOnly: true
+      }),
+      { forceContentReload: true }
+    )
+  })
+
+  it('opens a remote SSH html path as source in the clicked workspace', async () => {
+    const filePath = '/home/me/.answer-me-with-html/pages/x.html'
+    vi.mocked(getConnectionId).mockImplementation((worktreeId) =>
+      worktreeId === 'wt-ssh' ? 'ssh-1' : null
+    )
+    findWorkspaceFileRouteMock.mockReturnValue(HOME_ROUTE)
+
+    openDetectedFilePath(filePath, null, null, {
+      worktreeId: 'wt-ssh',
+      worktreePath: '/home/me/project'
+    })
+    await flushDoubleRaf()
+
+    expect(openPreview).not.toHaveBeenCalled()
+    expect(activateAndRevealWorkspace).not.toHaveBeenCalledWith('folder:home', expect.anything())
+    expect(openFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath,
+        relativePath: filePath,
+        worktreeId: 'wt-ssh',
+        externalSshTargetId: 'ssh-1',
+        readOnly: true
+      }),
+      { forceContentReload: true }
+    )
+  })
+
   it('keeps a direct SSH link in the terminal workspace when another workspace contains the path', async () => {
     vi.mocked(getConnectionId).mockImplementation((worktreeId) =>
       worktreeId === 'wt-ssh' ? 'ssh-1' : null
@@ -279,5 +520,33 @@ describe('terminal file links follow the owning workspace when the setting is of
       }),
       { forceContentReload: true }
     )
+  })
+
+  it('keeps a nested path editable in the outer workspace', async () => {
+    keepInCurrent = false
+    const filePath = '/Users/me/nas/x.txt'
+    findWorkspaceFileRouteMock.mockReturnValue({
+      worktreeId: 'wt-nas',
+      relativePath: 'x.txt',
+      executionHostId: 'local'
+    })
+
+    openDetectedFilePath(filePath, null, null, {
+      worktreeId: 'wt-home',
+      worktreePath: '/Users/me'
+    })
+    await flushDoubleRaf()
+
+    expect(findWorkspaceFileRouteMock).not.toHaveBeenCalled()
+    expect(activateAndRevealWorkspace).not.toHaveBeenCalledWith('wt-nas', expect.anything())
+    expect(openFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath,
+        relativePath: 'nas/x.txt',
+        worktreeId: 'wt-home'
+      }),
+      { forceContentReload: true }
+    )
+    expect(openFileMock.mock.calls[0]?.[0]).not.toHaveProperty('readOnly')
   })
 })

@@ -2,12 +2,16 @@
 import { SearchableSetting } from '@/components/settings/SearchableSetting'
 import { SettingsSwitchRow } from '@/components/settings/SettingsFormControls'
 import { useAppStore } from '@/store'
+import type { AppState } from '@/store/types'
 import type { GlobalSettings } from '../../shared/global-settings-types'
 import {
   registerTerminalFileLinkWorkspace,
   type TerminalFileLinkWorkspaceSearchEntry
 } from '../../shared/fork-hooks/terminal-file-link-workspace'
 import { forkTranslate } from '../i18n/fork-translate'
+import { findWorkspaceFileRoute } from '@/lib/runtime-workspace-file-route'
+import { getOpenFileExecutionHostId } from '@/lib/unified-tab-host-ownership'
+import { demoteShallowerWritableCopies } from './file-link-nested-copy'
 import { terminalFileLinksOpenInCurrentWorkspace } from './file-link-workspace'
 import {
   applyTerminalFileLinkStayStorageEvent,
@@ -68,6 +72,36 @@ export function terminalFileLinkWorkspaceSettingSearchEntries(): TerminalFileLin
 
 let watchingClosedTabs = false
 
+export function resetTerminalFileLinkWorkspaceWatchForTests(): void {
+  watchingClosedTabs = false
+}
+
+function applyShallowerCopyDemotion(state: AppState): boolean {
+  if (!terminalFileLinksOpenInCurrentWorkspace(state.settings)) {
+    return false
+  }
+  const demoted =
+    state.worktreesByRepo == null && state.folderWorkspaces == null
+      ? null
+      : demoteShallowerWritableCopies(
+          state.openFiles,
+          (file) => {
+            const route = findWorkspaceFileRoute(
+              state,
+              getOpenFileExecutionHostId(file),
+              file.filePath
+            )
+            return route && route.worktreeId !== file.worktreeId ? route.worktreeId : null
+          },
+          getOpenFileExecutionHostId
+        )
+  if (!demoted || typeof useAppStore.setState !== 'function') {
+    return false
+  }
+  useAppStore.setState({ openFiles: demoted })
+  return true
+}
+
 function watchClosedTerminalFileLinkStays(): void {
   if (watchingClosedTabs) {
     return
@@ -87,12 +121,18 @@ function watchClosedTerminalFileLinkStays(): void {
     pruned = true
     pruneTerminalFileLinkStays(openFiles)
   }
+  if (applyShallowerCopyDemotion(initial)) {
+    openFiles = useAppStore.getState().openFiles
+  }
   useAppStore.subscribe((state) => {
     const hydrated = terminalFileLinkSessionHydrated(
       state.workspaceSessionReady,
       state.hydrationSucceeded
     )
     if (shouldSkipTerminalFileLinkStaySync(state.openFiles === openFiles, hydrated, pruned)) {
+      return
+    }
+    if (applyShallowerCopyDemotion(state)) {
       return
     }
     const previous = openFiles

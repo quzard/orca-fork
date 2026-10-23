@@ -20,10 +20,15 @@
         "untracked": "Untracked"
       },
       "loading": "Looking for repositories…",
+      "noChanges": "No repositories with changes.",
+      "onlyChanged": "Only show changed",
       "refresh": "Refresh",
       "repo": {
         "aheadBehind": "{{ahead}} ahead, {{behind}} behind",
+        "changeCount": "{{count}} changed",
         "noCompareTarget": "No compare target",
+        "other": "Other",
+        "otherCount": "{{count}} uninitialized",
         "root": "This workspace",
         "uninitialized": "Uninitialized submodule"
       },

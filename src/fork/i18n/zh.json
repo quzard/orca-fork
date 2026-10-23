@@ -20,10 +20,15 @@
         "untracked": "未跟踪"
       },
       "loading": "正在查找仓库…",
+      "noChanges": "没有仓库有改动。",
+      "onlyChanged": "只显示有改动的",
       "refresh": "刷新",
       "repo": {
         "aheadBehind": "领先 {{ahead}}，落后 {{behind}}",
+        "changeCount": "{{count}} 项改动",
         "noCompareTarget": "未设置比较目标",
+        "other": "其他",
+        "otherCount": "{{count}} 个未初始化",
         "root": "当前工作区",
         "uninitialized": "未初始化的子模块"
       },

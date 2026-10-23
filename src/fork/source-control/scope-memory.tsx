@@ -1,4 +1,5 @@
 import {
+  SOURCE_CONTROL_ONLY_CHANGED_STORAGE_KEY,
   SOURCE_CONTROL_SCOPE_CURRENT,
   SOURCE_CONTROL_SCOPE_STORAGE_KEY,
   SOURCE_CONTROL_SCOPE_WORKSPACE
@@ -34,4 +35,21 @@ export function writeSourceControlScope(worktreeId: string, scope: SourceControl
   const next = readMap()
   next[worktreeId] = scope
   localStorage.setItem(SOURCE_CONTROL_SCOPE_STORAGE_KEY, JSON.stringify(next))
+}
+
+// 整个面板一份，不按工作区分。缺省关。
+export function readOnlyShowChanged(): boolean {
+  try {
+    return localStorage.getItem(SOURCE_CONTROL_ONLY_CHANGED_STORAGE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+export function writeOnlyShowChanged(value: boolean): void {
+  try {
+    localStorage.setItem(SOURCE_CONTROL_ONLY_CHANGED_STORAGE_KEY, value ? '1' : '0')
+  } catch {
+    // 隐私模式写不进去时，这次会话里的开关状态仍然有效。
+  }
 }

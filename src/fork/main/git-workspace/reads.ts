@@ -17,6 +17,10 @@ import { resolveWorkspaceCompareTarget } from './compare-target'
 import { CompareTargetStore } from './compare-target-store'
 import { discoverWorkspaceRepositories } from './discover'
 import { assertFilePathInsideRepository, locateWorkspaceRepository } from './guard'
+import {
+  listedNestedRepositoryRoots,
+  omitNestedRepositoryEntries
+} from './root-status-entries'
 
 type RpcClient = {
   clientKind?: 'mobile' | 'runtime'
@@ -64,7 +68,7 @@ async function openRepository(
     repositoryPath,
     discovery.repositories
   )
-  return { target, gitOptions, entry }
+  return { target, gitOptions, entry, discovery }
 }
 
 async function baseCommitOid(
@@ -138,12 +142,20 @@ export async function readWorkspaceRepositoryStatus(
     refresh
   })
   const baseOid = await baseCommitOid(opened.entry.realPath, compareTarget.ref, opened.gitOptions)
+  // 根仓库的状态会把已经单独成栏的嵌套仓库目录报成未跟踪。只去掉这些仓库根及其内部路径。
+  const entries =
+    opened.entry.repositoryPath === ''
+      ? omitNestedRepositoryEntries(
+          status.entries,
+          listedNestedRepositoryRoots(opened.discovery.repositories)
+        )
+      : status.entries
   return {
     repositoryPath: opened.entry.repositoryPath,
     uninitialized: false,
     branch,
     head: status.head ?? null,
-    entries: status.entries,
+    entries,
     ...(status.upstreamStatus ? { upstreamStatus: status.upstreamStatus } : {}),
     ...(status.didHitLimit ? { didHitLimit: true } : {}),
     compareTarget,

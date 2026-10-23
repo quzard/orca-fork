@@ -8,9 +8,15 @@ import type {
   GitBranchCompareResult
 } from '../../shared/git-diff-compare-types'
 import type { GitStatusEntry } from '../../shared/git-status-types'
+import {
+  SOURCE_CONTROL_REPO_AHEAD_TEST_ID,
+  SOURCE_CONTROL_REPO_CHANGE_COUNT_TEST_ID,
+  SOURCE_CONTROL_REPO_TEST_ID
+} from '../git-workspace/constants'
 import type { WorkspaceRepositoryRecord, WorkspaceRepositoryStatus } from '../git-workspace/types'
 import { forkTranslate } from '../i18n/fork-translate'
 import { CompareTargetPicker } from './compare-picker'
+import { repositoryHasChanges } from './repo-order'
 
 function rootRelative(repositoryPath: string, filePath: string): string {
   return repositoryPath ? `${repositoryPath}/${filePath}` : filePath
@@ -41,7 +47,10 @@ export function WorkspaceRepoSection({
   worktreePath: string
   onCommitTarget: (repositoryPath: string, branch: string, ref: string | null) => void
 }): React.JSX.Element {
-  const [collapsed, setCollapsed] = useState(false)
+  // null 表示还没手动点过：有改动就展开，没改动就收起。点过之后不再跟着改动集合自动收起或展开。
+  const [choice, setChoice] = useState<'open' | 'closed' | null>(null)
+  const hasChanges = repositoryHasChanges(status, compare)
+  const open = choice === null ? hasChanges : choice === 'open'
   const label = repository.repositoryPath
     ? repository.repositoryPath
     : forkTranslate('fork.sourceControl.repo.root', 'This workspace')
@@ -58,6 +67,12 @@ export function WorkspaceRepoSection({
       ? forkTranslate('fork.sourceControl.repo.aheadBehind', '{{ahead}} ahead, {{behind}} behind', {
           ahead: summary.commitsAhead,
           behind: summary.commitsBehind
+        })
+      : null
+  const changeCount =
+    status && !status.uninitialized
+      ? forkTranslate('fork.sourceControl.repo.changeCount', '{{count}} changed', {
+          count: status.entries.length
         })
       : null
   const areas = (['staged', 'unstaged', 'untracked'] as const).map((area) => ({
@@ -98,24 +113,43 @@ export function WorkspaceRepoSection({
     })
   }
   return (
-    <section>
+    <section
+      data-testid={SOURCE_CONTROL_REPO_TEST_ID}
+      data-repository-path={repository.repositoryPath || '.'}
+    >
       <div className="px-1 pt-2">
         <Button
           type="button"
           variant="ghost"
           size="xs"
           className="h-auto min-h-6 w-full justify-start gap-1 py-0.5 text-left font-semibold text-foreground/70"
-          aria-expanded={!collapsed}
-          onClick={() => setCollapsed((value) => !value)}
+          aria-expanded={open}
+          onClick={() => setChoice(open ? 'closed' : 'open')}
         >
-          <ChevronDown className={cn('size-3.5 shrink-0', collapsed && '-rotate-90')} />
+          <ChevronDown className={cn('size-3.5 shrink-0', !open && '-rotate-90')} />
           <span className="min-w-0 flex-1 truncate" title={label}>
             {label}
             {branchLabel ? ` · ${branchLabel}` : ''}
           </span>
+          {changeCount ? (
+            <span
+              className="shrink-0 font-normal text-muted-foreground"
+              data-testid={SOURCE_CONTROL_REPO_CHANGE_COUNT_TEST_ID}
+            >
+              {changeCount}
+            </span>
+          ) : null}
+          {ahead ? (
+            <span
+              className="shrink-0 font-normal text-muted-foreground"
+              data-testid={SOURCE_CONTROL_REPO_AHEAD_TEST_ID}
+            >
+              {ahead}
+            </span>
+          ) : null}
         </Button>
       </div>
-      {collapsed ? null : (
+      {open ? (
         <div className="pb-1">
           {status?.uninitialized ? (
             <p className="px-3 text-xs text-muted-foreground">
@@ -127,7 +161,6 @@ export function WorkspaceRepoSection({
               {forkTranslate('fork.sourceControl.repo.noCompareTarget', 'No compare target')}
             </p>
           ) : null}
-          {ahead ? <p className="px-3 text-xs text-muted-foreground">{ahead}</p> : null}
           {areas.map((group) =>
             group.entries.length === 0 ? null : (
               <div key={group.area}>
@@ -175,7 +208,7 @@ export function WorkspaceRepoSection({
             />
           ) : null}
         </div>
-      )}
+      ) : null}
     </section>
   )
 }

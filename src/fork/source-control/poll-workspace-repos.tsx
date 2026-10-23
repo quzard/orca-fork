@@ -137,8 +137,9 @@ export function useWorkspaceRepositoryPoll(args: {
         }
         rememberDiscoveredRepositories(worktreeId, next.repositories)
         setList(next)
+        // 未初始化子模块收进「其他」，没有状态可查，不必逐个打 status。
         await mapPool(
-          next.repositories,
+          next.repositories.filter((repository) => !repository.uninitialized),
           WORKSPACE_REPOSITORY_POLL_CONCURRENCY,
           signal,
           async (repository) => {

@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -33,56 +33,50 @@ describe('workspace repository discovery', () => {
 
   async function layout(): Promise<string> {
     root = mkdtempSync(join(tmpdir(), 'orca-ws-'))
-    const ws = join(root, 'ws')
+    const ws = join(root, 'task-demo')
     initRepo(ws)
-    writeFileSync(join(ws, '.gitignore'), 'app/\nlibs/\n')
-    initRepo(join(ws, 'app'))
-    initRepo(join(ws, 'libs/core'))
-    const bare = join(root, 'core.git')
-    execFileSync('git', ['init', '--bare', '-b', 'main', bare], { stdio: 'pipe' })
-    git(join(ws, 'libs/core'), ['remote', 'add', 'origin', bare])
-    git(join(ws, 'libs/core'), ['push', '-u', 'origin', 'main'])
-    git(join(ws, 'libs/core'), ['checkout', '-b', 'feature'])
-    writeFileSync(join(ws, 'libs/core/feature.txt'), 'ahead\n')
-    git(join(ws, 'libs/core'), ['add', 'feature.txt'])
-    git(join(ws, 'libs/core'), ['commit', '-m', 'feature'])
-    initRepo(join(ws, 'libs/core/plugins/x'))
-    const base = join(root, 'base')
-    initRepo(base)
-    git(base, ['worktree', 'add', join(ws, 'svc/api')])
-    initRepo(join(ws, 'vendor/sub'))
-    mkdirSync(join(ws, 'vendor/empty'), { recursive: true })
+    // 根仓库把直接子检出忽略掉时仍然要发现它。
+    writeFileSync(join(ws, '.gitignore'), 'demo-api/\n')
+    initRepo(join(ws, 'demo-api'))
+    initRepo(join(ws, 'demo-api', 'vendor', 'demo-lib'))
+    writeFileSync(
+      join(ws, 'demo-api', '.gitmodules'),
+      '[submodule "demo-lib"]\n\tpath = vendor/demo-lib\n\turl = ../demo-lib.git\n'
+    )
+    const web = join(root, 'demo-web-src')
+    initRepo(web)
+    git(web, ['worktree', 'add', join(ws, 'demo-web')])
+    git(web, ['worktree', 'add', join(ws, 'svc', 'api')])
+    mkdirSync(join(ws, 'demo-empty'), { recursive: true })
     writeFileSync(
       join(ws, '.gitmodules'),
-      '[submodule "app"]\n\tpath = app\n\turl = ../app.git\n[submodule "sub"]\n\tpath = vendor/sub\n\turl = ../sub.git\n[submodule "empty"]\n\tpath = vendor/empty\n\turl = ../empty.git\n'
+      '[submodule "demo-api"]\n\tpath = demo-api\n\turl = ../demo-api.git\n[submodule "demo-empty"]\n\tpath = demo-empty\n\turl = ../demo-empty.git\n'
     )
-    initRepo(join(ws, 'node_modules/pkg'))
+    initRepo(join(ws, 'node_modules', 'pkg'))
     const outside = join(root, 'outside')
     initRepo(outside)
     symlinkSync(outside, join(ws, 'linked-out'))
     return ws
   }
 
-  it('finds nested repos, worktrees and submodules, and skips ignored markers', async () => {
+  it('lists a first-level worktree and does not walk into a child repository', async () => {
     const ws = await layout()
     const found = await discoverWorkspaceRepositories(ws)
     const byPath = new Map(
       found.repositories.map((repository) => [repository.repositoryPath, repository])
     )
-    expect([...byPath.keys()].sort()).toEqual([
-      '',
-      'app',
-      'libs/core',
-      'libs/core/plugins/x',
-      'svc/api',
-      'vendor/empty',
-      'vendor/sub'
-    ])
+    expect([...byPath.keys()].sort()).toEqual(['', 'demo-api', 'demo-empty', 'demo-web'])
     expect(byPath.get('')?.kind).toBe('root')
-    expect(byPath.get('app')?.kind).toBe('nested')
-    expect(byPath.get('svc/api')?.kind).toBe('nested')
-    expect(byPath.get('vendor/sub')).toMatchObject({ kind: 'submodule', uninitialized: false })
-    expect(byPath.get('vendor/empty')).toMatchObject({ kind: 'submodule', uninitialized: true })
+    expect(byPath.get('demo-api')).toMatchObject({ kind: 'nested', uninitialized: false, depth: 1 })
+    expect(byPath.get('demo-web')).toMatchObject({ kind: 'nested', uninitialized: false, depth: 1 })
+    expect(statSync(join(ws, 'demo-web', '.git')).isFile()).toBe(true)
+    // 子仓库里已初始化的子模块、更深层的 worktree、依赖目录和逃出工作区的软链都不是一组。
+    expect(byPath.has('demo-api/vendor/demo-lib')).toBe(false)
+    expect(byPath.has('svc/api')).toBe(false)
+    expect(byPath.has('node_modules/pkg')).toBe(false)
+    expect(byPath.has('linked-out')).toBe(false)
+    // 未初始化子模块留在结果里，界面收进「其他」，不作为普通仓库栏。
+    expect(byPath.get('demo-empty')).toMatchObject({ kind: 'submodule', uninitialized: true })
     expect(found.repositories.map((repository) => repository.realPath)).toEqual([
       ...new Set(found.repositories.map((repository) => repository.realPath))
     ])

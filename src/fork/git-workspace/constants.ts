@@ -19,8 +19,7 @@ export const FORK_GIT_WORKSPACE_METHOD_NAMES = [
   FORK_GIT_WORKSPACE_SET_COMPARE_TARGET_METHOD
 ] as const
 
-// 与上游 scanNestedRepos 的缺省深度、数量一致；超时用导入扫描的 15 秒。
-export const WORKSPACE_REPOSITORY_MAX_DEPTH = 3
+// 发现只看工作区根的直接子目录。数量上限和超时仍用来截断这一层。
 export const WORKSPACE_REPOSITORY_MAX_REPOS = 100
 export const WORKSPACE_REPOSITORY_TIMEOUT_MS = 15_000
 export const WORKSPACE_REPOSITORY_DISCOVERY_CACHE_MS = 5_000
@@ -40,6 +39,12 @@ export const SOURCE_CONTROL_PANEL_TAB = 'source-control'
 export const SOURCE_CONTROL_SCOPE_CURRENT_TEST_ID = 'source-control-scope-current'
 export const SOURCE_CONTROL_SCOPE_WORKSPACE_TEST_ID = 'source-control-scope-workspace'
 export const SOURCE_CONTROL_SCOPE_UPDATE_HOST_TEST_ID = 'source-control-scope-update-host'
+export const SOURCE_CONTROL_ONLY_CHANGED_STORAGE_KEY = 'orca.fork.source-control-only-changed'
+export const SOURCE_CONTROL_ONLY_CHANGED_TEST_ID = 'source-control-only-changed'
+export const SOURCE_CONTROL_REPO_TEST_ID = 'source-control-repo'
+export const SOURCE_CONTROL_REPO_OTHER_TEST_ID = 'source-control-repo-other'
+export const SOURCE_CONTROL_REPO_CHANGE_COUNT_TEST_ID = 'source-control-repo-change-count'
+export const SOURCE_CONTROL_REPO_AHEAD_TEST_ID = 'source-control-repo-ahead'
 
 export const COMPARE_TARGET_DIRECTORY = 'fork'
 export const COMPARE_TARGET_FILE_NAME = 'git-workspace-compare-targets.json'

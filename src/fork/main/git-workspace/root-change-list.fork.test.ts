@@ -1,0 +1,96 @@
+import { execFileSync } from 'node:child_process'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, describe, expect, it } from 'vitest'
+import type { AppEnvironment } from '../../../shared/app-environment'
+import {
+  getAppEnvironment,
+  hasAppEnvironment,
+  setAppEnvironment
+} from '../../../shared/app-environment'
+import type { RuntimeGitTarget } from '../../../main/runtime/runtime-git-command-target'
+import { bindForkGitTargetResolver, resetForkGitTargetResolverForTests } from './bind-target'
+import { clearWorkspaceRepositoryDiscoveryCache } from './discover'
+import { readWorkspaceRepositoryStatus } from './reads'
+
+function git(cwd: string, args: string[]): void {
+  execFileSync('git', ['-c', 'user.email=dev@example.com', '-c', 'user.name=Dev', ...args], {
+    cwd,
+    stdio: 'pipe'
+  })
+}
+
+function initRepo(path: string): void {
+  execFileSync('git', ['init', '-b', 'main', path], { stdio: 'pipe' })
+  writeFileSync(join(path, 'README'), 'ok\n')
+  git(path, ['add', 'README'])
+  git(path, ['commit', '-m', 'init'])
+}
+
+function appEnvironment(userData: string): AppEnvironment {
+  return {
+    getPath: () => userData,
+    getAppPath: () => userData,
+    getVersion: () => '0.0.0-test',
+    isPackaged: () => false,
+    onWillQuit: () => undefined,
+    exit: () => undefined,
+    getAppMetrics: () => []
+  }
+}
+
+function norm(path: string): string {
+  return path.replace(/\\/g, '/').replace(/\/+$/, '')
+}
+
+describe('root repository change list', () => {
+  let root = ''
+  let previous: AppEnvironment | null = null
+
+  afterEach(() => {
+    resetForkGitTargetResolverForTests()
+    clearWorkspaceRepositoryDiscoveryCache()
+    setAppEnvironment(previous ?? appEnvironment(tmpdir()))
+    if (root) {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('drops nested repository directories and keeps a real untracked root file', async () => {
+    root = mkdtempSync(join(tmpdir(), 'orca-root-status-'))
+    previous = hasAppEnvironment() ? getAppEnvironment() : null
+    setAppEnvironment(appEnvironment(join(root, 'user-data')))
+    const ws = join(root, 'task-demo')
+    initRepo(ws)
+    const api = join(ws, 'demo-api')
+    initRepo(api)
+    writeFileSync(join(api, 'local.txt'), 'inside\n')
+    const web = join(root, 'demo-web-src')
+    initRepo(web)
+    git(web, ['worktree', 'add', join(ws, 'demo-web')])
+    writeFileSync(join(ws, 'demo-web', 'page.txt'), 'page\n')
+    writeFileSync(join(ws, 'README'), 'ok\nedit\n')
+    writeFileSync(join(ws, 'task-demo.txt'), 'keep\n')
+    writeFileSync(join(ws, 'demo-api-notes.txt'), 'prefix\n')
+    bindForkGitTargetResolver(async () => {
+      const target = {
+        executionHostId: 'local' as const,
+        worktree: { path: ws, hostId: 'host-a' as const }
+      }
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: 本地 git 只读 path、hostId 和 executionHostId。
+      return target as unknown as RuntimeGitTarget
+    })
+
+    const rootStatus = await readWorkspaceRepositoryStatus(ws, '', 'status')
+    const paths = rootStatus.entries.map((entry) => norm(entry.path))
+    expect(paths).toContain('task-demo.txt')
+    expect(paths).toContain('demo-api-notes.txt')
+    expect(paths).toContain('README')
+    expect(paths.some((path) => path === 'demo-api' || path.startsWith('demo-api/'))).toBe(false)
+    expect(paths.some((path) => path === 'demo-web' || path.startsWith('demo-web/'))).toBe(false)
+
+    const nested = await readWorkspaceRepositoryStatus(ws, 'demo-api', 'status')
+    expect(nested.entries.map((entry) => entry.path)).toContain('local.txt')
+  }, 120_000)
+})

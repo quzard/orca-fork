@@ -1,0 +1,66 @@
+import type { GitBranchCompareResult } from '../../shared/git-diff-compare-types'
+import type { WorkspaceRepositoryRecord, WorkspaceRepositoryStatus } from '../git-workspace/types'
+
+// 有未提交文件，或比较目标上领先，才算有改动。只落后不算，标题栏仍会显示落后。
+export function repositoryHasChanges(
+  status: WorkspaceRepositoryStatus | undefined,
+  compare: GitBranchCompareResult | undefined
+): boolean {
+  if (!status || status.uninitialized) {
+    return false
+  }
+  if (status.entries.length > 0) {
+    return true
+  }
+  const summary = compare?.summary
+  return summary?.status === 'ready' && (summary.commitsAhead ?? 0) > 0
+}
+
+// 状态还没到，或比较还没算完时不算「确定没改动」，过滤开关先留着它。
+export function repositoryKnownUnchanged(
+  status: WorkspaceRepositoryStatus | undefined,
+  compare: GitBranchCompareResult | undefined
+): boolean {
+  if (!status || status.uninitialized || repositoryHasChanges(status, compare)) {
+    return false
+  }
+  if (!status.compareTarget.ref) {
+    return true
+  }
+  const summary = compare?.summary
+  return summary?.status === 'ready' && (summary.commitsAhead ?? 0) === 0
+}
+
+function byPath(left: WorkspaceRepositoryRecord, right: WorkspaceRepositoryRecord): number {
+  return left.repositoryPath.localeCompare(right.repositoryPath)
+}
+
+// 根仓库固定在最前：它是当前打开的工作区，收起时只有一行，兄弟仓库重排时它不跳。
+// 其余先按有没有改动分成两段，段内按路径。顺序只跟「哪些路径有改动」有关，改动条数变化不重排。
+export function orderWorkspaceRepositories(
+  repositories: readonly WorkspaceRepositoryRecord[],
+  statuses: Readonly<Record<string, WorkspaceRepositoryStatus>>,
+  compares: Readonly<Record<string, GitBranchCompareResult>>
+): WorkspaceRepositoryRecord[] {
+  const root = repositories.find(
+    (repository) => repository.repositoryPath === '' && !repository.uninitialized
+  )
+  const siblings = repositories.filter(
+    (repository) => repository.repositoryPath !== '' && !repository.uninitialized
+  )
+  const changed = siblings
+    .filter((repository) =>
+      repositoryHasChanges(statuses[repository.repositoryPath], compares[repository.repositoryPath])
+    )
+    .sort(byPath)
+  const rest = siblings
+    .filter(
+      (repository) =>
+        !repositoryHasChanges(
+          statuses[repository.repositoryPath],
+          compares[repository.repositoryPath]
+        )
+    )
+    .sort(byPath)
+  return root ? [root, ...changed, ...rest] : [...changed, ...rest]
+}

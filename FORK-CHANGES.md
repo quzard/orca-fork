@@ -118,7 +118,11 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 
 源代码管理多一个范围开关，按工作区记在本地：当前仓库（和上游完全一样）或工作区仓库。工作区范围里每个仓库一栏，有相对路径、分支、领先/落后，以及已暂存、未暂存、未跟踪、相对主干的提交。点文件打开 diff。比较目标存在这台主机上，键是主机、工作区绝对路径、仓库相对路径和分支；没有覆盖时用上游的 `getBaseRefDefault`（`origin/HEAD`，然后 `origin/main`、`origin/master`），再没有就显示未设置。不写工作区自己的 baseRef，也不查 MR/PR。
 
-发现复用上游 `scanNestedRepos`，但根自己是仓库时仍往下扫（`.git` 目录或 worktree 的 `.git` 文件都算）。不理会根上的 `.gitignore`（根仓库经常把嵌套检出忽略掉），仍跳过上游的 `node_modules`、`dist`、`vendor` 等目录。`.gitmodules` 里的子模块补进来，没初始化的标出来。默认深度 3，有数量上限和超时，按 realpath 去重。根仓库自己也占一行。
+发现只看工作区根下的第一层：根仓库自己，加上直接子目录里带 `.git` 目录或文件的检出（`git worktree add` 的 `.git` 是文件，也算）。发现到的仓库不再往下扫，所以子仓库里的子模块不会再各占一栏。根上的 `.gitignore` 不影响这一层（嵌套检出经常被忽略）。数量上限、超时、软链和逃出工作区的检查还在，按 realpath 去重。根仓库自己也占一行。根仓库 `.gitmodules` 里还没检出的子模块不单列，界面收进最后一栏、默认收起的「其他」。
+
+根仓库这一栏的变更列表会去掉已经单独成栏的嵌套仓库路径（正好是该仓库根，或在它里面）。只去掉这些仓库根，根仓库自己的未跟踪文件、以及只是路径前缀撞车的文件，都留着。比较在 fork 的状态读取里做，不改上游 `git.status`。
+
+有未提交改动、或领先比较目标的仓库排在前面并自动展开；没有改动的收起。根仓库固定在最上面：它是打开的这个工作区，收起时只有一行，下面的仓库按改动集合重排时它不跳。「其他」固定在最后。栏目标题直接显示未提交数量和领先/落后。排序只看「哪些仓库有改动」这个集合，条数变化不重排。用户手动展开过的栏不会被自动收起，手动收起的也不会被下一轮自动展开。「只显示有改动的」记在本机 localStorage（`orca.fork.source-control-only-changed`，整个面板一份，不按工作区分），缺省为关。状态还没回来的仓库先留在列表里，避免比较结果到达前被滤掉。
 
 新 RPC 是 `git.workspaceRepositories` 和它的 `status`、`branchCompare`、`diff`、`branchDiff`、`setCompareTarget`。不往上游的 `git.status` 等参数里加 `repositoryPath`：旧主机会丢掉不认识的字段，静默返回根仓库。能力 `fork.git.workspace-repositories.v1` 放在 `src/shared/fork-hooks/git-workspace-capability.ts` 再摊进 `RUNTIME_CAPABILITIES`，这样 CLI 工程不用包含 `src/fork`。渲染进程对本地桌面视为已有这个能力；配对或托管主机用 `runtimeEnvironmentSupportsCapability`，没有就灰掉开关。`repositoryPath` 不能逃出工作区，realpath 也不能顺着软链跑出去，并且必须在这次发现结果里。
 

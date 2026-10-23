@@ -1,12 +1,9 @@
-import { realpath, readFile, readdir, stat } from 'node:fs/promises'
-import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { readdir, realpath, stat } from 'node:fs/promises'
+import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type { GitRuntimeOptions } from '../../../main/git/git-runtime-options'
 import { listSubmodulePaths } from '../../../main/git/source-control/submodule-paths'
-import { scanNestedRepos } from '../../../main/project-groups/nested-repo-discovery'
-import type { NestedRepoScanFilesystem } from '../../../main/project-groups/nested-repo-scan-rules'
 import {
   WORKSPACE_REPOSITORY_DISCOVERY_CACHE_MS,
-  WORKSPACE_REPOSITORY_MAX_DEPTH,
   WORKSPACE_REPOSITORY_MAX_REPOS,
   WORKSPACE_REPOSITORY_TIMEOUT_MS
 } from '../../git-workspace/constants'
@@ -17,13 +14,20 @@ import type {
 } from '../../git-workspace/types'
 
 type DiscoveryOptions = {
-  maxDepth: number
   maxRepos: number
   timeoutMs: number
   refresh: boolean
   gitOptions: GitRuntimeOptions
   signal?: AbortSignal
 }
+
+type AddRepository = (
+  repositoryPath: string,
+  realPath: string,
+  kind: WorkspaceRepositoryKind,
+  uninitialized: boolean,
+  depth: number
+) => boolean
 
 const cache = new Map<string, { expiresAt: number; value: WorkspaceRepositoryList }>()
 
@@ -38,28 +42,6 @@ async function hasGitMarker(dirPath: string): Promise<boolean> {
     return marker.isDirectory() || marker.isFile()
   } catch {
     return false
-  }
-}
-
-function filesystem(worktreeRoot: string): NestedRepoScanFilesystem {
-  return {
-    readDirectory: async (dirPath) => {
-      const entries = await readdir(dirPath, { withFileTypes: true })
-      return entries.map((entry) => ({
-        name: entry.name,
-        isDirectory: entry.isDirectory(),
-        isSymlink: entry.isSymbolicLink()
-      }))
-    },
-    // 根仓库经常用 .gitignore 挡住嵌套检出。根上的规则丢掉，更深层的仍交给上游。
-    readTextFile: (filePath) =>
-      resolve(filePath) === resolve(worktreeRoot, '.gitignore')
-        ? Promise.resolve('')
-        : readFile(filePath, 'utf8'),
-    joinPath: join,
-    basename,
-    hasGitMarker,
-    isSelectedPathGitRepo: () => false
   }
 }
 
@@ -79,12 +61,16 @@ function posixRelative(rootReal: string, realPath: string): string | null {
   return rel.split(sep).join('/')
 }
 
-async function realInside(rootReal: string, absPath: string): Promise<string | null> {
+// 软链的 realpath 跑出工作区就丢掉。目录还不存在和逃出去要分开，前者才可能是未初始化子模块。
+async function resolveInside(
+  rootReal: string,
+  absPath: string
+): Promise<{ kind: 'inside'; realPath: string } | { kind: 'missing' } | { kind: 'escape' }> {
   try {
     const realPath = await realpath(absPath)
-    return escapes(rootReal, realPath) ? null : realPath
+    return escapes(rootReal, realPath) ? { kind: 'escape' } : { kind: 'inside', realPath }
   } catch {
-    return null
+    return { kind: 'missing' }
   }
 }
 
@@ -92,12 +78,11 @@ export async function discoverWorkspaceRepositories(
   worktreePath: string,
   options: Partial<DiscoveryOptions> = {}
 ): Promise<WorkspaceRepositoryList> {
-  const maxDepth = options.maxDepth ?? WORKSPACE_REPOSITORY_MAX_DEPTH
   const maxRepos = options.maxRepos ?? WORKSPACE_REPOSITORY_MAX_REPOS
   const timeoutMs = options.timeoutMs ?? WORKSPACE_REPOSITORY_TIMEOUT_MS
   const gitOptions = options.gitOptions ?? {}
   const rootReal = await realpath(worktreePath)
-  const cacheKey = [rootReal, maxDepth, maxRepos, timeoutMs].join('\0')
+  const cacheKey = [rootReal, maxRepos, timeoutMs].join('\0')
   const cached = cache.get(cacheKey)
   if (!options.refresh && cached && cached.expiresAt > Date.now()) {
     return cached.value
@@ -108,15 +93,18 @@ export async function discoverWorkspaceRepositories(
   let truncated = false
   let timedOut = false
   const deadline = Date.now() + timeoutMs
-  const fs = filesystem(worktreePath)
-
-  const add = (
-    repositoryPath: string,
-    realPath: string,
-    kind: WorkspaceRepositoryKind,
-    uninitialized: boolean,
-    depth: number
-  ): boolean => {
+  // 到点或调用方取消就停。超时要记下来，取消不记成超时，两种都不进缓存。
+  const stop = (): boolean => {
+    if (options.signal?.aborted) {
+      return true
+    }
+    if (Date.now() < deadline) {
+      return false
+    }
+    timedOut = true
+    return true
+  }
+  const add: AddRepository = (repositoryPath, realPath, kind, uninitialized, depth) => {
     if (seen.has(realPath) || records.some((record) => record.repositoryPath === repositoryPath)) {
       return false
     }
@@ -128,54 +116,24 @@ export async function discoverWorkspaceRepositories(
     records.push({ repositoryPath, kind, uninitialized, depth, realPath })
     return true
   }
-
-  // 上游扫到 git 标记就不再往下走。这里按剩余深度再扫一层，才能看见仓库里的仓库。
-  const walk = async (start: string, depthOffset: number): Promise<void> => {
-    if (truncated || timedOut || options.signal?.aborted) {
-      return
+  const atCap = (): boolean => {
+    if (records.length < maxRepos) {
+      return false
     }
-    const budget = maxDepth - depthOffset
-    const remainingMs = deadline - Date.now()
-    if (budget < 1 || remainingMs <= 0 || records.length >= maxRepos) {
-      if (remainingMs <= 0) {
-        timedOut = true
-      }
-      if (records.length >= maxRepos) {
-        truncated = true
-      }
-      return
-    }
-    const scan = await scanNestedRepos({
-      path: start,
-      options: { maxDepth: budget, maxRepos: maxRepos - records.length, timeoutMs: remainingMs },
-      filesystem: fs,
-      signal: options.signal
-    })
-    truncated ||= scan.truncated
-    timedOut ||= scan.timedOut
-    for (const repo of scan.repos) {
-      const realPath = await realInside(rootReal, repo.path)
-      const repositoryPath = realPath ? posixRelative(rootReal, realPath) : null
-      if (!realPath || !repositoryPath) {
-        continue
-      }
-      const depth = depthOffset + repo.depth
-      if (!add(repositoryPath, realPath, 'nested', false, depth) || depth >= maxDepth) {
-        continue
-      }
-      await walk(realPath, depth)
-      if (truncated || timedOut) {
-        return
-      }
-    }
+    truncated = true
+    return true
   }
 
-  // 根仓库占一个名额，避免数量上限把工作区自己裁掉。
+  // 根仓库占一个名额。只再看直接子目录，发现到的仓库不再往下走。
   if (await hasGitMarker(worktreePath)) {
     add('', rootReal, 'root', false, 0)
   }
-  await walk(worktreePath, 0)
-  await mergeSubmodules(rootReal, records, gitOptions, add)
+  if (!stop()) {
+    await addFirstLevelChildren(worktreePath, rootReal, stop, atCap, add)
+  }
+  if (!timedOut && !options.signal?.aborted && records.some((record) => record.kind === 'root')) {
+    await addUninitializedSubmodules(worktreePath, rootReal, gitOptions, stop, atCap, add)
+  }
   records.sort((left, right) => left.repositoryPath.localeCompare(right.repositoryPath))
   const value = { repositories: records, truncated, timedOut }
   if (!timedOut && !options.signal?.aborted) {
@@ -184,39 +142,84 @@ export async function discoverWorkspaceRepositories(
   return value
 }
 
-async function mergeSubmodules(
+async function addFirstLevelChildren(
+  worktreePath: string,
   rootReal: string,
-  records: readonly WorkspaceRepositoryRecord[],
-  gitOptions: GitRuntimeOptions,
-  add: (
-    repositoryPath: string,
-    realPath: string,
-    kind: WorkspaceRepositoryKind,
-    uninitialized: boolean,
-    depth: number
-  ) => boolean
+  stop: () => boolean,
+  atCap: () => boolean,
+  add: AddRepository
 ): Promise<void> {
-  const parents = records.filter((record) => !record.uninitialized)
-  for (const parent of parents) {
-    const paths = await listSubmodulePaths(parent.realPath, gitOptions).catch(() => [])
-    for (const submodulePath of paths) {
-      const repositoryPath = parent.repositoryPath
-        ? `${parent.repositoryPath}/${submodulePath}`
-        : submodulePath
-      if (repositoryPath.split('/').includes('..')) {
-        continue
-      }
-      const absolute = resolve(parent.realPath, ...submodulePath.split('/'))
-      const depth = parent.depth + submodulePath.split('/').length
-      const realPath = await realInside(rootReal, absolute)
-      if (!realPath) {
-        // 目录还不存在。词法路径仍在父仓库里才记成未初始化子模块。
-        if (!escapes(parent.realPath, absolute)) {
-          add(repositoryPath, absolute, 'submodule', true, depth)
-        }
-        continue
-      }
-      add(repositoryPath, realPath, 'submodule', !(await hasGitMarker(realPath)), depth)
+  let entries: { name: string; isDirectory: () => boolean; isSymbolicLink: () => boolean }[]
+  try {
+    entries = await readdir(worktreePath, { withFileTypes: true })
+  } catch {
+    return
+  }
+  const names = entries
+    .filter((entry) => entry.isDirectory() && !entry.isSymbolicLink())
+    .map((entry) => entry.name)
+    .sort((left, right) => left.localeCompare(right))
+  for (const name of names) {
+    if (stop()) {
+      return
     }
+    const absolute = join(worktreePath, name)
+    if (!(await hasGitMarker(absolute))) {
+      continue
+    }
+    // 名额用在已经找到的仓库上。空目录不占名额，也不当成「还有仓库没列出来」。
+    if (atCap()) {
+      return
+    }
+    const resolved = await resolveInside(rootReal, absolute)
+    if (resolved.kind !== 'inside') {
+      continue
+    }
+    const repositoryPath = posixRelative(rootReal, resolved.realPath)
+    if (!repositoryPath) {
+      continue
+    }
+    add(repositoryPath, resolved.realPath, 'nested', false, 1)
+  }
+}
+
+// 只读根仓库的 .gitmodules。子仓库里的子模块不单列。没检出的收进界面的「其他」，不占自己的一栏。
+async function addUninitializedSubmodules(
+  worktreePath: string,
+  rootReal: string,
+  gitOptions: GitRuntimeOptions,
+  stop: () => boolean,
+  atCap: () => boolean,
+  add: AddRepository
+): Promise<void> {
+  if (stop()) {
+    return
+  }
+  const paths = await listSubmodulePaths(worktreePath, gitOptions).catch(() => [])
+  for (const submodulePath of paths) {
+    if (stop()) {
+      return
+    }
+    const repositoryPath = submodulePath.replace(/\\/g, '/').replace(/\/+$/, '')
+    if (!repositoryPath || repositoryPath.split('/').includes('..')) {
+      continue
+    }
+    const absolute = resolve(rootReal, ...repositoryPath.split('/'))
+    if (escapes(rootReal, absolute)) {
+      continue
+    }
+    const resolved = await resolveInside(rootReal, absolute)
+    if (resolved.kind === 'escape') {
+      continue
+    }
+    if (resolved.kind === 'inside' && (await hasGitMarker(resolved.realPath))) {
+      // 已经是检出就由直接子目录那一轮负责。深层的检出不补进来。
+      continue
+    }
+    if (atCap()) {
+      return
+    }
+    const realPath = resolved.kind === 'inside' ? resolved.realPath : absolute
+    add(repositoryPath, realPath, 'submodule', true, repositoryPath.split('/').length)
   }
 }

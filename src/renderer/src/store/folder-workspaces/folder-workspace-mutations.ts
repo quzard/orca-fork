@@ -33,8 +33,8 @@ import {
 } from './folder-workspace-catalog'
 import { getFolderWorkspaceHostId } from '../../../../shared/folder-workspace-execution-host'
 import {
-  encodeSidebarFieldClears,
-  folderSidebarFieldsNotApplied
+  folderSidebarFieldsNotApplied,
+  folderWorkspaceUpdateRequest
 } from '../../../../shared/fork-hooks/sidebar-field-clear'
 import {
   captureWorkspaceChatDraftKeys,
@@ -176,15 +176,14 @@ export function createFolderWorkspaceMutationActions(
       try {
         const updated =
           target.kind === 'local'
-            ? await window.api.folderWorkspaces.update({
-                folderWorkspaceId,
-                ...encodeSidebarFieldClears(updates)
-              })
+            ? await window.api.folderWorkspaces.update(
+                folderWorkspaceUpdateRequest(folderWorkspaceId, updates)
+              )
             : (
                 await callRuntimeRpc<{ folderWorkspace: FolderWorkspace | null }>(
                   target,
                   'folderWorkspace.update',
-                  { folderWorkspaceId, ...encodeSidebarFieldClears(updates) },
+                  folderWorkspaceUpdateRequest(folderWorkspaceId, updates),
                   { timeoutMs: 15_000 }
                 )
               ).folderWorkspace

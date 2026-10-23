@@ -16,6 +16,7 @@ import { findRepoRowForHostScopedWrite } from '../tracking-repos/repo-update-ope
 import type { WorkspaceAttachmentMutation } from '../../../shared/workspace-attachment-mutation'
 import { normalizeWorkspaceAttachmentUpdate } from '../../../shared/workspace-attachments'
 import { ORCA_SIDEBAR_INPUTS_IS_MAIN } from '../../../shared/sidebar-inputs-switch'
+import { applyFolderSidebarFieldUpdate } from '../../../shared/fork-hooks/sidebar-field-clear'
 
 export type FolderWorkspaceMutationOperations = {
   state: PersistedState
@@ -230,15 +231,7 @@ export class FolderWorkspacePersistenceOperations {
     if (updates.sortOrder !== undefined && Number.isFinite(updates.sortOrder)) {
       workspace.sortOrder = updates.sortOrder
     }
-    if (updates.sidebarGroupId !== undefined) {
-      workspace.sidebarGroupId = updates.sidebarGroupId
-    } else if (Object.hasOwn(updates, 'sidebarGroupId')) {
-      // fork: an own undefined is a decoded clear (sidebar-field-clear).
-      delete workspace.sidebarGroupId
-    }
-    if (updates.manualOrder === undefined && Object.hasOwn(updates, 'manualOrder')) {
-      delete workspace.manualOrder
-    }
+    applyFolderSidebarFieldUpdate(workspace, updates)
     if (updates.manualOrder !== undefined) {
       if (Number.isFinite(updates.manualOrder)) {
         workspace.manualOrder = updates.manualOrder

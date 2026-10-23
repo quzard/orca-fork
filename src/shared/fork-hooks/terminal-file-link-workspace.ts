@@ -204,3 +204,64 @@ export function renderTerminalFileLinkWorkspaceSetting(
 export function terminalFileLinkWorkspaceSearchEntries(): TerminalFileLinkWorkspaceSearchEntry[] {
   return searchEntries?.() ?? []
 }
+
+/**
+ * 终端链接打开前决定留在当前工作区还是改挂。
+ * 未留下时，路径在当前根里仍收成相对路径，和上游一样。
+ */
+export function resolveKeptTerminalFileLinkTarget<State extends { openFiles: readonly OpenFileRef[] }>(input: {
+  kept: TerminalFileLinkKeptOpen | null
+  store: State
+  sourceWorktreeId: string
+  sourceWorktreePath: string
+  executionHostId: ExecutionHostId
+  filePath: string
+  blocked: boolean
+  escapesWorktree: boolean
+  findRoute: (
+    state: State,
+    executionHostId: ExecutionHostId,
+    absolutePath: string
+  ) => TerminalFileLinkSiblingRoute | null
+  pathInside: (filePath: string, root: string) => boolean
+  toRelative: (filePath: string, root: string) => string | null
+}): {
+  kept: TerminalFileLinkKeptOpen | null
+  targetWorktreeId: string
+  targetExecutionHostId: ExecutionHostId
+  relativePath: string
+} {
+  let kept = input.kept
+  let targetWorktreeId = input.sourceWorktreeId
+  let targetExecutionHostId = input.executionHostId
+  let relativePath = input.filePath
+  if (!kept) {
+    const sibling = resolveSiblingTerminalFileLink(
+      input.store,
+      input.sourceWorktreeId,
+      input.sourceWorktreePath,
+      input.executionHostId,
+      input.filePath,
+      input.blocked,
+      input.findRoute
+    )
+    kept = sibling?.kept ?? null
+    if (sibling?.route) {
+      targetWorktreeId = sibling.route.worktreeId
+      targetExecutionHostId = sibling.route.executionHostId
+      relativePath = sibling.route.relativePath
+    }
+  }
+  const insideSource =
+    Boolean(input.sourceWorktreePath) &&
+    input.pathInside(input.filePath, input.sourceWorktreePath) &&
+    !input.escapesWorktree
+  if (!kept && insideSource) {
+    const maybeRelative = input.toRelative(input.filePath, input.sourceWorktreePath)
+    // 落在项目外的链接保持绝对路径，重启后仍按用户点的那个文件读，而不是被当成项目文件拒绝。
+    if (maybeRelative !== null && maybeRelative.length > 0) {
+      relativePath = maybeRelative
+    }
+  }
+  return { kept, targetWorktreeId, targetExecutionHostId, relativePath }
+}

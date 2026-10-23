@@ -13,6 +13,14 @@ export function sidebarFieldsToClear(updates: object): ClearableSidebarField[] {
   )
 }
 
+/** 文件夹工作区更新的线协议：id 与清除字段放在同一条请求里。 */
+export function folderWorkspaceUpdateRequest<T extends object>(
+  folderWorkspaceId: string,
+  updates: T
+): { folderWorkspaceId: string; updates: T; clearFields?: ClearableSidebarField[] } {
+  return { folderWorkspaceId, ...encodeSidebarFieldClears(updates) }
+}
+
 /** Splits requested clears out of `updates` for the wire. */
 export function encodeSidebarFieldClears<T extends object>(
   updates: T
@@ -63,4 +71,22 @@ export function folderSidebarFieldsNotApplied(
     return true
   }
   return sidebarFieldsToClear(updates).some((field) => updated[field] !== undefined)
+}
+
+/**
+ * 把解码后的侧栏字段写进文件夹工作区。
+ * 字段自己的 `undefined` 表示清除，不能和「这次没改」混在一起。
+ */
+export function applyFolderSidebarFieldUpdate(
+  workspace: { sidebarGroupId?: string | null; manualOrder?: number },
+  updates: { sidebarGroupId?: string | null; manualOrder?: number }
+): void {
+  if (updates.sidebarGroupId !== undefined) {
+    workspace.sidebarGroupId = updates.sidebarGroupId
+  } else if (Object.hasOwn(updates, 'sidebarGroupId')) {
+    delete workspace.sidebarGroupId
+  }
+  if (updates.manualOrder === undefined && Object.hasOwn(updates, 'manualOrder')) {
+    delete workspace.manualOrder
+  }
 }

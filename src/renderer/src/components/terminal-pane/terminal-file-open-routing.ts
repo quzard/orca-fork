@@ -31,7 +31,7 @@ import { showOpenInGroupRefusedToast } from './terminal-file-open-in-group-toast
 import { isExplicitEditorScopeKept, openLinkedFileInEditor } from './terminal-file-link-editor-open'
 import {
   keepTerminalLinkInSource,
-  resolveSiblingTerminalFileLink
+  resolveKeptTerminalFileLinkTarget
 } from '../../../../shared/fork-hooks/terminal-file-link-workspace'
 
 export {
@@ -272,43 +272,29 @@ export function openDetectedFilePath(
     }
 
     const store = useAppStore.getState()
-    let targetWorktreeId = worktreeId
     const runtimeOwnerId = runtimeTargetEnvironmentId(fileContext.target) ?? sourceRuntimeOwnerId
-    let targetExecutionHostId =
+    const sourceExecutionHostId =
       hostWorkspaceFile?.executionHostId ??
       (runtimeOwnerId
         ? toRuntimeExecutionHostId(runtimeOwnerId)
         : getConnectionExecutionHostId(fileContext.connectionId))
-    let relativePath = mappedFilePath
-    const insideSource =
-      Boolean(worktreePath) &&
-      isPathInsideWorktree(mappedFilePath, worktreePath) &&
-      !statResult.escapesWorktree
-    if (!keptOpen) {
-      const sibling = resolveSiblingTerminalFileLink(
-        store,
-        worktreeId,
-        worktreePath,
-        targetExecutionHostId,
-        mappedFilePath,
-        hostGrantId !== null,
-        findWorkspaceFileRoute
-      )
-      keptOpen = sibling?.kept ?? null
-      if (sibling?.route) {
-        targetWorktreeId = sibling.route.worktreeId
-        targetExecutionHostId = sibling.route.executionHostId
-        relativePath = sibling.route.relativePath
-      }
-    }
-    if (!keptOpen && insideSource) {
-      const maybeRelative = toWorktreeRelativePath(mappedFilePath, worktreePath)
-      // Why: a link out of the project keeps its absolute path, so the tab reads it as the file
-      // the user named, before and after a restart, instead of being refused as a project file.
-      if (maybeRelative !== null && maybeRelative.length > 0) {
-        relativePath = maybeRelative
-      }
-    }
+    const linkTarget = resolveKeptTerminalFileLinkTarget({
+      kept: keptOpen,
+      store,
+      sourceWorktreeId: worktreeId,
+      sourceWorktreePath: worktreePath,
+      executionHostId: sourceExecutionHostId,
+      filePath: mappedFilePath,
+      blocked: hostGrantId !== null,
+      escapesWorktree: statResult.escapesWorktree,
+      findRoute: findWorkspaceFileRoute,
+      pathInside: isPathInsideWorktree,
+      toRelative: toWorktreeRelativePath
+    })
+    keptOpen = linkTarget.kept
+    const targetWorktreeId = linkTarget.targetWorktreeId
+    const targetExecutionHostId = linkTarget.targetExecutionHostId
+    const relativePath = linkTarget.relativePath
 
     if (
       explicitGroupRequest &&

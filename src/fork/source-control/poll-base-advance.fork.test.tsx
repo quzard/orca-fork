@@ -10,9 +10,14 @@ import {
 } from '../git-workspace/constants'
 import { useWorkspaceRepositoryPoll } from './poll-workspace-repos'
 
+const firstOid = '1111111111111111111111111111111111111111'
+const nextOid = '2222222222222222222222222222222222222222'
+const compareOid = '3333333333333333333333333333333333333333'
+
 const mocks = vi.hoisted(() => ({
   callRuntimeRpc: vi.fn(),
-  baseOid: '1111111111111111111111111111111111111111'
+  statusBaseOid: '1111111111111111111111111111111111111111' as string | null,
+  compareBaseOid: '1111111111111111111111111111111111111111' as string | null
 }))
 
 vi.mock('@/runtime/runtime-rpc-client', () => ({
@@ -35,7 +40,8 @@ describe('workspace repository poll', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['setTimeout'] })
     compareCalls = 0
-    mocks.baseOid = '1111111111111111111111111111111111111111'
+    mocks.statusBaseOid = firstOid
+    mocks.compareBaseOid = firstOid
     mocks.callRuntimeRpc.mockImplementation(async (_target: unknown, method: string) => {
       if (method === FORK_GIT_WORKSPACE_REPOSITORIES_METHOD) {
         return { repositories: [repo], truncated: false, timedOut: false }
@@ -48,7 +54,7 @@ describe('workspace repository poll', () => {
           head: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
           entries: [],
           compareTarget: { ref: 'origin/main', source: 'default' },
-          baseOid: mocks.baseOid
+          baseOid: mocks.statusBaseOid
         }
       }
       if (method === FORK_GIT_WORKSPACE_BRANCH_COMPARE_METHOD) {
@@ -56,7 +62,7 @@ describe('workspace repository poll', () => {
         return {
           summary: {
             baseRef: 'origin/main',
-            baseOid: mocks.baseOid,
+            baseOid: mocks.compareBaseOid,
             compareRef: 'feature',
             headOid: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
             mergeBase: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
@@ -102,10 +108,33 @@ describe('workspace repository poll', () => {
     })
     expect(compareCalls).toBe(1)
 
-    mocks.baseOid = '2222222222222222222222222222222222222222'
+    mocks.statusBaseOid = nextOid
+    mocks.compareBaseOid = nextOid
     await act(async () => {
       await vi.advanceTimersByTimeAsync(WORKSPACE_REPOSITORY_POLL_INTERVAL_MS)
     })
     expect(compareCalls).toBe(2)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(WORKSPACE_REPOSITORY_POLL_INTERVAL_MS)
+    })
+    expect(compareCalls).toBe(2)
+  })
+
+  it('does not compare again when rev-parse failed and the compare oid is set', async () => {
+    mocks.statusBaseOid = null
+    mocks.compareBaseOid = compareOid
+    await act(async () => {
+      root.render(<Probe />)
+    })
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(compareCalls).toBe(1)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(WORKSPACE_REPOSITORY_POLL_INTERVAL_MS)
+    })
+    expect(compareCalls).toBe(1)
   })
 })

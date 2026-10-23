@@ -178,7 +178,8 @@ export function useWorkspaceRepositoryPoll(args: {
                 observed.set(repository.repositoryPath, {
                   head: status.head,
                   ref,
-                  baseOid: status.baseOid ?? compare.summary.baseOid,
+                  // null 是 rev-parse 失败。用 ?? 会改存比较结果里的 oid，下一轮就一直重比。
+                  baseOid: status.baseOid !== undefined ? status.baseOid : compare.summary.baseOid,
                   at: Date.now()
                 })
                 setCompares((prev) => ({ ...prev, [repository.repositoryPath]: compare }))

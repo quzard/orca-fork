@@ -1,7 +1,28 @@
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import type * as NodeFs from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+
+const inject = vi.hoisted(() => ({
+  beforeTempWrite: null as null | ((actual: typeof NodeFs) => void)
+}))
+
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof NodeFs>()
+  return {
+    ...actual,
+    writeFileSync: (...args: Parameters<typeof actual.writeFileSync>) => {
+      const path = String(args[0])
+      if (path.endsWith('.tmp') && inject.beforeTempWrite) {
+        const hook = inject.beforeTempWrite
+        inject.beforeTempWrite = null
+        hook(actual)
+      }
+      return actual.writeFileSync(...args)
+    }
+  }
+})
 import { getBaseRefDefault } from '../../../main/git/repo-default-base-ref'
 import { CompareTargetStore, compareTargetFilePath } from './compare-target-store'
 import {
@@ -26,6 +47,7 @@ describe('workspace compare target', () => {
   let dir: string
 
   afterEach(() => {
+    inject.beforeTempWrite = null
     vi.mocked(getBaseRefDefault).mockReset()
     clearWorkspaceCompareTargetCache()
     if (dir) {
@@ -162,7 +184,41 @@ describe('workspace compare target', () => {
     expect(store.read()).toEqual([])
     rmSync(filePath)
     mkdirSync(filePath)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     await expect(store.set(key, 'origin/main')).rejects.toThrow()
+    warn.mockRestore()
     expect(readdirSync(join(dir, 'fork')).filter((name) => name.endsWith('.tmp'))).toEqual([])
+  })
+
+  it('merges a key written between the read and the rename', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'orca-compare-'))
+    const filePath = compareTargetFilePath(dir)
+    const store = new CompareTargetStore(filePath)
+    const foreign = { ...key, repositoryPath: 'app', ref: 'origin/develop' }
+    inject.beforeTempWrite = (actual) => {
+      actual.writeFileSync(filePath, `${JSON.stringify({ version: 1, entries: [foreign] })}\n`, {
+        encoding: 'utf8'
+      })
+    }
+    await store.set(key, 'origin/main')
+    expect(
+      store
+        .read()
+        .map((entry) => entry.ref)
+        .sort()
+    ).toEqual(['origin/develop', 'origin/main'])
+  })
+
+  it('leaves an unreadable file in place', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'orca-compare-'))
+    const filePath = compareTargetFilePath(dir)
+    const store = new CompareTargetStore(filePath)
+    mkdirSync(dirname(filePath), { recursive: true })
+    writeFileSync(filePath, '{')
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    await expect(store.set(key, 'origin/main')).rejects.toThrow(/unreadable/)
+    expect(readFileSync(filePath, 'utf8')).toBe('{')
+    expect(warn).toHaveBeenCalled()
+    warn.mockRestore()
   })
 })

@@ -71,10 +71,16 @@ export class CompareTargetStore {
     return this.readFile() ?? []
   }
 
-  // null 表示这次没读到文件。调用方不能把失败当成空表再写回去。
+  // null：文件在，但读不了或不是 JSON。缺文件是空表，调用方可以新建。
   private readFile(): CompareTargetEntry[] | null {
+    let raw: string
     try {
-      const parsed: unknown = JSON.parse(readFileSync(this.filePath, 'utf8'))
+      raw = readFileSync(this.filePath, 'utf8')
+    } catch (error) {
+      return isEnoent(error) ? [] : null
+    }
+    try {
+      const parsed: unknown = JSON.parse(raw)
       if (!parsed || typeof parsed !== 'object' || !('entries' in parsed)) {
         return []
       }
@@ -92,36 +98,49 @@ export class CompareTargetStore {
     return this.read().find((entry) => sameKey(entry, key))?.ref ?? null
   }
 
-  private replace(entries: CompareTargetEntry[]): void {
-    const temporary = `${this.filePath}.${process.pid}.${Date.now()}.${temporarySerial}.tmp`
-    temporarySerial += 1
-    const body: CompareTargetFile = { version: 1, entries }
-    mkdirSync(dirname(this.filePath), { recursive: true })
-    try {
-      writeFileSync(temporary, `${JSON.stringify(body)}\n`, { encoding: 'utf8', mode: 0o600 })
-      renameSync(temporary, this.filePath)
-    } catch (error) {
-      rmSync(temporary, { force: true })
-      throw error
-    }
+  private refuseUnreadable(): never {
+    console.warn('[fork] compare-target file is unreadable; leaving it unchanged')
+    throw new Error('compare target file is unreadable')
   }
 
-  // ref 为 null 时删掉这一档。先写临时文件再 rename，读到的永远是完整 JSON。
+  private writeBody(temporary: string, entries: CompareTargetEntry[]): void {
+    const body: CompareTargetFile = { version: 1, entries }
+    writeFileSync(temporary, `${JSON.stringify(body)}\n`, { encoding: 'utf8', mode: 0o600 })
+  }
+
+  // ref 为 null 时删掉这一档。先写临时文件，rename 前再读一次合并，读到的永远是完整 JSON。
   set(key: CompareTargetKey, ref: string | null): Promise<void> {
     return enqueueWrite(this.filePath, () => {
-      const merged = withRef(this.read(), key, ref)
-      this.replace(merged)
-      // 对方可能在这次 rename 之前写过。读失败就保持刚发布的内容，避免把文件收成只剩自己的键。
-      const current = this.readFile()
-      if (!current) {
-        return
+      const loaded = this.readFile()
+      if (loaded === null) {
+        this.refuseUnreadable()
       }
-      const again = withRef(current, key, ref)
-      if (JSON.stringify(again) !== JSON.stringify(merged)) {
-        this.replace(again)
+      const merged = withRef(loaded, key, ref)
+      const temporary = `${this.filePath}.${process.pid}.${Date.now()}.${temporarySerial}.tmp`
+      temporarySerial += 1
+      mkdirSync(dirname(this.filePath), { recursive: true })
+      try {
+        this.writeBody(temporary, merged)
+        // 对方可能在第一次读之后、这次 rename 之前写过。读不了就不改名，避免盖掉原文件。
+        const latest = this.readFile()
+        if (latest === null) {
+          this.refuseUnreadable()
+        }
+        const again = withRef(latest, key, ref)
+        if (JSON.stringify(again) !== JSON.stringify(merged)) {
+          this.writeBody(temporary, again)
+        }
+        renameSync(temporary, this.filePath)
+      } catch (error) {
+        rmSync(temporary, { force: true })
+        throw error
       }
     })
   }
+}
+
+function isEnoent(error: unknown): boolean {
+  return !!error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT'
 }
 
 function withRef(

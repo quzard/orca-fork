@@ -42,7 +42,8 @@ function sameKey(entry: CompareTargetEntry, key: CompareTargetKey): boolean {
   )
 }
 
-// 同一个文件的写串成一队。两个窗口的请求都在这个进程里，先读后写不能交错。
+// 只在本进程排队。文件在这个进程自己的 userData 里：桌面和远端 orcad 各写各的目录，
+// 不会抢同一条路径。同一台机器上只有这份 runtime 写它，所以没有跨进程锁。
 const writeQueues = new Map<string, Promise<void>>()
 
 function enqueueWrite(filePath: string, write: () => void): Promise<void> {

@@ -28,15 +28,18 @@ const MERGE = 'c'.repeat(40)
 
 const mocks = vi.hoisted(() => ({
   callRuntimeRpc: vi.fn(),
+  supports: vi.fn(),
   getRuntimeGitDiff: vi.fn(),
   getRuntimeGitBranchDiff: vi.fn(),
   getRuntimeGitCommitDiff: vi.fn(),
-  getState: vi.fn(() => ({}))
+  getState: vi.fn(() => ({})),
+  connectionId: undefined as string | undefined,
+  target: { kind: 'local' } as { kind: 'local' } | { kind: 'environment'; environmentId: string }
 }))
 
 vi.mock('@/runtime/runtime-rpc-client', () => ({
   callRuntimeRpc: mocks.callRuntimeRpc,
-  runtimeEnvironmentSupportsCapability: vi.fn()
+  runtimeEnvironmentSupportsCapability: mocks.supports
 }))
 
 vi.mock('@/runtime/runtime-git-diff-client', () => ({
@@ -50,11 +53,11 @@ vi.mock('@/store', () => ({
 }))
 
 vi.mock('@/lib/connection-context', () => ({
-  getConnectionIdForFile: () => undefined
+  getConnectionIdForFile: () => mocks.connectionId
 }))
 
 vi.mock('@/lib/file-owner-runtime-target', () => ({
-  requireRuntimeTargetForFileOwner: () => ({ kind: 'local' })
+  requireRuntimeTargetForFileOwner: () => mocks.target
 }))
 
 const diffBody = {
@@ -98,6 +101,10 @@ describe('nested repository diff hook', () => {
         realPath: '/ws/libs/core'
       }
     ])
+    mocks.connectionId = undefined
+    mocks.target = { kind: 'local' }
+    mocks.supports.mockReset()
+    mocks.supports.mockResolvedValue(true)
     mocks.callRuntimeRpc.mockReset()
     mocks.callRuntimeRpc.mockResolvedValue(diffBody)
     mocks.getRuntimeGitDiff.mockReset()
@@ -251,6 +258,84 @@ describe('nested repository diff hook', () => {
       expect.anything(),
       expect.anything()
     )
+  })
+
+  it('falls back to the upstream diff when discovery rejects', async () => {
+    clearDiscoveredRepositoriesForTests()
+    mocks.callRuntimeRpc.mockRejectedValue(new Error('method missing'))
+    await act(async () => {
+      await load!(
+        file({
+          filePath: '/ws/libs/core/src/a.ts',
+          relativePath: 'libs/core/src/a.ts'
+        })
+      )
+    })
+    expect(mocks.callRuntimeRpc).toHaveBeenCalledWith(
+      { kind: 'local' },
+      FORK_GIT_WORKSPACE_REPOSITORIES_METHOD,
+      expect.objectContaining({ worktree: 'id:wt-1' }),
+      {}
+    )
+    expect(mocks.getRuntimeGitDiff).toHaveBeenCalled()
+    expect(mocks.callRuntimeRpc).not.toHaveBeenCalledWith(
+      { kind: 'local' },
+      FORK_GIT_WORKSPACE_DIFF_METHOD,
+      expect.anything(),
+      expect.anything()
+    )
+  })
+
+  it('skips discovery when the remote host lacks the capability', async () => {
+    clearDiscoveredRepositoriesForTests()
+    mocks.target = { kind: 'environment', environmentId: 'env-old' }
+    mocks.supports.mockResolvedValue(false)
+    await act(async () => {
+      await load!(
+        file({
+          filePath: '/ws/libs/core/src/a.ts',
+          relativePath: 'libs/core/src/a.ts'
+        })
+      )
+    })
+    expect(mocks.supports).toHaveBeenCalledWith('env-old', expect.any(String))
+    expect(mocks.callRuntimeRpc).not.toHaveBeenCalled()
+    expect(mocks.getRuntimeGitDiff).toHaveBeenCalled()
+  })
+
+  it('skips discovery for a desktop SSH row', async () => {
+    clearDiscoveredRepositoriesForTests()
+    mocks.connectionId = 'desk'
+    await act(async () => {
+      await load!(
+        file({
+          filePath: '/ws/libs/core/src/a.ts',
+          relativePath: 'libs/core/src/a.ts'
+        })
+      )
+    })
+    expect(mocks.callRuntimeRpc).not.toHaveBeenCalled()
+    expect(mocks.supports).not.toHaveBeenCalled()
+    expect(mocks.getRuntimeGitDiff).toHaveBeenCalled()
+  })
+
+  it('does not fall back to the root diff once a path is inside a nested repo', async () => {
+    mocks.callRuntimeRpc.mockRejectedValue(new Error('diff failed'))
+    await act(async () => {
+      await load!(
+        file({
+          filePath: '/ws/libs/core/src/a.ts',
+          relativePath: 'libs/core/src/a.ts'
+        })
+      )
+    })
+    expect(mocks.callRuntimeRpc).toHaveBeenCalledWith(
+      { kind: 'local' },
+      FORK_GIT_WORKSPACE_DIFF_METHOD,
+      expect.objectContaining({ repositoryPath: 'libs/core', filePath: 'src/a.ts' }),
+      {}
+    )
+    expect(mocks.getRuntimeGitDiff).not.toHaveBeenCalled()
   })
 
   it('reads a nested branch diff through the fork method', async () => {

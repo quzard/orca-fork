@@ -1,7 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { runtimeEnvironmentSupportsCapability } from '@/runtime/runtime-rpc-client'
-import { parseExecutionHostId } from '../../shared/execution-host'
 import { FORK_GIT_WORKSPACE_REPOSITORIES_CAPABILITY } from '../../shared/fork-hooks/git-workspace-capability'
 import type { SourceControlScopeModel } from '../../shared/fork-hooks/source-control-scope'
 import type { RuntimeClientTarget } from '../../shared/runtime-client-target'
@@ -19,13 +18,8 @@ import {
   writeSourceControlScope,
   type SourceControlScope
 } from './scope-memory'
+import { desktopGitRouteServesWorkspaceRepos } from './desktop-git-route'
 import { WorkspaceRepositoriesView } from './workspace-view'
-
-function desktopOwnsGitRoute(model: SourceControlScopeModel): boolean {
-  const parsed = parseExecutionHostId(model.activeRepoExecutionHostId)
-  // 面板没带主机时按本机算。ssh: 和 runtime: 的磁盘不在这个进程里。
-  return !parsed || parsed.kind === 'local'
-}
 
 function useWorkspaceRepositoriesCapability(target: RuntimeClientTarget | null): boolean | null {
   const environmentId = target?.kind === 'environment' ? target.environmentId : null
@@ -70,7 +64,12 @@ export function ForkSourceControlScope({
   const target = model.activeRepoTarget ?? null
   const probed = useWorkspaceRepositoriesCapability(target)
   // 托管 SSH 的目标是 environment，请求发到那台主机的 orcad。桌面上的 ssh: 行扫不了磁盘。
-  const routeBlocked = target?.kind !== 'environment' && !desktopOwnsGitRoute(model)
+  const routeBlocked =
+    target?.kind !== 'environment' &&
+    !desktopGitRouteServesWorkspaceRepos({
+      executionHostId: model.activeRepoExecutionHostId,
+      connectionId: model.activeConnectionId
+    })
   const supported = routeBlocked ? false : probed
   const [scope, setScope] = useState<SourceControlScope>(() =>
     worktreeId ? readSourceControlScope(worktreeId) : SOURCE_CONTROL_SCOPE_CURRENT

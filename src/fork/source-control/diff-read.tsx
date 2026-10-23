@@ -1,4 +1,6 @@
+import { runtimeEnvironmentSupportsCapability } from '@/runtime/runtime-rpc-client'
 import { toRuntimeWorktreeSelector } from '@/runtime/runtime-worktree-selector'
+import { FORK_GIT_WORKSPACE_REPOSITORIES_CAPABILITY } from '../../shared/fork-hooks/git-workspace-capability'
 import type { WorkspaceRepositoryDiffInput } from '../../shared/fork-hooks/workspace-repository-diff'
 import {
   FORK_GIT_WORKSPACE_BRANCH_DIFF_METHOD,
@@ -6,6 +8,7 @@ import {
   FORK_GIT_WORKSPACE_REPOSITORIES_METHOD
 } from '../git-workspace/constants'
 import type { WorkspaceRepositoryList } from '../git-workspace/types'
+import { desktopGitRouteServesWorkspaceRepos } from './desktop-git-route'
 import {
   hasDiscoveredRepositories,
   rememberDiscoveredRepositories,
@@ -55,22 +58,50 @@ function readMatchedDiff(
   })
 }
 
-async function discoverThenRead(input: WorkspaceRepositoryDiffInput): Promise<unknown> {
-  const list = await callWorkspaceGit<WorkspaceRepositoryList>(
-    input.target,
-    FORK_GIT_WORKSPACE_REPOSITORIES_METHOD,
-    { worktree: toRuntimeWorktreeSelector(input.file.worktreeId), refresh: false }
+// 路径已经落在嵌套仓库里时，失败也不能改拿根仓库的 diff。
+function nestedDiff(
+  input: WorkspaceRepositoryDiffInput,
+  match: { repositoryPath: string; filePath: string }
+): Promise<unknown> {
+  return (
+    readMatchedDiff(input, match) ?? Promise.reject(new Error('nested repository diff unavailable'))
   )
-  rememberDiscoveredRepositories(input.file.worktreeId, list.repositories)
-  const match = repositoryForRootRelativePath(input.file.worktreeId, input.file.relativePath)
-  // 发现失败不能退回根仓库。只有确认不在嵌套仓库里才用上游读取。
-  if (!match) {
-    return input.readUpstream()
-  }
-  return readMatchedDiff(input, match) ?? input.readUpstream()
 }
 
-// 提交 diff 和已经扫过、确定不在嵌套仓库里的路径同步返回 null。缓存是冷的时先发现。
+async function hostCanDiscover(input: WorkspaceRepositoryDiffInput): Promise<boolean> {
+  if (input.target.kind !== 'environment') {
+    return desktopGitRouteServesWorkspaceRepos({ connectionId: input.connectionId })
+  }
+  try {
+    return await runtimeEnvironmentSupportsCapability(
+      input.target.environmentId,
+      FORK_GIT_WORKSPACE_REPOSITORIES_CAPABILITY
+    )
+  } catch {
+    return false
+  }
+}
+
+async function discoverThenRead(input: WorkspaceRepositoryDiffInput): Promise<unknown> {
+  if (!(await hostCanDiscover(input))) {
+    return input.readUpstream()
+  }
+  try {
+    const list = await callWorkspaceGit<WorkspaceRepositoryList>(
+      input.target,
+      FORK_GIT_WORKSPACE_REPOSITORIES_METHOD,
+      { worktree: toRuntimeWorktreeSelector(input.file.worktreeId), refresh: false }
+    )
+    rememberDiscoveredRepositories(input.file.worktreeId, list.repositories)
+  } catch {
+    // 方法不存在、路由拒绝或扫描超时：这次还不知道路径在哪，退回上游。
+    return input.readUpstream()
+  }
+  const match = repositoryForRootRelativePath(input.file.worktreeId, input.file.relativePath)
+  return match ? nestedDiff(input, match) : input.readUpstream()
+}
+
+// 提交 diff、以及已经扫过且不在嵌套仓库里的路径，同步返回 null。
 export function readNestedRepositoryDiff(
   input: WorkspaceRepositoryDiffInput
 ): Promise<unknown> | null {
@@ -81,9 +112,16 @@ export function readNestedRepositoryDiff(
   ) {
     return null
   }
-  if (!hasDiscoveredRepositories(input.file.worktreeId)) {
-    return discoverThenRead(input)
+  if (hasDiscoveredRepositories(input.file.worktreeId)) {
+    const match = repositoryForRootRelativePath(input.file.worktreeId, input.file.relativePath)
+    return match ? nestedDiff(input, match) : null
   }
-  const match = repositoryForRootRelativePath(input.file.worktreeId, input.file.relativePath)
-  return match ? readMatchedDiff(input, match) : null
+  // 桌面 ssh: 行同步跳过，不发发现请求。远端主机要等能力探测，所以走异步。
+  if (
+    input.target.kind !== 'environment' &&
+    !desktopGitRouteServesWorkspaceRepos({ connectionId: input.connectionId })
+  ) {
+    return null
+  }
+  return discoverThenRead(input)
 }

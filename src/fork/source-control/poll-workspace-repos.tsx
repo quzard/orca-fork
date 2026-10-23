@@ -6,6 +6,7 @@ import {
   FORK_GIT_WORKSPACE_BRANCH_COMPARE_METHOD,
   FORK_GIT_WORKSPACE_REPOSITORIES_METHOD,
   FORK_GIT_WORKSPACE_STATUS_METHOD,
+  WORKSPACE_REPOSITORY_BRANCH_COMPARE_INTERVAL_MS,
   WORKSPACE_REPOSITORY_POLL_BACKOFF_MAX_MS,
   WORKSPACE_REPOSITORY_POLL_BACKOFF_START_MS,
   WORKSPACE_REPOSITORY_POLL_CONCURRENCY,
@@ -21,13 +22,19 @@ export type WorkspaceRepositoryPoll = {
   compares: Readonly<Record<string, GitBranchCompareResult>>
 }
 
-type ObservedHead = { head: string | null; ref: string | null }
+type ObservedCompare = {
+  head: string | null
+  ref: string
+  baseOid: string | null
+  at: number
+}
 
-// 分支比较只在第一次、手动刷新、HEAD 或比较目标变了的时候做。状态仍按间隔轮询。
+// 分支比较在第一次、手动刷新、HEAD 或比较目标变了时做。同一 HEAD 下基线提交仍可能前进，所以过了间隔再比。
 export function branchCompareDue(
   refresh: boolean,
   status: WorkspaceRepositoryStatus,
-  previous: ObservedHead | undefined
+  previous: ObservedCompare | undefined,
+  now = Date.now()
 ): boolean {
   const ref = status.compareTarget.ref
   if (!ref || status.uninitialized) {
@@ -36,7 +43,10 @@ export function branchCompareDue(
   if (refresh || !previous) {
     return true
   }
-  return previous.head !== status.head || previous.ref !== ref
+  if (previous.head !== status.head || previous.ref !== ref) {
+    return true
+  }
+  return now - previous.at >= WORKSPACE_REPOSITORY_BRANCH_COMPARE_INTERVAL_MS
 }
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
@@ -104,7 +114,7 @@ export function useWorkspaceRepositoryPoll(args: {
     const signal = controller.signal
     let backoff = WORKSPACE_REPOSITORY_POLL_BACKOFF_START_MS
     let first = true
-    const observed = new Map<string, ObservedHead>()
+    const observed = new Map<string, ObservedCompare>()
     const worktree = toRuntimeWorktreeSelector(worktreeId)
 
     const cycle = async (): Promise<void> => {
@@ -161,7 +171,12 @@ export function useWorkspaceRepositoryPoll(args: {
                 signal
               )
               if (!signal.aborted) {
-                observed.set(repository.repositoryPath, { head: status.head, ref })
+                observed.set(repository.repositoryPath, {
+                  head: status.head,
+                  ref,
+                  baseOid: compare.summary.baseOid,
+                  at: Date.now()
+                })
                 setCompares((prev) => ({ ...prev, [repository.repositoryPath]: compare }))
               }
             } catch {

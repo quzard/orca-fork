@@ -4,7 +4,12 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getBaseRefDefault } from '../../../main/git/repo-default-base-ref'
 import { CompareTargetStore, compareTargetFilePath } from './compare-target-store'
-import { clearWorkspaceCompareTargetCache, resolveWorkspaceCompareTarget } from './compare-target'
+import {
+  clearWorkspaceCompareTargetCache,
+  DEFAULT_BASE_CACHE_LIMIT,
+  DEFAULT_BASE_CACHE_TTL_MS,
+  resolveWorkspaceCompareTarget
+} from './compare-target'
 
 vi.mock('../../../main/git/repo-default-base-ref', () => ({
   getBaseRefDefault: vi.fn()
@@ -83,6 +88,47 @@ describe('workspace compare target', () => {
     expect(getBaseRefDefault).toHaveBeenCalledTimes(2)
     await resolveWorkspaceCompareTarget({ ...args, head: 'bbb', refresh: true })
     expect(getBaseRefDefault).toHaveBeenCalledTimes(3)
+  })
+
+  it('forgets a default base after the ttl and caps how many it keeps', async () => {
+    dir = mkdtempSync(join(tmpdir(), 'orca-compare-'))
+    const store = new CompareTargetStore(compareTargetFilePath(dir))
+    vi.mocked(getBaseRefDefault).mockResolvedValue('origin/main')
+    const args = {
+      store,
+      key,
+      repoAbsolutePath: '/ws/libs/core',
+      gitOptions: {},
+      head: 'aaa',
+      now: 0
+    }
+    await resolveWorkspaceCompareTarget(args)
+    await resolveWorkspaceCompareTarget({ ...args, now: DEFAULT_BASE_CACHE_TTL_MS - 1 })
+    expect(getBaseRefDefault).toHaveBeenCalledTimes(1)
+    await resolveWorkspaceCompareTarget({ ...args, now: DEFAULT_BASE_CACHE_TTL_MS })
+    expect(getBaseRefDefault).toHaveBeenCalledTimes(2)
+
+    vi.mocked(getBaseRefDefault).mockClear()
+    for (let index = 0; index < DEFAULT_BASE_CACHE_LIMIT + 1; index += 1) {
+      await resolveWorkspaceCompareTarget({
+        ...args,
+        key: { ...key, branch: `branch-${index}` },
+        now: DEFAULT_BASE_CACHE_TTL_MS
+      })
+    }
+    expect(getBaseRefDefault).toHaveBeenCalledTimes(DEFAULT_BASE_CACHE_LIMIT + 1)
+    await resolveWorkspaceCompareTarget({
+      ...args,
+      key: { ...key, branch: 'branch-1' },
+      now: DEFAULT_BASE_CACHE_TTL_MS
+    })
+    expect(getBaseRefDefault).toHaveBeenCalledTimes(DEFAULT_BASE_CACHE_LIMIT + 1)
+    await resolveWorkspaceCompareTarget({
+      ...args,
+      key: { ...key, branch: 'branch-0' },
+      now: DEFAULT_BASE_CACHE_TTL_MS
+    })
+    expect(getBaseRefDefault).toHaveBeenCalledTimes(DEFAULT_BASE_CACHE_LIMIT + 2)
   })
 
   it('keeps both overrides when two stores write at once', async () => {

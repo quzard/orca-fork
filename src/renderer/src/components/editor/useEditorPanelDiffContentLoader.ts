@@ -97,60 +97,57 @@ export function useEditorPanelDiffContentLoader({
         }
         let pending = inFlightDiffReads.get(key)
         if (!pending) {
-          const readUpstream = (): Promise<DiffContent> => {
-            const upstream =
-              effectiveDiffSource === 'commit'
-                ? commitCompare
-                  ? getRuntimeGitCommitDiff(
-                      {
-                        target: fileTarget,
-                        worktreeId: file.worktreeId,
-                        worktreePath,
-                        connectionId
+          // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: every branch resolves a git diff result, which DiffContent mirrors.
+          const readUpstream = (): Promise<DiffContent> =>
+            (effectiveDiffSource === 'commit'
+              ? commitCompare
+                ? getRuntimeGitCommitDiff(
+                    {
+                      target: fileTarget,
+                      worktreeId: file.worktreeId,
+                      worktreePath,
+                      connectionId
+                    },
+                    {
+                      commitOid: commitCompare.commitOid,
+                      parentOid: commitCompare.parentOid,
+                      filePath: file.relativePath,
+                      oldPath: file.branchOldPath
+                    }
+                  )
+                : Promise.reject(new Error('Missing commit comparison for diff tab.'))
+              : effectiveDiffSource === 'branch' && branchCompare
+                ? getRuntimeGitBranchDiff(
+                    {
+                      target: fileTarget,
+                      worktreeId: file.worktreeId,
+                      worktreePath,
+                      connectionId
+                    },
+                    {
+                      compare: {
+                        baseRef: branchCompare.baseRef,
+                        baseOid: branchCompare.baseOid!,
+                        headOid: branchCompare.headOid!,
+                        mergeBase: branchCompare.mergeBase!
                       },
-                      {
-                        commitOid: commitCompare.commitOid,
-                        parentOid: commitCompare.parentOid,
-                        filePath: file.relativePath,
-                        oldPath: file.branchOldPath
-                      }
-                    )
-                  : Promise.reject(new Error('Missing commit comparison for diff tab.'))
-                : effectiveDiffSource === 'branch' && branchCompare
-                  ? getRuntimeGitBranchDiff(
-                      {
-                        target: fileTarget,
-                        worktreeId: file.worktreeId,
-                        worktreePath,
-                        connectionId
-                      },
-                      {
-                        compare: {
-                          baseRef: branchCompare.baseRef,
-                          baseOid: branchCompare.baseOid!,
-                          headOid: branchCompare.headOid!,
-                          mergeBase: branchCompare.mergeBase!
-                        },
-                        filePath: file.relativePath,
-                        oldPath: file.branchOldPath
-                      }
-                    )
-                  : getRuntimeGitDiff(
-                      {
-                        target: fileTarget,
-                        worktreeId: file.worktreeId,
-                        worktreePath,
-                        connectionId
-                      },
-                      {
-                        filePath: file.relativePath,
-                        staged: effectiveDiffSource === 'staged',
-                        compareAgainstHead
-                      }
-                    )
-            // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: every branch resolves a git diff result, which DiffContent mirrors.
-            return upstream as Promise<DiffContent>
-          }
+                      filePath: file.relativePath,
+                      oldPath: file.branchOldPath
+                    }
+                  )
+                : getRuntimeGitDiff(
+                    {
+                      target: fileTarget,
+                      worktreeId: file.worktreeId,
+                      worktreePath,
+                      connectionId
+                    },
+                    {
+                      filePath: file.relativePath,
+                      staged: effectiveDiffSource === 'staged',
+                      compareAgainstHead
+                    }
+                  )) as Promise<DiffContent>
           // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: a nested hit is the same diff result; a miss is readUpstream.
           const promise = (forkWorkspaceRepositoryDiff({
             file,

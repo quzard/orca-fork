@@ -135,6 +135,29 @@ describe('source control scope switch', () => {
     )
   })
 
+  it('greys out a legacy SSH row that only has a connection id', async () => {
+    await render(
+      <ForkSourceControlScope
+        upstream={<div data-testid="upstream" />}
+        model={{
+          ...model({ kind: 'local' }),
+          activeRepoExecutionHostId: null,
+          activeConnectionId: 'desk'
+        }}
+      />
+    )
+    const workspace = container.querySelector(
+      `[data-testid="${SOURCE_CONTROL_SCOPE_WORKSPACE_TEST_ID}"]`
+    ) as HTMLButtonElement
+    expect(workspace.disabled).toBe(true)
+    expect(
+      container.querySelector(`[data-testid="${SOURCE_CONTROL_SCOPE_UPDATE_HOST_TEST_ID}"]`)
+        ?.textContent
+    ).toContain('SSH')
+    expect(mocks.callRuntimeRpc).not.toHaveBeenCalled()
+    expect(container.querySelector('[data-testid="upstream"]')).not.toBeNull()
+  })
+
   it('greys out a desktop SSH repo and sends nothing', async () => {
     await render(
       <ForkSourceControlScope

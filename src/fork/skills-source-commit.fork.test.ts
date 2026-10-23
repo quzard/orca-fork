@@ -92,13 +92,16 @@ describe('fork skill source commit', () => {
   })
 
   it('keeps one pin, inside the CLI tree, and production CLI never imports src/fork', () => {
-    // 桌面安装命令读这一份 pin。上游 CLI 改为拷贝内置技能文件，不再按提交克隆，handler 不必引用它。
+    // 渲染进程用这一份 pin 拼可复制的 npx skills add（含 WSL）。上游 CLI 改为拷贝内置技能文件，不再按提交克隆，主进程和 CLI 闭包都不引用它。
     expect(existsSync('src/fork/skills-source-commit.ts')).toBe(false)
     expect(readFileSync('src/fork/register.ts', 'utf8')).toContain(
       "from '../cli/skills-source-commit'"
     )
-    expect(readFileSync('src/fork/main/register-main.ts', 'utf8')).toContain(
-      "from '../../cli/skills-source-commit'"
+    expect(readFileSync('src/fork/main/register-main.ts', 'utf8')).not.toContain(
+      'skills-source-commit'
+    )
+    expect(readFileSync('fork/scripts/verify-packaged-cli-closure.mjs', 'utf8')).not.toContain(
+      'skills-source-commit'
     )
     expect(
       readFileSync('src/renderer/src/lib/agent-feature-install-commands.ts', 'utf8')
@@ -113,7 +116,7 @@ describe('fork skill source commit', () => {
   })
 
   it.skipIf(!existsSync('out/cli/index.js'))(
-    'resolves the packaged CLI closure without src/fork',
+    'resolves the packaged CLI closure without src/fork or the skill pin',
     () => {
       execFileSync(process.execPath, ['fork/scripts/verify-packaged-cli-closure.mjs'], {
         stdio: 'inherit'

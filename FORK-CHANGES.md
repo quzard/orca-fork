@@ -154,7 +154,7 @@ git 目标解析器在 `runtime-construction.ts` 里绑定。`resolveRuntimeGitT
 
 不再移植自定义仓库。skills 仍从 `https://github.com/stablyai/orca` 安装，内容与上游相同。fork 构建不能把本次构建提交当作 clone ref：该提交不在上游，`npx skills add` 会报 Failed to clone repository。
 
-安装、更新和 CLI 用的 ref 是上游基线提交，只写在 `src/cli/skills-source-commit.ts` 一处。它随 `out/cli/**` 打进包供 CLI 使用；桌面主进程和渲染进程的登记（`src/fork/register.ts`、`src/fork/main/register-main.ts`、`agent-feature-install-commands.ts`）引用同一个文件。生产 CLI 代码不引用 `src/fork`。同步后运行 `node fork/scripts/sync-skills-source-commit.mjs` 重写这个文件：先 `git merge-base HEAD fork/base-upstream`（再 `origin/fork/base-upstream`）；没有该引用就用 `git merge-base HEAD upstream/main`（再 `origin/upstream/main`），不用上游 main 的最新提交；都没有就保留已写入的值。上游里断言构建提交地址的测试只 mock 掉这次登记、保持上游原样，pin 本身由 `src/fork/skills-source-commit.fork.test.ts` 和 `skills-source-commit-renderer.fork.test.tsx` 检查；本机没有任何上游引用时，前者跳过并在用例名里写明原因。`src/shared/agent-feature-install-commands.ts` 与上游一致，没有 skill 仓库钩子，也没有 `ORCA_FORK_SKILLS_SOURCE`。
+渲染进程、WSL，以及可复制的 `npx skills add` 命令用的 ref 是上游基线提交，只写在 `src/cli/skills-source-commit.ts` 一处。tsc 仍会发出 `out/cli/skills-source-commit.js`，安装脚本只检查这个文件存在；打包后的 CLI 闭包不再要求它，因为上游 CLI 已改为拷贝内置技能文件，不再按提交克隆。渲染进程的登记（`src/fork/register.ts`、`agent-feature-install-commands.ts`）引用同一个文件，主进程不再登记。生产 CLI 代码不引用 `src/fork`。同步后运行 `node fork/scripts/sync-skills-source-commit.mjs` 重写这个文件：先 `git merge-base HEAD fork/base-upstream`（再 `origin/fork/base-upstream`）；没有该引用就用 `git merge-base HEAD upstream/main`（再 `origin/upstream/main`），不用上游 main 的最新提交；都没有就保留已写入的值。上游里断言构建提交地址的测试只 mock 掉这次登记、保持上游原样，pin 本身由 `src/fork/skills-source-commit.fork.test.ts` 和 `skills-source-commit-renderer.fork.test.tsx` 检查；本机没有任何上游引用时，前者跳过并在用例名里写明原因。`src/shared/agent-feature-install-commands.ts` 与上游一致，没有 skill 仓库钩子，也没有 `ORCA_FORK_SKILLS_SOURCE`。
 
 ## F036 本机 orcad 模板目标
 

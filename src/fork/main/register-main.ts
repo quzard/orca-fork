@@ -10,7 +10,6 @@ import { cursorRemoteSshLaunchSpec } from '../open-in/cursor-remote-launch'
 import { resolveFolderTerminalWorkspace } from '../terminal/folder-workspace-resolver'
 import { getGitRepoRoot } from '../../main/git/repo-detection'
 import { registerImportedWorktreePath } from '../../shared/fork-hooks/imported-worktree-path'
-import { registerForkSkillSource } from '../../cli/skills-source-commit'
 import { registerForkBuild } from '../../shared/fork-hooks/update-feed'
 import { registerKeepFolderWorkspacesOnGroupDeleteInMain } from '../../shared/fork-hooks/project-group-delete'
 import { keepFolderWorkspacesOnGroupDelete } from './project-group-delete'
@@ -19,7 +18,6 @@ import { keepFolderWorkspacesOnGroupDelete } from './project-group-delete'
 export function registerForkMainModules(): void {
   // orcad 不走 registerForkModules，这里也登记，免得它去拉上游的 agent 状态规则。
   registerForkBuild()
-  registerForkSkillSource()
   installAiVaultForkServicePolicy()
   registerAiVaultServiceHeap(() => aiVaultServiceHeapMiB())
   registerDeferBrowserSessionProxy(true)

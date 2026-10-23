@@ -262,10 +262,7 @@ export function openDetectedFilePath(
       // Why: the same gesture renders remote HTML too, through the doc preview; only an
       // unsupported plan (e.g. a paired doc outside the worktree) falls back to source.
       // 留在当前工作区的 SSH 绝对路径会带 externalSshTargetId，预览不接手。
-      if (!terminalHtmlKeepsEditorSource(
-        fileContext.connectionId, fileContext.target.kind === 'local',
-        isPathInsideWorktree(mappedFilePath, worktreePath), statResult.escapesWorktree
-      )) {
+      if (!terminalHtmlKeepsEditorSource({ fileContext, mappedFilePath, statResult })) {
         const plan = getWorkspaceFilePreviewPlan(useAppStore.getState(), worktreeId, mappedFilePath)
         if (plan.status === 'doc-preview') {
           if (refuseExplicitNonEditorRoute()) {

@@ -106,7 +106,9 @@ export function WorkspaceRepoSection({
       {
         ...entry,
         path,
-        ...(entry.oldPath ? { oldPath: rootRelative(repository.repositoryPath, entry.oldPath) } : {})
+        ...(entry.oldPath
+          ? { oldPath: rootRelative(repository.repositoryPath, entry.oldPath) }
+          : {})
       },
       summary,
       detectLanguage(path)

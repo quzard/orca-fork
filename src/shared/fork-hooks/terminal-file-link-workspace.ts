@@ -2,7 +2,7 @@
 // 未登记时保持上游：路径落在另一个工作区里就可以切过去。
 
 import type { ReactNode } from 'react'
-import { relativePathInsideRoot } from '../cross-platform-path'
+import { isPathInsideOrEqual, relativePathInsideRoot } from '../cross-platform-path'
 import type { ExecutionHostId } from '../execution-host'
 import { isFloatingWorkspaceId } from '../floating-workspace-worktree'
 import type { GlobalSettings } from '../global-settings-types'
@@ -209,18 +209,25 @@ export function terminalFileLinkWorkspaceSearchEntries(): TerminalFileLinkWorksp
  * 开关打开时，工作区外的直接 SSH 绝对路径会带 externalSshTargetId。
  * 文档预览会把这种路径当成可预览文档，所以这里改由编辑器打开源码。
  * 路径在 SSH 工作区里面、或开关关闭时，返回 false，调用方仍走上游预览。
+ * 调用方只把文件上下文、路径和 stat 传进来；是否本地目标、是否在工作区里，都在这里判断。
  */
-export function terminalHtmlKeepsEditorSource(
-  connectionId: string | null | undefined,
-  localTarget: boolean,
-  insideWorktree: boolean,
-  escapesWorktree: boolean
-): boolean {
+export function terminalHtmlKeepsEditorSource(input: {
+  fileContext: {
+    connectionId?: string | null
+    target: { kind: string }
+    worktreePath?: string | null
+  }
+  mappedFilePath: string
+  statResult: { escapesWorktree: boolean }
+}): boolean {
+  const root = input.fileContext.worktreePath
+  // 空根不能当成「/」，否则任何绝对路径都会被算进工作区。
+  const insideWorktree = root ? isPathInsideOrEqual(root, input.mappedFilePath) : false
   return (
     terminalFileLinkKeepsCurrentWorkspace() &&
-    Boolean(connectionId) &&
-    localTarget &&
-    (escapesWorktree || !insideWorktree)
+    Boolean(input.fileContext.connectionId) &&
+    input.fileContext.target.kind === 'local' &&
+    (input.statResult.escapesWorktree || !insideWorktree)
   )
 }
 
@@ -228,7 +235,9 @@ export function terminalHtmlKeepsEditorSource(
  * 终端链接打开前决定留在当前工作区还是改挂。
  * 未留下时，路径在当前根里仍收成相对路径，和上游一样。
  */
-export function resolveKeptTerminalFileLinkTarget<State extends { openFiles: readonly OpenFileRef[] }>(input: {
+export function resolveKeptTerminalFileLinkTarget<
+  State extends { openFiles: readonly OpenFileRef[] }
+>(input: {
   kept: TerminalFileLinkKeptOpen | null
   store: State
   sourceWorktreeId: string

@@ -6,7 +6,6 @@ import { pathToFileURL } from 'node:url'
 const require = createRequire(import.meta.url)
 const root = join(import.meta.dirname, '..', '..')
 const forkOutPrefix = ['out', 'fork', ''].join('/')
-const pinRel = ['out', 'cli', 'skills-source-commit.js'].join('/')
 
 /**
  * The packaged CLI is unpacked at out/cli and out/shared, not out/fork.
@@ -23,11 +22,8 @@ export function findForkClosureLeaks(repoRoot = root) {
   const closure = collectRuntimeClosure(outDir, repoRoot).map((file) =>
     relative(repoRoot, file).split(sep).join('/')
   )
-  const leaks = closure.filter((file) => file.startsWith(forkOutPrefix))
-  if (!closure.includes(pinRel)) {
-    leaks.unshift(pinRel)
-  }
-  return leaks
+  // 上游 CLI 改为拷贝内置技能，不再按提交克隆。技能 pin 仍由 tsc 发到 out/cli，安装脚本只检查文件在不在，闭包不必包含它。
+  return closure.filter((file) => file.startsWith(forkOutPrefix))
 }
 
 function main() {

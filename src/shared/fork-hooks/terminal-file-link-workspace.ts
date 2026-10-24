@@ -1,215 +1,183 @@
-// fork: 终端或原生对话里点开的文件是否留在点击时所在的工作区。
-// 未登记时保持上游：路径落在另一个工作区里就可以切过去。
+// fork: 终端或原生对话里点开的 SSH/服务器文件留在点击时的工作区。
+// 未登记时两个钩子都不改上游：本地跨工作区只读视图、以及跳进归属工作区，都由上游自己决定。
 
-import type { ReactNode } from 'react'
 import { isPathInsideOrEqual, relativePathInsideRoot } from '../cross-platform-path'
-import type { ExecutionHostId } from '../execution-host'
+import {
+  LOCAL_EXECUTION_HOST_ID,
+  toSshExecutionHostId,
+  type ExecutionHostId
+} from '../execution-host'
 import { isFloatingWorkspaceId } from '../floating-workspace-worktree'
-import type { GlobalSettings } from '../global-settings-types'
 
-export type TerminalFileLinkWorkspaceSearchEntry = {
-  title: string
-  description?: string
-  keywords?: string[]
+/** 另一个工作区里的同一路径。相对路径给「在那边打开」用，调用方只拿来标只读。 */
+export type TerminalFileLinkRoute = {
+  worktreeId: string
+  relativePath: string
+  executionHostId: ExecutionHostId
 }
 
-export type TerminalFileLinkOwner = {
+type HostFile = {
+  kind: 'host'
+  absolutePath: string
   worktreeId: string
   worktreePath: string
-  absolutePath: string
+  executionHostId: ExecutionHostId
   isDirectory: boolean
 }
 
-type DownloadContext = {
-  worktreeId?: string | null
-  worktreePath?: string | null
-}
-
-export type TerminalFileLinkKeptOpen = {
-  fileFields: { readOnly: true }
-  absolutePath?: string
-  stat?: { isDirectory: boolean; escapesWorktree: true }
-  withDownloadContext: <T extends DownloadContext>(context: T) => T
-  remember: (opened: { surface: string; fileId?: string }) => void
-}
-
-type OpenFileRef = { filePath: string; worktreeId: string }
-
-export type TerminalFileLinkSiblingRoute = {
+type LinkOwner = {
+  fileContext: {
+    connectionId?: string | null
+    target: { kind: string }
+    worktreePath?: string | null
+  }
   worktreeId: string
-  executionHostId: ExecutionHostId
-  relativePath: string
+  worktreePath: string
+  filePath: string
+  stat: { isDirectory: boolean; escapesWorktree: boolean }
+  hostWorkspaceFile: HostFile | null
+  hostGrantId: string | null
+  clientLocal: boolean
 }
 
-type SettingRender = (
-  settings: object,
-  updateSettings: (updates: Partial<GlobalSettings>) => void
-) => ReactNode
+type RouteLookup = (
+  executionHostId: ExecutionHostId,
+  absolutePath: string
+) => TerminalFileLinkRoute | null
 
-let keepsCurrentWorkspace: (() => boolean) | undefined
-let renderSetting: SettingRender | undefined
-let searchEntries: (() => TerminalFileLinkWorkspaceSearchEntry[]) | undefined
-let rememberStay: ((worktreeId: string, filePath: string, fileId: string) => void) | undefined
+let active = false
+let rememberSshStay: ((worktreeId: string, filePath: string) => void) | undefined
 let lookupStay: ((worktreeId: string, filePath: string) => boolean) | undefined
 
 export function registerTerminalFileLinkWorkspace(next: {
-  keepsCurrentWorkspace: () => boolean
-  renderSetting: SettingRender
-  searchEntries: () => TerminalFileLinkWorkspaceSearchEntry[]
-  rememberStay?: (worktreeId: string, filePath: string, fileId: string) => void
-  lookupStay?: (worktreeId: string, filePath: string) => boolean
+  rememberSshStay: (worktreeId: string, filePath: string) => void
+  lookupStay: (worktreeId: string, filePath: string) => boolean
 }): void {
-  keepsCurrentWorkspace = next.keepsCurrentWorkspace
-  renderSetting = next.renderSetting
-  searchEntries = next.searchEntries
-  rememberStay = next.rememberStay
+  active = true
+  rememberSshStay = next.rememberSshStay
   lookupStay = next.lookupStay
 }
 
-/** 登记且当前设置为开时返回 true。未登记时返回 false，调用方保持上游。 */
-export function terminalFileLinkKeepsCurrentWorkspace(): boolean {
-  return keepsCurrentWorkspace?.() === true
-}
-
-function keptPlan(input: {
-  sourceWorktreeId: string
-  filePath: string
-  absolutePath?: string
-  stat?: { isDirectory: boolean; escapesWorktree: true }
-  downloadOver?: DownloadContext
-}): TerminalFileLinkKeptOpen {
-  return {
-    fileFields: { readOnly: true },
-    absolutePath: input.absolutePath,
-    stat: input.stat,
-    withDownloadContext: <T extends DownloadContext>(context: T): T => {
-      if (!input.downloadOver) {
-        return context
-      }
-      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the overlay only replaces worktreeId and worktreePath, which this download context already carries.
-      return { ...context, ...input.downloadOver } as T
-    },
-    remember: (opened) => {
-      if (opened.surface !== 'editor' || !opened.fileId) {
-        return
-      }
-      rememberStay?.(input.sourceWorktreeId, input.filePath, opened.fileId)
-    }
-  }
-}
-
-/**
- * 主机已经指出另一个工作区拥有这个路径。开关打开时留在点击时的工作区。
- * 未登记、关闭、或本来就是当前工作区时返回 null，调用方按上游打开。
- */
-export function keepTerminalLinkInSource(input: {
-  linkOwner: TerminalFileLinkOwner
-  sourceWorktreeId: string
-}): TerminalFileLinkKeptOpen | null {
-  if (!terminalFileLinkKeepsCurrentWorkspace()) {
-    return null
-  }
-  const { linkOwner, sourceWorktreeId } = input
-  if (linkOwner.worktreeId === sourceWorktreeId) {
-    return null
-  }
-  const relativePath = relativePathInsideRoot(linkOwner.worktreePath, linkOwner.absolutePath)
-  if (!relativePath) {
-    return null
-  }
-  return keptPlan({
-    sourceWorktreeId,
-    filePath: linkOwner.absolutePath,
-    absolutePath: linkOwner.absolutePath,
-    stat: { isDirectory: linkOwner.isDirectory, escapesWorktree: true },
-    downloadOver: { worktreeId: linkOwner.worktreeId, worktreePath: linkOwner.worktreePath }
-  })
-}
-
-/**
- * 开关打开时，路径属于别的工作区、已经在别的工作区打开、或当前根下面还有更深的工作区拥有它，留在这里并只读。
- * 可编辑的那一份属于根最深的工作区。开关关闭时只做上游那次「别处已打开就改挂」，
- * 路径在当前根里（含正好等于根）仍返回 null。当前根是空串时不当作包含该路径。
- * 调用方把 findWorkspaceFileRoute 传进来，
- * 未登记钩子的测试也不会漏掉这次改挂。浮动工作区、授权文件返回 null。
- */
-export function resolveSiblingTerminalFileLink<State extends { openFiles: readonly OpenFileRef[] }>(
-  store: State,
-  sourceWorktreeId: string,
-  sourceWorktreePath: string,
-  executionHostId: ExecutionHostId,
-  filePath: string,
-  blocked: boolean,
-  findRoute: (
-    state: State,
-    executionHostId: ExecutionHostId,
-    absolutePath: string
-  ) => TerminalFileLinkSiblingRoute | null
-): {
-  kept: TerminalFileLinkKeptOpen | null
-  route: TerminalFileLinkSiblingRoute | null
-} | null {
-  if (blocked || isFloatingWorkspaceId(sourceWorktreeId)) {
-    return null
-  }
-  const openElsewhere = store.openFiles.some(
-    (file) => file.filePath === filePath && file.worktreeId !== sourceWorktreeId
-  )
-  // null：不在这个根里，或根是空的（空串会被当成「/」的前缀，把任何绝对路径收成相对路径）。
-  // ''：正好是根，点根仍走上游的激活。
-  const relative = sourceWorktreePath ? relativePathInsideRoot(sourceWorktreePath, filePath) : null
-  if (terminalFileLinkKeepsCurrentWorkspace()) {
-    if (relative !== null) {
-      if (relative.length === 0) {
-        return null
-      }
-      const route = findRoute(store, executionHostId, filePath)
-      if (!route || route.worktreeId === sourceWorktreeId) {
-        return null
-      }
-      return { kept: keptPlan({ sourceWorktreeId, filePath }), route: null }
-    }
-    const route = findRoute(store, executionHostId, filePath)
-    const foreignOwner = route !== null && route.worktreeId !== sourceWorktreeId
-    if (!foreignOwner && !openElsewhere) {
-      return null
-    }
-    return { kept: keptPlan({ sourceWorktreeId, filePath }), route: null }
-  }
-  if (relative !== null || !openElsewhere) {
-    return null
-  }
-  const route = findRoute(store, executionHostId, filePath)
-  if (!route) {
-    return null
-  }
-  return { kept: null, route }
-}
-
-/** 开关关闭时当作没有标记，已留下的标签重新按上游重挂、按上游读。 */
+/** 这个工作区是否记下过该 SSH/服务器路径。未登记时当作没有标记。 */
 export function terminalFileLinkStay(worktreeId: string | undefined, filePath: string): boolean {
-  if (!worktreeId || !terminalFileLinkKeepsCurrentWorkspace()) {
+  if (!active || !worktreeId) {
     return false
   }
   return lookupStay?.(worktreeId, filePath) === true
 }
 
-export function renderTerminalFileLinkWorkspaceSetting(
-  settings: object,
-  updateSettings: (updates: Partial<GlobalSettings>) => void
-): ReactNode {
-  return renderSetting?.(settings, updateSettings) ?? null
-}
-
-export function terminalFileLinkWorkspaceSearchEntries(): TerminalFileLinkWorkspaceSearchEntry[] {
-  return searchEntries?.() ?? []
+function hold<T extends LinkOwner>(
+  owner: T,
+  sourceWorktreeId: string,
+  sourceWorktreePath: string,
+  sourceContext: T['fileContext'],
+  host: HostFile,
+  view: TerminalFileLinkRoute
+): { owner: T; view: TerminalFileLinkRoute } {
+  rememberSshStay?.(sourceWorktreeId, host.absolutePath)
+  return {
+    // 留在点击时的工作区，但保留宿主给出的归属，后面的同级跳转就会跳过。
+    owner: {
+      ...owner,
+      worktreeId: sourceWorktreeId,
+      worktreePath: sourceWorktreePath,
+      fileContext: sourceContext,
+      hostWorkspaceFile: host,
+      stat: { isDirectory: host.isDirectory, escapesWorktree: true }
+    },
+    view
+  }
 }
 
 /**
- * 开关打开时，工作区外的直接 SSH 绝对路径会带 externalSshTargetId。
- * 文档预览会把这种路径当成可预览文档，所以这里改由编辑器打开源码。
- * 路径在 SSH 工作区里面、或开关关闭时，返回 false，调用方仍走上游预览。
- * 调用方只把文件上下文、路径和 stat 传进来；是否本地目标、是否在工作区里，都在这里判断。
+ * resolveTerminalLinkFileOwner 返回之后调用。
+ * SSH 或服务器上、归属不是当前工作区的文件，改成上游的只读视图，不切走。
+ * 授权文件、本机文件、浮动工作区、以及点在工作区根上，都原样返回。
+ */
+export function retainSshServerLinkInSource<T extends LinkOwner>(
+  owner: T,
+  source: {
+    worktreeId: string
+    worktreePath: string
+    fileContext: T['fileContext']
+  },
+  findRoute: RouteLookup
+): { owner: T; view: TerminalFileLinkRoute | null } {
+  if (
+    !active ||
+    owner.clientLocal ||
+    owner.hostGrantId !== null ||
+    isFloatingWorkspaceId(source.worktreeId)
+  ) {
+    return { owner, view: null }
+  }
+  const host = owner.hostWorkspaceFile
+  if (
+    host &&
+    host.worktreeId !== source.worktreeId &&
+    host.executionHostId !== LOCAL_EXECUTION_HOST_ID
+  ) {
+    const relativePath = relativePathInsideRoot(host.worktreePath, host.absolutePath)
+    // 空串是点在根上，仍交给上游激活那个工作区。
+    if (!relativePath) {
+      return { owner, view: null }
+    }
+    return hold(owner, source.worktreeId, source.worktreePath, source.fileContext, host, {
+      worktreeId: host.worktreeId,
+      relativePath,
+      executionHostId: host.executionHostId
+    })
+  }
+  const connectionId = source.fileContext.connectionId
+  if (!host && connectionId && source.fileContext.target.kind === 'local') {
+    const route = findRoute(toSshExecutionHostId(connectionId), owner.filePath)
+    if (route && route.worktreeId !== source.worktreeId) {
+      return hold(
+        owner,
+        source.worktreeId,
+        source.worktreePath,
+        source.fileContext,
+        {
+          kind: 'host',
+          absolutePath: owner.filePath,
+          worktreeId: route.worktreeId,
+          worktreePath: source.worktreePath,
+          executionHostId: route.executionHostId,
+          isDirectory: owner.stat.isDirectory
+        },
+        route
+      )
+    }
+  }
+  return { owner, view: null }
+}
+
+/**
+ * 路径落在当前工作区里面时调用。更深的工作区拥有它，就改成只读视图。
+ * 只有 SSH/服务器才记停留；本地只读视图由上游读，不写标记。
+ */
+export function deeperWorkspaceReadOnlyView(
+  executionHostId: ExecutionHostId,
+  absolutePath: string,
+  sourceWorktreeId: string,
+  findRoute: RouteLookup
+): TerminalFileLinkRoute | null {
+  if (!active || isFloatingWorkspaceId(sourceWorktreeId)) {
+    return null
+  }
+  const route = findRoute(executionHostId, absolutePath)
+  if (!route || route.worktreeId === sourceWorktreeId) {
+    return null
+  }
+  if (executionHostId !== LOCAL_EXECUTION_HOST_ID) {
+    rememberSshStay?.(sourceWorktreeId, absolutePath)
+  }
+  return route
+}
+
+/**
+ * 工作区外的直接 SSH HTML 用编辑器打开源码。文档预览只认工作区里的路径。
+ * 本地 HTML 不经过这里。未登记时返回 false，调用方保持上游预览。
  */
 export function terminalHtmlKeepsEditorSource(input: {
   fileContext: {
@@ -220,76 +188,15 @@ export function terminalHtmlKeepsEditorSource(input: {
   mappedFilePath: string
   statResult: { escapesWorktree: boolean }
 }): boolean {
+  if (!active) {
+    return false
+  }
   const root = input.fileContext.worktreePath
   // 空根不能当成「/」，否则任何绝对路径都会被算进工作区。
   const insideWorktree = root ? isPathInsideOrEqual(root, input.mappedFilePath) : false
   return (
-    terminalFileLinkKeepsCurrentWorkspace() &&
     Boolean(input.fileContext.connectionId) &&
     input.fileContext.target.kind === 'local' &&
     (input.statResult.escapesWorktree || !insideWorktree)
   )
-}
-
-/**
- * 终端链接打开前决定留在当前工作区还是改挂。
- * 未留下时，路径在当前根里仍收成相对路径，和上游一样。
- */
-export function resolveKeptTerminalFileLinkTarget<
-  State extends { openFiles: readonly OpenFileRef[] }
->(input: {
-  kept: TerminalFileLinkKeptOpen | null
-  store: State
-  sourceWorktreeId: string
-  sourceWorktreePath: string
-  executionHostId: ExecutionHostId
-  filePath: string
-  blocked: boolean
-  escapesWorktree: boolean
-  findRoute: (
-    state: State,
-    executionHostId: ExecutionHostId,
-    absolutePath: string
-  ) => TerminalFileLinkSiblingRoute | null
-  pathInside: (filePath: string, root: string) => boolean
-  toRelative: (filePath: string, root: string) => string | null
-}): {
-  kept: TerminalFileLinkKeptOpen | null
-  targetWorktreeId: string
-  targetExecutionHostId: ExecutionHostId
-  relativePath: string
-} {
-  let kept = input.kept
-  let targetWorktreeId = input.sourceWorktreeId
-  let targetExecutionHostId = input.executionHostId
-  let relativePath = input.filePath
-  if (!kept) {
-    const sibling = resolveSiblingTerminalFileLink(
-      input.store,
-      input.sourceWorktreeId,
-      input.sourceWorktreePath,
-      input.executionHostId,
-      input.filePath,
-      input.blocked,
-      input.findRoute
-    )
-    kept = sibling?.kept ?? null
-    if (sibling?.route) {
-      targetWorktreeId = sibling.route.worktreeId
-      targetExecutionHostId = sibling.route.executionHostId
-      relativePath = sibling.route.relativePath
-    }
-  }
-  const insideSource =
-    Boolean(input.sourceWorktreePath) &&
-    input.pathInside(input.filePath, input.sourceWorktreePath) &&
-    !input.escapesWorktree
-  if (!kept && insideSource) {
-    const maybeRelative = input.toRelative(input.filePath, input.sourceWorktreePath)
-    // 落在项目外的链接保持绝对路径，重启后仍按用户点的那个文件读，而不是被当成项目文件拒绝。
-    if (maybeRelative !== null && maybeRelative.length > 0) {
-      relativePath = maybeRelative
-    }
-  }
-  return { kept, targetWorktreeId, targetExecutionHostId, relativePath }
 }

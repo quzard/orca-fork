@@ -34,8 +34,6 @@ import {
 import { createLocalizedCatalog } from '@/i18n/localized-catalog'
 import { translate } from '@/i18n/i18n'
 import { translateSearchKeyword } from './settings-search-keywords'
-import { terminalFileLinkWorkspaceSearchEntries } from '../../../../shared/fork-hooks/terminal-file-link-workspace'
-
 export {
   getTerminalAdvancedTypographySearchEntries,
   getTerminalTypographySearchEntries,
@@ -110,7 +108,6 @@ export function getTerminalPaneSearchEntries(platform: {
   return [
     ...getTerminalRenderingSearchEntries(),
     ...getTerminalPaneInteractionSearchEntries(),
-    ...terminalFileLinkWorkspaceSearchEntries(),
     ...(platform.isWindows ? getTerminalWindowsAdministratorSearchEntry() : []),
     ...(!isWindowsTerminalHost
       ? [

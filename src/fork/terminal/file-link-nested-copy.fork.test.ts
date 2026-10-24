@@ -54,7 +54,7 @@ describe('shallower writable copies', () => {
     const next = demote([outer, inner])
 
     expect(next).toEqual([{ ...outer, readOnly: true }, inner])
-    expect(loadTerminalFileLinkStay('wt-home', FILE)).toBe(true)
+    expect(loadTerminalFileLinkStay('wt-home', FILE)).toBe(false)
     expect(loadTerminalFileLinkStay('wt-nas', FILE)).toBe(false)
   })
 
@@ -85,6 +85,8 @@ describe('shallower writable copies', () => {
       const next = demote([outer, inner])
       expect(next?.map((file) => file.readOnly)).toEqual([true, undefined])
       expect(next?.map((file) => file.id)).toEqual(['outer', 'inner'])
+      expect(loadTerminalFileLinkStay('wt-home', FILE)).toBe(true)
+      expect(loadTerminalFileLinkStay('wt-nas', FILE)).toBe(false)
     }
   })
 

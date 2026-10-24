@@ -39,12 +39,10 @@ function session(first: string, second: string): WorkspaceSessionState {
 
 describe('terminal file-link stay survives hydration order', () => {
   const storage = new Map<string, string>()
-  let keep = true
 
   beforeEach(() => {
     storage.clear()
     resetTerminalFileLinkStayCacheForTests()
-    keep = true
     Object.defineProperty(globalThis, 'localStorage', {
       configurable: true,
       value: {
@@ -55,9 +53,7 @@ describe('terminal file-link stay survives hydration order', () => {
       }
     })
     registerTerminalFileLinkWorkspace({
-      keepsCurrentWorkspace: () => keep,
-      renderSetting: () => null,
-      searchEntries: () => [],
+      rememberSshStay: () => undefined,
       lookupStay: loadTerminalFileLinkStay
     })
   })
@@ -71,8 +67,6 @@ describe('terminal file-link stay survives hydration order', () => {
 
     saveTerminalFileLinkStay(A, PATH)
     expect(terminalFileLinkStay(A, PATH)).toBe(true)
-    keep = false
-    expect(terminalFileLinkStay(A, PATH)).toBe(false)
   })
 
   it('still matches workspace A when A hydrates first under the bare path', () => {

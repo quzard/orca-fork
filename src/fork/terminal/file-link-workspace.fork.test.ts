@@ -1,18 +1,12 @@
-// 开关缺省为开；只有显式 false 才回到上游。未登记的钩子必须保持上游。
-import { tmpdir } from 'node:os'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { getDefaultPersistedState } from '../../shared/constants'
-import type { GlobalSettings } from '../../shared/global-settings-types'
+// 未登记时钩子保持上游。登记后只留 SSH/服务器，本地嵌套视图不写停留标记。
+import { beforeEach, describe, expect, it } from 'vitest'
 import {
+  deeperWorkspaceReadOnlyView,
   registerTerminalFileLinkWorkspace,
-  terminalFileLinkKeepsCurrentWorkspace,
-  terminalFileLinkWorkspaceSearchEntries
+  retainSshServerLinkInSource,
+  terminalFileLinkStay,
+  terminalHtmlKeepsEditorSource
 } from '../../shared/fork-hooks/terminal-file-link-workspace'
-import {
-  updateSettings,
-  type SettingsMutationOperations
-} from '../../main/persistence/applying-settings/settings-update'
-import { terminalFileLinksOpenInCurrentWorkspace } from './file-link-workspace'
 import {
   applyTerminalFileLinkStayStorageEvent,
   forgetClosedTerminalFileLinkStays,
@@ -27,75 +21,141 @@ import {
   terminalFileLinkStayKey
 } from './file-link-stay'
 
-function storedSetting(value: boolean): Partial<GlobalSettings> {
-  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the profile JSON keeps this boolean beside GlobalSettings; the upstream type does not list it.
-  return { terminalFileLinksOpenInCurrentWorkspace: value } as Partial<GlobalSettings>
+const remembered: { worktreeId: string; filePath: string }[] = []
+
+function sourceContext(worktreePath: string) {
+  return { connectionId: undefined, target: { kind: 'environment' }, worktreePath }
 }
 
-vi.mock('electron', () => ({
-  app: { getPath: () => '/tmp' },
-  safeStorage: { isEncryptionAvailable: () => false }
-}))
-vi.mock('../../main/telemetry/client', () => ({ track: vi.fn() }))
-
-function makeOperations(): SettingsMutationOperations {
-  return {
-    state: getDefaultPersistedState(tmpdir()),
-    bumpLocalWorktreeScanGeneration: vi.fn(),
-    removeRetainedBlob: vi.fn(),
-    scheduleSave: vi.fn(),
-    notifySettingsChanged: vi.fn()
-  }
-}
-
-describe('terminalFileLinksOpenInCurrentWorkspace', () => {
-  it('stays on when the profile never wrote the key or wrote true', () => {
-    expect(terminalFileLinksOpenInCurrentWorkspace(undefined)).toBe(true)
-    expect(terminalFileLinksOpenInCurrentWorkspace({})).toBe(true)
+describe('terminal file-link workspace hooks', () => {
+  it('leaves the owner unchanged until the fork registers', () => {
+    const linked = {
+      fileContext: sourceContext('/repo'),
+      worktreeId: 'folder:home',
+      worktreePath: '/Users/me',
+      filePath: '/Users/me/a.png',
+      stat: { isDirectory: false, escapesWorktree: false },
+      hostWorkspaceFile: {
+        kind: 'host' as const,
+        absolutePath: '/Users/me/a.png',
+        worktreeId: 'folder:home',
+        worktreePath: '/Users/me',
+        executionHostId: 'runtime:env-1' as const,
+        isDirectory: false
+      },
+      hostGrantId: null,
+      clientLocal: false
+    }
     expect(
-      terminalFileLinksOpenInCurrentWorkspace({ terminalFileLinksOpenInCurrentWorkspace: true })
-    ).toBe(true)
-  })
-
-  it('follows upstream only when the profile stored false', () => {
+      retainSshServerLinkInSource(
+        linked,
+        { worktreeId: 'wt-feat', worktreePath: '/repo', fileContext: sourceContext('/repo') },
+        () => null
+      )
+    ).toEqual({ owner: linked, view: null })
     expect(
-      terminalFileLinksOpenInCurrentWorkspace({ terminalFileLinksOpenInCurrentWorkspace: false })
+      deeperWorkspaceReadOnlyView('ssh:ssh-1', '/home/me/a.ts', 'wt-ssh', () => null)
+    ).toBeNull()
+    expect(
+      terminalHtmlKeepsEditorSource({
+        fileContext: { connectionId: 'ssh-1', target: { kind: 'local' }, worktreePath: '/home/me' },
+        mappedFilePath: '/tmp/x.html',
+        statResult: { escapesWorktree: true }
+      })
     ).toBe(false)
-  })
-})
+    expect(terminalFileLinkStay('wt-feat', '/Users/me/a.png')).toBe(false)
 
-describe('terminal file-link workspace hook', () => {
-  it('does nothing until the fork registers, then follows the setting', () => {
-    expect(terminalFileLinkKeepsCurrentWorkspace()).toBe(false)
-    expect(terminalFileLinkWorkspaceSearchEntries()).toEqual([])
-    let on = true
     registerTerminalFileLinkWorkspace({
-      keepsCurrentWorkspace: () => on,
-      renderSetting: () => null,
-      searchEntries: () => [{ title: 'stay' }]
+      rememberSshStay: (worktreeId, filePath) => {
+        remembered.push({ worktreeId, filePath })
+      },
+      lookupStay: (worktreeId, filePath) =>
+        remembered.some((stay) => stay.worktreeId === worktreeId && stay.filePath === filePath)
     })
-    expect(terminalFileLinkKeepsCurrentWorkspace()).toBe(true)
-    expect(terminalFileLinkWorkspaceSearchEntries()).toEqual([{ title: 'stay' }])
-    on = false
-    expect(terminalFileLinkKeepsCurrentWorkspace()).toBe(false)
   })
-})
 
-describe('terminalFileLinksOpenInCurrentWorkspace persistence', () => {
-  it('keeps an explicit off through the same settings write as other terminal preferences', () => {
-    const operations = makeOperations()
-    expect(terminalFileLinksOpenInCurrentWorkspace(operations.state.settings)).toBe(true)
-
-    updateSettings(operations, storedSetting(false))
-
-    expect(terminalFileLinksOpenInCurrentWorkspace(operations.state.settings)).toBe(false)
-    expect(operations.notifySettingsChanged).not.toHaveBeenCalled()
-    updateSettings(operations, storedSetting(true), { notifyListeners: true })
-    expect(terminalFileLinksOpenInCurrentWorkspace(operations.state.settings)).toBe(true)
-    expect(operations.notifySettingsChanged).toHaveBeenCalledWith(
-      expect.objectContaining({ terminalFileLinksOpenInCurrentWorkspace: true }),
-      undefined
+  it('holds a server file in the clicked workspace and remembers it', () => {
+    remembered.length = 0
+    const linked = {
+      fileContext: sourceContext('/Users/me'),
+      worktreeId: 'folder:home',
+      worktreePath: '/Users/me',
+      filePath: '/Users/me/a.png',
+      stat: { isDirectory: false, escapesWorktree: false },
+      hostWorkspaceFile: {
+        kind: 'host' as const,
+        absolutePath: '/Users/me/a.png',
+        worktreeId: 'folder:home',
+        worktreePath: '/Users/me',
+        executionHostId: 'runtime:env-1' as const,
+        isDirectory: false
+      },
+      hostGrantId: null,
+      clientLocal: false
+    }
+    const held = retainSshServerLinkInSource(
+      linked,
+      { worktreeId: 'wt-feat', worktreePath: '/repo', fileContext: sourceContext('/repo') },
+      () => null
     )
+    expect(held.owner.worktreeId).toBe('wt-feat')
+    expect(held.owner.hostWorkspaceFile?.worktreeId).toBe('folder:home')
+    expect(held.view).toEqual({
+      worktreeId: 'folder:home',
+      relativePath: 'a.png',
+      executionHostId: 'runtime:env-1'
+    })
+    expect(remembered).toEqual([{ worktreeId: 'wt-feat', filePath: '/Users/me/a.png' }])
+    expect(terminalFileLinkStay('wt-feat', '/Users/me/a.png')).toBe(true)
+  })
+
+  it('returns a local nested view without a stay mark', () => {
+    remembered.length = 0
+    expect(
+      deeperWorkspaceReadOnlyView('local', '/Users/me/nas/x.txt', 'wt-home', () => ({
+        worktreeId: 'wt-nas',
+        relativePath: 'x.txt',
+        executionHostId: 'local'
+      }))
+    ).toEqual({ worktreeId: 'wt-nas', relativePath: 'x.txt', executionHostId: 'local' })
+    expect(remembered).toEqual([])
+  })
+
+  it('remembers an SSH nested view', () => {
+    remembered.length = 0
+    expect(
+      deeperWorkspaceReadOnlyView('ssh:ssh-1', '/home/me/nas/x.txt', 'wt-ssh', () => ({
+        worktreeId: 'wt-ssh-nas',
+        relativePath: 'x.txt',
+        executionHostId: 'ssh:ssh-1'
+      }))
+    ).toEqual({
+      worktreeId: 'wt-ssh-nas',
+      relativePath: 'x.txt',
+      executionHostId: 'ssh:ssh-1'
+    })
+    expect(remembered).toEqual([{ worktreeId: 'wt-ssh', filePath: '/home/me/nas/x.txt' }])
+  })
+
+  it('keeps direct SSH html outside the worktree in the editor', () => {
+    expect(
+      terminalHtmlKeepsEditorSource({
+        fileContext: {
+          connectionId: 'ssh-1',
+          target: { kind: 'local' },
+          worktreePath: '/home/me/project'
+        },
+        mappedFilePath: '/home/me/.answer-me-with-html/pages/x.html',
+        statResult: { escapesWorktree: false }
+      })
+    ).toBe(true)
+    expect(
+      terminalHtmlKeepsEditorSource({
+        fileContext: { connectionId: null, target: { kind: 'local' }, worktreePath: '/Users/me' },
+        mappedFilePath: '/Users/me/x.html',
+        statResult: { escapesWorktree: false }
+      })
+    ).toBe(false)
   })
 })
 

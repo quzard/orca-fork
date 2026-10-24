@@ -34,16 +34,13 @@ const findWorkspaceFileRouteMock = vi.hoisted(() => vi.fn())
 const doubles = createTerminalLinkTestDoubles()
 const { storeState, statMock, openFileMock, runtimeEnvironmentCallMock } = doubles
 
-let keepInCurrent = true
 const remembered: { worktreeId: string; filePath: string }[] = []
 
 registerTerminalFileLinkWorkspace({
-  keepsCurrentWorkspace: () => keepInCurrent,
-  renderSetting: () => null,
-  searchEntries: () => [],
-  rememberStay: (worktreeId, filePath) => {
+  rememberSshStay: (worktreeId, filePath) => {
     remembered.push({ worktreeId, filePath })
-  }
+  },
+  lookupStay: () => false
 })
 
 vi.mock('@/store', () => ({
@@ -121,7 +118,6 @@ const previewUnsupported = {
 }
 
 beforeEach(() => {
-  keepInCurrent = true
   remembered.length = 0
   findWorkspaceFileRouteMock.mockReset()
   findWorkspaceFileRouteMock.mockReturnValue(null)
@@ -214,7 +210,7 @@ describe('terminal file links stay in the clicked workspace', () => {
       }),
       { forceContentReload: true }
     )
-    expect(remembered).toEqual([{ worktreeId: 'wt-1', filePath }])
+    expect(remembered).toEqual([])
   })
 
   it('does not adopt a sibling workspace that already has the same path open', async () => {
@@ -230,12 +226,12 @@ describe('terminal file links stay in the clicked workspace', () => {
       expect.objectContaining({
         filePath,
         relativePath: filePath,
-        worktreeId: 'wt-1',
-        readOnly: true
+        worktreeId: 'wt-1'
       }),
       { forceContentReload: true }
     )
-    expect(remembered).toEqual([{ worktreeId: 'wt-1', filePath }])
+    expect(openFileMock.mock.calls[0]?.[0]).not.toHaveProperty('readOnly')
+    expect(remembered).toEqual([])
   })
 
   it('keeps a nested path read-only in the outer workspace, then opens it editable in the deeper one', async () => {
@@ -263,7 +259,7 @@ describe('terminal file links stay in the clicked workspace', () => {
       }),
       { forceContentReload: true }
     )
-    expect(remembered).toEqual([{ worktreeId: 'wt-home', filePath }])
+    expect(remembered).toEqual([])
 
     openFileMock.mockClear()
     vi.mocked(activateAndRevealWorkspace).mockClear()
@@ -282,7 +278,7 @@ describe('terminal file links stay in the clicked workspace', () => {
       { forceContentReload: true }
     )
     expect(openFileMock.mock.calls[0]?.[0]).not.toHaveProperty('readOnly')
-    expect(remembered).toEqual([{ worktreeId: 'wt-home', filePath }])
+    expect(remembered).toEqual([])
   })
 
   it('still opens the nested workspace editable when the outer workspace already has the file', async () => {
@@ -543,125 +539,6 @@ describe('terminal file links stay in the clicked workspace', () => {
         worktreeId: 'wt-ssh',
         externalSshTargetId: 'ssh-1',
         readOnly: true
-      }),
-      { forceContentReload: true }
-    )
-  })
-})
-
-describe('terminal file links follow the owning workspace when the setting is off', () => {
-  it('opens the workspace a paired runtime says holds the path', async () => {
-    keepInCurrent = false
-    hostAnswers({
-      worktree: 'folder:home',
-      relativePath: HOME_ROUTE.relativePath,
-      absolutePath: HOME_FILE,
-      exists: true,
-      isDirectory: false
-    })
-
-    openDetectedFilePath(HOME_FILE, null, null, featureWorktree)
-    await flushDoubleRaf()
-
-    expect(runtimeEnvironmentCallMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        method: 'files.resolveTerminalPath',
-        params: expect.objectContaining({ crossWorkspace: true })
-      })
-    )
-    expect(activateAndRevealWorkspace).toHaveBeenCalledWith('folder:home', {
-      providesInitialSurface: true,
-      executionHostId: 'runtime:env-1'
-    })
-    expect(openFileMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        filePath: HOME_FILE,
-        relativePath: HOME_ROUTE.relativePath,
-        worktreeId: 'folder:home'
-      }),
-      { forceContentReload: true }
-    )
-  })
-
-  it('adopts a sibling workspace that already has the same path open', async () => {
-    keepInCurrent = false
-    const filePath = '/sibling/docs/SKILL.md'
-    storeState.openFiles = [{ filePath, worktreeId: 'folder:notes' }]
-    findWorkspaceFileRouteMock.mockReturnValueOnce({
-      worktreeId: 'folder:notes',
-      relativePath: 'docs/SKILL.md',
-      executionHostId: 'local'
-    })
-
-    openDetectedFilePath(filePath, 12, null, doubles.deps)
-    await flushDoubleRaf()
-
-    expect(findWorkspaceFileRouteMock).toHaveBeenCalled()
-    expect(activateAndRevealWorkspace).toHaveBeenCalledWith('folder:notes', {
-      providesInitialSurface: true,
-      executionHostId: 'local'
-    })
-    expect(openFileMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        filePath,
-        relativePath: 'docs/SKILL.md',
-        worktreeId: 'folder:notes'
-      }),
-      { forceContentReload: true }
-    )
-  })
-
-  it('keeps a nested path editable in the outer workspace', async () => {
-    keepInCurrent = false
-    const filePath = '/Users/me/nas/x.txt'
-    findWorkspaceFileRouteMock.mockReturnValue({
-      worktreeId: 'wt-nas',
-      relativePath: 'x.txt',
-      executionHostId: 'local'
-    })
-
-    openDetectedFilePath(filePath, null, null, {
-      worktreeId: 'wt-home',
-      worktreePath: '/Users/me'
-    })
-    await flushDoubleRaf()
-
-    expect(findWorkspaceFileRouteMock).not.toHaveBeenCalled()
-    expect(activateAndRevealWorkspace).not.toHaveBeenCalledWith('wt-nas', expect.anything())
-    expect(openFileMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        filePath,
-        relativePath: 'nas/x.txt',
-        worktreeId: 'wt-home'
-      }),
-      { forceContentReload: true }
-    )
-    expect(openFileMock.mock.calls[0]?.[0]).not.toHaveProperty('readOnly')
-  })
-
-  it('still adopts a sibling when the clicked workspace has no path', async () => {
-    keepInCurrent = false
-    const filePath = '/a/b'
-    storeState.openFiles = [{ filePath, worktreeId: 'folder:notes' }]
-    findWorkspaceFileRouteMock.mockReturnValue({
-      worktreeId: 'folder:notes',
-      relativePath: 'b',
-      executionHostId: 'local'
-    })
-
-    openDetectedFilePath(filePath, null, null, { worktreeId: 'wt-1', worktreePath: '' })
-    await flushDoubleRaf()
-
-    expect(findWorkspaceFileRouteMock).toHaveBeenCalled()
-    expect(activateAndRevealWorkspace).toHaveBeenCalledWith('folder:notes', {
-      providesInitialSurface: true,
-      executionHostId: 'local'
-    })
-    expect(openFileMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        filePath,
-        relativePath: 'b',
-        worktreeId: 'folder:notes'
       }),
       { forceContentReload: true }
     )

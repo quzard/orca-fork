@@ -54,10 +54,15 @@ export function runForkPostImport(details: ForkPostImportDetails): Promise<void>
   return Promise.resolve(postImportHook({ ...context, ...details }))
 }
 
+/** 上游导入完成后带回的项目组。包装层不解释它，只原样往下传。 */
+export type ForkProjectAddOutcome = { importedProjectGroupId?: string }
+
 type ProjectAddFinish<S extends string> = (
   repoId: string,
   source: S,
-  executionHostId?: ExecutionHostId
+  executionHostId?: ExecutionHostId,
+  // 上游把导入得到的项目组 id 放在第 4 个参数，包装时必须原样传下去。
+  outcome?: ForkProjectAddOutcome
 ) => Promise<void>
 
 const handoffWrappers = new WeakMap<object, unknown>()
@@ -74,12 +79,12 @@ export function withForkPostImportHandoff<S extends string>(
   if (cached) {
     return cached
   }
-  const wrapped: ProjectAddFinish<S> = async (repoId, source, executionHostId) => {
+  const wrapped: ProjectAddFinish<S> = async (repoId, source, executionHostId, outcome) => {
     if (!postImportHook) {
-      return finish(repoId, source, executionHostId)
+      return finish(repoId, source, executionHostId, outcome)
     }
     try {
-      await finish(repoId, source, executionHostId)
+      await finish(repoId, source, executionHostId, outcome)
     } finally {
       await runForkPostImport({ phase: 'handoff', repoId, source, executionHostId })
     }

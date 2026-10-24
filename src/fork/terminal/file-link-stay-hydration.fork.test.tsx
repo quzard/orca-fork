@@ -139,7 +139,7 @@ describe('terminal file-link stay hydration', () => {
       ['outer', true],
       ['inner', undefined]
     ])
-    expect(loadTerminalFileLinkStay('wt-home', filePath)).toBe(true)
+    expect(loadTerminalFileLinkStay('wt-home', filePath)).toBe(false)
     expect(loadTerminalFileLinkStay('wt-nas', filePath)).toBe(false)
   })
 
@@ -251,7 +251,7 @@ describe('terminal file-link stay hydration', () => {
       ['outer', true],
       ['inner', undefined]
     ])
-    expect(loadTerminalFileLinkStay('wt-home', filePath)).toBe(true)
+    expect(loadTerminalFileLinkStay('wt-home', filePath)).toBe(false)
   })
 
   it('demotes both copies when only the folder workspace list arrives late', () => {
@@ -302,7 +302,7 @@ describe('terminal file-link stay hydration', () => {
     expect(state.openFiles.find((file) => file.id === 'outer')?.readOnly).toBe(true)
   })
 
-  it('demotes both writable copies when the setting turns on', () => {
+  it('demotes both writable copies once the workspace catalog arrives', () => {
     registerTerminalFileLinkWorkspaceSetting()
     const filePath = '/Users/me/nas/x.txt'
     const other = '/Users/me/other.txt'
@@ -312,9 +312,6 @@ describe('terminal file-link stay hydration', () => {
         : { worktreeId: 'wt-home', relativePath: 'other.txt', executionHostId: 'local' }
     )
     setState({
-      settings: { terminalFileLinksOpenInCurrentWorkspace: false },
-      worktreesByRepo: {},
-      folderWorkspaces: [],
       openFiles: [
         { id: 'other', worktreeId: 'wt-home', filePath: other, mode: 'edit' },
         { id: 'outer', worktreeId: 'wt-home', filePath, mode: 'edit' },
@@ -324,7 +321,7 @@ describe('terminal file-link stay hydration', () => {
     expect(state.openFiles.find((file) => file.id === 'outer')?.readOnly).toBeUndefined()
     findRoute.mockClear()
 
-    setState({ settings: {} })
+    setState({ worktreesByRepo: {}, folderWorkspaces: [] })
 
     const paths = findRoute.mock.calls.map((call) => call[2])
     expect(paths).toContain(filePath)
@@ -370,7 +367,7 @@ describe('terminal file-link stay hydration', () => {
     })
     expect(state.openFiles.find((file) => file.id === 'outer')?.readOnly).toBe(true)
     expect(loadTerminalFileLinkStay('wt-marked', markedPath)).toBe(true)
-    expect(loadTerminalFileLinkStay('wt-home', nested)).toBe(true)
+    expect(loadTerminalFileLinkStay('wt-home', nested)).toBe(false)
 
     setState({
       openFiles: [
@@ -379,7 +376,7 @@ describe('terminal file-link stay hydration', () => {
       ]
     })
     expect(loadTerminalFileLinkStay('wt-marked', markedPath)).toBe(false)
-    expect(loadTerminalFileLinkStay('wt-home', nested)).toBe(true)
+    expect(loadTerminalFileLinkStay('wt-home', nested)).toBe(false)
   })
 
   it('retries a path whose owner was unknown when another tab changes', () => {

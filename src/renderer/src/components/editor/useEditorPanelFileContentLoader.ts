@@ -80,10 +80,16 @@ export function useEditorPanelFileContentLoader({
         const restoredOpenFile = openFilesRef.current.find((file) => file.id === id)
         const isLiveTailLogTab =
           restoredOpenFile?.readOnly === true && restoredOpenFile.liveTail === true
+        // fork: 只读的 SSH/服务器链接按归属工作区读。本地只读绝对路径仍走上游，不再查停留标记。
+        const sshServerStay =
+          restoredOpenFile?.readOnly === true &&
+          (Boolean(restoredOpenFile.externalSshTargetId?.trim()) ||
+            Boolean(restoredOpenFile.runtimeEnvironmentId?.trim())) &&
+          terminalFileLinkStay(worktreeId, filePath)
         // Why: these tabs name a file on this client, so the worktree's SSH or runtime owner must
         // never be inferred for them (a stamp still routes).
         const isClientLocalTab = restoredOpenFile
-          ? isClientLocalReadOnlyTab(restoredOpenFile)
+          ? isClientLocalReadOnlyTab(restoredOpenFile) && !sshServerStay
           : false
         const readTarget: RuntimeClientTarget =
           isClientLocalTab && restoredOpenFile?.runtimeEnvironmentId === undefined
@@ -165,13 +171,12 @@ export function useEditorPanelFileContentLoader({
             const route = isFloatingWorkspaceId(worktreeId)
               ? null
               : findWorkspaceFileRoute(currentState, executionHostId, filePath)
-            // Why: only a terminal/chat link this fork marked stays put. Other absolute tabs still reparent.
-            const stay = terminalFileLinkStay(worktreeId, filePath)
-            if (route && route.worktreeId !== worktreeId && !stay) {
+            // fork: 只有记下的 SSH/服务器链接留在点击时的工作区，并改从归属工作区读。
+            if (route && route.worktreeId !== worktreeId && !sshServerStay) {
               await reownRestoredFile(route, runtimeEnvironmentId ?? null)
               return
             }
-            if (stay && route && route.worktreeId !== worktreeId) {
+            if (sshServerStay && route && route.worktreeId !== worktreeId) {
               readWorktreeId = route.worktreeId
               readRelativePath = route.relativePath
             }

@@ -101,14 +101,13 @@ function registerUpstreamAutoUpdaterHandlers({
       return
     }
     clearBackgroundCheckLaunchPending()
-    // --- synchronous preamble (runs before any await) ---
     const missingManifestFallback = consumeMissingManifestPrereleaseFallbackResult()
     const publishingWindowLastGoodCheck = getPublishingWindowLastGoodCheck()
     const wasUserInitiated = missingManifestFallback?.userInitiated ?? getUserInitiatedCheck()
     const forkRetrySoon = Boolean(missingManifestFallback || publishingWindowLastGoodCheck)
     setUserInitiatedCheck(false)
 
-    // Release checks remain newer-only; validated local builds and pinned dev jumps may intentionally downgrade.
+    // Explicit local or pinned builds may downgrade; release checks remain newer-only.
     if (
       !isLocalBuildCheck() &&
       !isPinnedBuildCheck() &&
@@ -119,7 +118,7 @@ function registerUpstreamAutoUpdaterHandlers({
       }
       clearAvailableUpdateContext()
       if (missingManifestFallback || publishingWindowLastGoodCheck) {
-        // Why: a current-version fallback manifest means the primary is transiently missing; keep the short retry cadence.
+        // A missing primary manifest is transient; retain the short retry cadence.
         scheduleAutomaticUpdateCheck(AUTO_UPDATE_RETRY_INTERVAL_MS)
       } else {
         recordCompletedUpdateCheck()
@@ -136,14 +135,12 @@ function registerUpstreamAutoUpdaterHandlers({
       return
     }
 
-    // Why: only a genuinely newer offer supersedes the retained package; a publishing-window blip that
-    // momentarily resolves an older tag must not destroy a still-valid recovery path.
+    // A transiently older offer must not discard the retained recovery package.
     linuxPackageRecovery.clearTrackedLinuxPackageArtifactForOtherVersion(info.version)
     if (forkUpdate.takeFound(info.version, Boolean(wasUserInitiated), forkRetrySoon)) {
       return
     }
 
-    // Why: fetch the changelog in main to avoid renderer-side CORS on onorca.dev.
     markUpdateAvailableEventPending(attemptId)
     void (async () => {
       try {
@@ -152,7 +149,6 @@ function registerUpstreamAutoUpdaterHandlers({
             ? null
             : await fetchChangelog(info.version, app.getVersion()).catch(() => null)
 
-        // Why: async fetch may take seconds; bail if a newer event superseded this attempt to avoid a stale 'available' broadcast.
         if (!isActiveUpdateCheckAttempt(attemptId)) {
           return
         }
@@ -160,15 +156,13 @@ function registerUpstreamAutoUpdaterHandlers({
           return
         }
 
-        // Why: side effects must run after the guard so a concurrent 'error' during the fetch can't leave orphaned state.
+        // A concurrent error during the fetch must not leave stale available state.
         setAvailableVersion(info.version)
         setAvailableReleaseUrl(null)
-        // Why: a pinned dev jump is not a release check. Letting it call
-        // recordCompletedUpdateCheck() would persist lastUpdateCheckAt and
-        // suppress the next real background check for a full day.
+        // Dev jumps must not suppress real background checks by persisting lastUpdateCheckAt.
         if (!isLocalBuildCheck() && !isPinnedBuildCheck()) {
           if (missingManifestFallback || publishingWindowLastGoodCheck) {
-            // Why: last-good release is a temporary fallback; keep probing so users can move to the newest tag once it publishes.
+            // Keep probing until the newest release finishes publishing.
             scheduleAutomaticUpdateCheck(AUTO_UPDATE_RETRY_INTERVAL_MS)
           } else {
             recordCompletedUpdateCheck()
@@ -183,7 +177,7 @@ function registerUpstreamAutoUpdaterHandlers({
             state: 'available',
             version: info.version,
             changelog,
-            // Why: the offer is real, but this host can never apply it — say so before a download is offered.
+            // Tell clients this host cannot self-update before offering a download.
             ...(isExternallyManagedLinuxInstall() ? { externallyManaged: true } : {})
           }
         )
@@ -212,14 +206,13 @@ function registerUpstreamAutoUpdaterHandlers({
     }
     resetMacInstallState()
     const localBuildCheck = isLocalBuildCheck()
-    // Why: an unpinned outcome must hand the feed back, else the pin blocks every
-    // later background check for the process lifetime.
+    // Release the pin after unpinned outcomes so later background checks can change feeds.
     const pinnedBuildCheck = isPinnedBuildCheck()
     setUserInitiatedCheck(false)
     clearAvailableUpdateContext()
     if (!localBuildCheck && !pinnedBuildCheck) {
       if (missingManifestFallback || publishingWindowLastGoodCheck) {
-        // Why: last-good not-available is a transient release-transition outcome; keep the short retry, don't suppress for 24h.
+        // Transient publishing-window results must not defer checks for a full day.
         scheduleAutomaticUpdateCheck(AUTO_UPDATE_RETRY_INTERVAL_MS)
       } else {
         recordCompletedUpdateCheck()
@@ -228,8 +221,7 @@ function registerUpstreamAutoUpdaterHandlers({
         }
       }
     }
-    // Why: a later check can report no newer release while a verified deb/rpm is still waiting for
-    // the user to install it outside Orca. Keep both the artifact and its recovery card reachable.
+    // Preserve manual-install recovery when a recheck finds no newer release.
     sendStatus(
       retainedStatus ?? { state: 'not-available', userInitiated: wasUserInitiated || undefined }
     )
@@ -250,7 +242,7 @@ function registerUpstreamAutoUpdaterHandlers({
   })
 
   autoUpdater.on('update-downloaded', (info) => {
-    // Why: an earlier download can finish after a newer target replaced it; uncached pre-staged events have no target to compare.
+    // An older download can finish after a new target replaces it.
     if (
       shouldIgnoreDownloadedUpdateEvent(
         getCurrentStatus(),
@@ -261,7 +253,6 @@ function registerUpstreamAutoUpdaterHandlers({
       return
     }
     clearBackgroundCheckLaunchPending()
-    // Release downloads remain newer-only; the local source was validated before checking, and a pinned jump is explicit.
     if (
       !isLocalBuildCheck() &&
       !isPinnedBuildCheck() &&
@@ -275,7 +266,7 @@ function registerUpstreamAutoUpdaterHandlers({
     forkUpdate.noteDownloaded(info.version)
     const macInstallerReady = process.platform === 'darwin' ? isMacInstallerReady() : true
     recordUpdaterLifecycle('update_downloaded', { version: info.version, macInstallerReady })
-    // Why: the first daemon after this update should run from its unpacked copy, not the mount.
+    // Launch the updated daemon from its unpacked runtime, not the mounted AppImage.
     void preExtractDownloadedAppImageUpdate(info.downloadedFile, (filePath) =>
       linuxPackageRecovery.isInUpdaterPendingCache(filePath)
     )
@@ -284,9 +275,8 @@ function registerUpstreamAutoUpdaterHandlers({
       sendStatus(linuxPackageStatus)
       return
     }
-    // On macOS, defer 'downloaded' until Squirrel.Mac finishes processing; other platforms are ready immediately.
+    // Squirrel must finish staging before macOS can install.
     if (process.platform === 'darwin' && !macInstallerReady && !isMacStagingDeferredToInstall()) {
-      // Keep the UI at 100% downloaded while Squirrel processes, to avoid a premature "ready to install".
       recordUpdaterLifecycle('macos_waiting_for_squirrel', { version: info.version })
       sendStatus({ state: 'downloading', percent: 100, version: info.version })
       return
@@ -296,19 +286,18 @@ function registerUpstreamAutoUpdaterHandlers({
 
   autoUpdater.on('error', (err) => {
     const message = err?.message ?? 'Unknown error'
-    // Why: the native Squirrel listener owns failure while it stages; MacUpdater re-emits that error here too.
+    // Native Squirrel listeners own staging errors; MacUpdater also re-emits them here.
     if (isAwaitingMacStaging()) {
       return
     }
-    // Why: quitAndInstall reports "no staged update" via this error event (async on macOS); recover quit flags before suppression guards run.
+    // Recover quit state before suppression guards; native failures may arrive asynchronously.
     if (handleQuitAndInstallFailure(err)) {
       return
     }
-    // Why: handoff still owns the process; don't treat as a check/download error.
     if (isQuitAndInstallHandoffActive()) {
       return
     }
-    // Why: fallback promise handlers may already own this failure; don't consume fallback context here.
+    // Fallback promise handlers may own this error; preserve their context.
     if (shouldSuppressMissingManifestPrereleaseFallbackEvent(message, err)) {
       return
     }

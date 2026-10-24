@@ -32,8 +32,6 @@ import { TerminalCustomShellInput } from './TerminalCustomShellInput'
 import { SettingsSegmentedControl, SettingsSubsectionHeader } from './SettingsFormControls'
 import { translate } from '@/i18n/i18n'
 import { translateSearchKeyword } from './settings-search-keywords'
-import { terminalFileLinkWorkspaceSearchEntries } from '../../../../shared/fork-hooks/terminal-file-link-workspace'
-
 type TerminalPaneProps = {
   settings: GlobalSettings
   updateSettings: (updates: Partial<GlobalSettings>) => void
@@ -322,8 +320,7 @@ export function TerminalPane({
       />
     ) : null,
     matchesSettingsSearch(searchQuery, getTerminalPaneInteractionSearchEntries()) ||
-    matchesSettingsSearch(searchQuery, getTerminalRightClickToPasteSearchEntry()) ||
-    matchesSettingsSearch(searchQuery, terminalFileLinkWorkspaceSearchEntries()) ? (
+    matchesSettingsSearch(searchQuery, getTerminalRightClickToPasteSearchEntry()) ? (
       <TerminalInteractionSection
         key="pane-interaction"
         settings={settings}

@@ -19,7 +19,6 @@ const mocks = vi.hoisted(() => ({
 }))
 
 const stays = new Set<string>()
-let keepInCurrent = true
 
 vi.mock('@/lib/connection-context', () => ({
   getConnectionIdForFile: vi.fn(() => null),
@@ -100,11 +99,8 @@ describe('editor load of a terminal file link', () => {
 
   beforeEach(() => {
     stays.clear()
-    keepInCurrent = true
     registerTerminalFileLinkWorkspace({
-      keepsCurrentWorkspace: () => keepInCurrent,
-      renderSetting: () => null,
-      searchEntries: () => [],
+      rememberSshStay: () => undefined,
       lookupStay: (worktreeId, path) => stays.has(`${worktreeId}\0${path}`)
     })
     openFiles = []
@@ -190,16 +186,22 @@ describe('editor load of a terminal file link', () => {
     )
   })
 
-  it('reparents a marked tab again when the setting is off', async () => {
-    keepInCurrent = false
-    const tab = externalTab()
+  it('reads a local read-only tab on this computer even when a stay mark exists', async () => {
+    const tab = externalTab({ readOnly: true })
     stays.add(`${SOURCE}\0${HOME_FILE}`)
     openFiles = [tab]
 
     await act(async () => load!(HOME_FILE, tab.id, SOURCE, HOME_FILE))
 
-    expect(mocks.migrateRestoredEditorFileOwner).toHaveBeenCalledWith(tab.id, HOME_ROUTE, null)
-    expect(mocks.readEditorCsvFileContent).not.toHaveBeenCalled()
+    expect(mocks.migrateRestoredEditorFileOwner).not.toHaveBeenCalled()
+    expect(mocks.readEditorCsvFileContent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath: HOME_FILE,
+        relativePath: HOME_FILE,
+        worktreeId: SOURCE
+      }),
+      expect.anything()
+    )
   })
 
   it('uses the upstream external-file error when the owning workspace is gone', async () => {

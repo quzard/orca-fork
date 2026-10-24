@@ -1,14 +1,7 @@
-// 设置里的开关。文案只走 fork 的中英覆盖层，搜索条目和界面用同一套键。
-import { SearchableSetting } from '@/components/settings/SearchableSetting'
-import { SettingsSwitchRow } from '@/components/settings/SettingsFormControls'
+// 更深工作区打开同一路径后，把外层可写标签降为只读，并清掉已经关掉的停留标记。
 import { useAppStore } from '@/store'
 import type { AppState } from '@/store/types'
-import type { GlobalSettings } from '../../shared/global-settings-types'
-import {
-  registerTerminalFileLinkWorkspace,
-  type TerminalFileLinkWorkspaceSearchEntry
-} from '../../shared/fork-hooks/terminal-file-link-workspace'
-import { forkTranslate } from '../i18n/fork-translate'
+import { registerTerminalFileLinkWorkspace } from '../../shared/fork-hooks/terminal-file-link-workspace'
 import type { OpenFile } from '@/store/slices/editor'
 import { findWorkspaceFileRoute } from '@/lib/runtime-workspace-file-route'
 import { getOpenFileExecutionHostId } from '@/lib/unified-tab-host-ownership'
@@ -16,63 +9,16 @@ import {
   demoteShallowerWritableCopies,
   terminalFileLinkCopyTouchedPaths
 } from './file-link-nested-copy'
-import { terminalFileLinksOpenInCurrentWorkspace } from './file-link-workspace'
 import {
   applyTerminalFileLinkStayStorageEvent,
   forgetClosedTerminalFileLinkStays,
   loadTerminalFileLinkStay,
   nextTerminalFileLinkStayClosures,
   pruneTerminalFileLinkStays,
-  rememberTerminalFileLinkStay,
+  saveTerminalFileLinkStay,
   shouldSkipTerminalFileLinkStaySync,
   terminalFileLinkSessionHydrated
 } from './file-link-stay'
-
-const SEARCH_KEYWORDS = ['terminal', 'file', 'link', 'workspace', 'folder', 'chat']
-
-function settingCopy(): { title: string; description: string } {
-  return {
-    title: forkTranslate(
-      'fork.settings.terminalFileLinkWorkspace',
-      'Open terminal and chat file links in the current workspace'
-    ),
-    description: forkTranslate(
-      'fork.settings.terminalFileLinkWorkspaceDescription',
-      'A file path clicked in a workspace terminal or native chat opens in that workspace, including when another workspace folder contains the path.'
-    )
-  }
-}
-
-function currentWorkspaceSettingUpdate(checked: boolean): Partial<GlobalSettings> {
-  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the profile JSON keeps this boolean beside GlobalSettings; the upstream type does not list it, and a missing value stays on.
-  return { terminalFileLinksOpenInCurrentWorkspace: !checked } as Partial<GlobalSettings>
-}
-
-function TerminalFileLinkWorkspaceSetting({
-  settings,
-  updateSettings
-}: {
-  settings: object
-  updateSettings: (updates: Partial<GlobalSettings>) => void
-}): React.JSX.Element {
-  const { title, description } = settingCopy()
-  const checked = terminalFileLinksOpenInCurrentWorkspace(settings)
-  return (
-    <SearchableSetting title={title} description={description} keywords={SEARCH_KEYWORDS}>
-      <SettingsSwitchRow
-        label={title}
-        description={description}
-        checked={checked}
-        onChange={() => updateSettings(currentWorkspaceSettingUpdate(checked))}
-      />
-    </SearchableSetting>
-  )
-}
-
-export function terminalFileLinkWorkspaceSettingSearchEntries(): TerminalFileLinkWorkspaceSearchEntry[] {
-  const { title, description } = settingCopy()
-  return [{ title, description, keywords: SEARCH_KEYWORDS }]
-}
 
 let watchingClosedTabs = false
 let unwatchClosedTabs: (() => void) | undefined
@@ -96,10 +42,9 @@ function tabHasUnsavedEdits(state: AppState, file: OpenFile): boolean {
   return recordId !== undefined && state.editorBuffers?.[recordId]?.isDirty === true
 }
 
-// 工作区列表或开关晚到时，两张可写标签都没变，仍要整表再查。
+// 工作区列表晚到时，两张可写标签都没变，仍要整表再查。
 function workspaceCatalogChanged(state: AppState, previous: AppState): boolean {
   return (
-    state.settings !== previous.settings ||
     state.worktreesByRepo !== previous.worktreesByRepo ||
     state.folderWorkspaces !== previous.folderWorkspaces
   )
@@ -148,9 +93,6 @@ function shallowerCopyDemotion(
   unresolved: Set<string>,
   recheckAll: boolean
 ): OpenFile[] | null {
-  if (!terminalFileLinksOpenInCurrentWorkspace(state.settings)) {
-    return null
-  }
   retainUnresolvedEditPaths(unresolved, state.openFiles)
   if (state.worktreesByRepo == null && state.folderWorkspaces == null) {
     return null
@@ -252,15 +194,8 @@ function watchClosedTerminalFileLinkStays(): void {
 
 export function registerTerminalFileLinkWorkspaceSetting(): void {
   registerTerminalFileLinkWorkspace({
-    keepsCurrentWorkspace: () =>
-      terminalFileLinksOpenInCurrentWorkspace(useAppStore.getState().settings),
-    renderSetting: (settings, updateSettings) => (
-      <TerminalFileLinkWorkspaceSetting settings={settings} updateSettings={updateSettings} />
-    ),
-    searchEntries: terminalFileLinkWorkspaceSettingSearchEntries,
-    rememberStay: (worktreeId, filePath, fileId) => {
-      const openFile = useAppStore.getState().openFiles.find((file) => file.id === fileId)
-      rememberTerminalFileLinkStay(worktreeId, filePath, openFile)
+    rememberSshStay: (worktreeId, filePath) => {
+      saveTerminalFileLinkStay(worktreeId, filePath)
     },
     lookupStay: loadTerminalFileLinkStay
   })

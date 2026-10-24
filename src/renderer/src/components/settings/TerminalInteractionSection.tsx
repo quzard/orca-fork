@@ -10,7 +10,6 @@ import { getTerminalRightClickToPasteSearchEntry } from './terminal-windows-sear
 import { OSC52_CLIPBOARD_SETTING_ID } from '../terminal-pane/osc52-clipboard-setting-anchor'
 import { isMacPlatform } from '../terminal-pane/terminal-link-open-hints'
 import { translate } from '@/i18n/i18n'
-import { renderTerminalFileLinkWorkspaceSetting } from '../../../../shared/fork-hooks/terminal-file-link-workspace'
 import {
   DEFAULT_TERMINAL_FAST_SCROLL_SENSITIVITY,
   DEFAULT_TERMINAL_SCROLL_SENSITIVITY,
@@ -359,7 +358,6 @@ export function TerminalInteractionSection({
             }
           />
         </SearchableSetting>
-        {renderTerminalFileLinkWorkspaceSetting(settings, updateSettings)}
       </div>
     </section>
   )

@@ -1,8 +1,11 @@
-import { absolutePathToFileUri } from '@/components/editor/markdown-internal-links'
 import { getWorkspaceFilePreviewPlan, openFileInBrowserTab } from '@/lib/file-preview'
 import { downloadAndOpenRemoteTerminalFile } from './terminal-remote-file-download-open'
-import { findWorkspaceFileRoute } from '@/lib/runtime-workspace-file-route'
 import { isPathInsideWorktree, toWorktreeRelativePath } from '@/lib/terminal-links'
+import type { RuntimeWorkspaceFileRoute } from '@/lib/runtime-workspace-file-route'
+import {
+  findTerminalFileLinkRoute,
+  terminalLinkViewFields
+} from '../../../../fork/terminal/file-link-route'
 import { canClientOsOpenWorkspaceFile } from '@/lib/workspace-file-host-routing'
 import { isMissingRuntimePathError } from '@/runtime/runtime-file-metadata-client'
 import { useAppStore } from '@/store'
@@ -19,21 +22,17 @@ import {
   getConnectionExecutionHostId,
   toRuntimeExecutionHostId
 } from '../../../../shared/execution-host'
-import { statUserOpenedPath } from '@/lib/user-opened-local-path'
-import {
-  CLIENT_LOCAL_FILE_TARGET,
-  resolveHostWorkspaceFile,
-  type HostWorkspaceFile
-} from './terminal-host-workspace-file'
 import { captureEditorOpenLinkIntent } from '@/store/slices/editor/tabs/editor-open-target-group'
-import { cancelPendingEditorLineRevealFrames } from '@/store/slices/editor/focus/editor-focus-reveal'
+import { reserveDetectedFilePathOpenTurn } from './terminal-file-open-turn'
+import { openHtmlFileInBrowser } from './terminal-html-file-browser-open'
 import { showOpenInGroupRefusedToast } from './terminal-file-open-in-group-toast'
-import { isExplicitEditorScopeKept, openLinkedFileInEditor } from './terminal-file-link-editor-open'
 import {
-  keepTerminalLinkInSource,
-  resolveKeptTerminalFileLinkTarget,
-  terminalHtmlKeepsEditorSource
-} from '../../../../shared/fork-hooks/terminal-file-link-workspace'
+  dismissFileInOtherWorkspaceHint,
+  showFileInOtherWorkspaceHint
+} from './terminal-file-other-workspace-hint'
+import { siblingWorkspaceLink } from './terminal-file-other-workspace-owner'
+import { resolveTerminalLinkFileOwner } from './terminal-file-link-owner-resolution'
+import { isExplicitEditorScopeKept, openLinkedFileInEditor } from './terminal-file-link-editor-open'
 
 export {
   getTerminalFileContext,
@@ -43,6 +42,16 @@ export {
   type TerminalFileContext
 } from './terminal-file-path-mapping'
 import { runtimeTargetEnvironmentId } from '@/runtime/runtime-client-target'
+import {
+  httpLinkDirectClickDestination,
+  type HttpLinkDestination
+} from '@/lib/http-link-destinations'
+import { isHtmlFilePath, localHtmlFileDestinations } from './local-html-file-destinations'
+import {
+  deeperWorkspaceReadOnlyView,
+  retainSshServerLinkInSource,
+  terminalHtmlKeepsEditorSource
+} from '../../../../shared/fork-hooks/terminal-file-link-workspace'
 
 export type FileOpenFailure = {
   /** `missing` is a verified absence; `unverifiable` means the host could not answer (dropped SSH, timeout, denied path). */
@@ -55,7 +64,10 @@ type TerminalFileOpenDeps = {
   worktreePath: string
   runtimeEnvironmentId?: string | null
   wslDistro?: string | null
+  /** Shift+modifier: the OS default app, or the other link-routing browser for a local HTML file. */
   openWithSystemDefault?: boolean
+  /** Where a local HTML file opens, chosen from its popover; otherwise link routing decides. */
+  browserDestination?: HttpLinkDestination
   /** The paired-server terminal that printed the link; lets its host grant a file outside workspaces. */
   terminalHandle?: string | null
   /** Reports a path that could not be verified before opening; skipped once a later open supersedes it. */
@@ -66,34 +78,10 @@ type TerminalFileOpenDeps = {
   openInSourceGroup?: boolean
 }
 
-export function isHtmlFilePath(filePath: string): boolean {
-  return /\.html?$/i.test(filePath)
-}
-
-function openHtmlFileInBrowser(filePath: string, worktreeId: string, clientLocal: boolean): void {
-  const store = useAppStore.getState()
-  if (worktreeId) {
-    // Why: following an HTML file link changes which worktree is foregrounded,
-    // so it must record a history visit before opening the browser tab — but the
-    // browser tab is the surface, so an emptied workspace must not gain a shell.
-    activateAndRevealWorktree(worktreeId, { providesInitialSurface: true })
-  }
-  const fileUrl = absolutePathToFileUri(filePath)
-  const title = filePath.split(/[/\\]/).pop() ?? filePath
-  store.createBrowserTab(worktreeId, fileUrl, {
-    title,
-    activate: true,
-    // Why: the file is on this computer, so the workspace's paired-server runtime must not adopt the page.
-    ...(clientLocal ? { browserRuntimeEnvironmentId: null } : {})
-  })
-}
-
 export function shouldOpenTerminalFileWithSystemDefault(fileContext: TerminalFileContext): boolean {
   // Why: an unresolved owner has no connectionId either, which would otherwise read as local.
   return fileContext.sourceHostResolved && canClientOsOpenWorkspaceFile(fileContext)
 }
-
-let latestOpenDetectedFilePathRequestId = 0
 
 export function openDetectedFilePath(
   filePath: string,
@@ -108,8 +96,8 @@ export function openDetectedFilePath(
     worktreePath,
     terminalLinkWslDistro(deps.wslDistro, runtimeEnvironmentId)
   )
-  const requestId = ++latestOpenDetectedFilePathRequestId
-  cancelPendingEditorLineRevealFrames()
+  const isCurrentOpen = reserveDetectedFilePathOpenTurn()
+  dismissFileInOtherWorkspaceHint()
   // Why: capture at activation; focus may move while the host resolves the path.
   const linkIntent = captureEditorOpenLinkIntent(
     useAppStore.getState(),
@@ -123,21 +111,16 @@ export function openDetectedFilePath(
     if (!explicitGroupRequest) {
       return false
     }
-    if (requestId === latestOpenDetectedFilePathRequestId) {
+    if (isCurrentOpen()) {
       showOpenInGroupRefusedToast(mappedFilePath)
     }
     return true
   }
 
   void (async () => {
-    let statResult
-    let fileContext = getTerminalFileContext(worktreeId, worktreePath, runtimeEnvironmentId)
-    const sourceRuntimeOwnerId = runtimeTargetEnvironmentId(fileContext.target)
-    let hostWorkspaceFile: HostWorkspaceFile | null = null
-    let hostGrantId: string | null = null
-    let clientLocal = false
-    let keptOpen: ReturnType<typeof keepTerminalLinkInSource> = null
-    if (!fileContext.sourceHostResolved) {
+    const sourceContext = getTerminalFileContext(worktreeId, worktreePath, runtimeEnvironmentId)
+    const sourceRuntimeOwnerId = runtimeTargetEnvironmentId(sourceContext.target)
+    if (!sourceContext.sourceHostResolved) {
       // Why: with no owner the host is unknown — refuse rather than touch this machine's files.
       deps.onOpenFailure?.({
         verdict: 'unverifiable',
@@ -149,7 +132,7 @@ export function openDetectedFilePath(
       const worktreeRootLink = resolveKnownWorktreeRootPathLink(
         mappedFilePath,
         useAppStore.getState(),
-        fileContext
+        sourceContext
       )
       if (worktreeRootLink) {
         if (refuseExplicitNonEditorRoute()) {
@@ -158,7 +141,7 @@ export function openDetectedFilePath(
         // Why: root workspace switching must work for SSH/runtime paths without
         // local auth/stat, while still coalescing provider + fallback clicks.
         await Promise.resolve()
-        if (requestId !== latestOpenDetectedFilePathRequestId) {
+        if (!isCurrentOpen()) {
           return
         }
         activateAndRevealWorktree(worktreeRootLink.id, {
@@ -168,41 +151,17 @@ export function openDetectedFilePath(
       }
     }
 
+    let owner
     try {
-      const linkOwner = await resolveHostWorkspaceFile(
-        fileContext,
-        mappedFilePath,
-        deps.terminalHandle
-      )
-      if (linkOwner?.kind === 'grant') {
-        hostGrantId = linkOwner.grantId
-        mappedFilePath = linkOwner.absolutePath
-        statResult = { isDirectory: false, escapesWorktree: true }
-      } else if (linkOwner?.kind === 'client') {
-        clientLocal = true
-        fileContext = {
-          ...fileContext,
-          target: CLIENT_LOCAL_FILE_TARGET,
-          connectionId: undefined
-        }
-        statResult = { isDirectory: linkOwner.isDirectory, escapesWorktree: false }
-      } else if (linkOwner) {
-        keptOpen = keepTerminalLinkInSource({ linkOwner, sourceWorktreeId: worktreeId })
-        if (keptOpen?.stat) {
-          mappedFilePath = linkOwner.absolutePath
-          statResult = keptOpen.stat
-        } else {
-          hostWorkspaceFile = linkOwner
-          // Why: the host already stat'ed the path inside the workspace that holds it; open it there.
-          ;({ worktreeId, worktreePath, absolutePath: mappedFilePath } = hostWorkspaceFile)
-          fileContext = { ...fileContext, worktreeId, worktreePath }
-          statResult = { isDirectory: hostWorkspaceFile.isDirectory, escapesWorktree: false }
-        }
-      } else {
-        statResult = await statUserOpenedPath(fileContext, mappedFilePath)
-      }
+      owner = await resolveTerminalLinkFileOwner({
+        fileContext: sourceContext,
+        worktreeId,
+        worktreePath,
+        filePath: mappedFilePath,
+        terminalHandle: deps.terminalHandle
+      })
     } catch (error) {
-      if (requestId === latestOpenDetectedFilePathRequestId && deps.onOpenFailure) {
+      if (isCurrentOpen() && deps.onOpenFailure) {
         // Why: loss of contact with the host is not evidence the file is gone.
         deps.onOpenFailure({
           verdict: isMissingRuntimePathError(error) ? 'missing' : 'unverifiable',
@@ -212,12 +171,36 @@ export function openDetectedFilePath(
       return
     }
 
-    if (requestId !== latestOpenDetectedFilePathRequestId) {
+    if (!isCurrentOpen()) {
       return
     }
+    // fork: SSH/服务器上、归属不是当前工作区的文件留在这里，只读，不切走。
+    const held = retainSshServerLinkInSource(
+      owner,
+      { worktreeId, worktreePath, fileContext: sourceContext },
+      findTerminalFileLinkRoute
+    )
+    owner = held.owner
+    const { fileContext, stat: statResult, hostWorkspaceFile, hostGrantId, clientLocal } = owner
+    let otherWorkspaceOwner: RuntimeWorkspaceFileRoute | null = held.view
+    ;({ worktreeId, worktreePath, filePath: mappedFilePath } = owner)
 
     const canOpenWithSystemDefault = shouldOpenTerminalFileWithSystemDefault(fileContext)
-    if (openWithSystemDefault && canOpenWithSystemDefault) {
+    // Why: a remote workspace's hint and rows promise Orca before the path resolves, and an
+    // explicit group request falls through so the HTML branch can refuse it.
+    const pageDestination =
+      canOpenWithSystemDefault &&
+      !clientLocal &&
+      hostGrantId === null &&
+      !explicitGroupRequest &&
+      isHtmlFilePath(mappedFilePath)
+        ? (deps.browserDestination ??
+          httpLinkDirectClickDestination(localHtmlFileDestinations(), openWithSystemDefault))
+        : null
+    const opensWithSystemDefault = pageDestination
+      ? pageDestination === 'system'
+      : openWithSystemDefault
+    if (opensWithSystemDefault && canOpenWithSystemDefault) {
       // Why: Shift+Cmd/Ctrl mirrors URL links by escaping Orca and honoring the
       // user's OS file associations without adding editor-specific settings.
       const openedWithSystemDefault = await window.api.shell.openFilePath(
@@ -243,13 +226,12 @@ export function openDetectedFilePath(
     if (openWithSystemDefault && !canOpenWithSystemDefault && hostGrantId === null) {
       // Why: the popover names Shift+Cmd/Ctrl "Download & open with default app", and the OS
       // cannot launch a remote path, so the direct gesture must reach the same download.
-      fileContext = keptOpen?.withDownloadContext(fileContext) ?? fileContext
       await downloadAndOpenRemoteTerminalFile(fileContext, mappedFilePath)
       return
     }
 
-    // Why: local HTML files render in Orca's browser for ordinary Cmd/Ctrl-click,
-    // and remain the fallback if Shift+Cmd/Ctrl cannot launch the OS default.
+    // Why: a local HTML file routed to Orca renders in its browser, which also catches a
+    // system-browser open the OS could not launch.
     if (isHtmlFilePath(mappedFilePath) && hostGrantId === null) {
       if (canOpenWithSystemDefault) {
         // Why: Orca's browser has no group placement in v1.
@@ -261,7 +243,7 @@ export function openDetectedFilePath(
       }
       // Why: the same gesture renders remote HTML too, through the doc preview; only an
       // unsupported plan (e.g. a paired doc outside the worktree) falls back to source.
-      // 留在当前工作区的 SSH 绝对路径会带 externalSshTargetId，预览不接手。
+      // fork: 工作区外的直接 SSH HTML 仍打开源码。本地 HTML 不走这个判断。
       if (!terminalHtmlKeepsEditorSource({ fileContext, mappedFilePath, statResult })) {
         const plan = getWorkspaceFilePreviewPlan(useAppStore.getState(), worktreeId, mappedFilePath)
         if (plan.status === 'doc-preview') {
@@ -275,44 +257,54 @@ export function openDetectedFilePath(
       }
     }
 
-    const store = useAppStore.getState()
     const runtimeOwnerId = runtimeTargetEnvironmentId(fileContext.target) ?? sourceRuntimeOwnerId
-    const sourceExecutionHostId =
+    const targetExecutionHostId =
       hostWorkspaceFile?.executionHostId ??
       (runtimeOwnerId
         ? toRuntimeExecutionHostId(runtimeOwnerId)
         : getConnectionExecutionHostId(fileContext.connectionId))
-    const linkTarget = resolveKeptTerminalFileLinkTarget({
-      kept: keptOpen,
-      store,
-      sourceWorktreeId: worktreeId,
-      sourceWorktreePath: worktreePath,
-      executionHostId: sourceExecutionHostId,
-      filePath: mappedFilePath,
-      blocked: hostGrantId !== null,
-      escapesWorktree: statResult.escapesWorktree,
-      findRoute: findWorkspaceFileRoute,
-      pathInside: isPathInsideWorktree,
-      toRelative: toWorktreeRelativePath
-    })
-    keptOpen = linkTarget.kept
-    const targetWorktreeId = linkTarget.targetWorktreeId
-    const targetExecutionHostId = linkTarget.targetExecutionHostId
-    const relativePath = linkTarget.relativePath
+    let relativePath = mappedFilePath
+    if (worktreePath && isPathInsideWorktree(mappedFilePath, worktreePath)) {
+      // fork: 当前根下面还有更深的工作区拥有这个文件时，留在这里只读。
+      const ownedHere =
+        otherWorkspaceOwner ??
+        deeperWorkspaceReadOnlyView(
+          targetExecutionHostId,
+          mappedFilePath,
+          worktreeId,
+          findTerminalFileLinkRoute
+        )
+      if (ownedHere) {
+        otherWorkspaceOwner = ownedHere
+      } else {
+        const maybeRelative = toWorktreeRelativePath(mappedFilePath, worktreePath)
+        // Why: a link out of the project keeps its absolute path, so the tab reads it as the file
+        // the user named, before and after a restart, instead of being refused as a project file.
+        if (maybeRelative !== null && maybeRelative.length > 0 && !statResult.escapesWorktree) {
+          relativePath = maybeRelative
+        }
+      }
+    } else if (hostGrantId === null && !clientLocal && !hostWorkspaceFile) {
+      const sibling = siblingWorkspaceLink(targetExecutionHostId, mappedFilePath, worktreeId)
+      otherWorkspaceOwner = sibling.view
+      if (sibling.openInOwner) {
+        ;({ worktreeId, relativePath } = sibling.openInOwner)
+      }
+    }
 
     if (
       explicitGroupRequest &&
-      !isExplicitEditorScopeKept(linkIntent, targetWorktreeId, targetExecutionHostId, clientLocal)
+      !isExplicitEditorScopeKept(linkIntent, worktreeId, targetExecutionHostId, clientLocal)
     ) {
       // Why: refuse before activating the destination or touching editor state.
       refuseExplicitNonEditorRoute()
       return
     }
 
-    if (targetWorktreeId) {
+    if (worktreeId) {
       // Why: the route may name a folder-workspace key, and the same worktree id can exist
       // on several hosts — dispatch by workspace shape and keep the resolved host.
-      activateAndRevealWorkspace(targetWorktreeId, {
+      activateAndRevealWorkspace(worktreeId, {
         providesInitialSurface: true,
         executionHostId: targetExecutionHostId
       })
@@ -322,11 +314,13 @@ export function openDetectedFilePath(
       {
         filePath: mappedFilePath,
         relativePath,
-        worktreeId: targetWorktreeId || '',
+        worktreeId: worktreeId || '',
         runtimeEnvironmentId: clientLocal ? null : runtimeEnvironmentId,
-        ...keptOpen?.fileFields,
-        // Why: a tab's owner must match its workspace's to be editable; this one is this computer's.
-        ...(clientLocal && targetWorktreeId === worktreeId ? { readOnly: true } : {}),
+        // Why: a tab's owner must match its workspace's to be editable; this one is this computer's,
+        // or another workspace's, which "Open there" edits under its own owner.
+        ...(clientLocal
+          ? { readOnly: true }
+          : terminalLinkViewFields(otherWorkspaceOwner, runtimeEnvironmentId)),
         // Why: the grant is the only authority to read a host file outside its workspaces.
         ...(hostGrantId !== null ? { readOnly: true, terminalArtifactGrantId: hostGrantId } : {}),
         // Why: absolute SSH paths outside the worktree otherwise look identical
@@ -339,14 +333,18 @@ export function openDetectedFilePath(
       },
       linkIntent,
       { line, column },
-      () => requestId === latestOpenDetectedFilePathRequestId
+      isCurrentOpen
     )
-    // fork: 留在当前工作区的标签记下标记，重启后不再被重挂到另一个工作区。
-    if (opened) {
-      keptOpen?.remember({ surface: 'editor', fileId: opened.fileId })
-    }
     if (!opened) {
       refuseExplicitNonEditorRoute()
+    } else if (otherWorkspaceOwner && isCurrentOpen()) {
+      showFileInOtherWorkspaceHint({
+        fileId: opened.fileId,
+        filePath: mappedFilePath,
+        owner: otherWorkspaceOwner,
+        runtimeEnvironmentId: runtimeOwnerId,
+        position: { line, column }
+      })
     }
   })()
 }

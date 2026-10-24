@@ -19,7 +19,7 @@ import { translate } from '@/i18n/i18n'
 import { worktreeRefreshOptions } from './add-repo-runtime-owner'
 import { completeNestedFolderOpen } from './complete-nested-folder-open'
 import { defaultProjectGroupNameForPath } from './add-repo-dialog-types'
-import type { ExecutionHostId } from '../../../../shared/execution-host'
+import type { CompleteGitRepoAdd } from './use-complete-git-repo-add'
 import { noteForkPostImportContext } from '../../../../shared/fork-hooks/post-import'
 import { nestedHandoff } from '../../../../fork/import/nested-import-context'
 
@@ -61,11 +61,7 @@ export function useAddRepoNestedImportFlow({
     mode: 'group' | 'separate'
   }) => Promise<ProjectGroupImportResult | null>
   getNestedRepoRuntimeKind: (connectionId: string | null) => NestedRepoTelemetryRuntimeKind
-  onGitRepoReady: (
-    repoId: string,
-    source: AddRepoExistingWorkspaceSource,
-    executionHostId?: ExecutionHostId
-  ) => Promise<void>
+  onGitRepoReady: CompleteGitRepoAdd
   setIsAdding: (isAdding: boolean) => void
 }): {
   handleImportNestedRepos: (mode: 'group' | 'separate') => Promise<void>
@@ -211,7 +207,14 @@ export function useAddRepoNestedImportFlow({
           noteForkPostImportContext(
             nestedHandoff(nestedScan, paths, result, nestedConnectionId, nestedRuntimeEnvironmentId)
           )
-          await onGitRepoReady(repo.id, source, completionOwnerOptions.executionHostId)
+          await onGitRepoReady(
+            repo.id,
+            source,
+            completionOwnerOptions.executionHostId,
+            mode === 'group' && result.group
+              ? { importedProjectGroupId: result.group.id }
+              : undefined
+          )
         }
       } catch (err) {
         if (gen === nestedImportGenRef.current) {

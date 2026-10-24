@@ -5,9 +5,9 @@ import { needsSavePromptOnClose } from '@/store/slices/editor/buffers/editor-buf
 import type { OpenFile } from '@/store/slices/editor/types/open-file'
 import { makeWorktree, TEST_REPO } from '@/store/slices/worktrees-slice-test-fixtures'
 import {
-  registerTerminalFileLinkWorkspaceSetting,
+  registerTerminalFileLinkStayWatch,
   resetTerminalFileLinkWorkspaceWatchForTests
-} from './file-link-workspace-setting'
+} from './file-link-stay-watch'
 import { resetTerminalFileLinkStayCacheForTests } from './file-link-stay'
 
 vi.mock('sonner', () => ({
@@ -71,7 +71,7 @@ describe('nested demotion keeps unsaved edits', () => {
       },
       folderWorkspaces: []
     })
-    registerTerminalFileLinkWorkspaceSetting()
+    registerTerminalFileLinkStayWatch()
   })
 
   it('keeps a dirty outer tab writable, then demotes it after the edits are saved', () => {

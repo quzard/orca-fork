@@ -96,7 +96,13 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 
 没有设置开关。本地跨工作区跟上游 #32320：文件留在点击时的工作区，只读查看，并提示可以到归属工作区打开。SSH 和服务器上的文件不切走，也留在点击时的工作区，只读，复用上游的只读标记和提示。
 
-路由里只加两个钩子，都在 `src/shared/fork-hooks/terminal-file-link-workspace.ts`。未登记时调用保持上游：
+`terminal-file-open-routing.ts` 在上游路由之外还有这些接线。未登记时调用保持上游：
+
+- `retainSshServerLinkInSource` 和 `deeperWorkspaceReadOnlyView`，都在 `src/shared/fork-hooks/terminal-file-link-workspace.ts`。
+- `terminalHtmlKeepsEditorSource`：包住工作区外的直接 SSH HTML。命中时不走上游预览计划，仍在编辑器里打开源码。本地 HTML 不经过这个包装。
+- `terminalLinkViewFields`：替换上游的 `otherWorkspaceViewFields`，给服务器上的只读视图补回运行时 id。路由文件直接 import `src/fork/terminal/file-link-route.tsx`。
+
+两个钩子的行为：
 
 - `retainSshServerLinkInSource`：宿主已经指出另一个工作区，或直接 SSH 路径属于另一个工作区时，打开目标改回点击时的工作区，并给出只读视图。点在工作区根上仍激活那个工作区。授权文件、本机文件、浮动工作区不处理。
 - `deeperWorkspaceReadOnlyView`：路径在当前工作区里面，但更深的工作区拥有它时，同样改成只读视图。只有 SSH 或服务器才把路径记进 `orca.fork.terminal-file-link-stay`。本地嵌套只降级，不记标记，读取走上游的 `isClientLocalReadOnlyTab`。
@@ -105,7 +111,7 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 
 工作区外的直接 SSH HTML 仍在编辑器里打开源码。本地 HTML 跟上游，默认用系统浏览器，fork 不覆盖。
 
-`src/fork/terminal/file-link-route.tsx` 只负责查找归属，并给服务器上的只读视图补回运行时 id，避免路由文件超过行数上限。写成 `.tsx` 是因为 node 工程只收录 `src/fork/**/*.ts`，这个文件要引用渲染进程的 `@/` 别名。
+`src/fork/terminal/file-link-route.tsx` 只负责查找归属，并给服务器上的只读视图补回运行时 id，避免路由文件超过行数上限。写成 `.tsx` 是因为 node 工程只收录 `src/fork/**/*.ts`，这个文件要引用渲染进程的 `@/` 别名。`src/fork/terminal/file-link-stay-watch.tsx` 的 `registerTerminalFileLinkStayWatch` 登记停留标记的读写，并监视外层标签；这里没有设置开关。
 
 ## F047 工作区里的多个仓库（只读）
 

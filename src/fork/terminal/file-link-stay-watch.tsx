@@ -192,7 +192,8 @@ function watchClosedTerminalFileLinkStays(): void {
   })
 }
 
-export function registerTerminalFileLinkWorkspaceSetting(): void {
+// 开关已经去掉。这里只登记停留标记的读写，并开始监视外层标签。
+export function registerTerminalFileLinkStayWatch(): void {
   registerTerminalFileLinkWorkspace({
     rememberSshStay: (worktreeId, filePath) => {
       saveTerminalFileLinkStay(worktreeId, filePath)

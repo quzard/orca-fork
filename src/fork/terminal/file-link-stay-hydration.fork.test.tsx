@@ -56,9 +56,9 @@ vi.mock('@/components/settings/SettingsFormControls', () => ({
 }))
 
 import {
-  registerTerminalFileLinkWorkspaceSetting,
+  registerTerminalFileLinkStayWatch,
   resetTerminalFileLinkWorkspaceWatchForTests
-} from './file-link-workspace-setting'
+} from './file-link-stay-watch'
 import {
   loadTerminalFileLinkStay,
   resetTerminalFileLinkStayCacheForTests,
@@ -97,7 +97,7 @@ describe('terminal file-link stay hydration', () => {
 
   it('does not prune when a degraded startup is ready with no files, and waits out a snapshot gap', () => {
     saveTerminalFileLinkStay(WORKTREE, PATH)
-    registerTerminalFileLinkWorkspaceSetting()
+    registerTerminalFileLinkStayWatch()
 
     setState({
       workspaceSessionReady: true,
@@ -118,7 +118,7 @@ describe('terminal file-link stay hydration', () => {
   })
 
   it('demotes an older writable outer tab when the nested workspace opens the same path', () => {
-    registerTerminalFileLinkWorkspaceSetting()
+    registerTerminalFileLinkStayWatch()
     findRoute.mockReturnValue({
       worktreeId: 'wt-nas',
       relativePath: 'x.txt',
@@ -144,7 +144,7 @@ describe('terminal file-link stay hydration', () => {
   })
 
   it('waits to demote a dirty outer tab until the edits are gone', () => {
-    registerTerminalFileLinkWorkspaceSetting()
+    registerTerminalFileLinkStayWatch()
     findRoute.mockReturnValue({
       worktreeId: 'wt-nas',
       relativePath: 'x.txt',
@@ -176,7 +176,7 @@ describe('terminal file-link stay hydration', () => {
   })
 
   it('does not demote when the nested tab is read-only', () => {
-    registerTerminalFileLinkWorkspaceSetting()
+    registerTerminalFileLinkStayWatch()
     findRoute.mockReturnValue({
       worktreeId: 'wt-nas',
       relativePath: 'x.txt',
@@ -198,7 +198,7 @@ describe('terminal file-link stay hydration', () => {
   })
 
   it('looks up only the path that changed', () => {
-    registerTerminalFileLinkWorkspaceSetting()
+    registerTerminalFileLinkStayWatch()
     const nested = '/Users/me/nas/x.txt'
     const other = '/Users/me/other.txt'
     findRoute.mockImplementation((_state, _host, filePath: string) =>
@@ -231,7 +231,7 @@ describe('terminal file-link stay hydration', () => {
   })
 
   it('demotes both copies when the workspace list arrives after they are open', () => {
-    registerTerminalFileLinkWorkspaceSetting()
+    registerTerminalFileLinkStayWatch()
     const filePath = '/Users/me/nas/x.txt'
     const route = { worktreeId: 'wt-nas', relativePath: 'x.txt', executionHostId: 'local' }
     findRoute.mockReturnValue(route)
@@ -255,7 +255,7 @@ describe('terminal file-link stay hydration', () => {
   })
 
   it('demotes both copies when only the folder workspace list arrives late', () => {
-    registerTerminalFileLinkWorkspaceSetting()
+    registerTerminalFileLinkStayWatch()
     const filePath = '/Users/me/nas/x.txt'
     findRoute.mockReturnValue({
       worktreeId: 'wt-nas',
@@ -276,7 +276,7 @@ describe('terminal file-link stay hydration', () => {
   })
 
   it('keeps a dirty outer tab writable when the workspace list arrives, then demotes it once clean', () => {
-    registerTerminalFileLinkWorkspaceSetting()
+    registerTerminalFileLinkStayWatch()
     const filePath = '/Users/me/nas/x.txt'
     const inner = { id: 'inner', worktreeId: 'wt-nas', filePath, mode: 'edit' as const }
     findRoute.mockReturnValue({
@@ -303,7 +303,7 @@ describe('terminal file-link stay hydration', () => {
   })
 
   it('demotes both writable copies once the workspace catalog arrives', () => {
-    registerTerminalFileLinkWorkspaceSetting()
+    registerTerminalFileLinkStayWatch()
     const filePath = '/Users/me/nas/x.txt'
     const other = '/Users/me/other.txt'
     findRoute.mockImplementation((_state, _host, path: string) =>
@@ -335,7 +335,7 @@ describe('terminal file-link stay hydration', () => {
     const markedPath = '/Users/me/kept.html'
     const nested = '/Users/me/nas/x.txt'
     saveTerminalFileLinkStay('wt-marked', markedPath)
-    registerTerminalFileLinkWorkspaceSetting()
+    registerTerminalFileLinkStayWatch()
     findRoute.mockReturnValue({
       worktreeId: 'wt-nas',
       relativePath: 'x.txt',
@@ -380,7 +380,7 @@ describe('terminal file-link stay hydration', () => {
   })
 
   it('retries a path whose owner was unknown when another tab changes', () => {
-    registerTerminalFileLinkWorkspaceSetting()
+    registerTerminalFileLinkStayWatch()
     const filePath = '/Users/me/nas/x.txt'
     const other = '/Users/me/other.txt'
     findRoute.mockReturnValue(null)

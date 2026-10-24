@@ -16,7 +16,12 @@ import { updateRuntimeManagedWorktreeMetadata } from '../../main/runtime/runtime
 import type { RuntimeStore } from '../../main/runtime/runtime-store-contract'
 import type { ResolvedWorktree } from '../../main/runtime/runtime-worktree-path-identity'
 import type { Worktree } from '../../shared/worktree/types'
-import { closeTestStores, createStore, testState } from '../../main/persistence-test-harness'
+// 上游把测试夹具挪到 persistence/persistence-test-harness。
+import {
+  closeTestStores,
+  createStore,
+  testState
+} from '../../main/persistence/persistence-test-harness'
 import { hostWorktreeTarget } from '../../shared/worktree/host-qualified-identity'
 
 vi.mock('../../main/ssh/ssh-config-parser', () => ({

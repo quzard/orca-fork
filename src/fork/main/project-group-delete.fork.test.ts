@@ -2,14 +2,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+// 上游把夹具拆进 persistence/。harness 不再导出 makeTerminalTab。
 import {
   closeTestStores,
   testState,
   createStore,
   makeRepo,
-  makeTerminalTab,
   writeDataFile
-} from '../../main/persistence-test-harness'
+} from '../../main/persistence/persistence-test-harness'
+import { makeTerminalTab } from '../../main/persistence/persistence-session-fixtures'
 import { manifest } from '../../main/persistence/migrating-orcad-catalog/persistence-orcad-migration-catalog-fixture'
 import { collectOrcadMigrationSourceCatalog } from '../../main/persistence/migrating-orcad-catalog/orcad-source-catalog'
 import { resolveAgentWorkspaceExecutionHostId } from '../../main/agent-hooks/restored-status-dead-terminal-sweep'

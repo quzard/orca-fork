@@ -51,13 +51,9 @@ vi.mock('@/components/settings/SearchableSetting', () => ({
   SearchableSetting: () => null
 }))
 
-vi.mock('@/components/settings/SettingsFormControls', () => ({
-  SettingsSwitchRow: () => null
-}))
-
 import {
   registerTerminalFileLinkStayWatch,
-  resetTerminalFileLinkWorkspaceWatchForTests
+  resetTerminalFileLinkStayWatchForTests
 } from './file-link-stay-watch'
 import {
   loadTerminalFileLinkStay,
@@ -74,7 +70,7 @@ describe('terminal file-link stay hydration', () => {
   beforeEach(() => {
     storage.clear()
     resetTerminalFileLinkStayCacheForTests()
-    resetTerminalFileLinkWorkspaceWatchForTests()
+    resetTerminalFileLinkStayWatchForTests()
     listeners.clear()
     findRoute.mockReset()
     findRoute.mockReturnValue(null)

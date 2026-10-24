@@ -24,7 +24,7 @@ let watchingClosedTabs = false
 let unwatchClosedTabs: (() => void) | undefined
 let stayStorageListener: ((event: StorageEvent) => void) | undefined
 
-export function resetTerminalFileLinkWorkspaceWatchForTests(): void {
+export function resetTerminalFileLinkStayWatchForTests(): void {
   unwatchClosedTabs?.()
   unwatchClosedTabs = undefined
   if (stayStorageListener && typeof window !== 'undefined') {

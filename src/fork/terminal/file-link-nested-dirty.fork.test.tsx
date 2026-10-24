@@ -6,7 +6,7 @@ import type { OpenFile } from '@/store/slices/editor/types/open-file'
 import { makeWorktree, TEST_REPO } from '@/store/slices/worktrees-slice-test-fixtures'
 import {
   registerTerminalFileLinkStayWatch,
-  resetTerminalFileLinkWorkspaceWatchForTests
+  resetTerminalFileLinkStayWatchForTests
 } from './file-link-stay-watch'
 import { resetTerminalFileLinkStayCacheForTests } from './file-link-stay'
 
@@ -39,7 +39,7 @@ describe('nested demotion keeps unsaved edits', () => {
   beforeEach(() => {
     storage.clear()
     resetTerminalFileLinkStayCacheForTests()
-    resetTerminalFileLinkWorkspaceWatchForTests()
+    resetTerminalFileLinkStayWatchForTests()
     Object.defineProperty(globalThis, 'localStorage', {
       configurable: true,
       value: {

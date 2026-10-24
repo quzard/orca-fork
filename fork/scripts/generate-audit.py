@@ -26,7 +26,7 @@ st=[l.split('\t') for l in g('diff','--name-status',*against(REV)).splitlines()]
 FORKROOT=re.compile(r'^(src/fork/|fork/|docs/fork/|src/shared/fork-hooks/|FORK-CHANGES\.md)')
 FEAT=[('project-group','SB 侧栏/项目组'),('open-in','OPEN 打开方式'),('editor-launch','OPEN 打开方式'),('post-import','F003/F025 批量导入'),('composer','SB 新建工作区'),('quick-creation','SB 新建工作区'),('computer-use','F006 权限窗口'),('main.swift','F006 权限窗口'),('ai-vault','AIV 历史会话'),('AiVault','AIV 历史会话'),('session-scanner','AIV 历史会话'),
 ('ssh','SSH 状态'),('Ssh','SSH 状态'),('i18n','I18N 界面中文'),('skill','SKL 技能 pin'),('Skill','SKL 技能 pin'),
-('sidebar','SB 侧栏'),('Sidebar','SB 侧栏'),('worktree','SB 侧栏/工作区'),('Worktree','SB 侧栏/工作区'),('file-link-nested','F046 终端文件链接'),('file-link-workspace','F046 终端文件链接'),('file-link-stay','F046 终端文件链接'),('git-workspace','F047 工作区仓库'),('source-control','F047 工作区仓库'),('workspace-repository','F047 工作区仓库'),('workspace','SB 侧栏/工作区'),('Workspace','SB 侧栏/工作区'),('repo','SB 侧栏/工作区'),
+('sidebar','SB 侧栏'),('Sidebar','SB 侧栏'),('worktree','SB 侧栏/工作区'),('Worktree','SB 侧栏/工作区'),('file-link-nested','F046 终端文件链接'),('file-link-workspace','F046 终端文件链接'),('file-link-stay','F046 终端文件链接'),('file-link-route','F046 终端文件链接'),('git-workspace','F047 工作区仓库'),('source-control','F047 工作区仓库'),('workspace-repository','F047 工作区仓库'),('workspace','SB 侧栏/工作区'),('Workspace','SB 侧栏/工作区'),('repo','SB 侧栏/工作区'),
 ('mac-auto-update','F040 Mac 构建发布'),('mac-release','F040 Mac 构建发布'),('publish-','F040 Mac 构建发布'),('install-mac','F040 Mac 构建发布'),('updater','UPD 应用内更新'),('update','UPD 应用内更新'),('terminal','TERM 终端'),('Terminal','TERM 终端'),('safe-storage','F038 密钥存储'),('secret','F038 密钥存储'),
 ('mac-','F040 Mac 构建发布'),('publish','F040 Mac 构建发布'),('install','F040 Mac 构建发布'),('release','F040 Mac 构建发布'),('daily-sync','F040 每日同步'),('sync','F040 每日同步'),
 ('node-runtime','F040 Node 运行时'),('packaging','F040 Mac 构建发布'),('electron-builder','F040 Mac 构建发布'),('directory-browse','F007（已移除，守护测试）')]
@@ -91,11 +91,9 @@ OVR={
 'docs/fork/AUDIT.md':('keep','PR #7 跟进：本表'),
 'src/fork/audit-table.fork.test.ts':('keep','PR #7 跟进：检查本表和仓库一致'),
 'src/fork/directory-browse.fork.test.ts':('keep','fork 测试；⚠ F007 已移除，这个测试守护上游行为不回退，是否还需要待定'),
-'src/renderer/src/components/terminal-pane/terminal-file-open-routing.ts':('keep','F046：开关打开时调用 fork 钩子，另一个工作区的文件留在当前工作区只读打开'),
-'src/renderer/src/components/editor/useEditorPanelFileContentLoader.ts':('keep','F046：只有终端链接留下的标记才跳过重挂，读取时再解析当前归属'),
-'src/renderer/src/components/settings/TerminalInteractionSection.tsx':('keep','F046：终端交互设置里渲染这个开关'),
-'src/renderer/src/components/settings/TerminalPane.tsx':('keep','F046：搜索能命中这个开关时仍显示终端交互区'),
-'src/renderer/src/components/settings/terminal-search.ts':('keep','F046：设置搜索索引加上这个开关'),
+'src/renderer/src/components/terminal-pane/terminal-file-open-routing.ts':('keep','F046：SSH/服务器和更深工作区的文件留在点击时的工作区只读打开，本地跨工作区走上游'),
+'src/renderer/src/components/editor/useEditorPanelFileContentLoader.ts':('keep','F046：记下的 SSH/服务器链接按归属工作区读，本地只读绝对路径走上游'),
+'src/fork/terminal/file-link-route.ts':('keep','F046：查找归属，并给服务器只读视图补回运行时 id'),
 'src/renderer/src/components/right-sidebar/source-control/panel/panel.tsx':('keep','F047：git 仓库面板用 renderSourceControlScope 包一层，文件夹工作区仍走原来的提前返回'),
 'src/renderer/src/components/editor/useEditorPanelDiffContentLoader.ts':('keep','F047：嵌套仓库里的文件 diff 交给 fork 钩子，未命中时仍是上游读取'),
 'src/main/runtime/rpc/methods/index.ts':('keep','F047：摊开 FORK_GIT_WORKSPACE_METHODS，本机、orcad 和配对运行时同一份方法表'),

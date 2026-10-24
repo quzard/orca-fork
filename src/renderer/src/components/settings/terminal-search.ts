@@ -34,6 +34,7 @@ import {
 import { createLocalizedCatalog } from '@/i18n/localized-catalog'
 import { translate } from '@/i18n/i18n'
 import { translateSearchKeyword } from './settings-search-keywords'
+
 export {
   getTerminalAdvancedTypographySearchEntries,
   getTerminalTypographySearchEntries,

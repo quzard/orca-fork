@@ -96,7 +96,6 @@ export default function AiVaultPanel({
     setAllAgentsEnabled,
     resetViewOptions
   } = usePersistedAiVaultViewOptions(initialAgents)
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set())
   const { executionHostScope, onExecutionHostScopeChange, hostScopeOptions } =
     useAiVaultPanelHostScope(activeWorktreeId ?? null, resumeTargetState)
   const activeWorktreePath = activeWorktree?.path ?? null
@@ -118,10 +117,12 @@ export default function AiVaultPanel({
     [activeRepo, activeWorktree, allWorktrees, projectHostSetupProjection, repos]
   )
   const activeProjectKey = projectScopeContext.activeProjectKey
-  const { scope, handleScopeChange } = useAiVaultPanelScope({
-    activeProjectKey,
-    activeWorktreePath
-  })
+  const { scope, handleScopeChange, collapsedGroups, toggleGroup, setCollapsedGroups } =
+    useAiVaultPanelScope({
+      activeProjectKey,
+      activeWorktreePath,
+      local: workspace !== undefined
+    })
   const projectLabelByKey = projectScopeContext.projectLabelByKey
   // Sent to the scanner so scoped views surface sessions older than the global cap.
   const scopePaths = useMemo(
@@ -220,9 +221,11 @@ export default function AiVaultPanel({
     projectLabelByKey,
     hideEmptySessions
   })
-  const forkGroups = useForkAiVaultGroups(groups, collapsedGroups, setCollapsedGroups, {
+  const forkList = useForkAiVaultGroups(groups, collapsedGroups, setCollapsedGroups, {
     loading: searching ? search.loading : loading,
-    sessionCount: sessions.length
+    sessionCount: sessions.length,
+    // 侧栏这份折叠集合在卸载后还在。见过的分组也要留住，重开时才不会把用户展开过的再收起。
+    rememberSeenGroups: workspace === undefined
   })
   const searchHitHostLabels = useSearchHostLabels(searching, filteredSessions, hostScopeOptions)
 
@@ -241,18 +244,6 @@ export default function AiVaultPanel({
     changeScope: handleScopeChange,
     setFocusSearchRequestId
   })
-
-  const toggleGroup = useCallback((key: string) => {
-    setCollapsedGroups((current) => {
-      const next = new Set(current)
-      if (next.has(key)) {
-        next.delete(key)
-      } else {
-        next.add(key)
-      }
-      return next
-    })
-  }, [])
 
   const requestDelete = useAiVaultSessionDeleteAction({
     refresh,
@@ -329,8 +320,8 @@ export default function AiVaultPanel({
             key={searching ? search.resetKey : 'history'}
             searchHits={searching ? searchHits : undefined}
             searchHitHostLabels={searchHitHostLabels}
-            groups={forkGroups}
-            collapsedGroups={collapsedGroups}
+            groups={forkList.groups}
+            collapsedGroups={forkList.collapsedGroups}
             loading={searching ? search.loading : loading}
             scopePending={!searching && scopePending}
             scanProgressShown={stripProgress !== null}

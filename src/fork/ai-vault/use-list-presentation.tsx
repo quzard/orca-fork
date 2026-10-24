@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useAppStore } from '@/store'
 import { selectFolderWorkspaces, selectWorktreesByRepo } from '@/store/workspace-record-selectors'
@@ -19,6 +19,10 @@ import {
 import { visibleAiVaultGroups } from './list-presentation'
 import { publishAiVaultPanelStatus } from './panel-status'
 
+// 侧栏面板的折叠集合在卸载后还在。见过的分组键跟着活到渲染进程重载，
+// 否则每次重开都把全部分组当成新的，用户展开过的会被再收起。
+let sidebarSeenGroupKeys: ReadonlySet<string> = new Set()
+
 /**
  * Host rows, collapse-new and the collapse-all handler over upstream's list groups. The panel's
  * own collapsed set and toggle stay upstream's; this only adds keys to that set.
@@ -27,45 +31,81 @@ export function useForkAiVaultGroups(
   groups: readonly AiVaultSessionListGroup[],
   collapsedGroups: ReadonlySet<string>,
   setCollapsedGroups: (next: Set<string>) => void,
-  status: { loading: boolean; sessionCount: number }
-): readonly AiVaultSessionListGroup[] {
+  status: { loading: boolean; sessionCount: number; rememberSeenGroups?: boolean }
+): { groups: readonly AiVaultSessionListGroup[]; collapsedGroups: ReadonlySet<string> } {
   const partitioned = useMemo(() => applyAiVaultListGroups(groups), [groups])
-  const [seenKeys, setSeenKeys] = useState<ReadonlySet<string>>(() => new Set())
+  const rememberSeenGroups = status.rememberSeenGroups === true
+  const [localSeenKeys, setLocalSeenKeys] = useState<ReadonlySet<string>>(() => new Set())
+  const seenKeys = rememberSeenGroups ? sidebarSeenGroupKeys : localSeenKeys
 
   // 新出现的主机行和目录在首帧就收起，避免先展开再收起。
+  // 折叠集合挂在上游的外部 store 上，渲染过程中写入会抛错。
+  // 这一帧先按算出来的集合画，绘制前再把见过的键和折叠集合一起写回去。
+  let listedCollapsedGroups = collapsedGroups
   if (shouldCollapseNewAiVaultGroups()) {
     const unseen = partitioned.filter((group) => group.label !== null && !seenKeys.has(group.key))
     if (unseen.length > 0) {
-      const nextSeen = new Set(seenKeys)
       const nextCollapsed = new Set(collapsedGroups)
       for (const group of unseen) {
-        nextSeen.add(group.key)
         nextCollapsed.add(group.key)
       }
-      setSeenKeys(nextSeen)
-      setCollapsedGroups(nextCollapsed)
+      listedCollapsedGroups = nextCollapsed
     }
   }
 
+  useLayoutEffect(() => {
+    if (listedCollapsedGroups === collapsedGroups) {
+      return
+    }
+    if (rememberSeenGroups) {
+      const nextSeen = new Set(sidebarSeenGroupKeys)
+      for (const key of listedCollapsedGroups) {
+        if (!collapsedGroups.has(key)) {
+          nextSeen.add(key)
+        }
+      }
+      sidebarSeenGroupKeys = nextSeen
+    } else {
+      setLocalSeenKeys((current) => {
+        const next = new Set(current)
+        for (const key of listedCollapsedGroups) {
+          if (!collapsedGroups.has(key)) {
+            next.add(key)
+          }
+        }
+        return next
+      })
+    }
+    setCollapsedGroups(new Set(listedCollapsedGroups))
+  }, [collapsedGroups, listedCollapsedGroups, rememberSeenGroups, setCollapsedGroups])
+
   const presented = useMemo(
-    () => visibleAiVaultGroups(partitioned, collapsedGroups),
-    [collapsedGroups, partitioned]
+    () => visibleAiVaultGroups(partitioned, listedCollapsedGroups),
+    [listedCollapsedGroups, partitioned]
   )
 
   useEffect(() => {
     setAiVaultCollapseAllHandler(() => {
       const keys = partitioned.filter((group) => group.label !== null).map((group) => group.key)
-      setSeenKeys((current) => {
-        const next = new Set(current)
+      if (rememberSeenGroups) {
+        const nextSeen = new Set(sidebarSeenGroupKeys)
         for (const key of keys) {
-          next.add(key)
+          nextSeen.add(key)
         }
-        return next
-      })
+        sidebarSeenGroupKeys = nextSeen
+      } else {
+        setLocalSeenKeys((current) => {
+          const next = new Set(current)
+          for (const key of keys) {
+            next.add(key)
+          }
+          return next
+        })
+      }
       setCollapsedGroups(new Set(keys))
     })
     return () => setAiVaultCollapseAllHandler(undefined)
-  }, [partitioned, setCollapsedGroups])
+  }, [partitioned, rememberSeenGroups, setCollapsedGroups])
 
   useEffect(() => {
     publishAiVaultGroupSessionCounts(presented.hostHeaderCounts)
@@ -86,7 +126,7 @@ export function useForkAiVaultGroups(
     })
   }, [partitioned, status.loading, status.sessionCount])
 
-  return presented.groups
+  return { groups: presented.groups, collapsedGroups: listedCollapsedGroups }
 }
 
 /**

@@ -101,6 +101,7 @@ OVR={
 'src/shared/protocol-version.ts':('keep','F047：RUNTIME_CAPABILITIES 摊进 fork.git.workspace-repositories.v1，常量放在 shared 以免 CLI 依赖 src/fork'),
 'src/main/runtime/rpc/rpc-params-type-parity.ts':('keep','F047：六个 fork 方法的参数 schema 在 src/fork，不进共享 catalog，记在未编目名单里'),
 'src/shared/rpc-contract/rpc-params-catalog.generated.ts':('keep','F047：生成器把六个新方法记进 RPC_METHODS_WITHOUT_SHARED_PARAMS，不手改'),
+'src/renderer/src/components/right-sidebar/ai-vault-panel-transient-state.ts':('keep','一次替换整组折叠键；内容相同则跳过和 512 条上限都在 fork 的列表钩子里，渲染过程中不写'),
 }
 REVERTED={'src/main/electron-updater-mac-staging-contract.test.ts':'PR D：fork 用例搬到 src/fork/main/*.fork.test.ts',
  'src/main/host/safe-storage-availability.test.ts':'PR D：fork 用例搬到 src/fork/main/*.fork.test.ts',

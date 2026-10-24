@@ -2,7 +2,7 @@ import { useState, useSyncExternalStore } from 'react'
 import type { AiVaultScope } from '../../../../shared/ai-vault-types'
 import { DEFAULT_AI_VAULT_SCOPE } from './ai-vault-scope-state'
 
-const MAX_COLLAPSED_GROUPS = 512
+export const MAX_COLLAPSED_GROUPS = 512
 
 type AiVaultPanelTransientState = {
   preferredScope: AiVaultScope
@@ -48,23 +48,9 @@ function createPanelState() {
     },
     toggleGroup: (key: string) =>
       update({ ...snapshot, collapsedGroups: toggleCollapsedGroup(snapshot.collapsedGroups, key) }),
-    // fork 的历史列表要一次换掉整组折叠键（新分组默认收起、标题栏全部收起）。
-    // 上游只按一次点击切换一个键；逐个切换会走到上面的 512 条淘汰。
-    // 内容没变就不通知，避免渲染过程里的写入把面板打成死循环。
+    // fork：布局效果里一次换掉整组折叠键。渲染过程中不写。
+    // 内容相同就跳过，以及上面的 512 条上限，都由调用方处理。
     setCollapsedGroups: (next: ReadonlySet<string>) => {
-      const current = snapshot.collapsedGroups
-      if (current.size === next.size) {
-        let same = true
-        for (const key of current) {
-          if (!next.has(key)) {
-            same = false
-            break
-          }
-        }
-        if (same) {
-          return
-        }
-      }
       update({ ...snapshot, collapsedGroups: new Set(next) })
     }
   }

@@ -38,4 +38,28 @@ describe('post-import handoff wrapper', () => {
     const finish = async (): Promise<void> => {}
     expect(withForkPostImportHandoff(finish)).toBe(withForkPostImportHandoff(finish))
   })
+
+  // 登记了钩子时走 await finish，没登记时直接 return finish。两条都要收到项目组 id。
+  it('passes the imported project group to finish when a hook is registered', async () => {
+    const received: Array<string | undefined> = []
+    registerPostImportHook(() => {})
+    const wrapped = withForkPostImportHandoff(
+      async (_repoId, _source, _executionHostId, outcome) => {
+        received.push(outcome?.importedProjectGroupId)
+      }
+    )
+    await wrapped('repo-1', 'add', 'local', { importedProjectGroupId: 'g1' })
+    expect(received).toEqual(['g1'])
+  })
+
+  it('passes the imported project group to finish when no hook is registered', async () => {
+    const received: Array<string | undefined> = []
+    const wrapped = withForkPostImportHandoff(
+      async (_repoId, _source, _executionHostId, outcome) => {
+        received.push(outcome?.importedProjectGroupId)
+      }
+    )
+    await wrapped('repo-1', 'add', 'local', { importedProjectGroupId: 'g1' })
+    expect(received).toEqual(['g1'])
+  })
 })

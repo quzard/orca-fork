@@ -105,7 +105,7 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 
 工作区外的直接 SSH HTML 仍在编辑器里打开源码。本地 HTML 跟上游，默认用系统浏览器，fork 不覆盖。
 
-`src/fork/terminal/file-link-route.ts` 只负责查找归属，并给服务器上的只读视图补回运行时 id，避免路由文件超过行数上限。
+`src/fork/terminal/file-link-route.tsx` 只负责查找归属，并给服务器上的只读视图补回运行时 id，避免路由文件超过行数上限。写成 `.tsx` 是因为 node 工程只收录 `src/fork/**/*.ts`，这个文件要引用渲染进程的 `@/` 别名。
 
 ## F047 工作区里的多个仓库（只读）
 

@@ -93,7 +93,7 @@ OVR={
 'src/fork/directory-browse.fork.test.ts':('keep','fork 测试；⚠ F007 已移除，这个测试守护上游行为不回退，是否还需要待定'),
 'src/renderer/src/components/terminal-pane/terminal-file-open-routing.ts':('keep','F046：SSH/服务器和更深工作区的文件留在点击时的工作区只读打开，本地跨工作区走上游'),
 'src/renderer/src/components/editor/useEditorPanelFileContentLoader.ts':('keep','F046：记下的 SSH/服务器链接按归属工作区读，本地只读绝对路径走上游'),
-'src/fork/terminal/file-link-route.ts':('keep','F046：查找归属，并给服务器只读视图补回运行时 id'),
+'src/fork/terminal/file-link-route.tsx':('keep','F046：查找归属，并给服务器只读视图补回运行时 id'),
 'src/renderer/src/components/right-sidebar/source-control/panel/panel.tsx':('keep','F047：git 仓库面板用 renderSourceControlScope 包一层，文件夹工作区仍走原来的提前返回'),
 'src/renderer/src/components/editor/useEditorPanelDiffContentLoader.ts':('keep','F047：嵌套仓库里的文件 diff 交给 fork 钩子，未命中时仍是上游读取'),
 'src/main/runtime/rpc/methods/index.ts':('keep','F047：摊开 FORK_GIT_WORKSPACE_METHODS，本机、orcad 和配对运行时同一份方法表'),

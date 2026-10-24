@@ -1,4 +1,6 @@
 // 路由文件不能直接依赖商店查找，否则会越过行数上限。查找和只读字段放在这里。
+// 必须是 .tsx：它引用渲染进程的 @/ 别名，而 node 工程只收录 src/fork/**/*.ts。
+// 写成 .ts 时 pnpm tc 会在 node 工程里解析这些别名失败。
 import { findWorkspaceFileRoute } from '@/lib/runtime-workspace-file-route'
 import { useAppStore } from '@/store'
 import { otherWorkspaceViewFields } from '@/components/terminal-pane/terminal-file-other-workspace-owner'

@@ -10,7 +10,7 @@ import {
   makeTerminalTab,
   writeDataFile
 } from '../../main/persistence-test-harness'
-import { manifest } from '../../main/persistence-orcad-migration-catalog-fixture'
+import { manifest } from '../../main/persistence/migrating-orcad-catalog/persistence-orcad-migration-catalog-fixture'
 import { collectOrcadMigrationSourceCatalog } from '../../main/persistence/migrating-orcad-catalog/orcad-source-catalog'
 import { resolveAgentWorkspaceExecutionHostId } from '../../main/agent-hooks/restored-status-dead-terminal-sweep'
 import { getDefaultPersistedState } from '../../shared/constants'

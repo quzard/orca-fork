@@ -90,6 +90,9 @@ import {
   runWorktreeBatchDelete,
   runWorktreeDelete
 } from '@/components/sidebar/delete-worktree-flow'
+import { DURABLE_WORKSPACE_ARCHIVE_STORAGE_KEY } from './durable-workspace-archive'
+
+const storage = new Map<string, string>()
 
 function setWorktrees(
   worktrees: { id: string; repoId?: string; path?: string; hostId?: ExecutionHostId }[]
@@ -110,6 +113,16 @@ function setWorktrees(
 
 describe('skip-confirm workspace removal', () => {
   beforeEach(() => {
+    storage.clear()
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (key: string) => storage.get(key) ?? null,
+        setItem: (key: string, value: string) => {
+          storage.set(key, value)
+        }
+      }
+    })
     mocks.state.settings = { skipDeleteWorktreeConfirm: true }
     mocks.state.repos = [{ id: 'repo-1', displayName: 'project' }]
     mocks.state.worktreeLineageById = {}
@@ -128,6 +141,18 @@ describe('skip-confirm workspace removal', () => {
     registerWorkspaceFolderDelete(undefined)
   })
 
+  it('does not remember a hide when the folder checkbox is on', async () => {
+    registerForkWorkspaceFolderDelete()
+    setWorktrees([{ id: 'wt-1', path: '/srv/wt/project/checkout' }])
+
+    await expect(
+      takeWorkspaceRecordRemoval([{ id: 'wt-1', instanceId: 'wt-1-instance' }], true)
+    ).resolves.toBeNull()
+    expect(storage.has(DURABLE_WORKSPACE_ARCHIVE_STORAGE_KEY)).toBe(false)
+    expect(mocks.state.updateWorktreeMeta).not.toHaveBeenCalled()
+    expect(mocks.state.removeWorktree).not.toHaveBeenCalled()
+  })
+
   it('still hard-deletes when the hook is not registered', () => {
     setWorktrees([{ id: 'wt-1' }])
 
@@ -138,6 +163,7 @@ describe('skip-confirm workspace removal', () => {
       false
     )
     expect(mocks.state.updateWorktreeMeta).not.toHaveBeenCalled()
+    expect(storage.has(DURABLE_WORKSPACE_ARCHIVE_STORAGE_KEY)).toBe(false)
     expect(mocks.state.openModal).not.toHaveBeenCalled()
   })
 
@@ -174,10 +200,10 @@ describe('skip-confirm workspace removal', () => {
     expect(mocks.state.updateWorktreeMeta).not.toHaveBeenCalled()
   })
 
-  it('drops an orphan row from the list without deleting the directory', async () => {
+  it('archives an orphan row and remembers it without deleting the directory', async () => {
     registerForkWorkspaceFolderDelete()
     mocks.state.repos = []
-    setWorktrees([{ id: 'orphan' }])
+    setWorktrees([{ id: 'orphan', path: '/srv/wt/project/checkout' }])
     const row = mocks.state.worktreeMap.get('orphan')
     mocks.state.worktreesByRepo = row ? { 'repo-1': [row] } : {}
 
@@ -188,6 +214,9 @@ describe('skip-confirm workspace removal', () => {
     })
     expect(mocks.state.updateWorktreeMeta).not.toHaveBeenCalled()
     expect(mocks.state.removeWorktree).not.toHaveBeenCalled()
+    const saved = storage.get(DURABLE_WORKSPACE_ARCHIVE_STORAGE_KEY) ?? ''
+    expect(saved).toContain('"/srv/wt/project/checkout"')
+    expect(saved).toContain('"pathOnly":true')
   })
 
   it('archives one git workspace when batch delete skips confirmation', async () => {

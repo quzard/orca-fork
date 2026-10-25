@@ -30,6 +30,7 @@ import { flushPurgedWorkspaceEdits } from '../teardown/removed-workspace-unsaved
 import { hostWorktreeTarget } from '../../../../../../shared/worktree/host-qualified-identity'
 import { isDisplayNamePersistencePending } from '../metadata/worktree-meta-persist'
 import { preserveRegisteredSidebarGroupIds } from '../../../../../../shared/fork-hooks/sidebar-group-membership'
+import { applyRegisteredDurableWorkspaceArchive } from '../../../../../../shared/fork-hooks/workspace-durable-archive'
 import { branchName } from '@/lib/git-utils'
 import {
   forgetAuthoritativelyRemovedWorktrees,
@@ -207,9 +208,9 @@ export function mergeFetchedWorktrees(
       hasBranchScopedReviewContext: hasBranchScopedHostedReviewContext,
       updateWorktreeGitIdentity: s.updateWorktreeGitIdentity
     })
-    const worktrees = sanitizeHostedReviewLinksForBranchClears(
-      incoming,
-      s.worktreesByRepo[args.repoId]
+    // fork: soft-remove stays archived across a rescan, even when meta was never written.
+    const worktrees = applyRegisteredDurableWorkspaceArchive(
+      sanitizeHostedReviewLinksForBranchClears(incoming, s.worktreesByRepo[args.repoId])
     )
     const currentForHost = (s.worktreesByRepo[args.repoId] ?? []).filter((worktree) =>
       worktreeMatchesHost(worktree, args.hostId, matchOptions)

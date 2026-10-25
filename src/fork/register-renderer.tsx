@@ -10,6 +10,7 @@ import {
   registerTerminalPaneShownHook,
   registerTerminalReconnectFitHook
 } from '../shared/fork-hooks/terminal-lifecycle'
+import { registerDurableWorkspaceArchive } from '../shared/fork-hooks/workspace-durable-archive'
 import { getOrcadSshDeployment } from '../shared/runtime-environments'
 import { registerForkRendererModules as registerAiVaultRendererModules } from './ai-vault/register-renderer'
 import {
@@ -21,6 +22,7 @@ import {
 import { adjustRemoteOpenRoute } from './open-in/remote-open-route'
 import { enableWorkspacePortForward } from './ports/workspace-port-forward-flag'
 import { registerArchivedWorkspaceSlot } from './sidebar/archived-workspaces'
+import { stampWorkspaceArchive } from './sidebar/durable-workspace-archive'
 import { installHostDirectoryRowPlan } from './sidebar/install-row-plan'
 import { registerHostDirectorySortReader } from './sidebar/section-keys'
 import { registerSettingsProjectBulkSlot } from './sidebar/settings-project-bulk'
@@ -53,6 +55,7 @@ export function registerForkRendererModules(): void {
   registerWorkspaceMenuGroups()
   registerForkModeLabels()
   registerForkWorkspaceFolderDelete()
+  registerDurableWorkspaceArchive(stampWorkspaceArchive)
   registerHiddenWorktreeSearch({
     minimum: 1,
     matches: (worktree, query) => (worktree.branch ?? '').toLocaleLowerCase().includes(query)

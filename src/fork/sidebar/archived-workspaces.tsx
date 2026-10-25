@@ -7,6 +7,7 @@ import { getWorktreeExecutionHostId, normalizeExecutionHostId } from '../../shar
 import type { Repo } from '../../shared/repo-types'
 import { useAppStore } from '../../renderer/src/store'
 import { registerVisibilityArchivedSlot } from '../../shared/fork-hooks/sidebar-chrome'
+import { forgetWorkspaceArchive } from './durable-workspace-archive'
 
 function ArchivedWorkspaceList({
   repo,
@@ -62,6 +63,8 @@ function ArchivedWorkspaceList({
               variant="outline"
               size="sm"
               onClick={() => {
+                // 先丢掉本机隐藏，再清 isArchived。顺序反了的话，失败后的重新扫描会把它又藏起来。
+                forgetWorkspaceArchive(worktree)
                 void updateWorktreeMeta(
                   worktree.id,
                   { isArchived: false },

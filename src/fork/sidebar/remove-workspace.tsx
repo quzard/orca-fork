@@ -13,6 +13,7 @@ import type { WorktreeDeleteIdentity } from '../../renderer/src/components/sideb
 import { useAppStore } from '../../renderer/src/store'
 import type { Worktree } from '../../shared/worktree/types'
 import type { ExecutionHostId } from '../../shared/execution-host'
+import { forgetWorkspaceArchive, rememberWorkspaceArchive } from './durable-workspace-archive'
 
 export const workspaceRemovalLabels = {
   get failed() {
@@ -45,18 +46,28 @@ function identityMatches(
   return Boolean(worktree) && (instanceId === undefined || worktree?.instanceId === instanceId)
 }
 
-function dropOrphanWorktree(worktree: Worktree, hostId: ExecutionHostId): void {
+// 孤立行不在元数据里，先标成归档，活动侧栏立刻消失；扫描再回来时由隐藏记录接住。
+function archiveOrphanWorktree(worktree: Worktree, hostId: ExecutionHostId): void {
   useAppStore.setState((state) => {
     const list = state.worktreesByRepo[worktree.repoId] ?? []
+    let changed = false
+    const next = list.map((entry) => {
+      if (entry.id !== worktree.id || entry.isArchived) {
+        return entry
+      }
+      if (hostId && entry.hostId && entry.hostId !== hostId) {
+        return entry
+      }
+      changed = true
+      return { ...entry, isArchived: true }
+    })
+    if (!changed) {
+      return state
+    }
     return {
       worktreesByRepo: {
         ...state.worktreesByRepo,
-        [worktree.repoId]: list.filter((entry) => {
-          if (entry.id !== worktree.id) {
-            return true
-          }
-          return Boolean(hostId && entry.hostId && entry.hostId !== hostId)
-        })
+        [worktree.repoId]: next
       }
     }
   })
@@ -78,6 +89,16 @@ export async function removeWorkspaceFromOrca(
     return false
   }
   const ownerRepo = findRepoForHost(state.repos, worktree.repoId, { hostId })
+  // 写在 await 之前：进行中的扫描合并会读到这条记录，不会把行又标成未归档。
+  // 元数据写失败就删掉，避免侧栏已经报错、刷新后却消失。
+  rememberWorkspaceArchive({
+    id: worktree.id,
+    path: worktree.path ?? '',
+    repoId: worktree.repoId,
+    hostId,
+    ...(worktree.identity?.key ? { identityKey: worktree.identity.key } : {}),
+    pathOnly: !ownerRepo
+  })
   // Why archive first: like upstream's removal, the renderer tears down only after the host
   // accepted the change, so a failed archive leaves the workspace's terminals running.
   if (ownerRepo) {
@@ -91,6 +112,7 @@ export async function removeWorkspaceFromOrca(
         throw new Error(result.error ?? workspaceRemovalLabels.failed)
       }
     } catch (error) {
+      forgetWorkspaceArchive(worktree)
       toast.error(workspaceRemovalLabels.failed, {
         description: error instanceof Error ? error.message : String(error)
       })
@@ -117,7 +139,7 @@ export async function removeWorkspaceFromOrca(
     }
   }
   if (!ownerRepo) {
-    dropOrphanWorktree(worktree, hostId)
+    archiveOrphanWorktree(worktree, hostId)
     if (!options?.quiet) {
       toast.success(workspaceRemovalLabels.removed)
     }
@@ -130,6 +152,7 @@ export async function removeWorkspaceFromOrca(
     action: {
       label: workspaceRemovalLabels.undo,
       onClick: () => {
+        forgetWorkspaceArchive(worktree)
         void useAppStore
           .getState()
           .updateWorktreeMeta(worktree.id, { isArchived: false }, { executionHostId: hostId })

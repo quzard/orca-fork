@@ -1,6 +1,6 @@
 // 删除工作区默认只从 Orca 移除。勾选「同时删除文件夹」才走上游的 git worktree remove。
-// 软删除写成归档（isArchived），下次 git 扫描会读到这个标记，侧栏不会把同一行立刻加回来。
-// 没有所属仓库的孤立行只能从当前列表丢掉，扫到仍在的 git worktree 时可能再出现；仍然不删目录。
+// 软删除写成归档（isArchived），并在本机记下隐藏记录。下次 git 扫描合并时读到
+// 其中之一，侧栏不会把同一行加回活动列表。不取消 git worktree 登记，也不删目录。
 import { useId, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { Checkbox } from '@/components/ui/checkbox'

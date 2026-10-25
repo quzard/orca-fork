@@ -15,6 +15,7 @@ import {
 } from './post-import-messages'
 import { parentFolderImportRequested } from './parent-folder-request'
 import { mergeSelectedWorktreeInbox } from './selected-worktree-paths'
+import { releaseDurableArchiveAtPath } from '../sidebar/durable-workspace-archive'
 
 async function keepSelectedWorktrees(details: ForkPostImportDetails): Promise<void> {
   const projects = details.importedProjects ?? []
@@ -34,6 +35,16 @@ async function keepSelectedWorktrees(details: ForkPostImportDetails): Promise<vo
     if (!repo) {
       continue
     }
+    const releasePaths = (): void => {
+      for (const importedPath of paths) {
+        releaseDurableArchiveAtPath({
+          id: `${projectId}::${importedPath}`,
+          path: importedPath,
+          repoId: projectId,
+          hostId
+        })
+      }
+    }
     const merged = mergeSelectedWorktreeInbox(
       repo.importedExternalWorktreePaths,
       repo.externalWorktreeInboxBaselinePaths,
@@ -41,12 +52,14 @@ async function keepSelectedWorktrees(details: ForkPostImportDetails): Promise<vo
       paths
     )
     if (!merged) {
+      releasePaths()
       continue
     }
     const updated = await useAppStore.getState().updateRepo(projectId, merged, { hostId })
     if (!updated) {
       throw new Error(SELECTED_WORKTREE_IMPORT_FAILED)
     }
+    releasePaths()
   }
 }
 
@@ -74,6 +87,12 @@ async function ensureParentFolder(details: ForkPostImportDetails): Promise<void>
   )
   if (existing) {
     if (!existing.isArchived) {
+      releaseDurableArchiveAtPath({
+        id: `${details.repoId}::${parentPath}`,
+        path: parentPath,
+        repoId: details.repoId,
+        hostId
+      })
       return
     }
     const updated = await useAppStore
@@ -82,6 +101,12 @@ async function ensureParentFolder(details: ForkPostImportDetails): Promise<void>
     if (!updated) {
       throw new Error(PARENT_FOLDER_IMPORT_FAILED)
     }
+    releaseDurableArchiveAtPath({
+      id: `${details.repoId}::${parentPath}`,
+      path: parentPath,
+      repoId: details.repoId,
+      hostId
+    })
     return
   }
   if (!group) {
@@ -95,9 +120,33 @@ async function ensureParentFolder(details: ForkPostImportDetails): Promise<void>
     },
     { runtimeEnvironmentId: details.runtimeEnvironmentId ?? null }
   )
+  releaseDurableArchiveAtPath({
+    id: `${details.repoId}::${parentPath}`,
+    path: parentPath,
+    repoId: details.repoId,
+    hostId
+  })
 }
 
 export async function applyForkPostImport(details: ForkPostImportDetails): Promise<void> {
+  if (details.phase === 'registered') {
+    for (const importedPath of [
+      details.path,
+      details.worktreePath,
+      ...(details.projectPaths ?? [])
+    ]) {
+      if (!importedPath) {
+        continue
+      }
+      releaseDurableArchiveAtPath({
+        id: `${details.repoId}::${importedPath}`,
+        path: importedPath,
+        repoId: details.repoId,
+        hostId: details.executionHostId
+      })
+    }
+    return
+  }
   if (details.phase !== 'handoff') {
     return
   }

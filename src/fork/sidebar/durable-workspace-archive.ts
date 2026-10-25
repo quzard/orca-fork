@@ -1,9 +1,17 @@
 // 软删除的本机隐藏记录。刷新和 git 扫描会把工作区重新列出来，元数据里的
 // isArchived 对不上（没有所属仓库、主机不一致、id 写法变了）时就靠这份记录。
-// 不取消 git worktree 登记，也不删目录。恢复或撤销时删掉对应记录。
+// 不取消 git worktree 登记，也不删目录。恢复、撤销、同路径新建或导入、硬删除成功时删掉对应记录。
 
 import { normalizeRuntimePathForComparison } from '../../shared/cross-platform-path'
-import type { DurableArchiveRow } from '../../shared/fork-hooks/workspace-durable-archive'
+import {
+  getFolderWorkspaceWorktreeHostId,
+  folderWorkspaceRepoId
+} from '../../shared/folder-workspace-worktree'
+import { folderWorkspaceKey } from '../../shared/workspace-scope'
+import type {
+  DurableArchiveRow,
+  DurableArchiveWorkspace
+} from '../../shared/fork-hooks/workspace-durable-archive'
 import { worktreeIdsEqual } from '../../shared/worktree/id'
 
 export const DURABLE_WORKSPACE_ARCHIVE_STORAGE_KEY = 'orca.fork.archived-workspaces'
@@ -14,7 +22,7 @@ export type WorkspaceArchiveRecord = {
   repoId: string
   hostId?: string
   identityKey?: string
-  // 没有所属仓库时按路径隐藏，扫描换了仓库 id 或主机也能对上。
+  // 没有所属仓库时按路径隐藏。同一台主机上仓库 id 可以变；两边都有主机时必须同一台。
   pathOnly: boolean
 }
 
@@ -105,12 +113,9 @@ function samePath(left: string, right: string): boolean {
   return normalizeRuntimePathForComparison(left) === normalizeRuntimePathForComparison(right)
 }
 
-// 有所属仓库的记录带主机。两边都有主机且不同，就不是同一行。
-// 孤立行 pathOnly，路径对上即可，扫描换成另一个主机也隐藏。
+// 两边都有主机且不同，就不是同一行（pathOnly 也一样）。
+// 缺一边时仍算对上：占位行或旧记录可能还没有主机，宁可不把软删除的行漏回活动列表。
 function hostCompatible(row: DurableArchiveRow, record: WorkspaceArchiveRecord): boolean {
-  if (record.pathOnly) {
-    return true
-  }
   return !record.hostId || !row.hostId || record.hostId === row.hostId
 }
 
@@ -129,7 +134,7 @@ function recordMatches(row: DurableArchiveRow, record: WorkspaceArchiveRecord): 
     return false
   }
   if (record.pathOnly) {
-    return true
+    return hostCompatible(row, record)
   }
   return record.repoId === row.repoId && hostCompatible(row, record)
 }
@@ -157,6 +162,56 @@ export function forgetWorkspaceArchive(row: DurableArchiveRow): void {
   if (kept.length !== records.length) {
     writeRecords(kept)
   }
+}
+
+// 导入成功时往往只有路径、仓库和主机，没有完整工作区对象。
+export function releaseDurableArchiveAtPath(args: {
+  id: string
+  path: string
+  repoId: string
+  hostId?: string
+}): void {
+  if (!args.path) {
+    return
+  }
+  forgetWorkspaceArchive({
+    id: args.id,
+    path: args.path,
+    repoId: args.repoId,
+    isArchived: true,
+    ...(args.hostId ? { hostId: args.hostId } : {})
+  })
+}
+
+// 新建工作区或硬删除成功。pathOnly 只清同一台主机（或缺少主机的那一侧）。
+export function releaseDurableArchiveForWorkspace(workspace: DurableArchiveWorkspace): void {
+  if ('worktree' in workspace) {
+    const worktree = workspace.worktree
+    if (!worktree.path) {
+      return
+    }
+    forgetWorkspaceArchive({
+      id: worktree.id,
+      path: worktree.path,
+      repoId: worktree.repoId,
+      isArchived: true,
+      ...(worktree.hostId ? { hostId: worktree.hostId } : {}),
+      ...(worktree.identity?.key ? { identity: { key: worktree.identity.key } } : {})
+    })
+    return
+  }
+  const folder = workspace.folderWorkspace
+  if (!folder.folderPath) {
+    return
+  }
+  const hostId = getFolderWorkspaceWorktreeHostId(folder)
+  forgetWorkspaceArchive({
+    id: folderWorkspaceKey(folder.id),
+    path: folder.folderPath,
+    repoId: folderWorkspaceRepoId(folder.projectGroupId),
+    isArchived: true,
+    ...(hostId ? { hostId } : {})
+  })
 }
 
 export function stampWorkspaceArchive<T extends DurableArchiveRow>(rows: readonly T[]): T[] {

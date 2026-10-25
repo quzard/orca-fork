@@ -1,6 +1,8 @@
 import { toast } from 'sonner'
 import { useAppStore } from '@/store'
+import { getWorktreeOnHostFromState } from '@/store/selectors'
 import { activateAndRevealWorktree } from '@/lib/worktree-activation'
+import { releaseRegisteredDurableWorkspaceArchive } from '../../../../shared/fork-hooks/workspace-durable-archive'
 import { translate } from '@/i18n/i18n'
 import {
   resolveWorktreeOperationRoute,
@@ -11,6 +13,31 @@ import { showDeleteWorktreeFailureToast } from './delete-worktree-failure-toast'
 import type { WorktreeDeleteWithToastOptions } from './worktree-delete-request'
 import { getDeleteStateForWorktreeHost } from './worktree-delete-state-host-match'
 import { blockRemovalForUnsavedFiles } from './removal-unsaved-files'
+
+// 删之前记下路径。成功删掉目录后再清；失败时记录还在，下次扫描仍应藏起这条路径。
+function snapshotWorkspaceHide(
+  worktreeId: string,
+  executionHostId: WorktreeRemovalTarget['executionHostId']
+) {
+  const row = getWorktreeOnHostFromState(
+    useAppStore.getState(),
+    worktreeId,
+    executionHostId ?? undefined
+  )
+  if (!row?.path) {
+    return undefined
+  }
+  const hostId = row.hostId ?? executionHostId ?? undefined
+  return {
+    worktree: {
+      id: row.id,
+      path: row.path,
+      repoId: row.repoId,
+      ...(hostId ? { hostId } : {}),
+      ...(row.identity ? { identity: row.identity } : {})
+    }
+  }
+}
 
 // A failed delete usually means unresolved changes, so land on the diff panel.
 function viewWorktreeDiff(
@@ -135,6 +162,7 @@ export function runWorktreeDeleteWithToast(
     ) {
       return
     }
+    const hideRow = snapshotWorkspaceHide(worktreeId, target.executionHostId)
     useAppStore
       .getState()
       .removeWorktree(target, retry.force, {
@@ -146,6 +174,9 @@ export function runWorktreeDeleteWithToast(
           failed(result.error)
           return
         }
+        if (hideRow) {
+          releaseRegisteredDurableWorkspaceArchive(hideRow)
+        }
         // "A retry started from this toast completed the delete" — callers hang their bookkeeping
         // off it, so without this a batch or Space-panel delete keeps listing what it removed.
         options.onForceDeleted?.(target)
@@ -153,6 +184,7 @@ export function runWorktreeDeleteWithToast(
       .catch((err: unknown) => failed(err instanceof Error ? err.message : String(err)))
   }
 
+  const hideRow = snapshotWorkspaceHide(worktreeId, target.executionHostId)
   const removal =
     Object.keys(removeOptions).length > 0
       ? removeWorktree(target, options.force === true, removeOptions)
@@ -160,6 +192,9 @@ export function runWorktreeDeleteWithToast(
   return removal
     .then((result) => {
       if (result.ok) {
+        if (hideRow) {
+          releaseRegisteredDurableWorkspaceArchive(hideRow)
+        }
         if (result.preservedBranch) {
           options.onPreservedBranch?.({
             worktreeId,

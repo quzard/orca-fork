@@ -14,6 +14,7 @@ import type { WorktreeLineage } from '../../../shared/worktree/lineage-types'
 import type { WorktreeMeta } from '../../../shared/worktree/meta-types'
 import type { Worktree } from '../../../shared/worktree/types'
 import { getExecutionHostIdFromWorktreeHostIdentity } from '../../../shared/worktree/host-qualified-identity'
+import { releaseRegisteredDurableWorkspaceArchive } from '../../../shared/fork-hooks/workspace-durable-archive'
 import {
   onDesktopSidebarFeedInstalled,
   refreshDesktopSidebarFeed,
@@ -235,6 +236,8 @@ export function withPendingSidebarRowWrites<T>(
 
 /** Switch point. Lists a workspace the window just created until main's feed lists it too. */
 export function holdCreatedSidebarWorkspace(workspace: CreatedWorkspace): void {
+  // fork: 新建成功后清掉同路径隐藏，否则扫描会把新行标成归档。未登记时不动。
+  releaseRegisteredDurableWorkspaceArchive(workspace)
   if (!ORCA_SIDEBAR_INPUTS_IS_MAIN) {
     return
   }

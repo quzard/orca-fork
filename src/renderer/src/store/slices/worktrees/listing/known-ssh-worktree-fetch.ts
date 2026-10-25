@@ -6,6 +6,7 @@ import type {
   HostQualifiedKnownWorktreeResult,
   SshExecutionHostId
 } from '../../../../../../shared/detected-worktree-provider-contract'
+import { applyRegisteredDurableWorkspaceArchive } from '../../../../../../shared/fork-hooks/workspace-durable-archive'
 import { areDetectedWorktreeResultsEqual, areWorktreesEqual } from './worktree-catalog-visibility'
 import {
   getProjectHostSetupForRepoHost,
@@ -138,9 +139,10 @@ export async function runKnownSshWorktreeFetch(
         matchOptions
       )
     }
+    // fork: 这条回退不经过 mergeFetchedWorktrees，软删除记录要在合并前打上。
     const worktrees = appendMissingWorktreesForHost(
       state.worktreesByRepo[repoId],
-      toVisibleWorktrees(known, executionHostId, setup),
+      applyRegisteredDurableWorkspaceArchive(toVisibleWorktrees(known, executionHostId, setup)),
       executionHostId,
       matchOptions
     )

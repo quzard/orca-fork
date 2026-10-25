@@ -1,5 +1,7 @@
 import type { Repo } from '../../../../shared/repo-types'
 import { mergeExternalWorktreeInboxPaths } from '../../../../shared/external-worktree-inbox'
+import { getRepoExecutionHostId } from '../../../../shared/execution-host'
+import { releaseRegisteredDurableWorkspaceArchive } from '../../../../shared/fork-hooks/workspace-durable-archive'
 import { translate } from '@/i18n/i18n'
 
 export type NewExternalWorktreesInboxActionState = {
@@ -18,7 +20,13 @@ type RepoExternalWorktreeInboxUpdate = Partial<
 
 type NewExternalWorktreesInboxActionDeps = {
   projectId: string
-  repo: Pick<Repo, 'externalWorktreeInboxBaselinePaths' | 'importedExternalWorktreePaths'>
+  repo: Pick<
+    Repo,
+    | 'externalWorktreeInboxBaselinePaths'
+    | 'importedExternalWorktreePaths'
+    | 'connectionId'
+    | 'executionHostId'
+  >
   worktreePaths: readonly string[]
   setInboxState: (projectId: string, state: NewExternalWorktreesInboxActionState | null) => void
   updateRepo: (projectId: string, updates: RepoExternalWorktreeInboxUpdate) => Promise<boolean>
@@ -66,6 +74,18 @@ async function refreshAfterRepoInboxUpdate(
       error: newExternalWorktreeInboxImportError()
     })
     return false
+  }
+  // fork: 扫描之前清掉同路径隐藏，否则新导入的行会被标成归档。未登记时不动。
+  const hostId = getRepoExecutionHostId(args.repo)
+  for (const path of args.worktreePaths) {
+    releaseRegisteredDurableWorkspaceArchive({
+      worktree: {
+        id: `${args.projectId}::${path}`,
+        path,
+        repoId: args.projectId,
+        hostId
+      }
+    })
   }
   const refreshed = await args.fetchWorktrees(args.projectId, { requireAuthoritative: true })
   if (!refreshed) {

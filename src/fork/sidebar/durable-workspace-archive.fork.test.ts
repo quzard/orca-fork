@@ -2,11 +2,15 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   applyRegisteredDurableWorkspaceArchive,
   registerDurableWorkspaceArchive,
+  registerDurableWorkspaceArchiveRelease,
+  releaseRegisteredDurableWorkspaceArchive,
   type DurableArchiveRow
 } from '../../shared/fork-hooks/workspace-durable-archive'
 import {
   DURABLE_WORKSPACE_ARCHIVE_STORAGE_KEY,
   forgetWorkspaceArchive,
+  releaseDurableArchiveAtPath,
+  releaseDurableArchiveForWorkspace,
   rememberWorkspaceArchive,
   stampWorkspaceArchive
 } from './durable-workspace-archive'
@@ -38,25 +42,27 @@ describe('durable workspace archive', () => {
       }
     })
     registerDurableWorkspaceArchive(undefined)
+    registerDurableWorkspaceArchiveRelease(undefined)
   })
 
   afterEach(() => {
     registerDurableWorkspaceArchive(undefined)
+    registerDurableWorkspaceArchiveRelease(undefined)
   })
 
-  it('keeps an orphan checkout archived when a rescan uses another repo and host', () => {
+  it('keeps an orphan checkout archived when a rescan uses another repo on the same host', () => {
     rememberWorkspaceArchive({
       id: 'stale::/srv/wt/project/checkout',
       path: '/srv/wt/project/checkout',
       repoId: 'stale',
-      hostId: 'ssh:old',
+      hostId: 'ssh:box',
       pathOnly: true
     })
     const scanned = [
       row({
         id: 'live::/srv/wt/project/checkout',
         repoId: 'live',
-        hostId: 'local'
+        hostId: 'ssh:box'
       })
     ]
 
@@ -65,6 +71,171 @@ describe('durable workspace archive', () => {
     expect(archived[0]?.isArchived).toBe(true)
     expect(scanned[0]?.isArchived).toBe(false)
     expect(storage.get(DURABLE_WORKSPACE_ARCHIVE_STORAGE_KEY)).toContain('"pathOnly":true')
+  })
+
+  it('does not hide another host when both the path-only record and the row name a host', () => {
+    rememberWorkspaceArchive({
+      id: 'stale::/srv/wt/project/checkout',
+      path: '/srv/wt/project/checkout',
+      repoId: 'stale',
+      hostId: 'ssh:box',
+      pathOnly: true
+    })
+
+    const otherHost = stampWorkspaceArchive([
+      row({
+        id: 'live::/srv/wt/project/checkout',
+        repoId: 'live',
+        hostId: 'ssh:other'
+      })
+    ])
+
+    expect(otherHost[0]?.isArchived).toBe(false)
+  })
+
+  it('still hides when the record or the row has no host', () => {
+    rememberWorkspaceArchive({
+      id: 'stale::/srv/wt/project/checkout',
+      path: '/srv/wt/project/checkout',
+      repoId: 'stale',
+      pathOnly: true
+    })
+    const hostedRow = stampWorkspaceArchive([
+      row({ id: 'live::/srv/wt/project/checkout', repoId: 'live', hostId: 'ssh:box' })
+    ])
+    expect(hostedRow[0]?.isArchived).toBe(true)
+
+    storage.clear()
+    rememberWorkspaceArchive({
+      id: 'stale::/srv/wt/project/checkout',
+      path: '/srv/wt/project/checkout',
+      repoId: 'stale',
+      hostId: 'ssh:box',
+      pathOnly: true
+    })
+    const unhostedRow = stampWorkspaceArchive([
+      row({ id: 'live::/srv/wt/project/checkout', repoId: 'live', hostId: undefined })
+    ])
+    expect(unhostedRow[0]?.isArchived).toBe(true)
+  })
+
+  it('clears a same-host path hide when a new or imported workspace lands on that path', () => {
+    rememberWorkspaceArchive({
+      id: 'stale::/srv/wt/project/checkout',
+      path: '/srv/wt/project/checkout',
+      repoId: 'stale',
+      hostId: 'ssh:box',
+      pathOnly: true
+    })
+    rememberWorkspaceArchive({
+      id: 'other::/srv/wt/project/checkout',
+      path: '/srv/wt/project/checkout',
+      repoId: 'other',
+      hostId: 'ssh:other',
+      pathOnly: true
+    })
+
+    releaseDurableArchiveForWorkspace({
+      worktree: {
+        id: 'live::/srv/wt/project/checkout',
+        path: '/srv/wt/project/checkout',
+        repoId: 'live',
+        hostId: 'ssh:box'
+      }
+    })
+
+    const created = stampWorkspaceArchive([
+      row({
+        id: 'live::/srv/wt/project/checkout',
+        repoId: 'live',
+        hostId: 'ssh:box'
+      })
+    ])
+    const otherHost = stampWorkspaceArchive([
+      row({
+        id: 'other::/srv/wt/project/checkout',
+        repoId: 'other',
+        hostId: 'ssh:other'
+      })
+    ])
+    expect(created[0]?.isArchived).toBe(false)
+    expect(otherHost[0]?.isArchived).toBe(true)
+
+    releaseDurableArchiveAtPath({
+      id: 'other::/srv/wt/project/checkout',
+      path: '/srv/wt/project/checkout',
+      repoId: 'other',
+      hostId: 'ssh:other'
+    })
+    expect(
+      stampWorkspaceArchive([
+        row({
+          id: 'other::/srv/wt/project/checkout',
+          repoId: 'other',
+          hostId: 'ssh:other'
+        })
+      ])[0]?.isArchived
+    ).toBe(false)
+  })
+
+  it('clears a same-host path hide after the folder delete succeeds', () => {
+    rememberWorkspaceArchive({
+      id: 'repo-1::/srv/wt/project/checkout',
+      path: '/srv/wt/project/checkout',
+      repoId: 'repo-1',
+      hostId: 'ssh:box',
+      pathOnly: true
+    })
+    releaseDurableArchiveForWorkspace({
+      worktree: {
+        id: 'repo-1::/srv/wt/project/checkout',
+        path: '/srv/wt/project/checkout',
+        repoId: 'repo-1',
+        hostId: 'ssh:box'
+      }
+    })
+    expect(
+      stampWorkspaceArchive([
+        row({
+          id: 'repo-1::/srv/wt/project/checkout',
+          hostId: 'ssh:box'
+        })
+      ])[0]?.isArchived
+    ).toBe(false)
+  })
+
+  it('does not clear a path hide until the renderer registers the release', () => {
+    rememberWorkspaceArchive({
+      id: 'repo-1::/srv/wt/project/checkout',
+      path: '/srv/wt/project/checkout',
+      repoId: 'repo-1',
+      hostId: 'local',
+      pathOnly: true
+    })
+    releaseRegisteredDurableWorkspaceArchive({
+      worktree: {
+        id: 'repo-1::/srv/wt/project/checkout',
+        path: '/srv/wt/project/checkout',
+        repoId: 'repo-1',
+        hostId: 'local'
+      }
+    })
+    expect(
+      stampWorkspaceArchive([row({ id: 'repo-1::/srv/wt/project/checkout' })])[0]?.isArchived
+    ).toBe(true)
+
+    registerDurableWorkspaceArchiveRelease(releaseDurableArchiveForWorkspace)
+    releaseRegisteredDurableWorkspaceArchive({
+      worktree: {
+        id: 'repo-1::/srv/wt/project/checkout',
+        path: '/srv/wt/project/checkout',
+        repoId: 'repo-1',
+        hostId: 'local'
+      }
+    })
+    expect(
+      stampWorkspaceArchive([row({ id: 'repo-1::/srv/wt/project/checkout' })])[0]?.isArchived
+    ).toBe(false)
   })
 
   it('does not hide another host when the removed row had an owner', () => {

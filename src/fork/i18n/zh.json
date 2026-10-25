@@ -79,7 +79,8 @@
       "keepFolderMany": "仅从 Orca 移除，不会删除磁盘上的工作区文件夹。",
       "lineageKeptTitle": "子工作区仍留在磁盘上",
       "lineageKeptOne": "同时从 Orca 移除 1 个子工作区，不会删除磁盘上的文件夹。",
-      "lineageKeptMany": "同时从 Orca 移除 {{count}} 个子工作区，不会删除磁盘上的文件夹。"
+      "lineageKeptMany": "同时从 Orca 移除 {{count}} 个子工作区，不会删除磁盘上的文件夹。",
+      "removedMany": "已从 Orca 移除 {{count}} 个工作区"
     },
     "workspaceRemoval": {
       "ambiguous": "此工作区有多个执行主机。需要先确定终端归属，才能移除。",

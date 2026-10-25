@@ -102,10 +102,9 @@ OVR={
 'src/main/runtime/rpc/rpc-params-type-parity.ts':('keep','F047：六个 fork 方法的参数 schema 在 src/fork，不进共享 catalog，记在未编目名单里'),
 'src/shared/rpc-contract/rpc-params-catalog.generated.ts':('keep','F047：生成器把六个新方法记进 RPC_METHODS_WITHOUT_SHARED_PARAMS，不手改'),
 'src/renderer/src/components/right-sidebar/ai-vault-panel-transient-state.ts':('keep','一次替换整组折叠键；内容相同则跳过和 512 条上限都在 fork 的列表钩子里，渲染过程中不写'),
-'src/renderer/src/components/sidebar/DeleteWorktreeDialog.tsx':('keep','F048：默认只归档；勾选才硬删除。对话框到了行数上限，复选框和软删除在 fork 文件里，这里直接 import'),
-'src/renderer/src/components/sidebar/delete-worktree-dialog-lifecycle.ts':('keep','F048：从删除对话框拆出开关、空列表关闭和确认按钮焦点，行为与拆出前相同，只为留出行数'),
+'src/renderer/src/components/sidebar/DeleteWorktreeDialog.tsx':('keep','F048：默认只归档；勾选才硬删除。对话框到了行数上限，复选框、软删除，以及空列表关闭、开关和确认焦点都在 fork 文件里，这里直接 import'),
 'src/renderer/src/components/sidebar/DeleteWorktreeLineageNotice.tsx':('keep','F048：软删除时用传入的两句替换“子工作区会被删除”；不传时仍是上游原文'),
-'src/renderer/src/components/sidebar/delete-worktree-flow.ts':('keep','F048：登记之后，“不要再问”跳过对话框也只归档，不静默硬删除；未登记时仍是原来的硬删除'),
+'src/renderer/src/components/sidebar/delete-worktree-flow.ts':('keep','F048：登记之后，“不要再问”跳过对话框也只归档；对不上的行失败关闭，回退只删文件夹。未登记时仍是原来的硬删除'),
 'src/shared/fork-hooks/workspace-folder-delete.ts':('keep','F048：删除工作区是否连目录一起删。未登记时没有复选框，确认仍硬删除'),
 }
 REVERTED={'src/main/electron-updater-mac-staging-contract.test.ts':'PR D：fork 用例搬到 src/fork/main/*.fork.test.ts',

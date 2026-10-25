@@ -62,7 +62,10 @@ function dropOrphanWorktree(worktree: Worktree, hostId: ExecutionHostId): void {
   })
 }
 
-export async function removeWorkspaceFromOrca(target: WorktreeDeleteIdentity): Promise<boolean> {
+export async function removeWorkspaceFromOrca(
+  target: WorktreeDeleteIdentity,
+  options?: { quiet?: boolean }
+): Promise<boolean> {
   const state = useAppStore.getState()
   const worktree = state.getKnownWorktreeById(target.id, target.hostId)
   if (!worktree || !identityMatches(worktree, target.instanceId)) {
@@ -115,7 +118,12 @@ export async function removeWorkspaceFromOrca(target: WorktreeDeleteIdentity): P
   }
   if (!ownerRepo) {
     dropOrphanWorktree(worktree, hostId)
-    toast.success(workspaceRemovalLabels.removed)
+    if (!options?.quiet) {
+      toast.success(workspaceRemovalLabels.removed)
+    }
+    return true
+  }
+  if (options?.quiet) {
     return true
   }
   toast.success(workspaceRemovalLabels.removed, {

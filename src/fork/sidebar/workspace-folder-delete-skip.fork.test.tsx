@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ExecutionHostId } from '../../shared/execution-host'
-import { registerWorkspaceFolderDelete } from '../../shared/fork-hooks/workspace-folder-delete'
+import {
+  registerWorkspaceFolderDelete,
+  takeWorkspaceRecordRemoval
+} from '../../shared/fork-hooks/workspace-folder-delete'
 import { registerForkWorkspaceFolderDelete } from './workspace-folder-delete'
 
 type Row = {
@@ -15,6 +18,7 @@ type Row = {
 
 const mocks = vi.hoisted(() => {
   const worktreeMap = new Map<string, Row>()
+  const missedIds = new Set<string>()
   const state = {
     settings: { skipDeleteWorktreeConfirm: true },
     worktreeMap,
@@ -25,7 +29,9 @@ const mocks = vi.hoisted(() => {
     markWorktreesDeleting: vi.fn(),
     openModal: vi.fn(),
     removeWorktree: vi.fn().mockResolvedValue({ ok: true }),
-    updateWorktreeMeta: vi.fn(async () => ({ ok: true })),
+    updateWorktreeMeta: vi.fn(async (): Promise<{ ok: boolean; error?: string }> => ({
+      ok: true
+    })),
     shutdownWorktreeBrowsers: vi.fn(async () => undefined),
     shutdownWorktreeTerminals: vi.fn(async () => undefined),
     setActiveWorktree: vi.fn(),
@@ -40,12 +46,15 @@ const mocks = vi.hoisted(() => {
     sshConnectionStates: new Map(),
     sshTargetLabels: new Map(),
     getKnownWorktreeById: (id: string, hostId?: string): Row | undefined => {
+      if (missedIds.has(id)) {
+        return undefined
+      }
       const row = worktreeMap.get(id)
       return row && (!hostId || row.hostId === hostId) ? row : undefined
     }
   }
   const setState = vi.fn()
-  return { state, setState }
+  return { state, setState, missedIds }
 })
 
 vi.mock('@/store', () => ({
@@ -76,12 +85,15 @@ vi.mock('sonner', () => ({
   toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() }
 }))
 
+import { toast } from 'sonner'
 import {
   runWorktreeBatchDelete,
   runWorktreeDelete
 } from '@/components/sidebar/delete-worktree-flow'
 
-function setWorktrees(worktrees: { id: string; repoId?: string; path?: string }[]): void {
+function setWorktrees(
+  worktrees: { id: string; repoId?: string; path?: string; hostId?: ExecutionHostId }[]
+): void {
   mocks.state.worktreeMap.clear()
   for (const worktree of worktrees) {
     mocks.state.worktreeMap.set(worktree.id, {
@@ -90,7 +102,8 @@ function setWorktrees(worktrees: { id: string; repoId?: string; path?: string }[
       repoId: worktree.repoId ?? 'repo-1',
       path: worktree.path ?? `/srv/wt/project/${worktree.id}`,
       displayName: worktree.id,
-      isMainWorktree: false
+      isMainWorktree: false,
+      ...(worktree.hostId ? { hostId: worktree.hostId } : {})
     })
   }
 }
@@ -105,6 +118,8 @@ describe('skip-confirm workspace removal', () => {
     mocks.state.updateWorktreeMeta.mockClear().mockResolvedValue({ ok: true })
     mocks.state.openModal.mockClear()
     mocks.setState.mockClear()
+    mocks.missedIds.clear()
+    vi.mocked(toast.error).mockClear()
     setWorktrees([])
     registerWorkspaceFolderDelete(undefined)
   })
@@ -172,6 +187,71 @@ describe('skip-confirm workspace removal', () => {
       expect(mocks.setState).toHaveBeenCalled()
     })
     expect(mocks.state.updateWorktreeMeta).not.toHaveBeenCalled()
+    expect(mocks.state.removeWorktree).not.toHaveBeenCalled()
+  })
+
+  it('archives one git workspace when batch delete skips confirmation', async () => {
+    registerForkWorkspaceFolderDelete()
+    setWorktrees([{ id: 'wt-1' }])
+
+    expect(runWorktreeBatchDelete(['wt-1'])).toBe(true)
+
+    await vi.waitFor(() => {
+      expect(mocks.state.updateWorktreeMeta).toHaveBeenCalledWith(
+        'wt-1',
+        { isArchived: true },
+        { executionHostId: 'local' }
+      )
+    })
+    expect(mocks.state.removeWorktree).not.toHaveBeenCalled()
+    expect(mocks.state.openModal).not.toHaveBeenCalled()
+  })
+
+  it('does not hard-delete when archive fails', async () => {
+    registerForkWorkspaceFolderDelete()
+    setWorktrees([{ id: 'wt-1' }])
+    mocks.state.updateWorktreeMeta.mockResolvedValue({ ok: false, error: 'no' })
+
+    runWorktreeDelete('wt-1')
+
+    await vi.waitFor(() => {
+      expect(toast.error).toHaveBeenCalled()
+    })
+    expect(mocks.state.removeWorktree).not.toHaveBeenCalled()
+    expect(mocks.state.openModal).not.toHaveBeenCalled()
+  })
+
+  it('does not hard-delete a git row whose host-aware lookup misses', async () => {
+    registerForkWorkspaceFolderDelete()
+    mocks.state.repos = [
+      { id: 'repo-1', displayName: 'project' },
+      { id: 'folder-repo', displayName: 'folder', kind: 'folder' }
+    ]
+    setWorktrees([
+      { id: 'git-row', hostId: 'ssh:builder' },
+      { id: 'folder-row', repoId: 'folder-repo', path: '/srv/wt/folder' }
+    ])
+    mocks.missedIds.add('git-row')
+
+    await expect(
+      takeWorkspaceRecordRemoval(
+        [
+          { id: 'git-row', instanceId: 'git-row-instance', hostId: 'ssh:builder' },
+          { id: 'folder-row', instanceId: 'folder-row-instance' }
+        ],
+        false
+      )
+    ).resolves.toEqual([])
+    expect(mocks.state.removeWorktree).not.toHaveBeenCalled()
+    expect(mocks.state.updateWorktreeMeta).not.toHaveBeenCalled()
+
+    expect(
+      runWorktreeBatchDelete([
+        { id: 'git-row', instanceId: 'git-row-instance', hostId: 'ssh:builder' },
+        { id: 'folder-row', instanceId: 'folder-row-instance' }
+      ])
+    ).toBe(true)
+    await Promise.resolve()
     expect(mocks.state.removeWorktree).not.toHaveBeenCalled()
   })
 })

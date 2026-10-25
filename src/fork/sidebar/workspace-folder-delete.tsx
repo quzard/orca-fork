@@ -2,12 +2,16 @@
 // 软删除写成归档（isArchived），下次 git 扫描会读到这个标记，侧栏不会把同一行立刻加回来。
 // 没有所属仓库的孤立行只能从当前列表丢掉，扫到仍在的 git worktree 时可能再出现；仍然不删目录。
 import { useId, useState, type ReactNode } from 'react'
+import { toast } from 'sonner'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import type { Repo } from '../../shared/repo-types'
 import { isFolderRepo } from '../../shared/repo-kind'
 import type { Worktree } from '../../shared/worktree/types'
 import { toWorktreeRemovalTarget, type WorktreeRemovalTarget } from '../../shared/worktree/removal'
+import type { ConfirmedUnsavedDiscards } from '../../renderer/src/store/slices/worktrees/teardown/removed-workspace-unsaved-files'
+import { runLineageDeleteAll } from '../../renderer/src/components/sidebar/delete-worktree-lineage-delete-all'
+import type { WorktreeDeleteIdentity } from '../../renderer/src/components/sidebar/worktree-delete-request'
 import {
   gitWorktreesInDelete,
   registerWorkspaceFolderDelete,
@@ -66,9 +70,12 @@ async function removeRecordsKeepingFolders(
   const repoById = new Map(state.repos.map((repo) => [repo.id, repo]))
   const git: WorkspaceRecordIdentity[] = []
   const folders: Worktree[] = []
+  let missed = false
   for (const identity of identities) {
     const worktree = state.getKnownWorktreeById(identity.id, identity.hostId)
     if (!worktree) {
+      // 对不上就整批停下。返回 null 会让跳过确认把没对上的 git 行也硬删掉。
+      missed = true
       continue
     }
     const repo = repoById.get(worktree.repoId)
@@ -78,15 +85,28 @@ async function removeRecordsKeepingFolders(
       git.push(identity)
     }
   }
+  if (missed) {
+    return []
+  }
   // 全是文件夹：交给上游。一条都没对上：不要改走会删目录的删除。
   if (git.length === 0) {
     return folders.length === 0 && identities.length > 0 ? [] : null
   }
   const removed: WorkspaceRecordIdentity[] = []
+  const quiet = git.length > 1
+  let archived = 0
   for (const identity of git) {
-    if (await removeWorkspaceFromOrca(identity)) {
+    if (await removeWorkspaceFromOrca(identity, quiet ? { quiet: true } : undefined)) {
       removed.push(identity)
+      archived += 1
     }
+  }
+  if (quiet && archived > 0) {
+    toast.success(
+      forkTranslate('fork.workspaceDelete.removedMany', 'Removed {{count}} workspaces from Orca', {
+        count: archived
+      })
+    )
   }
   if (folders.length > 0) {
     const deleted = await runWorktreeDeletesInParallel(folders)
@@ -148,6 +168,7 @@ type FolderDeleteDialogInput = {
   upstreamSuffix: string
   childCount: number
   dirtyCount: number
+  canForceDelete: boolean
   closeModal: () => void
   onDeleted: ((targets: WorktreeRemovalTarget[]) => void) | null
 }
@@ -196,7 +217,8 @@ export function useWorkspaceFolderDeleteDialog(input: FolderDeleteDialogInput): 
     setDeleteFolder(false)
   }
   const gitDeleteCount = gitWorktreesInDelete(input.repos, input.deleteTargets)
-  const offerDeleteFolder = !input.isMainWorktree && workspaceFolderDeleteOffered(gitDeleteCount)
+  const offerDeleteFolder =
+    !input.isMainWorktree && !input.canForceDelete && workspaceFolderDeleteOffered(gitDeleteCount)
   const keepsFolder = offerDeleteFolder && !deleteFolder
   const folderOption = offerDeleteFolder ? (
     <WorkspaceFolderDeleteOption
@@ -209,7 +231,7 @@ export function useWorkspaceFolderDeleteDialog(input: FolderDeleteDialogInput): 
     descriptionSuffix: workspaceFolderDeleteSuffix(
       input.upstreamSuffix,
       gitDeleteCount,
-      deleteFolder
+      !offerDeleteFolder || deleteFolder
     ),
     showChangeLossWarning: input.dirtyCount > 0 && (!offerDeleteFolder || deleteFolder),
     lineageKeptNotice: keepsFolder ? workspaceLineageKeptNotice(input.childCount) : null,
@@ -217,3 +239,37 @@ export function useWorkspaceFolderDeleteDialog(input: FolderDeleteDialogInput): 
     keepsFolder
   }
 }
+
+export function deleteListedWorktreeLineage(args: {
+  keepsFolder: boolean
+  lineageDeleteIdentities: readonly WorktreeDeleteIdentity[]
+  deleteAllTargetCount: number
+  resolveConfirmedTargets: (
+    identities: readonly WorktreeDeleteIdentity[],
+    expectedCount: number
+  ) => Worktree[] | null
+  forceOnConfirm: boolean
+  onForceDeleted: (target: WorktreeRemovalTarget) => void
+  closeModal: () => void
+  onDeleted: ((targets: WorktreeRemovalTarget[]) => void) | null
+  confirmedDiscards: ConfirmedUnsavedDiscards
+}): void {
+  // 子工作区也只归档。硬删除才需要先删子级，避免 git 拒绝仍登记着的父级。
+  if (args.keepsFolder) {
+    const currentTargets = args.resolveConfirmedTargets(
+      args.lineageDeleteIdentities,
+      args.deleteAllTargetCount
+    )
+    if (currentTargets) {
+      keepWorkspaceFolderOnConfirm(true, currentTargets, args.closeModal, args.onDeleted)
+    }
+    return
+  }
+  runLineageDeleteAll(args)
+}
+
+export {
+  focusDeleteWorktreeConfirm,
+  useCloseDeleteWorktreeDialogWithoutTargets,
+  useDeleteWorktreeDialogOpenChange
+} from './workspace-folder-delete-lifecycle'

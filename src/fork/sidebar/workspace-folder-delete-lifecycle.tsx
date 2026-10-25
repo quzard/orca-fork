@@ -1,10 +1,11 @@
-// 从删除对话框拆出来，避免对话框超过行数上限。行为与原来写在对话框里时相同。
+// 删除对话框的空列表关闭、开关和确认按钮焦点。从上游对话框挪到这里，只为行数上限。
+// 这三处仍是上游行为，同步时按上游逻辑对待，不是新的功能钩子。
 
 import { useCallback, useEffect } from 'react'
 import { useAppStore } from '@/store'
 import { collectRemovalUnsavedFiles } from '@/components/editor/removal-unsaved-editor-files'
 import type { WorktreePurgeTarget } from '@/store/slices/worktree-purge-target'
-import { getDeleteStateForWorktreeHost } from './worktree-delete-state-host-match'
+import { getDeleteStateForWorktreeHost } from '../../renderer/src/components/sidebar/worktree-delete-state-host-match'
 
 export function focusDeleteWorktreeConfirm(
   event: { preventDefault: () => void },

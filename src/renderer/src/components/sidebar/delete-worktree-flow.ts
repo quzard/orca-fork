@@ -10,7 +10,8 @@ import { getWorkspaceDeleteLineage } from './workspace-delete-lineage'
 import { resolveSshWorkspaceForget } from './ssh-workspace-forget-resolution'
 import { isPairedWebClientWindow } from '@/lib/desktop-window-chrome'
 import { parseWorkspaceKey } from '../../../../shared/workspace-scope'
-import { getWorktreeExecutionHostId } from '../../../../shared/execution-host'
+import { getWorktreeExecutionHostId, type ExecutionHostId } from '../../../../shared/execution-host'
+import { isFolderRepo } from '../../../../shared/repo-kind'
 import {
   resolveWorktreeBatchDeleteTargets,
   toWorktreeDeleteIdentities,
@@ -30,7 +31,19 @@ import {
 } from '../../../../shared/fork-hooks/workspace-folder-delete'
 
 // 勾过“不要再问”也只是跳过对话框。登记之后默认仍只移出 Orca。
-// 返回 null 的是本来就不删目录的文件夹工作区，调用方再走原来的删除。
+// 返回 null 的是本来就不删目录的文件夹工作区。登记后的回退只删这些文件夹，不碰 git 行。
+function folderRemovalTargets<T extends { repoId: string; hostId?: ExecutionHostId }>(
+  targets: readonly T[]
+): T[] {
+  const repos = useAppStore.getState().repos
+  return targets.filter((target) => {
+    const repo = target.hostId
+      ? findRepoForHost(repos, target.repoId, { hostId: target.hostId })
+      : (repos.find((entry) => entry.id === target.repoId) ?? null)
+    return Boolean(repo && isFolderRepo(repo))
+  })
+}
+
 function startRecordOnlyRemoval(
   identities: readonly WorktreeDeleteIdentity[],
   hardDelete: () => void,
@@ -139,7 +152,13 @@ export function runWorktreeDelete(worktreeId: string, options: WorktreeDeleteOpt
     const hardDelete = (): void => {
       void runWorktreeDeleteWithToast(toWorktreeRemovalTarget(target), target.displayName)
     }
-    if (!startRecordOnlyRemoval(toWorktreeDeleteIdentities([target]), hardDelete)) {
+    if (
+      !startRecordOnlyRemoval(toWorktreeDeleteIdentities([target]), () => {
+        if (folderRemovalTargets([target]).length > 0) {
+          hardDelete()
+        }
+      })
+    ) {
       hardDelete()
     }
     return
@@ -199,8 +218,11 @@ export function runWorktreeBatchDelete(
     (state.settings?.skipDeleteWorktreeConfirm ?? false) &&
     collectRemovalUnsavedFiles(useAppStore.getState, targets).length === 0
   if (skipConfirm) {
-    const hardDelete = (): void => {
-      void runWorktreeDeletesInParallel(targets, {
+    const hardDelete = (targetsToDelete: typeof targets): void => {
+      if (targetsToDelete.length === 0) {
+        return
+      }
+      void runWorktreeDeletesInParallel(targetsToDelete, {
         onForceDeleted: (deletedTarget) => options.onDeleted?.([deletedTarget])
       }).then((deletedTargets) => {
         if (deletedTargets.length > 0) {
@@ -210,7 +232,7 @@ export function runWorktreeBatchDelete(
     }
     const handled = startRecordOnlyRemoval(
       toWorktreeDeleteIdentities(targets),
-      hardDelete,
+      () => hardDelete(folderRemovalTargets(targets)),
       (removed) => {
         const deleted = targets.filter((worktree) =>
           removed.some(
@@ -225,7 +247,7 @@ export function runWorktreeBatchDelete(
       }
     )
     if (!handled) {
-      hardDelete()
+      hardDelete(targets)
     }
     return true
   }

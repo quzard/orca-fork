@@ -33,15 +33,13 @@ import { translate } from '@/i18n/i18n'
 import type { WorktreeRemovalTarget } from '../../../../shared/worktree/removal'
 import { useDeleteWorktreeStatusHydration } from './use-delete-worktree-status-hydration'
 import { useConfirmedWorktreeDeleteTargets } from './use-confirmed-worktree-delete-targets'
-import { runLineageDeleteAll } from './delete-worktree-lineage-delete-all'
 import { runDialogForceDelete } from './delete-worktree-dialog-force-delete'
 import {
+  deleteListedWorktreeLineage,
   focusDeleteWorktreeConfirm,
-  useCloseDeleteWorktreeDialogWithoutTargets,
-  useDeleteWorktreeDialogOpenChange
-} from './delete-worktree-dialog-lifecycle'
-import {
   keepWorkspaceFolderOnConfirm,
+  useCloseDeleteWorktreeDialogWithoutTargets,
+  useDeleteWorktreeDialogOpenChange,
   useWorkspaceFolderDeleteDialog
 } from '../../../../fork/sidebar/workspace-folder-delete'
 import { getDeleteStateForWorktreeHost } from './worktree-delete-state-host-match'
@@ -194,6 +192,7 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
       : deleteCopy.descriptionSuffix,
     childCount: childWorkspaceCount,
     dirtyCount: dirtyChanges.checkStates.size,
+    canForceDelete,
     closeModal,
     onDeleted
   })
@@ -307,20 +306,10 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
   )
 
   const handleDeleteAll = (): void => {
-    // 子工作区也只归档。硬删除才需要先删子级，避免 git 拒绝仍登记着的父级。
-    if (folderDelete.keepsFolder) {
-      const currentTargets = resolveConfirmedTargets(
-        lineageDeleteIdentities,
-        lineageDelete.deleteAllTargets.length
-      )
-      if (currentTargets) {
-        keepWorkspaceFolderOnConfirm(true, currentTargets, closeModal, onDeleted)
-      }
-      return
-    }
-    runLineageDeleteAll({
-      deleteAllTargetCount: lineageDelete.deleteAllTargets.length,
+    deleteListedWorktreeLineage({
+      keepsFolder: folderDelete.keepsFolder,
       lineageDeleteIdentities,
+      deleteAllTargetCount: lineageDelete.deleteAllTargets.length,
       resolveConfirmedTargets,
       forceOnConfirm,
       onForceDeleted: handleForceDeletedFromToast,
@@ -379,7 +368,10 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
             dirtyChangePreviewsByWorktreeId={dirtyChanges.previews}
           />
 
-          <RemovalUnsavedFilesNotice targets={unsavedTargets} enabled={isOpen} />
+          <RemovalUnsavedFilesNotice
+            targets={unsavedTargets}
+            enabled={isOpen && !folderDelete.keepsFolder}
+          />
 
           {childWorkspaceCount > 0 && (
             <DeleteWorktreeLineageNotice

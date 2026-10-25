@@ -46,10 +46,21 @@ const mocks = vi.hoisted(() => {
     runtimeStatusByEnvironmentId: new Map(),
     gitStatusByWorktree: {} as Record<string, { path: string; status: 'modified' }[]>,
     setGitStatus: vi.fn(),
-    deleteStateByWorktreeId: {} as Record<string, { isDeleting: boolean; error: string | null }>,
+    deleteStateByWorktreeId: {} as Record<
+      string,
+      { isDeleting: boolean; error: string | null; canForceDelete?: boolean }
+    >,
     projects: [] as [],
     projectHostSetups: [] as [],
-    openFiles: [] as [],
+    openFiles: [] as {
+      id: string
+      filePath: string
+      relativePath: string
+      worktreeId: string
+      language: string
+      isDirty: boolean
+      mode: 'edit'
+    }[],
     editorDrafts: {} as Record<string, string>,
     editorBufferIdOf: {} as Record<string, string>,
     editorBufferViews: {} as Record<string, string[]>,
@@ -125,6 +136,7 @@ vi.mock('../../renderer/src/components/sidebar/stale-workspace-list-toast', () =
   showWorkspaceListChangedToast: vi.fn()
 }))
 
+import { toast } from 'sonner'
 import { runWorktreeDeletesInParallel } from '../../renderer/src/components/sidebar/delete-worktree-flow'
 import DeleteWorktreeDialog from '../../renderer/src/components/sidebar/DeleteWorktreeDialog'
 
@@ -173,7 +185,7 @@ function makeWorktree(id: string, path: string, repoId = 'repo-1'): Worktree {
 }
 
 function identityOf(worktree: Worktree): { id: string; instanceId: string } {
-  return { id: worktree.id, instanceId: worktree.instanceId }
+  return { id: worktree.id, instanceId: worktree.instanceId ?? '' }
 }
 
 function resetState(): void {
@@ -184,11 +196,14 @@ function resetState(): void {
   mocks.state.worktreeLineageById = {}
   mocks.state.gitStatusByWorktree = {}
   mocks.state.deleteStateByWorktreeId = {}
+  mocks.state.openFiles = []
   mocks.state.updateWorktreeMeta.mockClear().mockResolvedValue({ ok: true })
   mocks.state.shutdownWorktreeBrowsers.mockClear()
   mocks.state.shutdownWorktreeTerminals.mockClear()
   mocks.state.closeModal.mockClear()
   mocks.state.removeWorktree.mockClear()
+  vi.mocked(toast.success).mockClear()
+  vi.mocked(toast.error).mockClear()
   vi.mocked(runWorktreeDeletesInParallel).mockClear().mockResolvedValue([])
 }
 
@@ -293,6 +308,12 @@ describe('workspace folder delete dialog', () => {
     expect(runWorktreeDeletesInParallel).not.toHaveBeenCalled()
     expect(mocks.state.removeWorktree).not.toHaveBeenCalled()
     expect(mocks.state.closeModal).toHaveBeenCalled()
+    await vi.waitFor(() => {
+      expect(toast.success).toHaveBeenCalledWith(
+        'Workspace removed from Orca',
+        expect.objectContaining({ action: expect.objectContaining({ label: 'Undo' }) })
+      )
+    })
   })
 
   it('hard-deletes only after the folder checkbox is checked', async () => {
@@ -347,6 +368,10 @@ describe('workspace folder delete dialog', () => {
       expect(mocks.state.updateWorktreeMeta).toHaveBeenCalledTimes(2)
     })
     expect(runWorktreeDeletesInParallel).not.toHaveBeenCalled()
+    await vi.waitFor(() => {
+      expect(toast.success).toHaveBeenCalledTimes(1)
+    })
+    expect(toast.success).toHaveBeenCalledWith('Removed 2 workspaces from Orca')
   })
 
   it('archives the git row and removes only the folder record in a mixed batch', async () => {
@@ -381,9 +406,9 @@ describe('workspace folder delete dialog', () => {
     mocks.state.worktreeLineageById = {
       [child.id]: {
         worktreeId: child.id,
-        worktreeInstanceId: child.instanceId,
+        worktreeInstanceId: child.instanceId ?? '',
         parentWorktreeId: parent.id,
-        parentWorktreeInstanceId: parent.instanceId,
+        parentWorktreeInstanceId: parent.instanceId ?? '',
         origin: 'manual',
         capture: { source: 'manual-action', confidence: 'explicit' },
         createdAt: 1
@@ -407,6 +432,61 @@ describe('workspace folder delete dialog', () => {
       expect(mocks.state.updateWorktreeMeta).toHaveBeenCalledTimes(2)
     })
     expect(runWorktreeDeletesInParallel).not.toHaveBeenCalled()
+  })
+
+  it('hides the folder option and uses the hard-delete sentence during force-delete recovery', () => {
+    const workspace = makeWorktree('admin', '/srv/wt/project/admin')
+    showWorktrees([workspace])
+    mocks.state.deleteStateByWorktreeId = {
+      [workspace.id]: { isDeleting: false, error: 'failed', canForceDelete: true }
+    }
+    render(<DeleteWorktreeDialog />)
+
+    expect(screen.queryByRole('checkbox', { name: 'Also delete folder' })).toBeNull()
+    expect(text()).toContain(HARD_ONE)
+    expect(text()).not.toContain(SOFT_ONE)
+    expect(screen.getByRole('button', { name: 'Force Delete' })).toBeTruthy()
+  })
+
+  it('does not warn that unsaved edits will be discarded until the folder checkbox is checked', () => {
+    const workspace = makeWorktree('admin', '/srv/wt/project/admin')
+    showWorktrees([workspace])
+    mocks.state.openFiles = [
+      {
+        id: 'file-1',
+        filePath: '/srv/wt/project/admin/notes.md',
+        relativePath: 'notes.md',
+        worktreeId: workspace.id,
+        language: 'markdown',
+        isDirty: true,
+        mode: 'edit'
+      }
+    ]
+    render(<DeleteWorktreeDialog />)
+
+    expect(text()).not.toContain('will be discarded')
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Also delete folder' }))
+
+    expect(text()).toContain('will be discarded')
+  })
+
+  it("hard-deletes this confirmation when the folder checkbox and don't ask again are both on", () => {
+    const workspace = makeWorktree('admin', '/srv/wt/project/admin')
+    showWorktrees([workspace])
+    render(<DeleteWorktreeDialog />)
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Also delete folder' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: "Don't ask again" }))
+
+    clickDelete('Delete Workspace')
+
+    expect(runWorktreeDeletesInParallel).toHaveBeenCalledWith([workspace], {
+      force: true,
+      onForceDeleted: expect.any(Function),
+      confirmedDiscards: expect.any(Map)
+    })
+    expect(mocks.state.updateSettings).toHaveBeenCalledWith({ skipDeleteWorktreeConfirm: true })
+    expect(mocks.state.updateWorktreeMeta).not.toHaveBeenCalled()
   })
 
   it('uses the Chinese keep-folder copy', async () => {

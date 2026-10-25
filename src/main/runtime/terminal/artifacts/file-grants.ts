@@ -34,7 +34,8 @@ export type TerminalFileGrant = {
   // Linux can reuse inodes and coarse mtimes; the digest catches same-size content swaps.
   contentDigest: string | null
   readOnly: boolean
-  provenance: 'terminal-output' | 'native-chat'
+  // fork: disowned-host 是托管 orcad 上、没有工作区认领时的只读授权，不是终端输出。
+  provenance: 'terminal-output' | 'native-chat' | 'disowned-host'
   expiryTimer?: ReturnType<typeof setTimeout>
 }
 

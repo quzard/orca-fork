@@ -9,6 +9,7 @@ import { provenancePathCandidate, resolveTerminalAbsolutePath } from './terminal
 import { requireRuntimeFileProvider, runtimeFileRouteForTarget } from '../files/file-target'
 import { isSafeMobileRelativePath } from '../files/mobile-file-kind'
 import { isENOENT } from '../../ipc/filesystem-path-containment'
+import { openDisownedHostFile } from '../../../shared/fork-hooks/terminal-disowned-host-file'
 import type { RuntimeFileCommandHost } from '../files/file-command-host'
 import type { RuntimeTerminalArtifacts } from './artifacts/terminal-artifacts'
 
@@ -149,8 +150,20 @@ export class RuntimeTerminalPathResolver {
       }
 
       // Why: mobile taps may hit agent artifacts outside the worktree; grant the exact path, not arbitrary absolute paths.
+      // fork: 未登记时直接返回 null，下面仍是 exists:false，不 stat。
+      const disowned = (): Promise<RuntimeTerminalPathResolution> =>
+        openDisownedHostFile(
+          {
+            worktreeId: worktree.id,
+            absolutePath,
+            clientId,
+            connectionId,
+            crossWorkspace: crossWorkspace === true
+          },
+          this.artifacts
+        ).then((opened) => opened ?? { ...empty, relativePath, absolutePath })
       if (!normalizedTerminalHandle || !terminalCwd) {
-        return { ...empty, relativePath, absolutePath }
+        return await disowned()
       }
       const terminalContext = this.host.resolveTerminalContext?.(normalizedTerminalHandle)
       if (
@@ -158,7 +171,7 @@ export class RuntimeTerminalPathResolver {
         terminalContext.worktreeId !== worktree.id ||
         (terminalContext.connectionId ?? undefined) !== connectionId
       ) {
-        return { ...empty, relativePath, absolutePath }
+        return await disowned()
       }
       const artifactPath = await this.artifacts.resolveAllowedTerminalArtifactPath({
         absolutePath,
@@ -166,7 +179,7 @@ export class RuntimeTerminalPathResolver {
         worktreePath: worktree.path
       })
       if (!artifactPath) {
-        return { ...empty, relativePath, absolutePath }
+        return await disowned()
       }
       if (
         !(await this.host.hasRecentTerminalOutputPath?.(
@@ -175,7 +188,7 @@ export class RuntimeTerminalPathResolver {
           artifactPath
         ))
       ) {
-        return { ...empty, relativePath, absolutePath }
+        return await disowned()
       }
       return await this.artifacts.resolveAbsoluteFileGrant({
         worktreeId: worktree.id,

@@ -114,6 +114,8 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 
 `src/fork/terminal/file-link-route.tsx` 只负责查找归属，并给服务器上的只读视图补回运行时 id，避免路由文件超过行数上限。写成 `.tsx` 是因为 node 工程只收录 `src/fork/**/*.ts`，这个文件要引用渲染进程的 `@/` 别名。`src/fork/terminal/file-link-stay-watch.tsx` 的 `registerTerminalFileLinkStayWatch` 登记停留标记的读写，并监视外层标签；这里没有设置开关。
 
+托管服务器上的 orcad 另外登记 `src/shared/fork-hooks/terminal-disowned-host-file.ts`（只在 `installForkOrcadHost`，桌面进程不登记）。登记的是打开函数，实现在 `src/fork/main/disowned-host-file-open.ts`。上游 `terminal-path-resolver.ts` 只调用这个钩子。终端或对话里的路径、`file://`，HTML 与否都一样：这台服务器上没有任何工作区认领，而且近期输出授权也失败时，以前 `files.resolveTerminalPath` 不 stat 就返回 `exists:false`。客户端因此拒绝「outside every workspace on its host」，停留钩子也不会跑。对话链接通常不带 `terminalHandle`，也不带 `nativeChatContext`。登记之后，`crossWorkspace` 的请求会 stat 本机文件。普通文件存在就发只读 `absolute-file` 授权，来源记为 `disowned-host`，绑在发起请求的那个工作区上，编辑器只读打开源码，不切到 `~`，远程 HTML 不进应用内或系统浏览器。目录不发源码授权。`~/.ssh`、`~/.gnupg`、`~/.orca`、`~/.aws` 不发授权，软链落到这些目录同样拒绝。SSH 路由不在这台机器上 stat。未登记时仍是 `exists:false`，不碰磁盘。客户端目录里就算有 `~` 文件夹工作区，也不拿它当服务器上的归属。
+
 ## F047 工作区里的多个仓库（只读）
 
 一个需求目录常常是 Orca 工作区，根上还有好几份 git 检出（前端、客户端、后端、控制台各自的 feature 分支，很多是 `git worktree add`）。以前源代码管理只看根仓库，嵌套仓库里的改动看不见。

@@ -12,6 +12,8 @@ import { getGitRepoRoot } from '../../main/git/repo-detection'
 import { registerImportedWorktreePath } from '../../shared/fork-hooks/imported-worktree-path'
 import { registerForkBuild } from '../../shared/fork-hooks/update-feed'
 import { registerKeepFolderWorkspacesOnGroupDeleteInMain } from '../../shared/fork-hooks/project-group-delete'
+import { registerDisownedHostFileOpen } from '../../shared/fork-hooks/terminal-disowned-host-file'
+import { openManagedDisownedHostFile } from './disowned-host-file-open'
 import { keepFolderWorkspacesOnGroupDelete } from './project-group-delete'
 
 /** Desktop and orcad. The renderer must not import this file. */
@@ -33,6 +35,8 @@ export function registerForkMainModules(): void {
  */
 export function installForkOrcadHost(installHostAdapters: () => void): void {
   registerForkMainModules()
+  // 只有托管 orcad 放开「没有工作区认领、但文件存在」的只读打开。桌面运行时不登记。
+  registerDisownedHostFileOpen(openManagedDisownedHostFile)
   installHostAdapters()
 }
 

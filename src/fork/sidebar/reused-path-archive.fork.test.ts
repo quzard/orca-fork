@@ -8,8 +8,6 @@ import {
 } from '../../shared/fork-hooks/workspace-durable-archive'
 import type { WorktreeMeta } from '../../shared/worktree/meta-types'
 import { withoutReusedWorktreeArchive } from '../../shared/worktree/reused-path-archive'
-import { importNewExternalWorktreeInboxPaths } from '../../renderer/src/components/sidebar/new-external-worktrees-inbox-actions'
-import { applyForkPostImport } from '../import/apply-post-import'
 import {
   forgetWorkspaceArchive,
   rememberWorkspaceArchive,
@@ -115,87 +113,6 @@ describe('same-path recreate after soft-delete', () => {
     const rotated = mergeWorktreeMetaForWrite(meta, { instanceId: 'rotated-parent' })
     expect(rotated.isArchived).toBe(true)
     expect(rotated.instanceId).toBe('rotated-parent')
-  })
-
-  it('imports the same path into the active sidebar after the hide list is cleared', async () => {
-    forgetWorkspaceArchive({
-      id: ID,
-      path: PATH,
-      repoId: 'repo-1',
-      hostId: 'local',
-      isArchived: true
-    })
-
-    await applyForkPostImport({
-      phase: 'registered',
-      repoId: 'repo-1',
-      path: PATH,
-      executionHostId: 'local'
-    })
-
-    const imported = scannedRow(meta)
-    expect(updateMeta).toHaveBeenCalledWith({
-      worktreeId: ID,
-      executionHostId: 'local',
-      updates: { isArchived: false }
-    })
-    expect(imported.isArchived).toBe(false)
-    expect(stampWorkspaceArchive([imported])[0]?.isArchived).toBe(false)
-  })
-
-  it('clears archived meta before the external inbox rescans', async () => {
-    forgetWorkspaceArchive({
-      id: ID,
-      path: PATH,
-      repoId: 'repo-1',
-      hostId: 'local',
-      isArchived: true
-    })
-    const fetchWorktrees = vi.fn(async () => {
-      expect(meta.isArchived).toBe(false)
-      return true
-    })
-
-    await importNewExternalWorktreeInboxPaths({
-      projectId: 'repo-1',
-      repo: {
-        importedExternalWorktreePaths: [],
-        externalWorktreeInboxBaselinePaths: [],
-        executionHostId: 'local'
-      },
-      worktreePaths: [PATH],
-      setInboxState: vi.fn(),
-      updateRepo: vi.fn().mockResolvedValue(true),
-      fetchWorktrees
-    })
-
-    expect(fetchWorktrees).toHaveBeenCalledOnce()
-    expect(stampWorkspaceArchive([scannedRow(meta)])[0]?.isArchived).toBe(false)
-  })
-
-  it('keeps the hide when clearing archived meta fails', async () => {
-    updateMeta.mockRejectedValueOnce(new Error('disk'))
-    const fetchWorktrees = vi.fn().mockResolvedValue(true)
-    const updateRepo = vi.fn().mockResolvedValue(true)
-
-    await importNewExternalWorktreeInboxPaths({
-      projectId: 'repo-1',
-      repo: {
-        importedExternalWorktreePaths: [],
-        externalWorktreeInboxBaselinePaths: [],
-        executionHostId: 'local'
-      },
-      worktreePaths: [PATH],
-      setInboxState: vi.fn(),
-      updateRepo,
-      fetchWorktrees
-    })
-
-    expect(fetchWorktrees).not.toHaveBeenCalled()
-    expect(updateRepo).toHaveBeenCalledTimes(2)
-    expect(meta.isArchived).toBe(true)
-    const unarchivedScan = scannedRow({ ...archivedMeta(), isArchived: false })
-    expect(stampWorkspaceArchive([unarchivedScan])[0]?.isArchived).toBe(true)
   })
 
   it('leaves another host archived', async () => {

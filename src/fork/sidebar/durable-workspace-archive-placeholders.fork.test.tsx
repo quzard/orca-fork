@@ -1,3 +1,4 @@
+// 这个文件要 import 渲染进程的占位模块。node 工程只收 src/fork/**/*.ts，所以用 tsx，让 web 工程类型检查它。
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { Repo } from '../../shared/repo-types'
 import type { Worktree } from '../../shared/worktree/types'

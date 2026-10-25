@@ -24,7 +24,7 @@ def nlines(rev,f):
     d=g('diff',*against(rev),'--',f); return sum(1 for l in d.splitlines() if l[:1] in '+-' and l[:3] not in ('+++','---'))
 st=[l.split('\t') for l in g('diff','--name-status',*against(REV)).splitlines()]
 FORKROOT=re.compile(r'^(src/fork/|fork/|docs/fork/|src/shared/fork-hooks/|FORK-CHANGES\.md)')
-FEAT=[('project-group','SB 侧栏/项目组'),('open-in','OPEN 打开方式'),('editor-launch','OPEN 打开方式'),('post-import','F003/F025 批量导入'),('composer','SB 新建工作区'),('quick-creation','SB 新建工作区'),('computer-use','F006 权限窗口'),('main.swift','F006 权限窗口'),('ai-vault','AIV 历史会话'),('AiVault','AIV 历史会话'),('session-scanner','AIV 历史会话'),
+FEAT=[('workspace-folder-delete','F048 删除工作区'),('project-group','SB 侧栏/项目组'),('open-in','OPEN 打开方式'),('editor-launch','OPEN 打开方式'),('post-import','F003/F025 批量导入'),('composer','SB 新建工作区'),('quick-creation','SB 新建工作区'),('computer-use','F006 权限窗口'),('main.swift','F006 权限窗口'),('ai-vault','AIV 历史会话'),('AiVault','AIV 历史会话'),('session-scanner','AIV 历史会话'),
 ('ssh','SSH 状态'),('Ssh','SSH 状态'),('i18n','I18N 界面中文'),('skill','SKL 技能 pin'),('Skill','SKL 技能 pin'),
 ('sidebar','SB 侧栏'),('Sidebar','SB 侧栏'),('worktree','SB 侧栏/工作区'),('Worktree','SB 侧栏/工作区'),('file-link-nested','F046 终端文件链接'),('file-link-workspace','F046 终端文件链接'),('file-link-stay','F046 终端文件链接'),('file-link-route','F046 终端文件链接'),('git-workspace','F047 工作区仓库'),('source-control','F047 工作区仓库'),('workspace-repository','F047 工作区仓库'),('workspace','SB 侧栏/工作区'),('Workspace','SB 侧栏/工作区'),('repo','SB 侧栏/工作区'),
 ('mac-auto-update','F040 Mac 构建发布'),('mac-release','F040 Mac 构建发布'),('publish-','F040 Mac 构建发布'),('install-mac','F040 Mac 构建发布'),('updater','UPD 应用内更新'),('update','UPD 应用内更新'),('terminal','TERM 终端'),('Terminal','TERM 终端'),('safe-storage','F038 密钥存储'),('secret','F038 密钥存储'),
@@ -102,6 +102,11 @@ OVR={
 'src/main/runtime/rpc/rpc-params-type-parity.ts':('keep','F047：六个 fork 方法的参数 schema 在 src/fork，不进共享 catalog，记在未编目名单里'),
 'src/shared/rpc-contract/rpc-params-catalog.generated.ts':('keep','F047：生成器把六个新方法记进 RPC_METHODS_WITHOUT_SHARED_PARAMS，不手改'),
 'src/renderer/src/components/right-sidebar/ai-vault-panel-transient-state.ts':('keep','一次替换整组折叠键；内容相同则跳过和 512 条上限都在 fork 的列表钩子里，渲染过程中不写'),
+'src/renderer/src/components/sidebar/DeleteWorktreeDialog.tsx':('keep','F048：默认只归档；勾选才硬删除。对话框到了行数上限，复选框和软删除在 fork 文件里，这里直接 import'),
+'src/renderer/src/components/sidebar/delete-worktree-dialog-lifecycle.ts':('keep','F048：从删除对话框拆出开关、空列表关闭和确认按钮焦点，行为与拆出前相同，只为留出行数'),
+'src/renderer/src/components/sidebar/DeleteWorktreeLineageNotice.tsx':('keep','F048：软删除时用传入的两句替换“子工作区会被删除”；不传时仍是上游原文'),
+'src/renderer/src/components/sidebar/delete-worktree-flow.ts':('keep','F048：登记之后，“不要再问”跳过对话框也只归档，不静默硬删除；未登记时仍是原来的硬删除'),
+'src/shared/fork-hooks/workspace-folder-delete.ts':('keep','F048：删除工作区是否连目录一起删。未登记时没有复选框，确认仍硬删除'),
 }
 REVERTED={'src/main/electron-updater-mac-staging-contract.test.ts':'PR D：fork 用例搬到 src/fork/main/*.fork.test.ts',
  'src/main/host/safe-storage-availability.test.ts':'PR D：fork 用例搬到 src/fork/main/*.fork.test.ts',

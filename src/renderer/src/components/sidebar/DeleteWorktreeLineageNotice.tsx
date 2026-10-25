@@ -22,6 +22,8 @@ type DeleteWorktreeLineageNoticeProps = {
   dirtyChangeCountsByWorktreeId: ReadonlyMap<string, number>
   dirtyChangePreviewsByWorktreeId: ReadonlyMap<string, DeleteWorktreeDirtyChangePreview>
   changeCheckStatesByWorktreeId?: ReadonlyMap<string, DeleteWorktreeChangeCheckState>
+  // 软删除时替换“子工作区会被删掉”这两句。未传入时仍是上游原文。
+  folderKeptNotice?: { title: string; body: string } | null
 }
 
 export function DeleteWorktreeLineageNotice({
@@ -30,7 +32,8 @@ export function DeleteWorktreeLineageNotice({
   repoMap,
   dirtyChangeCountsByWorktreeId,
   dirtyChangePreviewsByWorktreeId,
-  changeCheckStatesByWorktreeId
+  changeCheckStatesByWorktreeId,
+  folderKeptNotice
 }: DeleteWorktreeLineageNoticeProps): JSX.Element | null {
   const projects = useAppStore((s) => s.projects)
   const projectHostSetups = useAppStore((s) => s.projectHostSetups)
@@ -64,22 +67,24 @@ export function DeleteWorktreeLineageNotice({
         <Workflow className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
           <div className="font-medium text-foreground">
-            {translate(
-              'auto.components.sidebar.DeleteWorktreeLineageNotice.a940f3c96e',
-              'Child workspaces will be deleted'
-            )}
+            {folderKeptNotice?.title ??
+              translate(
+                'auto.components.sidebar.DeleteWorktreeLineageNotice.a940f3c96e',
+                'Child workspaces will be deleted'
+              )}
           </div>
           <div className="mt-1 text-muted-foreground">
-            {childWorkspaceCount === 1
-              ? translate(
-                  'auto.components.sidebar.DeleteWorktreeLineageNotice.66798cc6a2',
-                  'Deleting this workspace also deletes 1 child workspace.'
-                )
-              : translate(
-                  'auto.components.sidebar.DeleteWorktreeLineageNotice.29b98bf9cd',
-                  'Deleting this workspace also deletes {{value0}} child workspaces.',
-                  { value0: childWorkspaceCount }
-                )}
+            {folderKeptNotice?.body ??
+              (childWorkspaceCount === 1
+                ? translate(
+                    'auto.components.sidebar.DeleteWorktreeLineageNotice.66798cc6a2',
+                    'Deleting this workspace also deletes 1 child workspace.'
+                  )
+                : translate(
+                    'auto.components.sidebar.DeleteWorktreeLineageNotice.29b98bf9cd',
+                    'Deleting this workspace also deletes {{value0}} child workspaces.',
+                    { value0: childWorkspaceCount }
+                  ))}
             {foreignProjects.length > 0 ? ` (${foreignProjects.join(', ')})` : null}
           </div>
           {/* Why: long nowrap paths can otherwise give this grid child an

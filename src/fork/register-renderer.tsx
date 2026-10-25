@@ -29,6 +29,7 @@ import { registerWorkspaceChoice } from './sidebar/workspace-choice'
 import { registerWorkspaceGroupDropHandler } from './sidebar/workspace-group-drop'
 import { registerWorkspaceMenuGroups } from './sidebar/menu-groups'
 import { registerForkModeLabels } from './sidebar/mode-labels'
+import { registerForkWorkspaceFolderDelete } from './sidebar/workspace-folder-delete'
 import {
   consumeDeferredSshReconnectTui,
   pulseSshReconnectTui
@@ -51,6 +52,7 @@ export function registerForkRendererModules(): void {
   registerWorkspaceGroupDropHandler()
   registerWorkspaceMenuGroups()
   registerForkModeLabels()
+  registerForkWorkspaceFolderDelete()
   registerHiddenWorktreeSearch({
     minimum: 1,
     matches: (worktree, query) => (worktree.branch ?? '').toLocaleLowerCase().includes(query)

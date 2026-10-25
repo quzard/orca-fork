@@ -72,6 +72,15 @@
       "ungroupOnly": "Ungroup only",
       "ungroupOnlyDescription": "Remove the group and leave its workspaces in place."
     },
+    "workspaceDelete": {
+      "alsoDeleteFolder": "Also delete folder",
+      "keepFolderHint": "Leave this off to keep the folder on disk.",
+      "keepFolderOne": "from Orca. The workspace folder on disk will not be deleted.",
+      "keepFolderMany": "from Orca. Workspace folders on disk will not be deleted.",
+      "lineageKeptTitle": "Child workspaces stay on disk",
+      "lineageKeptOne": "Removing this workspace also removes 1 child workspace from Orca. Folders on disk will not be deleted.",
+      "lineageKeptMany": "Removing this workspace also removes {{count}} child workspaces from Orca. Folders on disk will not be deleted."
+    },
     "workspaceRemoval": {
       "ambiguous": "This workspace has multiple execution hosts. Its terminal ownership must be resolved before removal.",
       "failed": "Could not remove this workspace from Orca",

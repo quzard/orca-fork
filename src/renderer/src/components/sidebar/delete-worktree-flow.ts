@@ -23,6 +23,37 @@ import {
   runWorktreeDeleteWithToast
 } from './worktree-delete-execution'
 import { collectRemovalUnsavedFiles } from '@/components/editor/removal-unsaved-editor-files'
+import {
+  takeWorkspaceRecordRemoval,
+  workspaceFolderDeleteRegistered,
+  type WorkspaceRecordIdentity
+} from '../../../../shared/fork-hooks/workspace-folder-delete'
+
+// 勾过“不要再问”也只是跳过对话框。登记之后默认仍只移出 Orca。
+// 返回 null 的是本来就不删目录的文件夹工作区，调用方再走原来的删除。
+function startRecordOnlyRemoval(
+  identities: readonly WorktreeDeleteIdentity[],
+  hardDelete: () => void,
+  onRemoved?: (removed: readonly WorkspaceRecordIdentity[]) => void
+): boolean {
+  if (!workspaceFolderDeleteRegistered()) {
+    return false
+  }
+  void takeWorkspaceRecordRemoval(identities, false)
+    .then((removed) => {
+      if (removed === null) {
+        hardDelete()
+        return
+      }
+      if (removed.length > 0) {
+        onRemoved?.(removed)
+      }
+    })
+    .catch((error: unknown) => {
+      console.error('Failed to remove workspace from Orca:', error)
+    })
+  return true
+}
 
 export { runWorktreeDeletesInParallel, runWorktreeDeleteWithToast }
 
@@ -105,7 +136,12 @@ export function runWorktreeDelete(worktreeId: string, options: WorktreeDeleteOpt
     (state.settings?.skipDeleteWorktreeConfirm ?? false) &&
     collectRemovalUnsavedFiles(useAppStore.getState, [target]).length === 0
   if (skipConfirm && !hasLineageChildren) {
-    void runWorktreeDeleteWithToast(toWorktreeRemovalTarget(target), target.displayName)
+    const hardDelete = (): void => {
+      void runWorktreeDeleteWithToast(toWorktreeRemovalTarget(target), target.displayName)
+    }
+    if (!startRecordOnlyRemoval(toWorktreeDeleteIdentities([target]), hardDelete)) {
+      hardDelete()
+    }
     return
   }
   state.openModal('delete-worktree', {
@@ -163,13 +199,34 @@ export function runWorktreeBatchDelete(
     (state.settings?.skipDeleteWorktreeConfirm ?? false) &&
     collectRemovalUnsavedFiles(useAppStore.getState, targets).length === 0
   if (skipConfirm) {
-    void runWorktreeDeletesInParallel(targets, {
-      onForceDeleted: (deletedTarget) => options.onDeleted?.([deletedTarget])
-    }).then((deletedTargets) => {
-      if (deletedTargets.length > 0) {
-        options.onDeleted?.(deletedTargets)
+    const hardDelete = (): void => {
+      void runWorktreeDeletesInParallel(targets, {
+        onForceDeleted: (deletedTarget) => options.onDeleted?.([deletedTarget])
+      }).then((deletedTargets) => {
+        if (deletedTargets.length > 0) {
+          options.onDeleted?.(deletedTargets)
+        }
+      })
+    }
+    const handled = startRecordOnlyRemoval(
+      toWorktreeDeleteIdentities(targets),
+      hardDelete,
+      (removed) => {
+        const deleted = targets.filter((worktree) =>
+          removed.some(
+            (item) =>
+              item.id === worktree.id &&
+              (item.hostId ?? undefined) === (worktree.hostId ?? undefined)
+          )
+        )
+        if (deleted.length > 0) {
+          options.onDeleted?.(deleted.map((worktree) => toWorktreeRemovalTarget(worktree)))
+        }
       }
-    })
+    )
+    if (!handled) {
+      hardDelete()
+    }
     return true
   }
 

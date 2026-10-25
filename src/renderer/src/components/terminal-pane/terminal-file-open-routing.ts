@@ -1,5 +1,4 @@
 import { downloadAndOpenRemoteTerminalFile } from './terminal-remote-file-download-open'
-import { findWorkspaceFileRoute } from '@/lib/runtime-workspace-file-route'
 import { isPathInsideWorktree } from '@/lib/terminal-links'
 import { isMissingRuntimePathError } from '@/runtime/runtime-file-metadata-client'
 import { useAppStore } from '@/store'
@@ -21,15 +20,14 @@ import {
 } from '../../../../shared/execution-host'
 import type { HostWorkspaceFile } from './terminal-host-workspace-file'
 import {
+  adoptSiblingTerminalLink,
   nestedTerminalLinkPath,
+  openTerminalHtmlUnlessSshSource,
   resolveAndRetainTerminalLink,
   terminalLinkOpenFields
 } from '../../../../fork/terminal/file-link-route'
-import { terminalHtmlKeepsEditorSource } from '../../../../shared/fork-hooks/terminal-file-link-workspace'
-import { isFloatingWorkspaceId } from '../../../../shared/floating-workspace-worktree'
 import { captureEditorOpenLinkIntent } from '@/store/slices/editor/tabs/editor-open-target-group'
 import { reserveDetectedFilePathOpenTurn } from './terminal-file-open-turn'
-import { openTerminalHtmlFileInBrowser } from './terminal-file-link-browser-open'
 export { isHtmlFilePath } from './local-html-file-destinations'
 import { refuseOpenInGroupRequest } from './terminal-file-open-in-group-toast'
 import { isExplicitEditorScopeKept, openLinkedFileInEditor } from './terminal-file-link-editor-open'
@@ -231,29 +229,25 @@ export function openDetectedFilePath(
       return
     }
 
-    // Route local HTML to Orca browser, including system-browser opens OS could not launch.
-    if (isHtmlFilePath(mappedFilePath) && hostGrantId === null) {
-      if (deps.openInSourceGroup) {
-        refuseExplicitNonEditorRoute()
-        return
-      }
-      // fork: 工作区外的直接 SSH HTML 仍打开源码。本地 HTML 走上游，不覆盖。
-      if (!terminalHtmlKeepsEditorSource({ fileContext, mappedFilePath, statResult })) {
-        const fileExecutionHostId = hostWorkspaceFile?.executionHostId ?? sourceFileHostId
-        if (
-          openTerminalHtmlFileInBrowser({
-            filePath: mappedFilePath,
-            worktreeId,
-            clientLocal,
-            canOpenWithSystemDefault,
-            ...(linkContext && !clientLocal ? { fileExecutionHostId } : {}),
-            linkContext,
-            ...(explicitGroupRequest ? { refuseOpenInSourceGroup: refuseExplicitNonEditorRoute } : {})
-          })
-        ) {
-          return
-        }
-      }
+    // 工作区外的直接 SSH HTML 仍打开源码。本地 HTML 走上游。判断在 file-link-route。
+    if (
+      openTerminalHtmlUnlessSshSource({
+        mappedFilePath,
+        hostGrantId,
+        fileContext,
+        statResult,
+        worktreeId,
+        clientLocal,
+        canOpenWithSystemDefault,
+        hostWorkspaceFile,
+        sourceFileHostId,
+        linkContext,
+        openInSourceGroup: deps.openInSourceGroup,
+        explicitGroupRequest,
+        refuseExplicitNonEditorRoute
+      })
+    ) {
+      return
     }
 
     if (deps.openInSourceGroupSurface === 'browser') {
@@ -261,7 +255,6 @@ export function openDetectedFilePath(
       return
     }
 
-    const store = useAppStore.getState()
     let targetWorktreeId = worktreeId
     const runtimeOwnerId = runtimeTargetEnvironmentId(fileContext.target) ?? sourceRuntimeOwnerId
     let targetExecutionHostId =
@@ -280,19 +273,19 @@ export function openDetectedFilePath(
         worktreePath,
         escapesWorktree: statResult.escapesWorktree
       }))
-    } else if (
-      stayView === null && hostGrantId === null &&
-      !isFloatingWorkspaceId(worktreeId) &&
-      store.openFiles.some(
-        (openFile) => openFile.filePath === mappedFilePath && openFile.worktreeId !== worktreeId
-      )
-    ) {
-      // Why: early resolution is only needed to avoid an existing sibling-tab collision.
-      const siblingRoute = findWorkspaceFileRoute(store, targetExecutionHostId, mappedFilePath)
-      if (siblingRoute) {
-        targetWorktreeId = siblingRoute.worktreeId
-        targetExecutionHostId = siblingRoute.executionHostId
-        relativePath = siblingRoute.relativePath
+    } else {
+      // 已有停留视图时不改走兄弟标签。否则仍是上游的同路径碰撞跳转。
+      const sibling = adoptSiblingTerminalLink({
+        stayView,
+        hostGrantId,
+        worktreeId,
+        mappedFilePath,
+        executionHostId: targetExecutionHostId
+      })
+      if (sibling) {
+        targetWorktreeId = sibling.worktreeId
+        targetExecutionHostId = sibling.executionHostId
+        relativePath = sibling.relativePath
       }
     }
 
@@ -320,7 +313,13 @@ export function openDetectedFilePath(
         worktreeId: targetWorktreeId || '',
         runtimeEnvironmentId: clientLocal ? null : runtimeEnvironmentId,
         // Why: a tab's owner must match its workspace's to be editable; this one is this computer's.
-        ...terminalLinkOpenFields(clientLocal, targetWorktreeId, worktreeId, stayView, runtimeEnvironmentId),
+        ...terminalLinkOpenFields(
+          clientLocal,
+          targetWorktreeId,
+          worktreeId,
+          stayView,
+          runtimeEnvironmentId
+        ),
         // Why: the grant is the only authority to read a host file outside its workspaces.
         ...(hostGrantId !== null ? { readOnly: true, terminalArtifactGrantId: hostGrantId } : {}),
         // Retain SSH owner or restored absolute remote paths become indistinguishable from client-local external files.

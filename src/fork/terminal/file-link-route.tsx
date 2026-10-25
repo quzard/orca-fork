@@ -4,6 +4,9 @@
 import { findWorkspaceFileRoute } from '@/lib/runtime-workspace-file-route'
 import { useAppStore } from '@/store'
 import { toWorktreeRelativePath } from '@/lib/terminal-links'
+import { isHtmlFilePath } from '@/components/terminal-pane/local-html-file-destinations'
+import { openTerminalHtmlFileInBrowser } from '@/components/terminal-pane/terminal-file-link-browser-open'
+import type { BrowserLinkOpenContext } from '@/lib/browser-link-destination'
 import { statUserOpenedPath } from '@/lib/user-opened-local-path'
 import {
   CLIENT_LOCAL_FILE_TARGET,
@@ -12,9 +15,11 @@ import {
 } from '@/components/terminal-pane/terminal-host-workspace-file'
 import type { TerminalFileContext } from '@/components/terminal-pane/terminal-file-path-mapping'
 import { LOCAL_EXECUTION_HOST_ID, type ExecutionHostId } from '../../shared/execution-host'
+import { isFloatingWorkspaceId } from '../../shared/floating-workspace-worktree'
 import {
   deeperWorkspaceReadOnlyView,
   retainSshServerLinkInSource,
+  terminalHtmlKeepsEditorSource,
   type TerminalFileLinkRoute
 } from '../../shared/fork-hooks/terminal-file-link-workspace'
 
@@ -163,6 +168,95 @@ export function terminalLinkViewFields(
     return { readOnly: true, runtimeEnvironmentId: null }
   }
   return { readOnly: true, runtimeEnvironmentId }
+}
+
+/**
+ * 工作区外的直接 SSH HTML 留在编辑器里。其余 HTML 跟上游打开浏览器。
+ * 放在这里是因为路由文件贴着行数上限。返回 true 表示这条链接已经处理完。
+ */
+export function openTerminalHtmlUnlessSshSource(args: {
+  mappedFilePath: string
+  hostGrantId: string | null
+  fileContext: TerminalFileContext
+  statResult: LinkStat
+  openInSourceGroup: boolean | undefined
+  worktreeId: string
+  clientLocal: boolean
+  canOpenWithSystemDefault: boolean
+  hostWorkspaceFile: HostWorkspaceFile | null
+  sourceFileHostId: ExecutionHostId | null
+  linkContext: BrowserLinkOpenContext | undefined
+  explicitGroupRequest: boolean
+  refuseExplicitNonEditorRoute: () => boolean
+}): boolean {
+  if (!isHtmlFilePath(args.mappedFilePath) || args.hostGrantId !== null) {
+    return false
+  }
+  if (args.openInSourceGroup) {
+    args.refuseExplicitNonEditorRoute()
+    return true
+  }
+  if (
+    terminalHtmlKeepsEditorSource({
+      fileContext: args.fileContext,
+      mappedFilePath: args.mappedFilePath,
+      statResult: args.statResult
+    })
+  ) {
+    return false
+  }
+  const fileExecutionHostId = args.hostWorkspaceFile?.executionHostId ?? args.sourceFileHostId
+  return openTerminalHtmlFileInBrowser({
+    filePath: args.mappedFilePath,
+    worktreeId: args.worktreeId,
+    clientLocal: args.clientLocal,
+    canOpenWithSystemDefault: args.canOpenWithSystemDefault,
+    // 浏览器目标不接受 null。解析不到主机时省掉这个字段。
+    ...(args.linkContext && !args.clientLocal && fileExecutionHostId !== null
+      ? { fileExecutionHostId }
+      : {}),
+    linkContext: args.linkContext,
+    ...(args.explicitGroupRequest
+      ? { refuseOpenInSourceGroup: args.refuseExplicitNonEditorRoute }
+      : {})
+  })
+}
+
+/**
+ * 上游的同路径碰撞：另一个工作区已经打开这个文件时，跳到那个工作区。
+ * 已经决定停留时不跳。放在这里同样是为了路由文件的行数。
+ */
+export function adoptSiblingTerminalLink(args: {
+  stayView: TerminalFileLinkRoute | null
+  hostGrantId: string | null
+  worktreeId: string
+  mappedFilePath: string
+  executionHostId: ExecutionHostId
+}): { worktreeId: string; executionHostId: ExecutionHostId; relativePath: string } | null {
+  if (args.stayView !== null || args.hostGrantId !== null) {
+    return null
+  }
+  if (isFloatingWorkspaceId(args.worktreeId)) {
+    return null
+  }
+  const store = useAppStore.getState()
+  const collided = store.openFiles.some(
+    (openFile) =>
+      openFile.filePath === args.mappedFilePath && openFile.worktreeId !== args.worktreeId
+  )
+  if (!collided) {
+    return null
+  }
+  // 只有已经撞上打开的标签时才查归属，和上游原来的时机一样。
+  const siblingRoute = findWorkspaceFileRoute(store, args.executionHostId, args.mappedFilePath)
+  if (!siblingRoute) {
+    return null
+  }
+  return {
+    worktreeId: siblingRoute.worktreeId,
+    executionHostId: siblingRoute.executionHostId,
+    relativePath: siblingRoute.relativePath
+  }
 }
 
 /** 本机文件的只读条件跟上游。SSH 停留和嵌套降级再补只读字段；没有停留视图时不改上游。 */

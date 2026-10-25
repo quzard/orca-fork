@@ -12,7 +12,12 @@ import type * as FilePreview from '@/lib/file-preview'
 import { registerTerminalFileLinkWorkspace } from '../../shared/fork-hooks/terminal-file-link-workspace'
 
 const openPreview = vi.hoisted(() => vi.fn())
-const previewPlan = vi.hoisted(() => vi.fn(() => ({ status: 'doc-preview' as const })))
+// 上游预览计划是四个参数。0 参的 mock 展开调用时过不了 web 工程的类型检查。
+const previewPlan = vi.hoisted(() =>
+  vi.fn((_state: unknown, _worktreeId: string, _filePath: string, _clientLocal = false) => ({
+    status: 'doc-preview' as const
+  }))
+)
 
 vi.mock('@/lib/file-preview', async () => {
   const actual = await vi.importActual<typeof FilePreview>('@/lib/file-preview')

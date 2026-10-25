@@ -90,7 +90,7 @@ function hold<T extends LinkOwner>(
 }
 
 /**
- * resolveTerminalLinkFileOwner 返回之后调用。
+ * 宿主解析（resolveHostWorkspaceFile）返回并套用上游归属之后调用。
  * SSH 或服务器上、归属不是当前工作区的文件，改成上游的只读视图，不切走。
  * 授权文件、本机文件、浮动工作区、以及点在工作区根上，都原样返回。
  */

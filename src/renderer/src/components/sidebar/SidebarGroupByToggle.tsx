@@ -42,9 +42,7 @@ export function SidebarGroupByToggle({ groupBy, setGroupBy }: SidebarGroupByTogg
         <ToggleGroupItem
           key={option.id}
           value={option.id}
-          // Why: inside the dropdown menu, Radix can focus a toggle item without
-          // committing ToggleGroup's value change; capture the pointer intent
-          // before the menu's roving-focus handling turns it into a no-op.
+          // Capture pointer intent before Radix roving focus can consume the click without changing ToggleGroup value.
           onPointerDownCapture={() => {
             // fork: 登记 id 不在内置联合类型里。未登记时这里只有内置选项。
             // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: built-in ids already match WorktreeGroupBy; a registered id is accepted only by the registry.

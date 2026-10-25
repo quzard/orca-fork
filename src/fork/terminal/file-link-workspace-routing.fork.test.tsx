@@ -189,7 +189,8 @@ describe('terminal file links stay in the clicked workspace', () => {
     expect(remembered).toEqual([])
   })
 
-  it('opens a path owned by another workspace read-only without activating it', async () => {
+  it('does not keep a local file read-only just because another workspace owns the path', async () => {
+    // #33304 撤回了本地停留。只有同级标签撞车时上游才会切到归属工作区；这里没有已打开的标签。
     const filePath = '/sibling/docs/SKILL.md'
     findWorkspaceFileRouteMock.mockReturnValue({
       worktreeId: 'folder:notes',
@@ -205,11 +206,11 @@ describe('terminal file links stay in the clicked workspace', () => {
       expect.objectContaining({
         filePath,
         relativePath: filePath,
-        worktreeId: 'wt-1',
-        readOnly: true
+        worktreeId: 'wt-1'
       }),
       { forceContentReload: true }
     )
+    expect(openFileMock.mock.calls[0]?.[0]).not.toHaveProperty('readOnly')
     expect(remembered).toEqual([])
   })
 

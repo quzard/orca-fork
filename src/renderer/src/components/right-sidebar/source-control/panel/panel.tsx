@@ -3,7 +3,6 @@ import { renderSourceControlScope } from '../../../../../../shared/fork-hooks/so
 import { SourceControlPanelReady } from './panel-ready'
 import { useSourceControlPanelModel } from './use-panel-model'
 
-/** Resolves the panel model and guards the two states that have no source control to show. */
 export function SourceControlPanel() {
   const model = useSourceControlPanelModel()
   const { activeRepo, activeWorktree, isFolder, worktreePath } = model

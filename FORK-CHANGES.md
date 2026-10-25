@@ -95,13 +95,13 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 
 ## F046 终端文件链接留在当前工作区
 
-没有设置开关。本地跨工作区跟上游 #32320：文件留在点击时的工作区，只读查看，并提示可以到归属工作区打开。SSH 和服务器上的文件不切走，也留在点击时的工作区，只读，复用上游的只读标记和提示。
+没有设置开关。上游 #33304 撤回了 #32320：本地跨工作区打开回到归属工作区。fork 不恢复「留在点击时的工作区」开关，也不再自己实现那套本地停留。SSH 和服务器上的文件不切走，留在点击时的工作区，只读。嵌套工作区拥有当前根里面的路径时，改成只读视图（未保存时先不改，干净后再查）。上游已经删掉只读提示，fork 不把提示加回来。
 
 `terminal-file-open-routing.ts` 在上游路由之外还有这些接线。未登记时调用保持上游：
 
 - `retainSshServerLinkInSource` 和 `deeperWorkspaceReadOnlyView`，都在 `src/shared/fork-hooks/terminal-file-link-workspace.ts`。
 - `terminalHtmlKeepsEditorSource`：包住工作区外的直接 SSH HTML。命中时不走上游预览计划，仍在编辑器里打开源码。本地 HTML 不经过这个包装。
-- `terminalLinkViewFields`：替换上游的 `otherWorkspaceViewFields`，给服务器上的只读视图补回运行时 id。路由文件直接 import `src/fork/terminal/file-link-route.tsx`。
+- `terminalLinkViewFields`：给停留中的只读视图补字段。服务器视图留着运行时 id，本地嵌套视图不带运行时 id。路由文件直接 import `src/fork/terminal/file-link-route.tsx`。宿主解析和嵌套相对路径也放在这个文件里，避免路由文件超过行数上限。
 
 两个钩子的行为：
 
@@ -112,7 +112,7 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 
 工作区外的直接 SSH HTML 仍在编辑器里打开源码。本地 HTML 跟上游，默认用系统浏览器，fork 不覆盖。
 
-`src/fork/terminal/file-link-route.tsx` 只负责查找归属，并给服务器上的只读视图补回运行时 id，避免路由文件超过行数上限。写成 `.tsx` 是因为 node 工程只收录 `src/fork/**/*.ts`，这个文件要引用渲染进程的 `@/` 别名。`src/fork/terminal/file-link-stay-watch.tsx` 的 `registerTerminalFileLinkStayWatch` 登记停留标记的读写，并监视外层标签；这里没有设置开关。
+`src/fork/terminal/file-link-route.tsx` 负责查找归属、在上游解析之后套用 SSH 停留、做嵌套只读降级，并给服务器上的只读视图补回运行时 id，避免路由文件超过行数上限。写成 `.tsx` 是因为 node 工程只收录 `src/fork/**/*.ts`，这个文件要引用渲染进程的 `@/` 别名。`src/fork/terminal/file-link-stay-watch.tsx` 的 `registerTerminalFileLinkStayWatch` 登记停留标记的读写，并监视外层标签；这里没有设置开关。
 
 托管服务器上的 orcad 另外登记 `src/shared/fork-hooks/terminal-disowned-host-file.ts`（只在 `installForkOrcadHost`，桌面进程不登记）。登记的是打开函数，实现在 `src/fork/main/disowned-host-file-open.ts`。上游 `terminal-path-resolver.ts` 只调用这个钩子。终端或对话里的路径、`file://`，HTML 与否都一样：这台服务器上没有任何工作区认领，而且近期输出授权也失败时，以前 `files.resolveTerminalPath` 不 stat 就返回 `exists:false`。客户端因此拒绝「outside every workspace on its host」，停留钩子也不会跑。对话链接通常不带 `terminalHandle`，也不带 `nativeChatContext`。登记之后，`crossWorkspace` 的请求会 stat 本机文件。普通文件存在就发只读 `absolute-file` 授权，来源记为 `disowned-host`，绑在发起请求的那个工作区上，编辑器只读打开源码，不切到 `~`，远程 HTML 不进应用内或系统浏览器。目录不发源码授权。`~/.ssh`、`~/.gnupg`、`~/.orca`、`~/.aws` 不发授权，软链落到这些目录同样拒绝。SSH 路由不在这台机器上 stat。未登记时仍是 `exists:false`，不碰磁盘。客户端目录里就算有 `~` 文件夹工作区，也不拿它当服务器上的归属。
 

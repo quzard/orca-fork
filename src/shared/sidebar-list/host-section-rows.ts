@@ -24,8 +24,7 @@ export type HostHeaderRow = {
   label: string
   detail: string
   health: ExecutionHostHealth
-  // Why: blocked-host guidance in the header menu needs the verdict reason so
-  // it can deep-link an "Update server/client required" row per skew direction.
+  // Keep skew direction to deep-link the appropriate client/server update guidance.
   compatibility?: RuntimeCompatVerdict
   // Why: a revoked pairing needs "Re-pair", not the update guidance a version block gets.
   blockedReason?: RuntimeHostBlockedReason
@@ -51,8 +50,7 @@ function getRepoHostId(
   repo: Pick<Repo, 'connectionId' | 'executionHostId'> | undefined,
   defaultHostId: ExecutionHostId
 ): ExecutionHostId {
-  // Why: explicit executionHostId must win over the focused/default host, or
-  // runtime-owned repos group under whichever host happens to be focused.
+  // Explicit execution ownership outranks focus/default host or runtime repos group under the focused machine.
   if (repo?.connectionId || repo?.executionHostId) {
     return getRepoExecutionHostId(repo)
   }
@@ -86,9 +84,7 @@ function getFallbackHost(hostId: ExecutionHostId, localHostLabel: string): HostS
 }
 
 function countWorkspaceRows(rows: readonly Row[]): number {
-  // Why: a collapsed repo group contributes a header row but no item rows;
-  // fall back to the header's own count so the host badge doesn't read 0
-  // while a visibly populated project sits right under it.
+  // Collapsed groups have no item rows; count headers so populated projects do not show a zero host badge.
   let count = 0
   const seenWorktreeIds = new Set<string>()
   let pendingHeader: Extract<Row, { type: 'header' }> | null = null
@@ -177,13 +173,10 @@ export function addHostSectionRows(args: {
   defaultHostId: ExecutionHostId
   /** The listed host's own name for itself; a phone reader must not derive it from its own platform. */
   localHostLabel: string
-  // Why: host sections reuse the sidebar's persisted collapsed-group keys
-  // (`host:<hostId>`) so collapse state survives restarts like other groups.
+  // Reuse persisted host:<hostId> collapsed-group keys across restarts.
   collapsedHostKeys?: ReadonlySet<string>
   forceCollapseHosts?: boolean
-  // Why: in the default Projects view, project is the user's primary object
-  // and host is context inside it. Explicit host filters still keep host
-  // headers as an operational/troubleshooting view.
+  // Projects remain primary in the default view; explicit host filters retain operational host headers.
   preferProjectGrouping?: boolean
   // fork: host-directory keeps a host title even when one host is visible.
   retainSingleHostHeader?: boolean
@@ -264,8 +257,7 @@ export function addHostSectionRows(args: {
       rowsByHostId.set(rowHostId, hostRows)
       continue
     }
-    // Why: status/"All" headers describe the rows that follow. Buffer them
-    // for every host-owned run so host remains above the existing grouping.
+    // Buffer grouping headers for each host run so host headers enclose existing grouping.
     if (row.type === 'header') {
       const depth = getProjectGroupHeaderDepth(row)
       // A nested group keeps its ancestors pending, so each host section gets the whole path.
@@ -294,9 +286,8 @@ export function addHostSectionRows(args: {
     }
   }
 
-  // Why: a lone host section is pure noise — the grouping only earns its keep
-  // when there are at least two host sections to tell apart. Registered-but-
-  // empty hosts stay visible in the scope picker, not as headers.
+  // Show host headers only for mixed hosts; registered empty hosts remain in the scope picker.
+  // fork: 登记的单主机视图仍要标题时，retainSingleHostHeader 为真。
   if (rowsByHostId.size <= 1 && !args.retainSingleHostHeader) {
     return [...args.rows]
   }

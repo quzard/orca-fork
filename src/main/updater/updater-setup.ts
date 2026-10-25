@@ -37,7 +37,6 @@ export type UpdaterSetupOptions = {
   onBeforeQuitFailure?: PreQuitCleanupFailureMode
 }
 
-/** Initializes electron-updater and attaches lifecycle/event bridges. */
 export class UpdaterSetup extends UpdaterDownloadInstall {
   checkForUpdates(): void {
     this.checkForUpdatesInBackground()
@@ -114,7 +113,7 @@ export class UpdaterSetup extends UpdaterDownloadInstall {
   }
 
   setupAutoUpdater(mainWindow: BrowserWindow | null, opts?: UpdaterSetupOptions): void {
-    // Why keep: headless serve sets up without a window; a later window attach must not be undone.
+    // Headless setup must not erase a later attached window.
     this.mainWindowRef = mainWindow ?? this.mainWindowRef
     this.onBeforeQuitCleanup = opts?.onBeforeQuit ?? null
     this.onBeforeQuitFailure = opts?.onBeforeQuitFailure ?? 'continue'
@@ -149,6 +148,7 @@ export class UpdaterSetup extends UpdaterDownloadInstall {
       autoUpdater.allowDowngrade = false
       autoUpdater.disableDifferentialDownload = false
     }
+<<<<<<< HEAD
     // Why: supervised serve installs require an explicit handoff; ordinary service quits must never install implicitly.
     // Only an explicit AppImage/non-root marker may opt into electron-updater's implicit quit install.
     autoUpdater.autoInstallOnAppQuit = forkAutoInstallOnQuit({
@@ -158,8 +158,14 @@ export class UpdaterSetup extends UpdaterDownloadInstall {
       platform: process.platform
     })
     // Why: MacUpdater ignores quitAndInstall arguments; the surviving CLI supervisor must be the only serve relaunch owner.
+=======
+    // Implicit quit install requires interactive mode and an explicit non-root/AppImage marker; serve requires handoff.
+    autoUpdater.autoInstallOnAppQuit =
+      this.updateInstallMode === 'interactive' && getLinuxPackageType() === 'non-root'
+    // MacUpdater ignores quitAndInstall arguments; only the surviving CLI supervisor may relaunch serve.
+>>>>>>> 2f25699094cff58c67746f7048ea7900e14e61e8
     autoUpdater.autoRunAppAfterInstall = this.updateInstallMode === 'interactive'
-    // Why: our only on-machine window into electron-updater; otherwise an unexpected update-not-available or failed fetch is invisible.
+    // Keep native updater diagnostics visible through local logging.
     autoUpdater.logger = createUpdaterDiagnosticLogger() as never
 
     // Security: never re-add a verifyUpdateCodeSignature override — a no-op disables electron-updater's built-in Authenticode check and accepts any installer.
@@ -193,7 +199,7 @@ export class UpdaterSetup extends UpdaterDownloadInstall {
       isQuitAndInstallHandoffActive: () => this.isQuitAndInstallHandoffActive(),
       hasInstallableDownloadedVersion: () => this.hasInstallableDownloadedVersion(),
       isLocalBuildCheck: () => this.activeUpdateSource === 'local',
-      // Why: pinned jumps are deliberate, so update-available/-downloaded must not reject them for being older than the running version.
+      // Explicit pinned jumps may target versions older than the running build.
       isPinnedBuildCheck: () => this.isPinnedBuildActive,
       shouldHandleUpdaterErrorEvent: () => this.shouldHandleUpdaterErrorEvent(),
       clearUpdateAvailableEventPending: (attemptId) =>

@@ -91,15 +91,19 @@ export function useEditorPanelDiffContentLoader({
           (options.externalEventGeneration === undefined ||
             registeredRead?.externalEventGeneration !== options.externalEventGeneration)
         ) {
-          // Why: forced diff reloads must not attach to a read started before
-          // the external change landed.
+          // Forced reloads must bypass deduped reads that predate external changes.
           inFlightDiffReads.delete(key)
         }
         let pending = inFlightDiffReads.get(key)
         if (!pending) {
+<<<<<<< HEAD
           // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: every branch resolves a git diff result, which DiffContent mirrors.
           const readUpstream = (): Promise<DiffContent> =>
             (effectiveDiffSource === 'commit'
+=======
+          const promise: Promise<DiffContent> =
+            effectiveDiffSource === 'commit'
+>>>>>>> 2f25699094cff58c67746f7048ea7900e14e61e8
               ? commitCompare
                 ? getRuntimeGitCommitDiff(
                     {
@@ -147,6 +151,7 @@ export function useEditorPanelDiffContentLoader({
                       staged: effectiveDiffSource === 'staged',
                       compareAgainstHead
                     }
+<<<<<<< HEAD
                   )) as Promise<DiffContent>
           // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: a nested hit is the same diff result; a miss is readUpstream.
           const promise = (forkWorkspaceRepositoryDiff({
@@ -159,6 +164,9 @@ export function useEditorPanelDiffContentLoader({
             branchCompare,
             readUpstream
           }) ?? readUpstream()) as Promise<DiffContent>
+=======
+                  )
+>>>>>>> 2f25699094cff58c67746f7048ea7900e14e61e8
           pending = { externalEventGeneration: options?.externalEventGeneration, promise }
           inFlightDiffReads.set(key, pending)
           queueMicrotask(() => {

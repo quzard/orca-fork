@@ -71,8 +71,7 @@ export function createUpdateWorktreeMeta(
         return { ok: true }
       }
       try {
-        // Why: a rejected folder update reconciles the optimistic write away, so
-        // reporting ok would show the dialog a save that silently undid itself.
+        // Rejected folder updates revert optimistic state; report failure or the dialog closes on an undone save.
         const updated = await get().updateFolderWorkspace(
           workspaceScope.folderWorkspaceId,
           folderUpdates,
@@ -255,7 +254,7 @@ export function createUpdateWorktreeMeta(
       return { ok: true }
     }
     if (hasHostedReviewLinkUpdates(enriched)) {
-      bumpHostedReviewLinkMutationGeneration(worktreeId)
+      bumpHostedReviewLinkMutationGeneration(worktreeId, worktreeForUpdate)
     }
 
     try {
@@ -293,10 +292,15 @@ export function createUpdateWorktreeMeta(
       }
       console.error('Failed to update worktree meta:', err)
       void get().fetchWorktrees(getRepoIdFromWorktreeId(worktreeId))
+<<<<<<< HEAD
       // Why: the refetch above reverts the optimistic write, so a caller that
       // closes its surface on this path shows the user a save that undid itself.
       // fork: same result, plus the code when the host dropped group fields.
       return sidebarFieldsWriteFailure(err)
+=======
+      // Refetch reverted the optimistic write; report failure so callers do not close on an undone save.
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+>>>>>>> 2f25699094cff58c67746f7048ea7900e14e61e8
     }
     return { ok: true }
   }

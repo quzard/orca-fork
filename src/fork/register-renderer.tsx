@@ -12,7 +12,8 @@ import {
 } from '../shared/fork-hooks/terminal-lifecycle'
 import {
   registerDurableWorkspaceArchive,
-  registerDurableWorkspaceArchiveRelease
+  registerDurableWorkspaceArchiveRelease,
+  registerDurableWorkspaceMetaReactivate
 } from '../shared/fork-hooks/workspace-durable-archive'
 import { getOrcadSshDeployment } from '../shared/runtime-environments'
 import { registerForkRendererModules as registerAiVaultRendererModules } from './ai-vault/register-renderer'
@@ -29,6 +30,7 @@ import {
   releaseDurableArchiveForWorkspace,
   stampWorkspaceArchive
 } from './sidebar/durable-workspace-archive'
+import { reactivateArchivedWorktreeMeta } from './sidebar/reused-path-worktree-meta'
 import { installHostDirectoryRowPlan } from './sidebar/install-row-plan'
 import { registerHostDirectorySortReader } from './sidebar/section-keys'
 import { registerSettingsProjectBulkSlot } from './sidebar/settings-project-bulk'
@@ -63,6 +65,7 @@ export function registerForkRendererModules(): void {
   registerForkWorkspaceFolderDelete()
   registerDurableWorkspaceArchive(stampWorkspaceArchive)
   registerDurableWorkspaceArchiveRelease(releaseDurableArchiveForWorkspace)
+  registerDurableWorkspaceMetaReactivate(reactivateArchivedWorktreeMeta)
   registerHiddenWorktreeSearch({
     minimum: 1,
     matches: (worktree, query) => (worktree.branch ?? '').toLocaleLowerCase().includes(query)

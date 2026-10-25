@@ -76,5 +76,9 @@ describe('materializeRuntimeLocalWorktree', () => {
     ).rejects.toThrow('link failed')
 
     expect(order).toEqual(['metadata', 'filesystem'])
+    expect(store.setWorktreeMeta).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ isArchived: false })
+    )
   })
 })

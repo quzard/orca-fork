@@ -366,6 +366,53 @@ describe('registerWorktreeHandlers', () => {
     )
   })
 
+  it('clears a soft-deleted archive when creating again at the same path', async () => {
+    const worktreeId = 'repo-1::/workspace/improve-dashboard'
+    const archived: WorktreeMeta = {
+      displayName: 'recreate-g',
+      comment: 'keep',
+      linkedIssue: null,
+      linkedPR: null,
+      linkedLinearIssue: null,
+      isArchived: true,
+      isUnread: true,
+      isPinned: false,
+      sortOrder: 4,
+      lastActivityAt: 8,
+      instanceId: 'stale-instance'
+    }
+    listWorktreesMock.mockResolvedValue([
+      {
+        path: '/workspace/improve-dashboard',
+        head: 'abc123',
+        branch: 'improve-dashboard',
+        isBare: false,
+        isMainWorktree: false
+      }
+    ])
+    store.setWorktreeMeta.mockImplementation((_target: HostWorktreeTarget, updates) =>
+      mergeWorktreeMetaForWrite(archived, updates)
+    )
+
+    const result = await handlers['worktrees:create'](null, {
+      repoId: 'repo-1',
+      name: 'improve-dashboard'
+    })
+
+    expect(store.setWorktreeMeta).toHaveBeenCalledWith(
+      hostWorktreeTarget({ id: worktreeId, hostId: 'local' }),
+      expect.objectContaining({ isArchived: false })
+    )
+    const written = store.setWorktreeMeta.mock.calls.find((call) => call[0].id === worktreeId)?.[1]
+    const merged = mergeWorktreeMetaForWrite(archived, written ?? {})
+    expect(merged.isArchived).toBe(false)
+    expect(merged.instanceId).not.toBe('stale-instance')
+    expect(merged.comment).toBe('keep')
+    expect(result).toMatchObject({
+      worktree: { id: worktreeId, isArchived: false, instanceId: merged.instanceId }
+    })
+  })
+
   it('does not trust renderer-authored automation provenance during local create', async () => {
     store.setWorktreeMeta.mockImplementation((_target: HostWorktreeTarget, meta) => meta)
     listWorktreesMock.mockResolvedValue([

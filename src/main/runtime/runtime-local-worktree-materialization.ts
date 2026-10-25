@@ -23,6 +23,7 @@ import type { RuntimeStore } from './runtime-store-contract'
 import { attributedSparsePresetId } from '../ipc/sparse-preset-attribution'
 import type { WorktreeCreateTimingRecorder } from '../worktree-create-timing'
 import { hostWorktreeTargetForRepo } from '../persistence/host-qualified-worktree-meta'
+import { withoutReusedWorktreeArchive } from '../../shared/worktree/reused-path-archive'
 
 export async function materializeRuntimeLocalWorktree<T>(args: {
   request: RuntimeManagedWorktreeCreateArgs
@@ -75,70 +76,75 @@ export async function materializeRuntimeLocalWorktree<T>(args: {
     { requestedName: effectiveRequestedName, sanitizedName: effectiveSanitizedName }
   )
   const meta = timing.timeSync('persist_metadata', () =>
-    store.setWorktreeMeta(hostWorktreeTargetForRepo(worktreeId, repo), {
-      instanceId: randomUUID(),
-      ...getProjectHostSetupWorktreeMeta(store.getProjectHostSetups?.() ?? [], repo),
-      lastActivityAt: now,
-      createdAt: now,
-      orcaCreatedAt: now,
-      orcaCreationSource: 'runtime',
-      orcaCreationWorkspaceLayout: getWorktreeCreationLayout(repo, settings),
-      ...displayNameMeta,
-      baseRef: metadataBaseRef,
-      ...(checkoutExistingBranch ? { preserveBranchOnDelete: true } : {}),
-      ...(configuredPushTarget ? { pushTarget: configuredPushTarget } : {}),
-      ...(sparseDirectories.length > 0
-        ? {
-            sparseDirectories,
-            sparseBaseRef: metadataBaseRef,
-            sparsePresetId: attributedSparsePresetId(
-              () => store.getSparsePresets?.(repo.id) ?? [],
-              repo.id,
-              request.sparseCheckout?.presetId,
-              sparseDirectories
-            )
-          }
-        : {}),
-      ...(request.linkedIssue !== undefined ? { linkedIssue: request.linkedIssue } : {}),
-      ...(request.linkedPR !== undefined ? { linkedPR: request.linkedPR } : {}),
-      ...(request.linkedLinearIssue !== undefined
-        ? { linkedLinearIssue: request.linkedLinearIssue }
-        : {}),
-      ...(request.linkedLinearIssueWorkspaceId !== undefined
-        ? { linkedLinearIssueWorkspaceId: request.linkedLinearIssueWorkspaceId }
-        : {}),
-      ...(request.linkedLinearIssueOrganizationUrlKey !== undefined
-        ? { linkedLinearIssueOrganizationUrlKey: request.linkedLinearIssueOrganizationUrlKey }
-        : {}),
-      ...(request.linkedGitLabIssue !== undefined
-        ? { linkedGitLabIssue: request.linkedGitLabIssue }
-        : {}),
-      ...(request.linkedGitLabMR !== undefined ? { linkedGitLabMR: request.linkedGitLabMR } : {}),
-      ...(request.linkedBitbucketPR !== undefined
-        ? { linkedBitbucketPR: request.linkedBitbucketPR }
-        : {}),
-      ...(request.linkedAzureDevOpsPR !== undefined
-        ? { linkedAzureDevOpsPR: request.linkedAzureDevOpsPR }
-        : {}),
-      ...(request.linkedGiteaPR !== undefined ? { linkedGiteaPR: request.linkedGiteaPR } : {}),
-      ...(request.linkedWorkItem !== undefined ? { linkedWorkItem: request.linkedWorkItem } : {}),
-      ...(request.linkedItems !== undefined ? { linkedItems: request.linkedItems } : {}),
-      ...(request.linkedTaskSourceContext !== undefined
-        ? { linkedTaskSourceContext: request.linkedTaskSourceContext }
-        : {}),
-      ...(effectiveCreatedWithAgent ? { createdWithAgent: effectiveCreatedWithAgent } : {}),
-      ...(request.pendingFirstAgentMessageRename === true && effectiveCreatedWithAgent
-        ? { pendingFirstAgentMessageRename: true }
-        : {}),
-      ...(request.automationProvenance
-        ? { automationProvenance: request.automationProvenance }
-        : {}),
-      ...(request.cliProvenance ? { cliProvenance: request.cliProvenance } : {}),
-      creatorProvenance: request.creatorProvenance ?? { kind: 'host' },
-      ...(request.comment !== undefined ? { comment: request.comment } : {}),
-      ...(request.manualOrder !== undefined ? { manualOrder: request.manualOrder } : {}),
-      ...(request.workspaceStatus !== undefined ? { workspaceStatus: request.workspaceStatus } : {})
-    })
+    store.setWorktreeMeta(
+      hostWorktreeTargetForRepo(worktreeId, repo),
+      withoutReusedWorktreeArchive({
+        instanceId: randomUUID(),
+        ...getProjectHostSetupWorktreeMeta(store.getProjectHostSetups?.() ?? [], repo),
+        lastActivityAt: now,
+        createdAt: now,
+        orcaCreatedAt: now,
+        orcaCreationSource: 'runtime',
+        orcaCreationWorkspaceLayout: getWorktreeCreationLayout(repo, settings),
+        ...displayNameMeta,
+        baseRef: metadataBaseRef,
+        ...(checkoutExistingBranch ? { preserveBranchOnDelete: true } : {}),
+        ...(configuredPushTarget ? { pushTarget: configuredPushTarget } : {}),
+        ...(sparseDirectories.length > 0
+          ? {
+              sparseDirectories,
+              sparseBaseRef: metadataBaseRef,
+              sparsePresetId: attributedSparsePresetId(
+                () => store.getSparsePresets?.(repo.id) ?? [],
+                repo.id,
+                request.sparseCheckout?.presetId,
+                sparseDirectories
+              )
+            }
+          : {}),
+        ...(request.linkedIssue !== undefined ? { linkedIssue: request.linkedIssue } : {}),
+        ...(request.linkedPR !== undefined ? { linkedPR: request.linkedPR } : {}),
+        ...(request.linkedLinearIssue !== undefined
+          ? { linkedLinearIssue: request.linkedLinearIssue }
+          : {}),
+        ...(request.linkedLinearIssueWorkspaceId !== undefined
+          ? { linkedLinearIssueWorkspaceId: request.linkedLinearIssueWorkspaceId }
+          : {}),
+        ...(request.linkedLinearIssueOrganizationUrlKey !== undefined
+          ? { linkedLinearIssueOrganizationUrlKey: request.linkedLinearIssueOrganizationUrlKey }
+          : {}),
+        ...(request.linkedGitLabIssue !== undefined
+          ? { linkedGitLabIssue: request.linkedGitLabIssue }
+          : {}),
+        ...(request.linkedGitLabMR !== undefined ? { linkedGitLabMR: request.linkedGitLabMR } : {}),
+        ...(request.linkedBitbucketPR !== undefined
+          ? { linkedBitbucketPR: request.linkedBitbucketPR }
+          : {}),
+        ...(request.linkedAzureDevOpsPR !== undefined
+          ? { linkedAzureDevOpsPR: request.linkedAzureDevOpsPR }
+          : {}),
+        ...(request.linkedGiteaPR !== undefined ? { linkedGiteaPR: request.linkedGiteaPR } : {}),
+        ...(request.linkedWorkItem !== undefined ? { linkedWorkItem: request.linkedWorkItem } : {}),
+        ...(request.linkedItems !== undefined ? { linkedItems: request.linkedItems } : {}),
+        ...(request.linkedTaskSourceContext !== undefined
+          ? { linkedTaskSourceContext: request.linkedTaskSourceContext }
+          : {}),
+        ...(effectiveCreatedWithAgent ? { createdWithAgent: effectiveCreatedWithAgent } : {}),
+        ...(request.pendingFirstAgentMessageRename === true && effectiveCreatedWithAgent
+          ? { pendingFirstAgentMessageRename: true }
+          : {}),
+        ...(request.automationProvenance
+          ? { automationProvenance: request.automationProvenance }
+          : {}),
+        ...(request.cliProvenance ? { cliProvenance: request.cliProvenance } : {}),
+        creatorProvenance: request.creatorProvenance ?? { kind: 'host' },
+        ...(request.comment !== undefined ? { comment: request.comment } : {}),
+        ...(request.manualOrder !== undefined ? { manualOrder: request.manualOrder } : {}),
+        ...(request.workspaceStatus !== undefined
+          ? { workspaceStatus: request.workspaceStatus }
+          : {})
+      })
+    )
   )
   const worktree = {
     ...mergeWorktree(repo.id, created, meta),

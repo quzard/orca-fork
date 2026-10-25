@@ -3,6 +3,7 @@ import {
   applyRegisteredDurableWorkspaceArchive,
   registerDurableWorkspaceArchive,
   registerDurableWorkspaceArchiveRelease,
+  registerDurableWorkspaceMetaReactivate,
   releaseRegisteredDurableWorkspaceArchive,
   type DurableArchiveRow
 } from '../../shared/fork-hooks/workspace-durable-archive'
@@ -43,11 +44,13 @@ describe('durable workspace archive', () => {
     })
     registerDurableWorkspaceArchive(undefined)
     registerDurableWorkspaceArchiveRelease(undefined)
+    registerDurableWorkspaceMetaReactivate(undefined)
   })
 
   afterEach(() => {
     registerDurableWorkspaceArchive(undefined)
     registerDurableWorkspaceArchiveRelease(undefined)
+    registerDurableWorkspaceMetaReactivate(undefined)
   })
 
   it('keeps an orphan checkout archived when a rescan uses another repo on the same host', () => {

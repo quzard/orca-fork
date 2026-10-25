@@ -16,6 +16,7 @@ import type {
   WorktreeCreateBaseFallback
 } from '../../shared/worktree/create-types'
 import type { WorktreeMeta } from '../../shared/worktree/meta-types'
+import { withoutReusedWorktreeArchive } from '../../shared/worktree/reused-path-archive'
 import type {
   AutomationWorkspaceProvenance,
   CliWorkspaceProvenance,
@@ -1500,7 +1501,7 @@ async function performLocalWorktreeCreate(
   const now = Date.now()
   // Review head SHA/ref seeds creation; Source Control comparison uses the review target branch.
   const metadataBaseRef = args.compareBaseRef ?? remoteTrackingBase?.ref ?? baseBranch
-  const metaUpdates: Partial<WorktreeMeta> = {
+  const metaUpdates: Partial<WorktreeMeta> = withoutReusedWorktreeArchive({
     // Path IDs can be reused after external deletion; rotate instance identity to reject stale lineage.
     instanceId: randomUUID(),
     ...(store.getProjectHostSetups
@@ -1559,7 +1560,7 @@ async function performLocalWorktreeCreate(
       ? { linkedTaskSourceContext: args.linkedTaskSourceContext }
       : {}),
     ...(args.workspaceStatus !== undefined ? { workspaceStatus: args.workspaceStatus } : {})
-  }
+  })
   const { worktree } = timing.timeSync('persist_metadata', () => {
     const meta = store.setWorktreeMeta(hostWorktreeTargetForRepo(worktreeId, repo), metaUpdates)
     return { worktree: mergeWorktree(repo.id, created, meta) }

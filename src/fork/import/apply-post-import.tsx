@@ -16,6 +16,25 @@ import {
 import { parentFolderImportRequested } from './parent-folder-request'
 import { mergeSelectedWorktreeInbox } from './selected-worktree-paths'
 import { releaseDurableArchiveAtPath } from '../sidebar/durable-workspace-archive'
+import { reactivateArchivedWorktreeMeta } from '../sidebar/reused-path-worktree-meta'
+
+async function releaseImportedWorktree(args: {
+  id: string
+  path: string
+  repoId: string
+  hostId?: ExecutionHostId
+}): Promise<void> {
+  try {
+    await reactivateArchivedWorktreeMeta({
+      worktreeId: args.id,
+      executionHostId: args.hostId
+    })
+  } catch (error) {
+    console.error('Failed to clear archived workspace metadata:', error)
+    return
+  }
+  releaseDurableArchiveAtPath(args)
+}
 
 async function keepSelectedWorktrees(details: ForkPostImportDetails): Promise<void> {
   const projects = details.importedProjects ?? []
@@ -35,9 +54,9 @@ async function keepSelectedWorktrees(details: ForkPostImportDetails): Promise<vo
     if (!repo) {
       continue
     }
-    const releasePaths = (): void => {
+    const releasePaths = async (): Promise<void> => {
       for (const importedPath of paths) {
-        releaseDurableArchiveAtPath({
+        await releaseImportedWorktree({
           id: `${projectId}::${importedPath}`,
           path: importedPath,
           repoId: projectId,
@@ -52,14 +71,14 @@ async function keepSelectedWorktrees(details: ForkPostImportDetails): Promise<vo
       paths
     )
     if (!merged) {
-      releasePaths()
+      await releasePaths()
       continue
     }
     const updated = await useAppStore.getState().updateRepo(projectId, merged, { hostId })
     if (!updated) {
       throw new Error(SELECTED_WORKTREE_IMPORT_FAILED)
     }
-    releasePaths()
+    await releasePaths()
   }
 }
 
@@ -138,7 +157,7 @@ export async function applyForkPostImport(details: ForkPostImportDetails): Promi
       if (!importedPath) {
         continue
       }
-      releaseDurableArchiveAtPath({
+      await releaseImportedWorktree({
         id: `${details.repoId}::${importedPath}`,
         path: importedPath,
         repoId: details.repoId,

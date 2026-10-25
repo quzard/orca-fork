@@ -34,9 +34,14 @@ export type DurableArchiveWorkspace =
 
 type ApplyDurableArchive = <T extends DurableArchiveRow>(rows: readonly T[]) => T[]
 type ReleaseDurableArchive = (workspace: DurableArchiveWorkspace) => void
+type ReactivateArchivedMeta = (target: {
+  worktreeId: string
+  executionHostId?: ExecutionHostId
+}) => void | Promise<void>
 
 let apply: ApplyDurableArchive | undefined
 let release: ReleaseDurableArchive | undefined
+let reactivate: ReactivateArchivedMeta | undefined
 
 export function registerDurableWorkspaceArchive(next: ApplyDurableArchive | undefined): void {
   apply = next
@@ -60,4 +65,18 @@ export function applyRegisteredDurableWorkspaceArchive<T extends DurableArchiveR
 
 export function releaseRegisteredDurableWorkspaceArchive(workspace: DurableArchiveWorkspace): void {
   release?.(workspace)
+}
+
+export function registerDurableWorkspaceMetaReactivate(
+  next: ReactivateArchivedMeta | undefined
+): void {
+  reactivate = next
+}
+
+// 未登记时不写元数据。导入在重新扫描之前 await，避免旧的 isArchived 再标上。
+export async function reactivateRegisteredArchivedWorktreeMeta(target: {
+  worktreeId: string
+  executionHostId?: ExecutionHostId
+}): Promise<void> {
+  await reactivate?.(target)
 }

@@ -1,7 +1,10 @@
 import type { Repo } from '../../../../shared/repo-types'
 import { mergeExternalWorktreeInboxPaths } from '../../../../shared/external-worktree-inbox'
 import { getRepoExecutionHostId } from '../../../../shared/execution-host'
-import { releaseRegisteredDurableWorkspaceArchive } from '../../../../shared/fork-hooks/workspace-durable-archive'
+import {
+  reactivateRegisteredArchivedWorktreeMeta,
+  releaseRegisteredDurableWorkspaceArchive
+} from '../../../../shared/fork-hooks/workspace-durable-archive'
 import { translate } from '@/i18n/i18n'
 
 export type NewExternalWorktreesInboxActionState = {
@@ -75,8 +78,23 @@ async function refreshAfterRepoInboxUpdate(
     })
     return false
   }
-  // fork: 扫描之前清掉同路径隐藏，否则新导入的行会被标成归档。未登记时不动。
+  // fork: 扫描之前清掉同路径的归档元数据和隐藏记录。只清 localStorage 时，旧 isArchived 仍会把新行留在已移除里。
   const hostId = getRepoExecutionHostId(args.repo)
+  try {
+    for (const path of args.worktreePaths) {
+      await reactivateRegisteredArchivedWorktreeMeta({
+        worktreeId: `${args.projectId}::${path}`,
+        executionHostId: hostId
+      })
+    }
+  } catch {
+    await args.updateRepo(args.projectId, rollbackUpdates)
+    args.setInboxState(args.projectId, {
+      pending: false,
+      error: newExternalWorktreeInboxImportError()
+    })
+    return false
+  }
   for (const path of args.worktreePaths) {
     releaseRegisteredDurableWorkspaceArchive({
       worktree: {

@@ -44,7 +44,7 @@ vi.mock(
   async () =>
     (await import('../../main/runtime/orca-runtime-files-mock-registry')).fileWatcherHostMock
 )
-vi.mock('../../main/ipc/filesystem-auth', async () =>
+vi.mock('../../main/ipc/filesystem/filesystem-auth', async () =>
   (await import('../../main/runtime/orca-runtime-files-mock-registry')).filesystemAuthModuleMock()
 )
 vi.mock('../../main/git/runner', async () =>

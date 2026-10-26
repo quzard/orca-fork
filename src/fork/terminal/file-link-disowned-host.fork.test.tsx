@@ -22,7 +22,8 @@ import { ORCA_BROWSER_BLANK_URL } from '../../shared/constants'
 import { HostFileRefusal } from '@/components/terminal-pane/terminal-host-workspace-file'
 import {
   htmlPreviewDespiteHostFileRefusal,
-  sshRoutedHtmlPreviewRecovery
+  sshRoutedHtmlPreviewInputsChanged,
+  sshRoutedHtmlPreviewRecoveries
 } from './html-preview-open'
 
 const openPreview = vi.hoisted(() => vi.fn())
@@ -116,8 +117,20 @@ beforeEach(() => {
   Reflect.deleteProperty(storeState, 'runtimeEnvironments')
 })
 
-const CHINESE_HTML =
-  '/home/admin/.answer-me-with-html/pages/Connector-接入框架设计评审-20261026-030126.html'
+const DEMO_SSH = 'demo-ssh'
+const DEMO_PAGES = '/home/demo/.answer-me-with-html/pages'
+const CHINESE_HTML = `${DEMO_PAGES}/演示-报告-20260101-000000.html`
+const CHINESE_HTML_2 = `${DEMO_PAGES}/演示-附录-20260101-000001.html`
+
+function sshPreviewLocation(filePath: string) {
+  return {
+    owner: { kind: 'ssh' as const, connectionId: DEMO_SSH },
+    requestBase: DEMO_PAGES,
+    root: DEMO_PAGES,
+    entryRelativePath: filePath.slice(DEMO_PAGES.length + 1),
+    sshPreview: true as const
+  }
+}
 
 function deployOverSsh(targetId: string): void {
   Object.assign(storeState, {
@@ -291,7 +304,7 @@ describe('a chat link whose host disowns the path', () => {
   })
 
   it('reads managed SSH html through the deployment target instead of an artifact grant', async () => {
-    deployOverSsh('new_sls')
+    deployOverSsh(DEMO_SSH)
     grantedFile(CHINESE_HTML)
 
     openDetectedFilePath(CHINESE_HTML, null, null, chatDeps(CHINESE_HTML))
@@ -299,17 +312,13 @@ describe('a chat link whose host disowns the path', () => {
 
     expectBlankDocPreview(CHINESE_HTML)
     expect(openFileMock).not.toHaveBeenCalled()
-    expect(lookupTerminalHtmlPreview('wt-feat', CHINESE_HTML)).toEqual({
-      owner: { kind: 'ssh', connectionId: 'new_sls' },
-      requestBase: '/home/admin/.answer-me-with-html/pages',
-      root: '/home/admin/.answer-me-with-html/pages',
-      entryRelativePath: 'Connector-接入框架设计评审-20261026-030126.html',
-      sshPreview: true
-    })
+    expect(lookupTerminalHtmlPreview('wt-feat', CHINESE_HTML)).toEqual(
+      sshPreviewLocation(CHINESE_HTML)
+    )
   })
 
   it('opens managed SSH html when the host refuses a local grant', async () => {
-    deployOverSsh('new_sls')
+    deployOverSsh(DEMO_SSH)
     statMock.mockRejectedValueOnce(new Error('ENOENT: no such file'))
     hostAnswers({
       worktree: 'wt-feat',
@@ -328,12 +337,12 @@ describe('a chat link whose host disowns the path', () => {
     expectBlankDocPreview(CHINESE_HTML)
     expect(lookupTerminalHtmlPreview('wt-feat', CHINESE_HTML)?.owner).toEqual({
       kind: 'ssh',
-      connectionId: 'new_sls'
+      connectionId: DEMO_SSH
     })
   })
 
   it('keeps a host refusal for html inside the clicked worktree', () => {
-    deployOverSsh('new_sls')
+    deployOverSsh(DEMO_SSH)
     const fileContext = {
       target: { kind: 'environment' as const, environmentId: 'env-1' },
       worktreeId: 'wt-feat',
@@ -368,49 +377,104 @@ describe('a chat link whose host disowns the path', () => {
 })
 
 describe('a bare path that replaced a remembered html preview', () => {
-  it('points the local page back at the document and leaves an unremembered path alone', () => {
-    rememberTerminalHtmlPreview('wt-feat', CHINESE_HTML, {
-      owner: { kind: 'ssh', connectionId: 'new_sls' },
-      requestBase: '/home/admin/.answer-me-with-html/pages',
-      root: '/home/admin/.answer-me-with-html/pages',
-      entryRelativePath: 'Connector-接入框架设计评审-20261026-030126.html',
-      sshPreview: true
+  function rememberedPages() {
+    rememberTerminalHtmlPreview('wt-feat', CHINESE_HTML, sshPreviewLocation(CHINESE_HTML))
+    rememberTerminalHtmlPreview('wt-feat', CHINESE_HTML_2, sshPreviewLocation(CHINESE_HTML_2))
+    rememberTerminalHtmlPreview('wt-feat', HTML, {
+      owner: {
+        kind: 'runtime',
+        environmentId: 'env-1',
+        worktreeSelector: 'id:wt-feat',
+        worktreeRoot: '/srv/notes/demo-pages'
+      },
+      requestBase: '/srv/notes/demo-pages',
+      root: '/srv/notes/demo-pages',
+      entryRelativePath: 'x.html',
+      terminalArtifactGrantId: 'g-1',
+      terminalArtifactAbsolutePath: HTML
     })
-    const pages = {
-      'browser-1': [
-        {
-          id: 'page-path',
-          url: CHINESE_HTML,
-          browserRuntimeEnvironmentId: null
-        },
-        {
-          id: 'page-file',
-          url: `file://${CHINESE_HTML}`,
-          browserRuntimeEnvironmentId: null
-        },
-        {
-          id: 'page-doc',
-          url: ORCA_BROWSER_BLANK_URL,
-          docLocation: { kind: 'workspace-doc' },
-          browserRuntimeEnvironmentId: null
-        }
-      ],
-      'browser-2': [
-        {
-          id: 'page-other',
-          url: '/home/admin/.answer-me-with-html/pages/other.html',
-          browserRuntimeEnvironmentId: null
-        }
-      ]
+    rememberTerminalHtmlPreview('wt-feat', `${DEMO_PAGES}/notes.html`, {
+      owner: { kind: 'ssh', connectionId: DEMO_SSH },
+      requestBase: DEMO_PAGES,
+      root: DEMO_PAGES,
+      entryRelativePath: 'notes.html'
+    })
+    return {
+      browserTabsByWorktree: {
+        'wt-feat': [{ id: 'browser-1' }, { id: 'browser-2' }]
+      },
+      browserPagesByWorkspace: {
+        'browser-1': [
+          {
+            id: 'page-path',
+            url: CHINESE_HTML,
+            browserRuntimeEnvironmentId: null
+          },
+          {
+            id: 'page-path-2',
+            url: CHINESE_HTML_2,
+            browserRuntimeEnvironmentId: null
+          },
+          {
+            id: 'page-file',
+            url: `file://${CHINESE_HTML}`,
+            browserRuntimeEnvironmentId: null
+          },
+          {
+            id: 'page-doc',
+            url: ORCA_BROWSER_BLANK_URL,
+            docLocation: { kind: 'workspace-doc' },
+            browserRuntimeEnvironmentId: null
+          }
+        ],
+        'browser-2': [
+          {
+            id: 'page-other',
+            url: `${DEMO_PAGES}/other.html`,
+            browserRuntimeEnvironmentId: null
+          },
+          {
+            id: 'page-artifact',
+            url: HTML,
+            browserRuntimeEnvironmentId: null
+          },
+          {
+            id: 'page-ssh-flag-off',
+            url: `${DEMO_PAGES}/notes.html`,
+            browserRuntimeEnvironmentId: null
+          }
+        ]
+      }
     }
+  }
 
+  it('returns every ssh preview bare path and leaves artifact, file, and unremembered pages', () => {
+    expect(sshRoutedHtmlPreviewRecoveries(rememberedPages())).toEqual([
+      { pageId: 'page-path', worktreeId: 'wt-feat', filePath: CHINESE_HTML },
+      { pageId: 'page-path-2', worktreeId: 'wt-feat', filePath: CHINESE_HTML_2 }
+    ])
+  })
+
+  it('skips an already recovered page so a later bare path is still returned', () => {
+    expect(sshRoutedHtmlPreviewRecoveries(rememberedPages(), new Set(['page-path']))).toEqual([
+      { pageId: 'page-path-2', worktreeId: 'wt-feat', filePath: CHINESE_HTML_2 }
+    ])
+  })
+
+  it('rescans only when browser pages or tabs change identity', () => {
+    const pages = rememberedPages()
+    expect(sshRoutedHtmlPreviewInputsChanged(pages, pages)).toBe(false)
     expect(
-      sshRoutedHtmlPreviewRecovery({
-        browserTabsByWorktree: {
-          'wt-feat': [{ id: 'browser-1' }, { id: 'browser-2' }]
-        },
-        browserPagesByWorkspace: pages
+      sshRoutedHtmlPreviewInputsChanged(pages, {
+        ...pages,
+        browserPagesByWorkspace: { ...pages.browserPagesByWorkspace }
       })
-    ).toEqual({ pageId: 'page-path', worktreeId: 'wt-feat', filePath: CHINESE_HTML })
+    ).toBe(true)
+    expect(
+      sshRoutedHtmlPreviewInputsChanged(pages, {
+        ...pages,
+        browserTabsByWorktree: { ...pages.browserTabsByWorktree }
+      })
+    ).toBe(true)
   })
 })

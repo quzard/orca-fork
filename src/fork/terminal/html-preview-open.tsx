@@ -167,8 +167,8 @@ function previewLocation(args: OpenArgs): TerminalHtmlPreviewLocation | null {
 }
 
 /**
- * 托管 SSH 上 orcad 拒绝本机磁盘授权时，HTML 仍打开预览，不把「找不到」toast 掉。
- * 没有真实 sshTargetId 时返回 null，调用方保持原来的拒绝。
+ * 托管 SSH 上 orcad 拒绝本机磁盘授权时，工作区外的 HTML 仍打开预览，不 toast。
+ * 远端其实没有这个文件时，预览是 404。没有真实 sshTargetId 时返回 null，调用方保持原来的拒绝。
  */
 export function htmlPreviewDespiteHostFileRefusal(
   error: unknown,
@@ -196,51 +196,91 @@ type PreviewPage = {
   browserRuntimeEnvironmentId?: string | null
 }
 
-/** 已经记下预览、页面却把绝对路径写进了 SSH 浏览器时，拉回文档预览。手贴且没点过的路径不在记录里。 */
-export function sshRoutedHtmlPreviewRecovery(state: {
+type PreviewRecoveryState = {
   browserTabsByWorktree: Record<string, { id: string }[]>
   browserPagesByWorkspace: Record<string, PreviewPage[] | undefined>
-}): { pageId: string; worktreeId: string; filePath: string } | null {
+}
+
+type PreviewRecovery = { pageId: string; worktreeId: string; filePath: string }
+
+/** 浏览器页或标签的引用没变时不用重扫。其它 store 字段更新很频繁。 */
+export function sshRoutedHtmlPreviewInputsChanged(
+  previous: PreviewRecoveryState,
+  next: PreviewRecoveryState
+): boolean {
+  return (
+    previous.browserPagesByWorkspace !== next.browserPagesByWorkspace ||
+    previous.browserTabsByWorktree !== next.browserTabsByWorktree
+  )
+}
+
+function rememberedSshPreview(worktreeId: string, filePath: string): boolean {
+  const location = lookupTerminalHtmlPreview(worktreeId, filePath)
+  return location?.sshPreview === true && location.owner.kind === 'ssh'
+}
+
+/**
+ * 记下的是 SSH 预览、页面却把绝对路径写进了本地浏览器时，全部拉回文档预览。
+ * 已处理的页在扫描里跳过，避免第一个 URL 还没清掉时挡住后面的页。授权预览和手贴且没点过的路径不在结果里。
+ */
+export function sshRoutedHtmlPreviewRecoveries(
+  state: PreviewRecoveryState,
+  skipPageIds?: ReadonlySet<string>
+): PreviewRecovery[] {
+  const hits: PreviewRecovery[] = []
   for (const [worktreeId, tabs] of Object.entries(state.browserTabsByWorktree)) {
     for (const tab of tabs) {
       for (const page of state.browserPagesByWorkspace[tab.id] ?? []) {
-        if (page.docLocation || page.browserRuntimeEnvironmentId !== null) {
+        if (
+          skipPageIds?.has(page.id) ||
+          page.docLocation ||
+          page.browserRuntimeEnvironmentId !== null
+        ) {
           continue
         }
         const filePath = page.url.trim()
         if (!filePath.startsWith('/') || filePath.includes('://') || !isHtmlFilePath(filePath)) {
           continue
         }
-        if (!lookupTerminalHtmlPreview(worktreeId, filePath)) {
+        if (!rememberedSshPreview(worktreeId, filePath)) {
           continue
         }
-        return { pageId: page.id, worktreeId, filePath }
+        hits.push({ pageId: page.id, worktreeId, filePath })
       }
     }
   }
-  return null
+  return hits
 }
 
 const recoveredPreviewPages = new Set<string>()
 
+function pullBarePathBackToDocPreview(recovery: PreviewRecovery): void {
+  const converted = useAppStore.getState().convertBrowserPage(recovery.pageId, {
+    kind: 'workspace-doc',
+    docLocation: {
+      kind: 'workspace-doc',
+      worktreeId: recovery.worktreeId,
+      filePath: recovery.filePath
+    }
+  })
+  if (!converted) {
+    recoveredPreviewPages.delete(recovery.pageId)
+  }
+}
+
 /** 裸路径进 SSH 分区会变成 file://，本机没有这个文件，地址栏留下绝对路径和 ERR_FILE_NOT_FOUND。 */
 export function installSshRoutedHtmlPreviewRecovery(): void {
-  useAppStore.subscribe((state) => {
-    const recovery = sshRoutedHtmlPreviewRecovery(state)
-    if (!recovery || recoveredPreviewPages.has(recovery.pageId)) {
+  useAppStore.subscribe((state, previous) => {
+    if (previous && !sshRoutedHtmlPreviewInputsChanged(previous, state)) {
       return
     }
-    recoveredPreviewPages.add(recovery.pageId)
-    const converted = useAppStore.getState().convertBrowserPage(recovery.pageId, {
-      kind: 'workspace-doc',
-      docLocation: {
-        kind: 'workspace-doc',
-        worktreeId: recovery.worktreeId,
-        filePath: recovery.filePath
-      }
-    })
-    if (!converted) {
-      recoveredPreviewPages.delete(recovery.pageId)
+    const pending = sshRoutedHtmlPreviewRecoveries(state, recoveredPreviewPages)
+    // 转换会同步写 store。先占住全部 id，嵌套扫描才不会把还没轮到的页再转一次。
+    for (const recovery of pending) {
+      recoveredPreviewPages.add(recovery.pageId)
+    }
+    for (const recovery of pending) {
+      pullBarePathBackToDocPreview(recovery)
     }
   })
 }

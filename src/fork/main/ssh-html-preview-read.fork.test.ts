@@ -11,8 +11,8 @@ vi.mock('../../main/ssh/targets/ssh-target-registry', () => ({
 
 import { readConnectedSshHtmlPreview } from './ssh-html-preview-read'
 
-const PAGE = '/home/admin/.answer-me-with-html/pages/x.html'
-const PARENT = '/home/admin/.answer-me-with-html/pages'
+const PAGE = '/home/demo/.answer-me-with-html/pages/x.html'
+const PARENT = '/home/demo/.answer-me-with-html/pages'
 const SYSTEM_SFTP_UNAVAILABLE = 'SFTP is not available when using system SSH transport'
 
 function sftpOf(
@@ -69,7 +69,7 @@ afterEach(() => {
 describe('readConnectedSshHtmlPreview', () => {
   it('refuses a credential directory without opening the connection', async () => {
     await expect(
-      readConnectedSshHtmlPreview('ssh-1', '/home/admin/.ssh/id_ed25519')
+      readConnectedSshHtmlPreview('ssh-1', '/home/demo/.ssh/id_ed25519')
     ).resolves.toMatchObject({ ok: false, reason: 'unreadable' })
     expect(getConnection).not.toHaveBeenCalled()
   })
@@ -114,7 +114,7 @@ describe('readConnectedSshHtmlPreview', () => {
   })
 
   it('reads html under a symlinked parent directory', async () => {
-    const realParent = '/data/home/admin/.answer-me-with-html/pages'
+    const realParent = '/data/home/demo/.answer-me-with-html/pages'
     const realFile = `${realParent}/x.html`
     const sftp = sftpOf(
       { size: 11, file: true },
@@ -164,7 +164,7 @@ describe('readConnectedSshHtmlPreview', () => {
   })
 
   it('refuses a system-SSH symlink into a credential directory before downloading', async () => {
-    const system = systemConnection(probeText('/home/admin/.ssh/id_rsa', PARENT, 100))
+    const system = systemConnection(probeText('/home/demo/.ssh/id_rsa', PARENT, 100))
     getConnection.mockReturnValue(system.connection)
 
     await expect(readConnectedSshHtmlPreview('ssh-1', PAGE)).resolves.toMatchObject({
@@ -186,7 +186,7 @@ describe('readConnectedSshHtmlPreview', () => {
   })
 
   it('accepts system-SSH html when the parent directory is a symlink', async () => {
-    const realParent = '/data/home/admin/.answer-me-with-html/pages'
+    const realParent = '/data/home/demo/.answer-me-with-html/pages'
     const realFile = `${realParent}/x.html`
     const downloadFile = vi.fn(async (_remote: string, localPath: string) => {
       await writeFile(localPath, '<p>link</p>')

@@ -162,7 +162,7 @@ describe('codex structured launch resolution', () => {
       resumeThreadId: null,
       permissionPolicy: {
         approvalPolicy: 'on-request',
-        sandbox: 'workspace-write',
+        sandbox: 'read-only',
         approvalsReviewer: 'user'
       },
       env: { CODEX_HOME: '/home/work/.codex' },
@@ -249,10 +249,7 @@ describe('codex structured launch resolution', () => {
   })
 
   it.each([
-    [
-      'ask',
-      { approvalPolicy: 'on-request', sandbox: 'workspace-write', approvalsReviewer: 'user' }
-    ],
+    ['ask', { approvalPolicy: 'on-request', sandbox: 'read-only', approvalsReviewer: 'user' }],
     [
       'auto',
       { approvalPolicy: 'on-request', sandbox: 'workspace-write', approvalsReviewer: 'auto_review' }
@@ -270,6 +267,15 @@ describe('codex structured launch resolution', () => {
 
     expect(launch.args).toEqual(['app-server'])
     expect(launch.permissionPolicy).toEqual(policy)
+  })
+
+  it('adds no policy overrides for the agent’s own settings', async () => {
+    const launch = await resolverFor(record())({
+      identity: IDENTITY,
+      spawnToken: TEST_SPAWN_TOKEN,
+      permissionMode: 'own'
+    })
+    expect(launch).not.toHaveProperty('permissionPolicy')
   })
 
   it('ignores the bypass flag the agent Arguments carry', async () => {

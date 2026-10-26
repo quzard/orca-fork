@@ -8,8 +8,12 @@ import { homedir } from 'node:os'
 import { provenancePathCandidate, resolveTerminalAbsolutePath } from './terminal-file-path'
 import { requireRuntimeFileProvider, runtimeFileRouteForTarget } from '../files/file-target'
 import { isSafeMobileRelativePath } from '../files/mobile-file-kind'
+<<<<<<< HEAD
 import { isENOENT } from '../../ipc/filesystem-path-containment'
 import { openDisownedHostFile } from '../../../shared/fork-hooks/terminal-disowned-host-file'
+=======
+import { isENOENT } from '../../ipc/filesystem/filesystem-path-containment'
+>>>>>>> ae55694d279ad0a0210874516a36f1772a7ebe57
 import type { RuntimeFileCommandHost } from '../files/file-command-host'
 import type { RuntimeTerminalArtifacts } from './artifacts/terminal-artifacts'
 

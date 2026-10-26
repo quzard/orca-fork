@@ -79,13 +79,16 @@ function NewWorkspaceButton({
 
 export function SidebarHeaderActions({
   onWorkspaceBoardMenuOpenChange,
-  agentsViewActive = false
+  agentsViewActive = false,
+  activityOptionsTarget
 }: {
   onWorkspaceBoardMenuOpenChange: (open: boolean) => void
   agentsViewActive?: boolean
+  activityOptionsTarget?: React.Ref<HTMLDivElement>
 }): React.JSX.Element {
   return (
     <div className="flex shrink-0 items-center gap-1" data-sidebar-header-actions="">
+<<<<<<< HEAD
       {renderSidebarHeaderExtra()}
       {/* Activity portals its own options into this slot; retain Add project to avoid shifting other controls. */}
       {agentsViewActive ? null : (
@@ -94,6 +97,16 @@ export function SidebarHeaderActions({
           onMenuOpenChange={onWorkspaceBoardMenuOpenChange}
         />
       )}
+=======
+      <div ref={activityOptionsTarget} className="flex size-6 shrink-0 items-center">
+        {agentsViewActive ? null : (
+          <SidebarWorkspaceOptionsMenu
+            preserveWorkspaceBoardOpen
+            onMenuOpenChange={onWorkspaceBoardMenuOpenChange}
+          />
+        )}
+      </div>
+>>>>>>> ae55694d279ad0a0210874516a36f1772a7ebe57
       <AddProjectButton preserveWorkspaceBoardOpen />
       <NewWorkspaceButton preserveWorkspaceBoardOpen />
     </div>

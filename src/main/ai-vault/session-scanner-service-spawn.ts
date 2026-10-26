@@ -52,6 +52,12 @@ export function spawnAiVaultServiceProcess(): ChildProcess {
 }
 
 let sharedClient: AiVaultScannerServiceClient | null = null
+let idleTimeoutMs: number | undefined
+
+/** Must run before the first request; the shared client reads it once. */
+export function setAiVaultServiceIdleTimeoutMs(timeoutMs: number): void {
+  idleTimeoutMs = timeoutMs
+}
 
 function getSharedClient(): AiVaultScannerServiceClient {
   sharedClient ??= new AiVaultScannerServiceClient({
@@ -62,7 +68,8 @@ function getSharedClient(): AiVaultScannerServiceClient {
       sessionSearch: sessionSearchServiceInit(),
       ...aiVaultForkServiceInit()
     }),
-    onStderr: (text) => console.error('[ai-vault-service]', text.trimEnd())
+    onStderr: (text) => console.error('[ai-vault-service]', text.trimEnd()),
+    idleTimeoutMs
   })
   return sharedClient
 }
@@ -155,4 +162,5 @@ export function clearAiVaultServiceRestartCircuit(): void {
 export function resetAiVaultScannerServiceForTests(): void {
   sharedClient?.dispose()
   sharedClient = null
+  idleTimeoutMs = undefined
 }

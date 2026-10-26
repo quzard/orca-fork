@@ -6,7 +6,10 @@ import { useAppStore } from '@/store'
 import { toWorktreeRelativePath } from '@/lib/terminal-links'
 import { isHtmlFilePath } from '@/components/terminal-pane/local-html-file-destinations'
 import { openTerminalHtmlFileInBrowser } from '@/components/terminal-pane/terminal-file-link-browser-open'
-import { openRemoteTerminalHtmlPreview } from './html-preview-open'
+import {
+  htmlPreviewDespiteHostFileRefusal,
+  openRemoteTerminalHtmlPreview
+} from './html-preview-open'
 import type { BrowserLinkOpenContext } from '@/lib/browser-link-destination'
 import { statUserOpenedPath } from '@/lib/user-opened-local-path'
 import {
@@ -66,13 +69,19 @@ export async function resolveAndRetainTerminalLink(input: {
   let hostWorkspaceFile: HostWorkspaceFile | null = null
   let hostGrantId: string | null = null
   let clientLocal = false
-  let statResult: LinkStat
-  const linkOwner = await resolveHostWorkspaceFile(
-    fileContext,
-    mappedFilePath,
-    input.terminalHandle
-  )
-  if (linkOwner?.kind === 'grant') {
+  let statResult: LinkStat | null = null
+  let linkOwner: Awaited<ReturnType<typeof resolveHostWorkspaceFile>> = null
+  try {
+    linkOwner = await resolveHostWorkspaceFile(fileContext, mappedFilePath, input.terminalHandle)
+  } catch (error) {
+    // 真实 SSH 部署上，orcad 不会用本机磁盘冒充远端。HTML 改走这条连接的预览。
+    const continued = htmlPreviewDespiteHostFileRefusal(error, fileContext, mappedFilePath)
+    if (!continued) {
+      throw error
+    }
+    statResult = continued
+  }
+  if (statResult === null && linkOwner?.kind === 'grant') {
     hostGrantId = linkOwner.grantId
     mappedFilePath = linkOwner.absolutePath
     statResult = { isDirectory: false, escapesWorktree: true }
@@ -84,13 +93,14 @@ export async function resolveAndRetainTerminalLink(input: {
       connectionId: undefined
     }
     statResult = { isDirectory: linkOwner.isDirectory, escapesWorktree: false }
-  } else if (linkOwner) {
+  } else if (linkOwner?.kind === 'host') {
     hostWorkspaceFile = linkOwner
     // 宿主已经 stat 过归属工作区里的路径，上游先在那边打开。
     ;({ worktreeId, worktreePath, absolutePath: mappedFilePath } = hostWorkspaceFile)
     fileContext = { ...fileContext, worktreeId, worktreePath }
     statResult = { isDirectory: hostWorkspaceFile.isDirectory, escapesWorktree: false }
-  } else {
+  }
+  if (statResult === null) {
     statResult = await statUserOpenedPath(fileContext, mappedFilePath)
   }
   const held = retainSshServerLinkInSource(

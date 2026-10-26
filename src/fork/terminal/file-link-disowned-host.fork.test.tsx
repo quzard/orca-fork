@@ -15,9 +15,15 @@ import {
 } from '../../shared/fork-hooks/terminal-file-link-workspace'
 import {
   lookupTerminalHtmlPreview,
+  rememberTerminalHtmlPreview,
   resetTerminalHtmlPreviewForTests
 } from '../../shared/fork-hooks/terminal-html-preview'
 import { ORCA_BROWSER_BLANK_URL } from '../../shared/constants'
+import { HostFileRefusal } from '@/components/terminal-pane/terminal-host-workspace-file'
+import {
+  htmlPreviewDespiteHostFileRefusal,
+  sshRoutedHtmlPreviewRecovery
+} from './html-preview-open'
 
 const openPreview = vi.hoisted(() => vi.fn())
 // 上游预览计划是四个参数。0 参的 mock 展开调用时过不了 web 工程的类型检查。
@@ -107,7 +113,40 @@ beforeEach(() => {
   })
   previewPlan.mockClear()
   openPreview.mockClear()
+  Reflect.deleteProperty(storeState, 'runtimeEnvironments')
 })
+
+const CHINESE_HTML =
+  '/home/admin/.answer-me-with-html/pages/Connector-接入框架设计评审-20261026-030126.html'
+
+function deployOverSsh(targetId: string): void {
+  Object.assign(storeState, {
+    runtimeEnvironments: [
+      {
+        id: 'env-1',
+        orcadDeployment: {
+          kind: 'ssh',
+          sshTargetId: targetId,
+          sshTargetGeneration: 1,
+          localPort: 2201,
+          remotePort: 443
+        }
+      }
+    ]
+  })
+}
+
+function expectBlankDocPreview(filePath: string): void {
+  expect(createBrowserTabMock).toHaveBeenCalledWith(clicked.worktreeId, ORCA_BROWSER_BLANK_URL, {
+    docLocation: { kind: 'workspace-doc', worktreeId: 'wt-feat', filePath },
+    title: filePath.split('/').pop(),
+    activate: true,
+    browserRuntimeEnvironmentId: null
+  })
+  const urls = createBrowserTabMock.mock.calls.map((call) => call[1])
+  expect(urls).not.toContain(filePath)
+  expect(urls.some((url) => typeof url === 'string' && url.startsWith('file:'))).toBe(false)
+}
 
 function grantedFile(filePath: string): void {
   hostAnswers({
@@ -249,5 +288,129 @@ describe('a chat link whose host disowns the path', () => {
       verdict: 'unverifiable',
       error: new Error(`${HTML} is outside every workspace on its host`)
     })
+  })
+
+  it('reads managed SSH html through the deployment target instead of an artifact grant', async () => {
+    deployOverSsh('new_sls')
+    grantedFile(CHINESE_HTML)
+
+    openDetectedFilePath(CHINESE_HTML, null, null, chatDeps(CHINESE_HTML))
+    await flushDoubleRaf()
+
+    expectBlankDocPreview(CHINESE_HTML)
+    expect(openFileMock).not.toHaveBeenCalled()
+    expect(lookupTerminalHtmlPreview('wt-feat', CHINESE_HTML)).toEqual({
+      owner: { kind: 'ssh', connectionId: 'new_sls' },
+      requestBase: '/home/admin/.answer-me-with-html/pages',
+      root: '/home/admin/.answer-me-with-html/pages',
+      entryRelativePath: 'Connector-接入框架设计评审-20261026-030126.html',
+      sshPreview: true
+    })
+  })
+
+  it('opens managed SSH html when the host refuses a local grant', async () => {
+    deployOverSsh('new_sls')
+    statMock.mockRejectedValueOnce(new Error('ENOENT: no such file'))
+    hostAnswers({
+      worktree: 'wt-feat',
+      relativePath: null,
+      absolutePath: CHINESE_HTML,
+      exists: false,
+      isDirectory: false
+    })
+    const onOpenFailure = vi.fn()
+
+    openDetectedFilePath(CHINESE_HTML, null, null, chatDeps(CHINESE_HTML, onOpenFailure))
+    await flushDoubleRaf()
+
+    expect(onOpenFailure).not.toHaveBeenCalled()
+    expect(openFileMock).not.toHaveBeenCalled()
+    expectBlankDocPreview(CHINESE_HTML)
+    expect(lookupTerminalHtmlPreview('wt-feat', CHINESE_HTML)?.owner).toEqual({
+      kind: 'ssh',
+      connectionId: 'new_sls'
+    })
+  })
+
+  it('keeps a host refusal for html inside the clicked worktree', () => {
+    deployOverSsh('new_sls')
+    const fileContext = {
+      target: { kind: 'environment' as const, environmentId: 'env-1' },
+      worktreeId: 'wt-feat',
+      worktreePath: '/srv/wt/demo-app/feature',
+      sourceHostResolved: true
+    }
+    expect(
+      htmlPreviewDespiteHostFileRefusal(
+        new HostFileRefusal('missing'),
+        fileContext,
+        '/srv/wt/demo-app/feature/report.html'
+      )
+    ).toBeNull()
+    expect(
+      htmlPreviewDespiteHostFileRefusal(new HostFileRefusal('outside'), fileContext, CHINESE_HTML)
+    ).toEqual({ isDirectory: false, escapesWorktree: true })
+  })
+
+  it('keeps an ephemeral runtime SSH target on the artifact grant', async () => {
+    deployOverSsh('runtime-ssh-orb')
+    grantedFile(HTML)
+
+    openDetectedFilePath(HTML, null, null, chatDeps(HTML))
+    await flushDoubleRaf()
+
+    expect(lookupTerminalHtmlPreview('wt-feat', HTML)).toMatchObject({
+      terminalArtifactGrantId: 'g-1',
+      terminalArtifactAbsolutePath: HTML
+    })
+    expect(lookupTerminalHtmlPreview('wt-feat', HTML)?.sshPreview).toBeUndefined()
+  })
+})
+
+describe('a bare path that replaced a remembered html preview', () => {
+  it('points the local page back at the document and leaves an unremembered path alone', () => {
+    rememberTerminalHtmlPreview('wt-feat', CHINESE_HTML, {
+      owner: { kind: 'ssh', connectionId: 'new_sls' },
+      requestBase: '/home/admin/.answer-me-with-html/pages',
+      root: '/home/admin/.answer-me-with-html/pages',
+      entryRelativePath: 'Connector-接入框架设计评审-20261026-030126.html',
+      sshPreview: true
+    })
+    const pages = {
+      'browser-1': [
+        {
+          id: 'page-path',
+          url: CHINESE_HTML,
+          browserRuntimeEnvironmentId: null
+        },
+        {
+          id: 'page-file',
+          url: `file://${CHINESE_HTML}`,
+          browserRuntimeEnvironmentId: null
+        },
+        {
+          id: 'page-doc',
+          url: ORCA_BROWSER_BLANK_URL,
+          docLocation: { kind: 'workspace-doc' },
+          browserRuntimeEnvironmentId: null
+        }
+      ],
+      'browser-2': [
+        {
+          id: 'page-other',
+          url: '/home/admin/.answer-me-with-html/pages/other.html',
+          browserRuntimeEnvironmentId: null
+        }
+      ]
+    }
+
+    expect(
+      sshRoutedHtmlPreviewRecovery({
+        browserTabsByWorktree: {
+          'wt-feat': [{ id: 'browser-1' }, { id: 'browser-2' }]
+        },
+        browserPagesByWorkspace: pages
+      })
+    ).toEqual({ pageId: 'page-path', worktreeId: 'wt-feat', filePath: CHINESE_HTML })
   })
 })

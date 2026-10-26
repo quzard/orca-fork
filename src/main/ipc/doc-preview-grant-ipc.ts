@@ -37,7 +37,17 @@ export type DocPreviewGrantRequest = {
 
 export type DocPreviewGrantResult = { grantId: string; url: string }
 
+function isOptionalString(value: unknown): boolean {
+  return value === undefined || typeof value === 'string'
+}
+
 function isValidGrantRequest(request: DocPreviewGrantRequest): boolean {
+  const artifactGrantId: unknown = request.terminalArtifactGrantId
+  const artifactPath: unknown = request.terminalArtifactAbsolutePath
+  // 渲染进程传来的字段运行时不一定是字符串。不是字符串就不铸授权。
+  if (!isOptionalString(artifactGrantId) || !isOptionalString(artifactPath)) {
+    return false
+  }
   if (!request.requestBase.trim() || !request.root.trim() || !request.entryRelativePath.trim()) {
     return false
   }

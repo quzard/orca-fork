@@ -58,6 +58,13 @@ export function registerTerminalFileLinkWorkspace(next: {
   lookupStay = next.lookupStay
 }
 
+/** 测试撤掉登记，确认未登记时远程 HTML 仍走上游。 */
+export function resetTerminalFileLinkWorkspaceForTests(): void {
+  active = false
+  rememberSshStay = undefined
+  lookupStay = undefined
+}
+
 /** 终端链接钩子是否已经登记。未登记时远程 HTML 仍走上游。 */
 export function terminalFileLinkWorkspaceRegistered(): boolean {
   return active

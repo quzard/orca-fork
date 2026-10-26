@@ -7,7 +7,8 @@ import { openDetectedFilePath } from '@/components/terminal-pane/terminal-link-h
 import { createTerminalLinkTestDoubles } from '@/components/terminal-pane/terminal-link-handlers-test-fixtures'
 import {
   flushDoubleRaf,
-  installTerminalLinkTestEnvironment
+  installTerminalLinkTestEnvironment,
+  setPlatform
 } from '@/components/terminal-pane/terminal-link-handlers-test-harness'
 import type * as FilePreview from '@/lib/file-preview'
 import { registerTerminalFileLinkWorkspace } from '../../shared/fork-hooks/terminal-file-link-workspace'
@@ -32,8 +33,15 @@ vi.mock('@/lib/file-preview', async () => {
 
 const findWorkspaceFileRouteMock = vi.hoisted(() => vi.fn())
 const doubles = createTerminalLinkTestDoubles()
-const { storeState, statMock, openFileMock, runtimeEnvironmentCallMock, createBrowserTabMock } =
-  doubles
+const {
+  storeState,
+  statMock,
+  openFileMock,
+  openFilePathMock,
+  runtimeEnvironmentCallMock,
+  createBrowserTabMock,
+  deps
+} = doubles
 
 const remembered: { worktreeId: string; filePath: string }[] = []
 
@@ -483,5 +491,19 @@ describe('terminal file links stay in the clicked workspace', () => {
       }),
       { forceContentReload: true }
     )
+  })
+
+  it('opens local html in the system browser while the fork hooks are registered', async () => {
+    setPlatform('Macintosh')
+    storeState.settings = { openLinksInApp: false }
+
+    openDetectedFilePath('/tmp/report.html', null, null, deps)
+    await flushDoubleRaf()
+
+    expect(openFilePathMock).toHaveBeenCalledWith('/tmp/report.html', 'local')
+    expect(createBrowserTabMock).not.toHaveBeenCalled()
+    expect(openFileMock).not.toHaveBeenCalled()
+    expect(openPreview).not.toHaveBeenCalled()
+    expect(previewPlan).not.toHaveBeenCalled()
   })
 })

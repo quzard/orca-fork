@@ -9,7 +9,10 @@ import {
 } from '@/components/terminal-pane/terminal-link-handlers-test-harness'
 import { nativeChatFileOpenDeps } from '@/components/native-chat/native-chat-link-target-actions'
 import type * as FilePreview from '@/lib/file-preview'
-import { registerTerminalFileLinkWorkspace } from '../../shared/fork-hooks/terminal-file-link-workspace'
+import {
+  registerTerminalFileLinkWorkspace,
+  resetTerminalFileLinkWorkspaceForTests
+} from '../../shared/fork-hooks/terminal-file-link-workspace'
 import {
   lookupTerminalHtmlPreview,
   resetTerminalHtmlPreviewForTests
@@ -164,6 +167,35 @@ describe('a chat link whose host disowns the path', () => {
         worktreeSelector: 'id:wt-feat'
       }
     })
+  })
+
+  it('opens a granted html file in the editor when the preview cannot be built', async () => {
+    resetTerminalFileLinkWorkspaceForTests()
+    try {
+      grantedFile(HTML)
+      openDetectedFilePath(HTML, null, null, chatDeps(HTML))
+      await flushDoubleRaf()
+
+      expect(createBrowserTabMock).not.toHaveBeenCalled()
+      expect(openPreview).not.toHaveBeenCalled()
+      expect(previewPlan).not.toHaveBeenCalled()
+      expect(openFileMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filePath: HTML,
+          relativePath: HTML,
+          worktreeId: 'wt-feat',
+          runtimeEnvironmentId: 'env-1',
+          readOnly: true,
+          terminalArtifactGrantId: 'g-1'
+        }),
+        { forceContentReload: true }
+      )
+    } finally {
+      registerTerminalFileLinkWorkspace({
+        rememberSshStay: () => {},
+        lookupStay: () => false
+      })
+    }
   })
 
   it('opens a granted text file read-only in the clicked workspace', async () => {

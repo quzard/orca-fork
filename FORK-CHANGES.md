@@ -113,9 +113,9 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 
 托管主机上没有工作区认领的 `.html` / `.htm`、另一个运行时工作区已经认领的 HTML、以及工作区外的直接 SSH HTML，都在点击时的工作区里用应用内浏览器渲染，不再把编辑器源码当作主路径。读取方式记在 `src/shared/fork-hooks/terminal-html-preview.ts`，`buildDocPreviewGrantRequest` 先取这条记录。没有记录时授权请求跟上游。
 
-- 没有工作区认领、但 orcad 发了只读授权的文件：预览只读这一份绝对路径，走已有的 `files.readTerminalArtifactPreview`（和编辑器同一条授权，上限约 512 KiB，过期时间也一样）。同目录里的其他文件不读，相对资源会 404。样式写在 HTML 里面的页面可以渲染。
+- 没有工作区认领、但 orcad 发了只读授权的文件：预览只读这一份绝对路径，走已有的 `files.readTerminalArtifactPreview`。和编辑器同一条授权：10 分钟过期，托管预览上限 512 KiB。同目录里的其他文件不读，相对资源会 404。样式写在 HTML 里面的页面可以渲染。铸不出预览时（终端链接钩子还没登记，或目标不是运行时环境）退回编辑器只读打开，不走上游的浏览器打开。
 - 另一个运行时工作区已经认领的 HTML：预览根放在那个工作区上，走已有的 `files.readDocPreview`。标签仍留在点击时的工作区。相对资源按文档预览原来的目录授权。
-- 工作区外的直接 SSH：桌面按已有连接读，实现在 `src/fork/main/ssh-html-preview-read.ts`，由 `registerForkMainModules` 登记。ssh2 用 SFTP；系统 SSH 没有 SFTP 时退回 `downloadFile`。软链跳出文件所在目录，或路径落在 `~/.ssh`、`~/.gnupg`、`~/.orca`、`~/.aws`，不读。没连上、或没登记读取函数时，预览是上游的 404，打不开预览才退回编辑器。工作区里的 SSH HTML 不抢走，仍走上游的文档预览计划。
+- 工作区外的直接 SSH：桌面按已有连接读，实现在 `src/fork/main/ssh-html-preview-read.ts`，由 `registerForkMainModules` 登记。预览上限 10 MiB，和托管授权的 512 KiB 不是同一个上限。ssh2 用 SFTP。系统 SSH 没有 SFTP 时，先在远端跑 `realpath -e` 解析文件和所在目录，确认解析后的路径仍在父目录里、没有落到 `~/.ssh`、`~/.gnupg`、`~/.orca`、`~/.aws`，并看过大小，才 `downloadFile`。名叫 `x.html`、指向 `~/.ssh/id_rsa` 的软链不下载。父目录本身是软链时用解析后的目录比较，避免家目录软链被误判成越界。没连上、或没登记读取函数时，预览是上游的 404，打不开预览才退回编辑器。工作区里的 SSH HTML 不抢走，仍走上游的文档预览计划。
 
 本地 HTML 跟上游，默认用系统浏览器，fork 不覆盖。地址栏里手贴远程绝对路径不会变成 `orca-preview`，所以不会渲染；要点链接才会铸预览授权。
 

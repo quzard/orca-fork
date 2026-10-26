@@ -211,7 +211,9 @@ export function openTerminalHtmlUnlessSshSource(args: {
   ) {
     return true
   }
+  // 授权 HTML 预览铸不出来时只读进编辑器。未登记，或目标不是运行时环境，都不能掉进上游浏览器。
   if (
+    args.hostGrantId !== null ||
     terminalHtmlIsDirectSshOutsideWorktree({
       fileContext: args.fileContext,
       mappedFilePath: args.mappedFilePath,

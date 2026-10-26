@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import { resolveVsCodeRemoteSshLaunchSpec } from '../../main/external-editor-launch'
+import { afterEach, describe, expect, it } from 'vitest'
+import type { SshTarget } from '../../shared/ssh-types'
+import { resolveRemoteSshEditorLaunchSpec } from '../../main/remote-ssh-editor-launch'
 import { registerForkRemoteEditorLaunch } from '../../shared/fork-hooks/remote-editor-launch'
 import { cursorRemoteSshLaunchSpec } from './cursor-remote-launch'
 import {
@@ -11,8 +12,21 @@ import {
 const PROJECT_PATH = '/home/Ada Lovelace/project'
 const CURSOR_URL =
   'cursor://vscode-remote/ssh-remote+builder/home/Ada%20Lovelace/project?windowId=_blank'
+const BUILDER: SshTarget = {
+  id: 'ssh-1',
+  label: 'Builder',
+  host: 'builder.example.com',
+  port: 2222,
+  username: 'ada',
+  source: 'ssh-config',
+  configHost: 'builder'
+}
 
 describe('cursor remote ssh url', () => {
+  afterEach(() => {
+    registerForkRemoteEditorLaunch(() => null)
+  })
+
   it('encodes the workspace path; a plain authority stays as it is', () => {
     expect(buildCursorRemoteSshUrl('builder', PROJECT_PATH)).toBe(CURSOR_URL)
     expect(buildCursorRemoteSshUrl('ada@builder.local', '/srv')).toBe(
@@ -38,15 +52,25 @@ describe('cursor remote ssh url', () => {
   })
 
   it('opens cursor through the url spec and still launches code as an executable', () => {
-    expect(resolveVsCodeRemoteSshLaunchSpec('cursor', PROJECT_PATH, 'builder')).toBeNull()
-    registerForkRemoteEditorLaunch(cursorRemoteSshLaunchSpec)
-    expect(resolveVsCodeRemoteSshLaunchSpec('cursor', PROJECT_PATH, 'builder')).toEqual({
-      kind: 'url',
-      url: CURSOR_URL
+    // 未登记时跟上游：Cursor 走 CLI 的 --remote。登记后才换成 cursor://。
+    expect(resolveRemoteSshEditorLaunchSpec('cursor', PROJECT_PATH, BUILDER)).toMatchObject({
+      ok: true,
+      launchSpec: {
+        kind: 'executable',
+        spawnArgs: ['--new-window', '--remote', 'ssh-remote+builder', PROJECT_PATH]
+      }
     })
-    expect(resolveVsCodeRemoteSshLaunchSpec('code', PROJECT_PATH, 'builder')).toMatchObject({
-      kind: 'executable',
-      spawnArgs: ['--remote', 'ssh-remote+builder', PROJECT_PATH]
+    registerForkRemoteEditorLaunch(cursorRemoteSshLaunchSpec)
+    expect(resolveRemoteSshEditorLaunchSpec('cursor', PROJECT_PATH, BUILDER)).toEqual({
+      ok: true,
+      launchSpec: { kind: 'url', url: CURSOR_URL }
+    })
+    expect(resolveRemoteSshEditorLaunchSpec('code', PROJECT_PATH, BUILDER)).toMatchObject({
+      ok: true,
+      launchSpec: {
+        kind: 'executable',
+        spawnArgs: ['--remote', 'ssh-remote+builder', PROJECT_PATH]
+      }
     })
   })
 })

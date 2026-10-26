@@ -1,4 +1,5 @@
 import type React from 'react'
+import { refreshRuntimeEnvironmentCatalog } from '@/runtime/runtime-environment-pairing-refresh'
 import {
   ArchiveRestore,
   ChevronRight,
@@ -184,7 +185,14 @@ export function VaultHostScopeMenu({
   const secondary = hostOptions.filter((option) => option.secondary)
 
   return (
-    <DropdownMenu>
+    <DropdownMenu
+      onOpenChange={(open) => {
+        // A fresh profile has no saved-server file to watch until the first CLI add creates it.
+        if (open) {
+          void refreshRuntimeEnvironmentCatalog()
+        }
+      }}
+    >
       <DropdownMenuTrigger asChild>
         <Button
           type="button"

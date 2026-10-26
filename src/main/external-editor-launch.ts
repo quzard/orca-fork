@@ -4,8 +4,9 @@ import { spawnProcess } from '@orca/process-host'
 import { existsSync } from 'node:fs'
 import { posix, win32 } from 'node:path'
 import { parseWslUncPath } from '../shared/wsl-paths'
-import { isVsCodeLauncherExecutable } from '../shared/vscode-remote-ssh-launcher'
+import { isVsCodeLauncherExecutable } from '../shared/remote-ssh-editor-launcher'
 import { resolveCliCommand } from './codex-cli/command'
+import { envWithoutAppImageRuntime } from './pty/appimage-terminal-env'
 import {
   getLauncherBaseName,
   hasMatchingOuterQuotes,
@@ -15,8 +16,8 @@ import {
   isJetBrainsConsoleShim,
   resolveColocatedJetBrainsGuiExecutable
 } from './jetbrains-windows-gui-launchers'
+import { findInstalledVsCodeCli } from './vscode-cli-install-paths'
 import { getCmdExePath, getSpawnArgsForWindows } from './win32-utils'
-import { resolveForkRemoteEditorLaunch } from '../shared/fork-hooks/remote-editor-launch'
 
 export const EXTERNAL_EDITOR_CLI_COMMAND = 'code'
 const WINDOWS_CONSOLE_EDITORS = new Set(['nvim', 'vim'])
@@ -37,16 +38,18 @@ export type ExternalEditorShellLaunchSpec = {
   spawnArgs: string[]
 }
 
+export type ExternalEditorProcessLaunchSpec =
+  | ExternalEditorExecutableLaunchSpec
+  | ExternalEditorShellLaunchSpec
+
 export type ExternalEditorUrlLaunchSpec = {
   kind: 'url'
   url: string
 }
 
-export type ExternalEditorProcessLaunchSpec =
-  | ExternalEditorExecutableLaunchSpec
-  | ExternalEditorShellLaunchSpec
-
-export type ExternalEditorLaunchSpec = ExternalEditorProcessLaunchSpec | ExternalEditorUrlLaunchSpec
+export type ExternalEditorLaunchSpec =
+  | ExternalEditorProcessLaunchSpec
+  | ExternalEditorUrlLaunchSpec
 
 function escapeWindowsPathForShell(pathValue: string): string {
   return /^[a-zA-Z0-9_./@:\\-]+$/.test(pathValue) ? pathValue : `"${pathValue}"`
@@ -131,13 +134,24 @@ function preferJetBrainsGuiExecutable(
   return resolveColocatedJetBrainsGuiExecutable(editorCommand, fileExists) ?? editorCommand
 }
 
+function resolveEditorCliCommand(
+  command: string,
+  platform: NodeJS.Platform,
+  fileExists: (path: string) => boolean
+): string {
+  const resolved = resolveCliCommand(command, { platform })
+  return resolved === command
+    ? (findInstalledVsCodeCli(command, platform, fileExists) ?? command)
+    : resolved
+}
+
 function resolveSimpleEditorCommand(
   command: string,
   platform: NodeJS.Platform,
   fileExists: (path: string) => boolean
 ): string {
   return preferJetBrainsGuiExecutable(
-    resolveCliCommand(command, { platform }),
+    resolveEditorCliCommand(command, platform, fileExists),
     platform,
     fileExists
   )
@@ -164,7 +178,7 @@ function buildShellLaunchSpec(
   command: string,
   pathValue: string,
   platform: NodeJS.Platform
-): ExternalEditorProcessLaunchSpec {
+): ExternalEditorLaunchSpec {
   const shellCommand = `${command} ${escapePathForShell(pathValue, platform)}`
   if (platform === 'win32') {
     // Do not wrap shell commands in start: it consumes quoted titles and can leave cmd /K running.
@@ -212,52 +226,41 @@ export function resolveExternalEditorLaunchSpec(
   )
 }
 
-export function resolveVsCodeRemoteSshLaunchSpec(
+/** The executable a remote launch would spawn; null for compound shell commands, which carry no single launcher. */
+export function resolveExternalEditorExecutable(
   command: string | undefined,
-  pathValue: string,
-  authority: string,
   options: { platform?: NodeJS.Platform; fileExists?: (path: string) => boolean } = {}
-): ExternalEditorLaunchSpec | null {
+): string | null {
   const platform = options.platform ?? process.platform
   const fileExists = options.fileExists ?? existsSync
   const trimmed = command?.trim() || EXTERNAL_EDITOR_CLI_COMMAND
-
-  let editorCommand: string
   if (isDirectExecutablePath(trimmed, platform, fileExists)) {
-    editorCommand = stripMatchingQuotes(trimmed)
-  } else {
-    if (isCompoundShellCommand(trimmed)) {
-      return null
-    }
-    editorCommand = resolveCliCommand(trimmed, { platform })
+    return stripMatchingQuotes(trimmed)
   }
-
-  if (!isVsCodeLauncherExecutable(editorCommand)) {
-    // fork: Cursor deep link. Unregistered hook returns null.
-    return resolveForkRemoteEditorLaunch(editorCommand, pathValue, authority)
-  }
-  return {
-    kind: 'executable',
-    hideWindowsConsole: true,
-    spawnCmd: editorCommand,
-    spawnArgs: ['--remote', `ssh-remote+${authority}`, pathValue]
-  }
+  return isCompoundShellCommand(trimmed)
+    ? null
+    : resolveEditorCliCommand(trimmed, platform, fileExists)
 }
 
 function startExternalEditorProcess(launchSpec: ExternalEditorProcessLaunchSpec): ChildProcess {
+  const detachedOptions = {
+    detached: true,
+    stdio: 'ignore',
+    // AppImage exports ARGV0, APPDIR, and mount PATH entries that editor shells must not inherit.
+    env: process.platform === 'linux' ? envWithoutAppImageRuntime(process.env) : undefined
+  } as const
   if (launchSpec.kind === 'shell') {
     const { spawnCmd, spawnArgs, hideWindowsConsole } = launchSpec
     return hideWindowsConsole
-      ? spawnProcess({ program: spawnCmd, args: spawnArgs, detached: true, stdio: 'ignore' })
-      : spawn(spawnCmd, spawnArgs, { detached: true, stdio: 'ignore', windowsHide: false })
+      ? spawnProcess({ program: spawnCmd, args: spawnArgs, ...detachedOptions })
+      : spawn(spawnCmd, spawnArgs, { ...detachedOptions, windowsHide: false })
   }
   if (launchSpec.hideWindowsConsole && !launchSpec.detachedGui) {
     // process-host preserves quoting for batch launchers and arguments containing spaces.
     return spawnProcess({
       program: launchSpec.spawnCmd,
       args: launchSpec.spawnArgs,
-      detached: true,
-      stdio: 'ignore'
+      ...detachedOptions
     })
   }
   const { spawnCmd, spawnArgs } = getSpawnArgsForWindows(
@@ -269,13 +272,14 @@ function startExternalEditorProcess(launchSpec: ExternalEditorProcessLaunchSpec)
   )
   if (!launchSpec.hideWindowsConsole) {
     // process-host hides consoles; Windows terminal editors need a visible console.
-    return spawn(spawnCmd, spawnArgs, { detached: true, stdio: 'ignore', windowsHide: false })
+    return spawn(spawnCmd, spawnArgs, { ...detachedOptions, windowsHide: false })
   }
-  return spawnProcess({ program: spawnCmd, args: spawnArgs, detached: true, stdio: 'ignore' })
+  return spawnProcess({ program: spawnCmd, args: spawnArgs, ...detachedOptions })
 }
 
 export async function launchExternalEditor(launchSpec: ExternalEditorLaunchSpec): Promise<void> {
   if (launchSpec.kind === 'url') {
+    // fork: a registered Cursor remote opens a cursor:// URL.
     const { shell } = await import('electron')
     await shell.openExternal(launchSpec.url)
     return

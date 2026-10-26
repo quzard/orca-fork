@@ -1,7 +1,7 @@
 // 托管 orcad：工作区都不认领时，存在的普通文件只读打开。凭据目录不发授权。
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { isENOENT } from '../../main/ipc/filesystem-path-containment'
+import { isENOENT } from '../../main/ipc/filesystem/filesystem-path-containment'
 import { isPathInsideOrEqual } from '../../shared/cross-platform-path'
 import type { RuntimeTerminalPathResolution } from '../../shared/runtime-file-contracts'
 import type {

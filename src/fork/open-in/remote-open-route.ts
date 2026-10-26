@@ -1,9 +1,8 @@
-import { isVsCodeRemoteSshCommand } from '../../shared/vscode-remote-ssh-launcher'
+import { isRemoteSshEditorCommand } from '../../shared/remote-ssh-editor-launcher'
 import type {
   OpenInRouteAdjustment,
   OpenInRouteContext
 } from '../../shared/fork-hooks/open-in-launcher'
-import { isCursorLauncherCommand } from './cursor-remote-url'
 import { resolveEnvironmentSshTargetId } from './environment-ssh-target'
 
 const REMOTE_SSH_OPEN_METADATA = 'Remote SSH'
@@ -22,8 +21,9 @@ export function adjustRemoteOpenRoute(
   if (context.target !== 'external-editor' || context.ownerUnresolved || state.ownerUnresolved) {
     return null
   }
+  // 上游把分类挪到 remote-ssh-editor-launcher。Cursor 和 Zed 也算远端编辑器。
   const command = context.command
-  if (!isVsCodeRemoteSshCommand(command) && !isCursorLauncherCommand(command)) {
+  if (!isRemoteSshEditorCommand(command)) {
     return null
   }
   const directConnectionId = context.connectionId?.trim()

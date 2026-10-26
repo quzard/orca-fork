@@ -178,7 +178,7 @@ function buildShellLaunchSpec(
   command: string,
   pathValue: string,
   platform: NodeJS.Platform
-): ExternalEditorLaunchSpec {
+): ExternalEditorProcessLaunchSpec {
   const shellCommand = `${command} ${escapePathForShell(pathValue, platform)}`
   if (platform === 'win32') {
     // Do not wrap shell commands in start: it consumes quoted titles and can leave cmd /K running.

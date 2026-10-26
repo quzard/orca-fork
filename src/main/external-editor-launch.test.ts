@@ -30,7 +30,10 @@ function remoteLaunchSpec(
   target: SshTarget = BUILDER_ALIAS
 ) {
   const result = resolveRemoteSshEditorLaunchSpec(command, pathValue, target, options)
-  return result.ok ? result.launchSpec : null
+  if (!result.ok || result.launchSpec.kind === 'url') {
+    return null
+  }
+  return result.launchSpec
 }
 
 describe('resolveExternalEditorLaunchSpec', () => {

@@ -17,6 +17,11 @@ import {
   mintDocPreviewGrant,
   revokeAllDocPreviewGrants
 } from './doc-preview-grant-registry'
+import {
+  noteTerminalHtmlPreviewServe,
+  registerSshHtmlPreviewRead,
+  resetTerminalHtmlPreviewForTests
+} from '../../shared/fork-hooks/terminal-html-preview'
 
 // Preapprove directories to isolate transport behavior; entry-only authorization is tested separately.
 function sshGrant(): ReturnType<typeof mintDocPreviewGrant> {
@@ -49,6 +54,7 @@ function runtimeGrant(root = '/srv/repo/docs'): ReturnType<typeof mintDocPreview
 beforeEach(() => {
   vi.clearAllMocks()
   revokeAllDocPreviewGrants()
+  resetTerminalHtmlPreviewForTests()
 })
 
 describe('docPreviewContentType', () => {
@@ -68,6 +74,30 @@ describe('readDocPreviewFile — ssh owner', () => {
       ok: false,
       status: 404,
       message: 'Remote connection dropped. Click Reconnect on the SSH target before retrying.'
+    })
+    expect(mocks.callRuntimeEnvironment).not.toHaveBeenCalled()
+  })
+
+  it('serves a noted direct-SSH html preview from the registered reader', async () => {
+    const grant = sshGrant()
+    noteTerminalHtmlPreviewServe(grant.id, { sshPreview: true })
+    registerSshHtmlPreviewRead(async () => ({ ok: true, bytes: Buffer.from('<p>ssh</p>') }))
+
+    await expect(readDocPreviewFile(grant, 'index.html')).resolves.toEqual({
+      ok: true,
+      bytes: Buffer.from('<p>ssh</p>'),
+      contentType: 'text/html; charset=utf-8'
+    })
+    expect(mocks.callRuntimeEnvironment).not.toHaveBeenCalled()
+  })
+
+  it('keeps the upstream 404 when the SSH reader is not registered', async () => {
+    const grant = sshGrant()
+    noteTerminalHtmlPreviewServe(grant.id, { sshPreview: true })
+
+    await expect(readDocPreviewFile(grant, 'index.html')).resolves.toMatchObject({
+      ok: false,
+      status: 404
     })
     expect(mocks.callRuntimeEnvironment).not.toHaveBeenCalled()
   })
@@ -248,5 +278,51 @@ describe('readDocPreviewFile — paired runtime owner', () => {
       },
       15_000
     )
+  })
+
+  it('reads a disowned html grant through the terminal artifact preview', async () => {
+    const pages = '/home/me/.answer-me-with-html/pages'
+    const absolutePath = `${pages}/index.html`
+    const grant = mintDocPreviewGrant({
+      owner: {
+        kind: 'runtime',
+        environmentId: 'env-1',
+        worktreeSelector: 'id:wt-1',
+        worktreeRoot: '/srv/repo'
+      },
+      requestBase: pages,
+      root: pages,
+      entryRelativePath: 'index.html',
+      browserPageId: 'page-1'
+    })
+    authorizeDocPreviewDirectory(grant.id, 'index.html')
+    authorizeDocPreviewDirectory(grant.id, 'style.css')
+    noteTerminalHtmlPreviewServe(grant.id, {
+      terminalArtifactGrantId: 'g-1',
+      terminalArtifactAbsolutePath: absolutePath
+    })
+    mocks.callRuntimeEnvironment.mockResolvedValue({
+      ok: true,
+      result: { content: '<p>hi</p>', isBinary: false }
+    })
+
+    await expect(readDocPreviewFile(grant, 'index.html')).resolves.toMatchObject({
+      ok: true,
+      bytes: Buffer.from('<p>hi</p>', 'utf8')
+    })
+    expect(mocks.callRuntimeEnvironment).toHaveBeenCalledWith(
+      '/user-data',
+      'env-1',
+      'files.readTerminalArtifactPreview',
+      { worktree: 'id:wt-1', grantId: 'g-1', absolutePath },
+      15_000
+    )
+
+    mocks.callRuntimeEnvironment.mockClear()
+    await expect(readDocPreviewFile(grant, 'style.css')).resolves.toMatchObject({
+      ok: false,
+      status: 404
+    })
+    expect(mocks.callRuntimeEnvironment).not.toHaveBeenCalled()
   })
 })

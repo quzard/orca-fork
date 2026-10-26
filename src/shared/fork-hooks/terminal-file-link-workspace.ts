@@ -58,6 +58,11 @@ export function registerTerminalFileLinkWorkspace(next: {
   lookupStay = next.lookupStay
 }
 
+/** 终端链接钩子是否已经登记。未登记时远程 HTML 仍走上游。 */
+export function terminalFileLinkWorkspaceRegistered(): boolean {
+  return active
+}
+
 /** 这个工作区是否记下过该 SSH/服务器路径。未登记时当作没有标记。 */
 export function terminalFileLinkStay(worktreeId: string | undefined, filePath: string): boolean {
   if (!active || !worktreeId) {
@@ -176,10 +181,11 @@ export function deeperWorkspaceReadOnlyView(
 }
 
 /**
- * 工作区外的直接 SSH HTML 用编辑器打开源码。文档预览只认工作区里的路径。
- * 本地 HTML 不经过这里。未登记时返回 false，调用方保持上游预览。
+ * 工作区外的直接 SSH HTML。文档预览的常规计划读不到这台桌面上的 ssh: 文件。
+ * 调用方改走应用内预览，并由 fork 按这条连接读文件。本地 HTML 不经过这里。
+ * 未登记时返回 false，调用方保持上游预览。
  */
-export function terminalHtmlKeepsEditorSource(input: {
+export function terminalHtmlIsDirectSshOutsideWorktree(input: {
   fileContext: {
     connectionId?: string | null
     target: { kind: string }

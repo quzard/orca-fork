@@ -229,7 +229,7 @@ export function openDetectedFilePath(
       return
     }
 
-    // 工作区外的直接 SSH HTML 仍打开源码。本地 HTML 走上游。判断在 file-link-route。
+    // 托管主机工作区外的 HTML、直连 SSH 工作区外的 HTML 打开应用内预览。本地 HTML 走上游。判断在 file-link-route。
     if (
       openTerminalHtmlUnlessSshSource({
         mappedFilePath,

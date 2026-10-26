@@ -6,6 +6,7 @@ import { useAppStore } from '@/store'
 import { toWorktreeRelativePath } from '@/lib/terminal-links'
 import { isHtmlFilePath } from '@/components/terminal-pane/local-html-file-destinations'
 import { openTerminalHtmlFileInBrowser } from '@/components/terminal-pane/terminal-file-link-browser-open'
+import { openRemoteTerminalHtmlPreview } from './html-preview-open'
 import type { BrowserLinkOpenContext } from '@/lib/browser-link-destination'
 import { statUserOpenedPath } from '@/lib/user-opened-local-path'
 import {
@@ -19,7 +20,7 @@ import { isFloatingWorkspaceId } from '../../shared/floating-workspace-worktree'
 import {
   deeperWorkspaceReadOnlyView,
   retainSshServerLinkInSource,
-  terminalHtmlKeepsEditorSource,
+  terminalHtmlIsDirectSshOutsideWorktree,
   type TerminalFileLinkRoute
 } from '../../shared/fork-hooks/terminal-file-link-workspace'
 
@@ -171,8 +172,9 @@ export function terminalLinkViewFields(
 }
 
 /**
- * 工作区外的直接 SSH HTML 留在编辑器里。其余 HTML 跟上游打开浏览器。
- * 放在这里是因为路由文件贴着行数上限。返回 true 表示这条链接已经处理完。
+ * 托管主机工作区外的 HTML、以及直连 SSH 工作区外的 HTML，打开应用内文档预览。
+ * 本地和工作区里的 HTML 跟上游。放在这里是因为路由文件贴着行数上限。
+ * 返回 true 表示这条链接已经处理完。
  */
 export function openTerminalHtmlUnlessSshSource(args: {
   mappedFilePath: string
@@ -189,15 +191,28 @@ export function openTerminalHtmlUnlessSshSource(args: {
   explicitGroupRequest: boolean
   refuseExplicitNonEditorRoute: () => boolean
 }): boolean {
-  if (!isHtmlFilePath(args.mappedFilePath) || args.hostGrantId !== null) {
+  if (!isHtmlFilePath(args.mappedFilePath)) {
     return false
   }
   if (args.openInSourceGroup) {
     args.refuseExplicitNonEditorRoute()
     return true
   }
+  // 授权文件、别的工作区里的服务器 HTML、直连 SSH 工作区外的 HTML。本地不进这里。
   if (
-    terminalHtmlKeepsEditorSource({
+    openRemoteTerminalHtmlPreview({
+      mappedFilePath: args.mappedFilePath,
+      hostGrantId: args.hostGrantId,
+      fileContext: args.fileContext,
+      statResult: args.statResult,
+      worktreeId: args.worktreeId,
+      hostWorkspaceFile: args.hostWorkspaceFile
+    })
+  ) {
+    return true
+  }
+  if (
+    terminalHtmlIsDirectSshOutsideWorktree({
       fileContext: args.fileContext,
       mappedFilePath: args.mappedFilePath,
       statResult: args.statResult

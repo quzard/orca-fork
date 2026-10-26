@@ -100,8 +100,9 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 `terminal-file-open-routing.ts` 在上游路由之外还有这些接线。未登记时调用保持上游：
 
 - `retainSshServerLinkInSource` 和 `deeperWorkspaceReadOnlyView`，都在 `src/shared/fork-hooks/terminal-file-link-workspace.ts`。
-- `terminalHtmlKeepsEditorSource`：包住工作区外的直接 SSH HTML。命中时不走上游预览计划，仍在编辑器里打开源码。本地 HTML 不经过这个包装。
-- `terminalLinkViewFields`：给停留中的只读视图补字段。服务器视图留着运行时 id，本地嵌套视图不带运行时 id。路由文件直接 import `src/fork/terminal/file-link-route.tsx`。宿主解析、工作区外直接 SSH HTML、同路径兄弟标签碰撞和嵌套相对路径也放在这个文件里，避免路由文件超过行数上限。
+- `terminalHtmlIsDirectSshOutsideWorktree`：认出工作区外的直接 SSH HTML。本地 HTML 不经过这里。预览地址铸不出来时，调用方仍退回编辑器源码。
+- `openRemoteTerminalHtmlPreview`（`src/fork/terminal/html-preview-open.tsx`）：托管主机上没有工作区认领的 HTML、归属在另一个运行时工作区里的 HTML、以及工作区外的直接 SSH HTML，在点击时的工作区打开应用内文档预览。字节仍走已有的 `orca-preview`。本地 HTML 和工作区里的 HTML 返回 false，调用方保持上游。
+- `terminalLinkViewFields`：给停留中的只读视图补字段。服务器视图留着运行时 id，本地嵌套视图不带运行时 id。路由文件直接 import `src/fork/terminal/file-link-route.tsx`。宿主解析、远程 HTML 预览、同路径兄弟标签碰撞和嵌套相对路径也放在这个文件里，避免路由文件超过行数上限。
 
 两个钩子的行为：
 
@@ -110,11 +111,17 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 
 外层已经打开的可写标签，在内层再打开同一路径后改为只读，标签留在外层。外层还有未保存的修改时先不改，干净后再查。本地降级不写停留标记。SSH 或服务器降级会写；编辑器加载时按归属工作区读，不重挂。没有标记的绝对路径仍按上游重挂。标记只在这台浏览器的 `localStorage` 里，键是工作区 id 和路径。只有 `hydrationSucceeded` 为真才清。启动失败时文件列表是空的，这一轮不清。
 
-工作区外的直接 SSH HTML 仍在编辑器里打开源码。本地 HTML 跟上游，默认用系统浏览器，fork 不覆盖。
+托管主机上没有工作区认领的 `.html` / `.htm`、另一个运行时工作区已经认领的 HTML、以及工作区外的直接 SSH HTML，都在点击时的工作区里用应用内浏览器渲染，不再把编辑器源码当作主路径。读取方式记在 `src/shared/fork-hooks/terminal-html-preview.ts`，`buildDocPreviewGrantRequest` 先取这条记录。没有记录时授权请求跟上游。
 
-`src/fork/terminal/file-link-route.tsx` 负责查找归属、在上游解析之后套用 SSH 停留、做嵌套只读降级、判断工作区外直接 SSH HTML 是否仍开源码、以及同路径兄弟标签是否跳转，并给服务器上的只读视图补回运行时 id，避免路由文件超过行数上限。写成 `.tsx` 是因为 node 工程只收录 `src/fork/**/*.ts`，这个文件要引用渲染进程的 `@/` 别名。`src/fork/terminal/file-link-stay-watch.tsx` 的 `registerTerminalFileLinkStayWatch` 登记停留标记的读写，并监视外层标签；这里没有设置开关。
+- 没有工作区认领、但 orcad 发了只读授权的文件：预览只读这一份绝对路径，走已有的 `files.readTerminalArtifactPreview`（和编辑器同一条授权，上限约 512 KiB，过期时间也一样）。同目录里的其他文件不读，相对资源会 404。样式写在 HTML 里面的页面可以渲染。
+- 另一个运行时工作区已经认领的 HTML：预览根放在那个工作区上，走已有的 `files.readDocPreview`。标签仍留在点击时的工作区。相对资源按文档预览原来的目录授权。
+- 工作区外的直接 SSH：桌面按已有连接读，实现在 `src/fork/main/ssh-html-preview-read.ts`，由 `registerForkMainModules` 登记。ssh2 用 SFTP；系统 SSH 没有 SFTP 时退回 `downloadFile`。软链跳出文件所在目录，或路径落在 `~/.ssh`、`~/.gnupg`、`~/.orca`、`~/.aws`，不读。没连上、或没登记读取函数时，预览是上游的 404，打不开预览才退回编辑器。工作区里的 SSH HTML 不抢走，仍走上游的文档预览计划。
 
-托管服务器上的 orcad 另外登记 `src/shared/fork-hooks/terminal-disowned-host-file.ts`（只在 `installForkOrcadHost`，桌面进程不登记）。登记的是打开函数，实现在 `src/fork/main/disowned-host-file-open.ts`。上游 `terminal-path-resolver.ts` 只调用这个钩子。终端或对话里的路径、`file://`，HTML 与否都一样：这台服务器上没有任何工作区认领，而且近期输出授权也失败时，以前 `files.resolveTerminalPath` 不 stat 就返回 `exists:false`。客户端因此拒绝「outside every workspace on its host」，停留钩子也不会跑。对话链接通常不带 `terminalHandle`，也不带 `nativeChatContext`。登记之后，`crossWorkspace` 的请求会 stat 本机文件。普通文件存在就发只读 `absolute-file` 授权，来源记为 `disowned-host`，绑在发起请求的那个工作区上，编辑器只读打开源码，不切到 `~`，远程 HTML 不进应用内或系统浏览器。目录不发源码授权。`~/.ssh`、`~/.gnupg`、`~/.orca`、`~/.aws` 不发授权，软链落到这些目录同样拒绝。SSH 路由不在这台机器上 stat。未登记时仍是 `exists:false`，不碰磁盘。客户端目录里就算有 `~` 文件夹工作区，也不拿它当服务器上的归属。
+本地 HTML 跟上游，默认用系统浏览器，fork 不覆盖。地址栏里手贴远程绝对路径不会变成 `orca-preview`，所以不会渲染；要点链接才会铸预览授权。
+
+`src/fork/terminal/file-link-route.tsx` 负责查找归属、在上游解析之后套用 SSH 停留、做嵌套只读降级、把远程 HTML 送进应用内预览、以及同路径兄弟标签是否跳转，并给服务器上的只读视图补回运行时 id，避免路由文件超过行数上限。写成 `.tsx` 是因为 node 工程只收录 `src/fork/**/*.ts`，这个文件要引用渲染进程的 `@/` 别名。`src/fork/terminal/file-link-stay-watch.tsx` 的 `registerTerminalFileLinkStayWatch` 登记停留标记的读写，并监视外层标签；这里没有设置开关。
+
+托管服务器上的 orcad 另外登记 `src/shared/fork-hooks/terminal-disowned-host-file.ts`（只在 `installForkOrcadHost`，桌面进程不登记）。登记的是打开函数，实现在 `src/fork/main/disowned-host-file-open.ts`。上游 `terminal-path-resolver.ts` 只调用这个钩子。终端或对话里的路径、`file://`，HTML 与否都一样：这台服务器上没有任何工作区认领，而且近期输出授权也失败时，以前 `files.resolveTerminalPath` 不 stat 就返回 `exists:false`。客户端因此拒绝「outside every workspace on its host」，停留钩子也不会跑。对话链接通常不带 `terminalHandle`，也不带 `nativeChatContext`。登记之后，`crossWorkspace` 的请求会 stat 本机文件。普通文件存在就发只读 `absolute-file` 授权，来源记为 `disowned-host`，绑在发起请求的那个工作区上。非 HTML 仍在编辑器里只读打开源码。`.html` / `.htm` 由客户端打开应用内预览，不进系统浏览器，也不切到 `~`。目录不发源码授权。`~/.ssh`、`~/.gnupg`、`~/.orca`、`~/.aws` 不发授权，软链落到这些目录同样拒绝。SSH 路由不在这台机器上 stat。未登记时仍是 `exists:false`，不碰磁盘。客户端目录里就算有 `~` 文件夹工作区，也不拿它当服务器上的归属。
 
 ## F047 工作区里的多个仓库（只读）
 

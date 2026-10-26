@@ -5,7 +5,7 @@ import {
   registerTerminalFileLinkWorkspace,
   retainSshServerLinkInSource,
   terminalFileLinkStay,
-  terminalHtmlKeepsEditorSource
+  terminalHtmlIsDirectSshOutsideWorktree
 } from '../../shared/fork-hooks/terminal-file-link-workspace'
 import {
   applyTerminalFileLinkStayStorageEvent,
@@ -57,7 +57,7 @@ describe('terminal file-link workspace hooks', () => {
       deeperWorkspaceReadOnlyView('ssh:ssh-1', '/home/me/a.ts', 'wt-ssh', () => null)
     ).toBeNull()
     expect(
-      terminalHtmlKeepsEditorSource({
+      terminalHtmlIsDirectSshOutsideWorktree({
         fileContext: { connectionId: 'ssh-1', target: { kind: 'local' }, worktreePath: '/home/me' },
         mappedFilePath: '/tmp/x.html',
         statResult: { escapesWorktree: true }
@@ -137,9 +137,9 @@ describe('terminal file-link workspace hooks', () => {
     expect(remembered).toEqual([{ worktreeId: 'wt-ssh', filePath: '/home/me/nas/x.txt' }])
   })
 
-  it('keeps direct SSH html outside the worktree in the editor', () => {
+  it('marks direct SSH html outside the worktree for the in-app preview', () => {
     expect(
-      terminalHtmlKeepsEditorSource({
+      terminalHtmlIsDirectSshOutsideWorktree({
         fileContext: {
           connectionId: 'ssh-1',
           target: { kind: 'local' },
@@ -150,7 +150,7 @@ describe('terminal file-link workspace hooks', () => {
       })
     ).toBe(true)
     expect(
-      terminalHtmlKeepsEditorSource({
+      terminalHtmlIsDirectSshOutsideWorktree({
         fileContext: { connectionId: null, target: { kind: 'local' }, worktreePath: '/Users/me' },
         mappedFilePath: '/Users/me/x.html',
         statResult: { escapesWorktree: false }

@@ -11,17 +11,17 @@ import {
 } from '@/components/terminal-pane/terminal-link-handlers-test-harness'
 import type * as FilePreview from '@/lib/file-preview'
 import { registerTerminalFileLinkWorkspace } from '../../shared/fork-hooks/terminal-file-link-workspace'
+import {
+  lookupTerminalHtmlPreview,
+  resetTerminalHtmlPreviewForTests
+} from '../../shared/fork-hooks/terminal-html-preview'
+import { ORCA_BROWSER_BLANK_URL } from '../../shared/constants'
 
 const previewPlan = vi.hoisted(() => vi.fn())
 const openPreview = vi.hoisted(() => vi.fn())
-const realPreviewPlan = vi.hoisted(() => {
-  const holder: { current?: typeof FilePreview.getWorkspaceFilePreviewPlan } = {}
-  return holder
-})
 
 vi.mock('@/lib/file-preview', async () => {
   const actual = await vi.importActual<typeof FilePreview>('@/lib/file-preview')
-  realPreviewPlan.current = actual.getWorkspaceFilePreviewPlan
   return {
     getWorkspaceFilePreviewPlan: (...args: Parameters<typeof actual.getWorkspaceFilePreviewPlan>) =>
       previewPlan(...args),
@@ -32,7 +32,8 @@ vi.mock('@/lib/file-preview', async () => {
 
 const findWorkspaceFileRouteMock = vi.hoisted(() => vi.fn())
 const doubles = createTerminalLinkTestDoubles()
-const { storeState, statMock, openFileMock, runtimeEnvironmentCallMock } = doubles
+const { storeState, statMock, openFileMock, runtimeEnvironmentCallMock, createBrowserTabMock } =
+  doubles
 
 const remembered: { worktreeId: string; filePath: string }[] = []
 
@@ -90,27 +91,6 @@ function hostAnswers(result: unknown): void {
   })
 }
 
-function realPlan(worktreeId: string, filePath: string) {
-  const plan = realPreviewPlan.current
-  if (!plan) {
-    throw new Error('preview plan unavailable')
-  }
-  // 真实预览计划要读工作区根路径；终端链接替身原来没有这个方法。
-  Object.assign(storeState, {
-    getKnownWorktreeById: (id: string) => {
-      for (const list of Object.values(storeState.worktreesByRepo)) {
-        const found = list.find((entry) => entry.id === id)
-        if (found) {
-          return found
-        }
-      }
-      return undefined
-    }
-  })
-  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the terminal-link double carries the catalog fields getWorkspaceFilePreviewPlan reads.
-  return plan(storeState as never, worktreeId, filePath)
-}
-
 const previewUnsupported = {
   status: 'unsupported' as const,
   message: 'outside',
@@ -118,6 +98,7 @@ const previewUnsupported = {
 }
 
 beforeEach(() => {
+  resetTerminalHtmlPreviewForTests()
   remembered.length = 0
   findWorkspaceFileRouteMock.mockReset()
   findWorkspaceFileRouteMock.mockReturnValue(null)
@@ -404,37 +385,8 @@ describe('terminal file links stay in the clicked workspace', () => {
     expect(openFileMock.mock.calls[0]?.[0]).not.toHaveProperty('readOnly')
   })
 
-  it('opens a remote html file in the clicked workspace editor when the real preview plan is outside the worktree', async () => {
+  it('opens html owned by another runtime workspace in the clicked workspace browser', async () => {
     const filePath = '/home/me/.answer-me-with-html/pages/x.html'
-    // 替身类型没有 repos；真实预览计划要从仓库读连接，运行时仍挂上。
-    Object.assign(storeState, {
-      repos: [
-        {
-          id: 'runtime-repo',
-          displayName: 'Runtime',
-          connectionId: null,
-          executionHostId: 'runtime:env-1'
-        }
-      ]
-    })
-    storeState.worktreesByRepo = {
-      'runtime-repo': [
-        {
-          id: 'wt-feat',
-          repoId: 'runtime-repo',
-          path: '/repo/.orca/worktrees/feat-x',
-          hostId: 'runtime:env-1'
-        }
-      ]
-    }
-    expect(realPlan('wt-feat', filePath)).toMatchObject({
-      status: 'unsupported',
-      reason: 'outside-worktree'
-    })
-    previewPlan.mockImplementation((state: never, worktreeId: string, path: string) =>
-      realPreviewPlan.current?.(state, worktreeId, path)
-    )
-    openPreview.mockReturnValue({ status: 'doc-preview' })
     hostAnswers({
       worktree: 'folder:home',
       relativePath: '.answer-me-with-html/pages/x.html',
@@ -446,53 +398,38 @@ describe('terminal file links stay in the clicked workspace', () => {
     openDetectedFilePath(filePath, null, null, featureWorktree)
     await flushDoubleRaf()
 
-    expect(previewPlan).toHaveBeenCalled()
+    // 点击时的工作区计划是 outside-worktree。预览改记归属工作区，不走那条计划。
+    expect(previewPlan).not.toHaveBeenCalled()
     expect(openPreview).not.toHaveBeenCalled()
+    expect(openFileMock).not.toHaveBeenCalled()
     expect(activateAndRevealWorkspace).not.toHaveBeenCalledWith('folder:home', expect.anything())
-    expect(openFileMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        filePath,
-        relativePath: filePath,
-        worktreeId: 'wt-feat',
-        runtimeEnvironmentId: 'env-1',
-        readOnly: true
-      }),
-      { forceContentReload: true }
-    )
+    expect(activateAndRevealWorkspace).toHaveBeenCalledWith('wt-feat', {
+      providesInitialSurface: true
+    })
+    expect(createBrowserTabMock).toHaveBeenCalledWith('wt-feat', ORCA_BROWSER_BLANK_URL, {
+      docLocation: { kind: 'workspace-doc', worktreeId: 'wt-feat', filePath },
+      title: 'x.html',
+      activate: true,
+      browserRuntimeEnvironmentId: null
+    })
+    expect(lookupTerminalHtmlPreview('wt-feat', filePath)).toMatchObject({
+      owner: {
+        kind: 'runtime',
+        environmentId: 'env-1',
+        worktreeSelector: 'id:folder:home',
+        worktreeRoot: '/home/me'
+      },
+      requestBase: '/home/me',
+      entryRelativePath: '.answer-me-with-html/pages/x.html'
+    })
   })
 
-  it('opens a remote SSH html path as source because the external target skips a doc preview', async () => {
+  it('opens direct SSH html outside the worktree in the clicked workspace browser', async () => {
     const filePath = '/home/me/.answer-me-with-html/pages/x.html'
     vi.mocked(getConnectionId).mockImplementation((worktreeId) =>
       worktreeId === 'wt-ssh' ? 'ssh-1' : null
     )
     findWorkspaceFileRouteMock.mockReturnValue(HOME_ROUTE)
-    // 替身类型没有 repos；真实预览计划要从仓库读连接，运行时仍挂上。
-    Object.assign(storeState, {
-      repos: [
-        {
-          id: 'repo-ssh',
-          displayName: 'SSH',
-          connectionId: 'ssh-1',
-          executionHostId: 'ssh:ssh-1'
-        }
-      ]
-    })
-    storeState.worktreesByRepo = {
-      'repo-ssh': [
-        {
-          id: 'wt-ssh',
-          repoId: 'repo-ssh',
-          path: '/home/me/project',
-          hostId: 'ssh:ssh-1'
-        }
-      ]
-    }
-    expect(realPlan('wt-ssh', filePath)).toEqual({ status: 'doc-preview' })
-    previewPlan.mockImplementation((state: never, worktreeId: string, path: string) =>
-      realPreviewPlan.current?.(state, worktreeId, path)
-    )
-    openPreview.mockReturnValue({ status: 'doc-preview' })
 
     openDetectedFilePath(filePath, null, null, {
       worktreeId: 'wt-ssh',
@@ -502,17 +439,20 @@ describe('terminal file links stay in the clicked workspace', () => {
 
     expect(previewPlan).not.toHaveBeenCalled()
     expect(openPreview).not.toHaveBeenCalled()
+    expect(openFileMock).not.toHaveBeenCalled()
     expect(activateAndRevealWorkspace).not.toHaveBeenCalledWith('folder:home', expect.anything())
-    expect(openFileMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        filePath,
-        relativePath: filePath,
-        worktreeId: 'wt-ssh',
-        externalSshTargetId: 'ssh-1',
-        readOnly: true
-      }),
-      { forceContentReload: true }
-    )
+    expect(createBrowserTabMock).toHaveBeenCalledWith('wt-ssh', ORCA_BROWSER_BLANK_URL, {
+      docLocation: { kind: 'workspace-doc', worktreeId: 'wt-ssh', filePath },
+      title: 'x.html',
+      activate: true,
+      browserRuntimeEnvironmentId: null
+    })
+    expect(lookupTerminalHtmlPreview('wt-ssh', filePath)).toMatchObject({
+      owner: { kind: 'ssh', connectionId: 'ssh-1' },
+      requestBase: '/home/me/.answer-me-with-html/pages',
+      entryRelativePath: 'x.html',
+      sshPreview: true
+    })
   })
 
   it('keeps a direct SSH link in the terminal workspace when another workspace contains the path', async () => {

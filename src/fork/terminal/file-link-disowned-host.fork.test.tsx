@@ -10,6 +10,11 @@ import {
 import { nativeChatFileOpenDeps } from '@/components/native-chat/native-chat-link-target-actions'
 import type * as FilePreview from '@/lib/file-preview'
 import { registerTerminalFileLinkWorkspace } from '../../shared/fork-hooks/terminal-file-link-workspace'
+import {
+  lookupTerminalHtmlPreview,
+  resetTerminalHtmlPreviewForTests
+} from '../../shared/fork-hooks/terminal-html-preview'
+import { ORCA_BROWSER_BLANK_URL } from '../../shared/constants'
 
 const openPreview = vi.hoisted(() => vi.fn())
 // 上游预览计划是四个参数。0 参的 mock 展开调用时过不了 web 工程的类型检查。
@@ -89,6 +94,7 @@ function chatDeps(absolutePath: string, onOpenFailure = vi.fn()) {
 }
 
 beforeEach(() => {
+  resetTerminalHtmlPreviewForTests()
   findWorkspaceFileRouteMock.mockReset()
   // 客户端目录里可能有 ~ 工作区。服务器没认领时也不能切过去。
   findWorkspaceFileRouteMock.mockReturnValue({
@@ -100,63 +106,94 @@ beforeEach(() => {
   openPreview.mockClear()
 })
 
-describe('a chat link whose host disowns the path', () => {
-  it.each([
-    ['html', HTML],
-    ['text', TEXT]
-  ] as const)(
-    'opens a granted %s file read-only in the clicked workspace',
-    async (_kind, filePath) => {
-      hostAnswers({
-        worktree: 'wt-feat',
-        relativePath: null,
-        absolutePath: filePath,
-        exists: true,
-        isDirectory: false,
-        openTarget: {
-          kind: 'absolute-file',
-          provider: 'local',
-          absolutePath: filePath,
-          grantId: 'g-1',
-          readOnly: true
-        }
-      })
-      const deps = chatDeps(filePath)
-
-      expect(deps).not.toHaveProperty('terminalHandle')
-      openDetectedFilePath(filePath, null, null, deps)
-      await flushDoubleRaf()
-
-      expect(runtimeEnvironmentCallMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          method: 'files.resolveTerminalPath',
-          params: { worktree: 'id:wt-feat', pathText: filePath, crossWorkspace: true }
-        })
-      )
-      const params = runtimeEnvironmentCallMock.mock.calls.at(-1)?.[0].params
-      expect(params).not.toHaveProperty('terminal')
-      expect(params).not.toHaveProperty('nativeChatContext')
-      expect(activateAndRevealWorkspace).not.toHaveBeenCalledWith('folder:home', expect.anything())
-      expect(activateAndRevealWorkspace).toHaveBeenCalledWith('wt-feat', {
-        providesInitialSurface: true,
-        executionHostId: 'runtime:env-1'
-      })
-      expect(openPreview).not.toHaveBeenCalled()
-      expect(createBrowserTabMock).not.toHaveBeenCalled()
-      expect(previewPlan).not.toHaveBeenCalled()
-      expect(openFileMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          filePath,
-          relativePath: filePath,
-          worktreeId: 'wt-feat',
-          runtimeEnvironmentId: 'env-1',
-          readOnly: true,
-          terminalArtifactGrantId: 'g-1'
-        }),
-        { forceContentReload: true }
-      )
+function grantedFile(filePath: string): void {
+  hostAnswers({
+    worktree: 'wt-feat',
+    relativePath: null,
+    absolutePath: filePath,
+    exists: true,
+    isDirectory: false,
+    openTarget: {
+      kind: 'absolute-file',
+      provider: 'local',
+      absolutePath: filePath,
+      grantId: 'g-1',
+      readOnly: true
     }
-  )
+  })
+}
+
+describe('a chat link whose host disowns the path', () => {
+  it('opens a granted html file in the clicked workspace browser', async () => {
+    grantedFile(HTML)
+    const deps = chatDeps(HTML)
+
+    expect(deps).not.toHaveProperty('terminalHandle')
+    openDetectedFilePath(HTML, null, null, deps)
+    await flushDoubleRaf()
+
+    expect(runtimeEnvironmentCallMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'files.resolveTerminalPath',
+        params: { worktree: 'id:wt-feat', pathText: HTML, crossWorkspace: true }
+      })
+    )
+    const params = runtimeEnvironmentCallMock.mock.calls.at(-1)?.[0].params
+    expect(params).not.toHaveProperty('terminal')
+    expect(params).not.toHaveProperty('nativeChatContext')
+    expect(activateAndRevealWorkspace).not.toHaveBeenCalledWith('folder:home', expect.anything())
+    expect(activateAndRevealWorkspace).toHaveBeenCalledWith('wt-feat', {
+      providesInitialSurface: true
+    })
+    expect(openPreview).not.toHaveBeenCalled()
+    expect(previewPlan).not.toHaveBeenCalled()
+    expect(openFileMock).not.toHaveBeenCalled()
+    expect(createBrowserTabMock).toHaveBeenCalledWith(clicked.worktreeId, ORCA_BROWSER_BLANK_URL, {
+      docLocation: { kind: 'workspace-doc', worktreeId: 'wt-feat', filePath: HTML },
+      title: 'x.html',
+      activate: true,
+      browserRuntimeEnvironmentId: null
+    })
+    expect(lookupTerminalHtmlPreview('wt-feat', HTML)).toMatchObject({
+      terminalArtifactGrantId: 'g-1',
+      terminalArtifactAbsolutePath: HTML,
+      entryRelativePath: 'x.html',
+      owner: {
+        kind: 'runtime',
+        environmentId: 'env-1',
+        worktreeSelector: 'id:wt-feat'
+      }
+    })
+  })
+
+  it('opens a granted text file read-only in the clicked workspace', async () => {
+    grantedFile(TEXT)
+    const deps = chatDeps(TEXT)
+
+    expect(deps).not.toHaveProperty('terminalHandle')
+    openDetectedFilePath(TEXT, null, null, deps)
+    await flushDoubleRaf()
+
+    expect(activateAndRevealWorkspace).not.toHaveBeenCalledWith('folder:home', expect.anything())
+    expect(activateAndRevealWorkspace).toHaveBeenCalledWith('wt-feat', {
+      providesInitialSurface: true,
+      executionHostId: 'runtime:env-1'
+    })
+    expect(openPreview).not.toHaveBeenCalled()
+    expect(createBrowserTabMock).not.toHaveBeenCalled()
+    expect(previewPlan).not.toHaveBeenCalled()
+    expect(openFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filePath: TEXT,
+        relativePath: TEXT,
+        worktreeId: 'wt-feat',
+        runtimeEnvironmentId: 'env-1',
+        readOnly: true,
+        terminalArtifactGrantId: 'g-1'
+      }),
+      { forceContentReload: true }
+    )
+  })
 
   it('refuses exists:false from the host instead of opening a browser or the home workspace', async () => {
     statMock.mockRejectedValueOnce(new Error('ENOENT: no such file'))

@@ -20,10 +20,15 @@ import {
   ensureDocPreviewGrant,
   releaseDocPreviewGrant
 } from './doc-preview-grants'
+import {
+  rememberTerminalHtmlPreview,
+  resetTerminalHtmlPreviewForTests
+} from '../../../shared/fork-hooks/terminal-html-preview'
 
 const state = { getKnownWorktreeById: () => ({ id: 'wt-1', path: '/srv/repo' }) } as never
 
 beforeEach(() => {
+  resetTerminalHtmlPreviewForTests()
   vi.clearAllMocks()
   mocks.connectionId = null
   mocks.environmentId = null
@@ -84,6 +89,31 @@ describe('buildDocPreviewGrantRequest', () => {
     mocks.environmentId = 'env-1'
 
     expect(buildDocPreviewGrantRequest(state, 'wt-1', '/var/tmp/report.html')).toBeNull()
+  })
+
+  it('returns a terminal html preview location even when the workspace cannot serve the path', () => {
+    const location = {
+      owner: {
+        kind: 'runtime' as const,
+        environmentId: 'env-1',
+        worktreeSelector: 'id:wt-1',
+        worktreeRoot: '/home/admin/.answer-me-with-html/pages'
+      },
+      requestBase: '/home/admin/.answer-me-with-html/pages',
+      root: '/home/admin/.answer-me-with-html/pages',
+      entryRelativePath: 'page.html',
+      terminalArtifactGrantId: 'g-1',
+      terminalArtifactAbsolutePath: '/home/admin/.answer-me-with-html/pages/page.html'
+    }
+    rememberTerminalHtmlPreview(
+      'wt-1',
+      '/home/admin/.answer-me-with-html/pages/page.html',
+      location
+    )
+
+    expect(
+      buildDocPreviewGrantRequest(state, 'wt-1', '/home/admin/.answer-me-with-html/pages/page.html')
+    ).toEqual(location)
   })
 
   it('refuses a local workspace, which has no remote channel to read over', () => {

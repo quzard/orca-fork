@@ -15,6 +15,10 @@ import {
   type DocPreviewOwner
 } from '../browser/doc-preview-grant-registry'
 import { isTrustedBrowserRenderer } from './browser-renderer-trust'
+import {
+  forgetTerminalHtmlPreviewServe,
+  noteTerminalHtmlPreviewServe
+} from '../../shared/fork-hooks/terminal-html-preview'
 
 export type DocPreviewGrantRequest = {
   owner: DocPreviewOwner
@@ -26,6 +30,9 @@ export type DocPreviewGrantRequest = {
   entryRelativePath: string
   /** Browser page the reader is opening the document in; main registers the guest under it. */
   browserPageId: string
+  terminalArtifactGrantId?: string
+  terminalArtifactAbsolutePath?: string
+  sshPreview?: boolean
 }
 
 export type DocPreviewGrantResult = { grantId: string; url: string }
@@ -70,6 +77,7 @@ export function registerDocPreviewGrantHandlers(): void {
         entryRelativePath: request.entryRelativePath,
         browserPageId: request.browserPageId
       })
+      noteTerminalHtmlPreviewServe(grant.id, request)
       return {
         grantId: grant.id,
         url: buildDocPreviewUrl(grant.id, grant.entryRelativePath)
@@ -77,9 +85,13 @@ export function registerDocPreviewGrantHandlers(): void {
     }
   )
 
-  ipcMain.handle(DOC_PREVIEW_REVOKE_GRANT_CHANNEL, (event, grantId: string): boolean =>
-    isTrustedBrowserRenderer(event.sender) ? revokeDocPreviewGrant(grantId) : false
-  )
+  ipcMain.handle(DOC_PREVIEW_REVOKE_GRANT_CHANNEL, (event, grantId: string): boolean => {
+    if (!isTrustedBrowserRenderer(event.sender)) {
+      return false
+    }
+    forgetTerminalHtmlPreviewServe(grantId)
+    return revokeDocPreviewGrant(grantId)
+  })
 
   ipcMain.handle(
     DOC_PREVIEW_AUTHORIZE_DIRECTORY_CHANNEL,

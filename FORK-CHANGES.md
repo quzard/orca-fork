@@ -101,7 +101,7 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 
 - `retainSshServerLinkInSource` 和 `deeperWorkspaceReadOnlyView`，都在 `src/shared/fork-hooks/terminal-file-link-workspace.ts`。
 - `terminalHtmlIsDirectSshOutsideWorktree`：认出工作区外的直接 SSH HTML。本地 HTML 不经过这里。预览地址铸不出来时，调用方仍退回编辑器源码。
-- `openRemoteTerminalHtmlPreview`（`src/fork/terminal/html-preview-open.tsx`）：托管主机上没有工作区认领的 HTML、归属在另一个运行时工作区里的 HTML、以及工作区外的直接 SSH HTML，在点击时的工作区打开应用内文档预览。字节仍走已有的 `orca-preview`。本地 HTML 和工作区里的 HTML 返回 false，调用方保持上游。
+- `openRemoteTerminalHtmlPreview`（`src/fork/terminal/html-preview-open.tsx`）：托管主机上没有工作区认领的 HTML、归属在另一个运行时工作区里的 HTML、托管 SSH 工作区里的 HTML、以及工作区外的直接 SSH HTML，在点击时的工作区打开应用内文档预览。字节仍走已有的 `orca-preview`。本地 HTML 和直连 SSH 工作区里的 HTML 返回 false，调用方保持上游。
 - `terminalLinkViewFields`：给停留中的只读视图补字段。服务器视图留着运行时 id，本地嵌套视图不带运行时 id。路由文件直接 import `src/fork/terminal/file-link-route.tsx`。宿主解析、远程 HTML 预览、同路径兄弟标签碰撞和嵌套相对路径也放在这个文件里，避免路由文件超过行数上限。
 
 两个钩子的行为：
@@ -116,7 +116,9 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 - 没有工作区认领、但 orcad 发了只读授权的文件：预览只读这一份绝对路径，走已有的 `files.readTerminalArtifactPreview`。和编辑器同一条授权：10 分钟过期，托管预览上限 512 KiB。同目录里的其他文件不读，相对资源会 404。样式写在 HTML 里面的页面可以渲染。铸不出预览时（终端链接钩子还没登记，或目标不是运行时环境）退回编辑器只读打开，不走上游的浏览器打开。
 - 另一个运行时工作区已经认领的 HTML：预览根放在那个工作区上，走已有的 `files.readDocPreview`。标签仍留在点击时的工作区。相对资源按文档预览原来的目录授权。
 - 工作区外的直接 SSH：桌面按已有连接读，实现在 `src/fork/main/ssh-html-preview-read.ts`，由 `registerForkMainModules` 登记。预览上限 10 MiB，和托管授权的 512 KiB 不是同一个上限。ssh2 用 SFTP。系统 SSH 没有 SFTP 时，先在远端跑 `realpath -e` 解析文件和所在目录，确认解析后的路径仍在父目录里、没有落到 `~/.ssh`、`~/.gnupg`、`~/.orca`、`~/.aws`，并看过大小，才 `downloadFile`。名叫 `x.html`、指向 `~/.ssh/id_rsa` 的软链不下载。父目录本身是软链时用解析后的目录比较，避免家目录软链被误判成越界。没连上、或没登记读取函数时，预览是上游的 404，打不开预览才退回编辑器。工作区里的 SSH HTML 不抢走，仍走上游的文档预览计划。
-- 托管 orcad 如果部署在真实 SSH 上（`getOrcadSshDeployment` 的 `sshTargetId`，排除 `runtime-ssh-` 临时目标），工作区外的 HTML 用同一条 SSH 预览读取，连接 id 是这个 `sshTargetId`。不走 `files.readTerminalArtifactPreview`：那条授权在 SSH 文件路由上会被 `terminal_file_grant_mismatch` 拒绝。orcad 因 SSH 路由拒绝本机磁盘授权（`HostFileRefusal`）时也不再 toast，仍打开这份预览；远端文件其实不存在时，用户看到的是预览 404，不是原来的「找不到」提示。桌面必须已经有一条 id 等于这个 `sshTargetId`、并且处于已连接的 SSH 连接。没有这条连接，或托管部署之后断开了，读取返回 null，预览同样是上游的 404，不会自动重连。页面留在本机文档预览，不把绝对路径交给 SSH 路由的浏览器。浏览器页或标签的引用变了，而且地址栏是这次点过、记录为 SSH 预览（`sshPreview` 且 owner 是 ssh）的裸绝对路径时，才拉回文档预览；授权预览的记录不会被拉过去。临时目标没有这条部署时，仍用原来的授权预览。地址栏手贴、且这次没点过的路径不会被拉进预览。
+- 托管 orcad 如果部署在真实 SSH 上（`getOrcadSshDeployment` 的 `sshTargetId`，排除 `runtime-ssh-` 临时目标），工作区外的 HTML 用同一条 SSH 预览读取，连接 id 是这个 `sshTargetId`。不走 `files.readTerminalArtifactPreview`：那条授权在 SSH 文件路由上会被 `terminal_file_grant_mismatch` 拒绝。orcad 因 SSH 路由拒绝本机磁盘授权（`HostFileRefusal`）时也不再 toast，仍打开这份预览；远端文件其实不存在时，用户看到的是预览 404，不是原来的「找不到」提示。桌面必须已经有一条 id 等于这个 `sshTargetId`、并且处于已连接的 SSH 连接。没有这条连接，或托管部署之后断开了，读取返回 null，预览同样是上游的 404，不会自动重连。页面留在本机文档预览，不把绝对路径交给 SSH 路由的浏览器。工作区里的 HTML 也打开同一份文档预览，但字节走 `files.readDocPreview`，不走 SFTP：点击时的文件上下文有时没有运行时 id（终端被看成 local-or-ssh），上游就会把远端绝对路径写成 `file://`，SSH 分区里的 Chromium 在这台 Mac 上找这个路径，得到 `ERR_FILE_NOT_FOUND`。文件上下文没有连接、工作区执行主机却是带真实 `sshTargetId` 的运行时，或就是这条 SSH 主机时，先标上连接，避免系统浏览器和 `file://`。直连 SSH 工作区里的 HTML 仍走上游的文档预览计划。临时目标没有这条部署时，仍用原来的授权预览。浏览器页或标签的引用变了，而且地址是这次点过的预览（`sshPreview` 且 owner 是 ssh，或没有授权 id 的运行时预览）时，裸绝对路径和 `file://`（含百分号编码的文件名）都拉回文档预览。还没记下读取方式、但工作区已经是 SSH 路由的 `file://` HTML，先补上同样的记录再拉回。授权预览的记录不会被拉过去。地址栏手贴、且工作区不是 SSH 路由的路径不会被拉进预览。
+
+沙箱 webview 的 `browser-window-close-preload.js` 和 `doc-preview-link-preload.js` 跟主进程打在同一次 Rolldown CJS 构建里。Rolldown 1.2.14 会抽出 `chunks/rolldown-runtime-<hash>.js`，沙箱 `preloadRequire` 加载不了这个相对路径，控制台就是 `Unable to load preload script` 加上 `module not found: ./chunks/rolldown-runtime-….js`。preload 文件本身在 asar 里，不是漏打。同步 #40 的 Rolldown 线程上限和 macOS 终端宿主改回官方 Node 都没改这个版本，也没把 preload 从包里拿掉。`createSandboxedPreloadRuntimeInlinePlugin` 在 `generateBundle` 里把这份运行时内联进这两个入口，其它入口仍引用原来的 chunk。这和 `file://` 打不开不是同一个问题。
 
 本地 HTML 跟上游，默认用系统浏览器，fork 不覆盖。地址栏里手贴远程绝对路径不会变成 `orca-preview`，所以不会渲染；要点链接才会铸预览授权。
 

@@ -47,7 +47,7 @@ import {
 import { registerComposerSeed } from './sidebar/register-composer-seed'
 import { installForkLocaleOverlays } from './i18n/locale-overlay'
 import { registerForkWorktreeContextMenuLabels } from './sidebar/context-menu-labels'
-import { installSshRoutedHtmlPreviewRecovery } from './terminal/html-preview-open'
+import { installSshRoutedHtmlPreviewRecovery } from './terminal/html-preview-reclaim'
 import { registerTerminalFileLinkStayWatch } from './terminal/file-link-stay-watch'
 import { registerWorkspaceRepositorySourceControl } from './source-control/register'
 

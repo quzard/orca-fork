@@ -19,12 +19,13 @@ import {
   resetTerminalHtmlPreviewForTests
 } from '../../shared/fork-hooks/terminal-html-preview'
 import { ORCA_BROWSER_BLANK_URL } from '../../shared/constants'
+import { filesystemPathToFileUri } from '../../shared/file-uri-path'
 import { HostFileRefusal } from '@/components/terminal-pane/terminal-host-workspace-file'
+import { htmlPreviewDespiteHostFileRefusal } from './html-preview-open'
 import {
-  htmlPreviewDespiteHostFileRefusal,
   sshRoutedHtmlPreviewInputsChanged,
   sshRoutedHtmlPreviewRecoveries
-} from './html-preview-open'
+} from './html-preview-reclaim'
 
 const openPreview = vi.hoisted(() => vi.fn())
 // 上游预览计划是四个参数。0 参的 mock 展开调用时过不了 web 工程的类型检查。
@@ -47,8 +48,14 @@ vi.mock('@/lib/file-preview', async () => {
 
 const findWorkspaceFileRouteMock = vi.hoisted(() => vi.fn())
 const doubles = createTerminalLinkTestDoubles()
-const { storeState, statMock, openFileMock, runtimeEnvironmentCallMock, createBrowserTabMock } =
-  doubles
+const {
+  storeState,
+  statMock,
+  openFileMock,
+  openFilePathMock,
+  runtimeEnvironmentCallMock,
+  createBrowserTabMock
+} = doubles
 
 registerTerminalFileLinkWorkspace({
   rememberSshStay: () => {},
@@ -114,6 +121,7 @@ beforeEach(() => {
   })
   previewPlan.mockClear()
   openPreview.mockClear()
+  storeState.worktreesByRepo = {}
   Reflect.deleteProperty(storeState, 'runtimeEnvironments')
 })
 
@@ -361,6 +369,61 @@ describe('a chat link whose host disowns the path', () => {
     ).toEqual({ isDirectory: false, escapesWorktree: true })
   })
 
+  it('opens managed SSH html inside the worktree as a runtime doc preview', async () => {
+    deployOverSsh(DEMO_SSH)
+    const filePath = `${clicked.worktreePath}/docs/演示-说明.html`
+    hostAnswers({ size: 1, isDirectory: false, mtime: 1 })
+
+    openDetectedFilePath(filePath, null, null, chatDeps(filePath))
+    await flushDoubleRaf()
+
+    expectBlankDocPreview(filePath)
+    expect(lookupTerminalHtmlPreview('wt-feat', filePath)).toMatchObject({
+      owner: {
+        kind: 'runtime',
+        environmentId: 'env-1',
+        worktreeSelector: 'id:wt-feat',
+        worktreeRoot: clicked.worktreePath
+      },
+      requestBase: clicked.worktreePath,
+      entryRelativePath: 'docs/演示-说明.html'
+    })
+    expect(lookupTerminalHtmlPreview('wt-feat', filePath)?.sshPreview).toBeUndefined()
+  })
+
+  it('opens html as doc preview when the click looks local but the workspace is SSH-routed', async () => {
+    deployOverSsh(DEMO_SSH)
+    const root = '/home/demo/wt/demo-app'
+    const filePath = `${root}/docs/演示-说明.html`
+    storeState.worktreesByRepo = {
+      'repo-demo': [
+        {
+          id: 'wt-feat',
+          path: root,
+          repoId: 'repo-demo',
+          hostId: 'runtime:env-1'
+        }
+      ]
+    }
+
+    openDetectedFilePath(filePath, null, null, {
+      worktreeId: 'wt-feat',
+      worktreePath: root,
+      runtimeEnvironmentId: null,
+      sourceTabId: 'chat-1'
+    })
+    await flushDoubleRaf()
+
+    expectBlankDocPreview(filePath)
+    expect(lookupTerminalHtmlPreview('wt-feat', filePath)?.owner).toEqual({
+      kind: 'runtime',
+      environmentId: 'env-1',
+      worktreeSelector: 'id:wt-feat',
+      worktreeRoot: root
+    })
+    expect(openFilePathMock).not.toHaveBeenCalled()
+  })
+
   it('keeps an ephemeral runtime SSH target on the artifact grant', async () => {
     deployOverSsh('runtime-ssh-orb')
     grantedFile(HTML)
@@ -421,6 +484,10 @@ describe('a bare path that replaced a remembered html preview', () => {
             browserRuntimeEnvironmentId: null
           },
           {
+            id: 'page-file-encoded',
+            url: filesystemPathToFileUri(CHINESE_HTML_2)
+          },
+          {
             id: 'page-doc',
             url: ORCA_BROWSER_BLANK_URL,
             docLocation: { kind: 'workspace-doc' },
@@ -448,16 +515,20 @@ describe('a bare path that replaced a remembered html preview', () => {
     }
   }
 
-  it('returns every ssh preview bare path and leaves artifact, file, and unremembered pages', () => {
+  it('returns ssh preview bare paths and file urls, including percent-encoded names', () => {
     expect(sshRoutedHtmlPreviewRecoveries(rememberedPages())).toEqual([
       { pageId: 'page-path', worktreeId: 'wt-feat', filePath: CHINESE_HTML },
-      { pageId: 'page-path-2', worktreeId: 'wt-feat', filePath: CHINESE_HTML_2 }
+      { pageId: 'page-path-2', worktreeId: 'wt-feat', filePath: CHINESE_HTML_2 },
+      { pageId: 'page-file', worktreeId: 'wt-feat', filePath: CHINESE_HTML },
+      { pageId: 'page-file-encoded', worktreeId: 'wt-feat', filePath: CHINESE_HTML_2 }
     ])
   })
 
   it('skips an already recovered page so a later bare path is still returned', () => {
     expect(sshRoutedHtmlPreviewRecoveries(rememberedPages(), new Set(['page-path']))).toEqual([
-      { pageId: 'page-path-2', worktreeId: 'wt-feat', filePath: CHINESE_HTML_2 }
+      { pageId: 'page-path-2', worktreeId: 'wt-feat', filePath: CHINESE_HTML_2 },
+      { pageId: 'page-file', worktreeId: 'wt-feat', filePath: CHINESE_HTML },
+      { pageId: 'page-file-encoded', worktreeId: 'wt-feat', filePath: CHINESE_HTML_2 }
     ])
   })
 

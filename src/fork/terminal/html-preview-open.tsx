@@ -1,6 +1,8 @@
 // 远程 HTML 打开应用内文档预览，字节仍走 orca-preview。
 // 必须是 .tsx：引用渲染进程的 @/ 别名，node 工程只收录 src/fork/**/*.ts。
 import { activateAndRevealWorkspace } from '@/lib/worktree-activation'
+import { resolveSshWorkspaceBrowserRouteEligibility } from '@/lib/ssh-workspace-browser-route-eligibility'
+import { getExecutionHostIdForWorktree } from '@/lib/worktree-runtime-owner'
 import { basename, dirname } from '@/lib/path'
 import { useAppStore } from '@/store'
 import { isHtmlFilePath } from '@/components/terminal-pane/local-html-file-destinations'
@@ -13,7 +15,6 @@ import { ORCA_BROWSER_BLANK_URL } from '../../shared/constants'
 import { isPathInsideOrEqual, relativePathInsideRoot } from '../../shared/cross-platform-path'
 import { isRuntimeOwnedSshTargetId, parseExecutionHostId } from '../../shared/execution-host'
 import {
-  lookupTerminalHtmlPreview,
   rememberTerminalHtmlPreview,
   type TerminalHtmlPreviewLocation
 } from '../../shared/fork-hooks/terminal-html-preview'
@@ -156,13 +157,111 @@ function sshOutsideLocation(args: OpenArgs): TerminalHtmlPreviewLocation | null 
   return sshDirectoryLocation(connectionId, args.mappedFilePath)
 }
 
+type SshBrowserRoute = { targetId: string; environmentId: string | null }
+
+/** 和 SSH 路由浏览器同一条资格。路由开关关掉也算：file:// 读的仍是这台 Mac，不是远端。 */
+function sshBrowserRoute(worktreeId: string): SshBrowserRoute | null {
+  const state = useAppStore.getState()
+  const hostId = getExecutionHostIdForWorktree(state, worktreeId)
+  const environments = Array.isArray(state.runtimeEnvironments)
+    ? state.runtimeEnvironments
+    : undefined
+  const route = resolveSshWorkspaceBrowserRouteEligibility(hostId, state.settings, environments)
+  if (!route) {
+    return null
+  }
+  const parsed = parseExecutionHostId(hostId)
+  return {
+    targetId: route.targetId,
+    environmentId: parsed?.kind === 'runtime' ? parsed.environmentId : null
+  }
+}
+
+function runtimeWorktreeLocation(
+  environmentId: string,
+  worktreeId: string,
+  worktreePath: string,
+  absolutePath: string
+): TerminalHtmlPreviewLocation | null {
+  const relative = relativePathInsideRoot(worktreePath, absolutePath)
+  if (!relative) {
+    return null
+  }
+  return {
+    owner: {
+      kind: 'runtime',
+      environmentId,
+      worktreeSelector: toRuntimeWorktreeSelector(worktreeId),
+      worktreeRoot: worktreePath
+    },
+    requestBase: worktreePath,
+    root: dirname(absolutePath),
+    entryRelativePath: relative
+  }
+}
+
+/**
+ * 点击被当成这台 Mac 的文件时，上游会开 file://。SSH 分区里的 Chromium 读不到远端路径。
+ * 工作区里的托管运行时走 files.read。工作区外走已有的 SSH 预览。直连 SSH 工作区里的 HTML 不抢走。
+ */
+function sshRoutedDocumentLocation(args: OpenArgs): TerminalHtmlPreviewLocation | null {
+  const route = sshBrowserRoute(args.worktreeId)
+  const managed = managedSshConnectionId(args.fileContext)
+  const environmentId =
+    args.fileContext.target.kind === 'environment'
+      ? args.fileContext.target.environmentId
+      : (route?.environmentId ?? null)
+  if (!outsideClickedWorktree(args)) {
+    const root = args.fileContext.worktreePath
+    if (environmentId && root && (managed || route?.environmentId)) {
+      return runtimeWorktreeLocation(environmentId, args.worktreeId, root, args.mappedFilePath)
+    }
+    return null
+  }
+  const targetId = managed ?? route?.targetId ?? null
+  if (!targetId) {
+    return null
+  }
+  return sshDirectoryLocation(targetId, args.mappedFilePath)
+}
+
+/**
+ * 文件上下文没有运行时、也没有连接时，上游把 HTML 交给系统浏览器或 file://。
+ * 工作区其实走 SSH 路由时先标上目标，后面的预览才接得到。直连 SSH 工作区里的 HTML 不标。
+ */
+export function fileContextForSshHtml(
+  fileContext: TerminalFileContext,
+  worktreeId: string,
+  mappedFilePath: string,
+  statResult: { escapesWorktree: boolean }
+): TerminalFileContext {
+  if (
+    !isHtmlFilePath(mappedFilePath) ||
+    fileContext.connectionId ||
+    fileContext.target.kind === 'environment'
+  ) {
+    return fileContext
+  }
+  const route = sshBrowserRoute(worktreeId)
+  if (!route) {
+    return fileContext
+  }
+  const root = fileContext.worktreePath
+  const outside = !root || statResult.escapesWorktree || !isPathInsideOrEqual(root, mappedFilePath)
+  if (!route.environmentId && !outside) {
+    return fileContext
+  }
+  return { ...fileContext, connectionId: route.targetId }
+}
+
 function previewLocation(args: OpenArgs): TerminalHtmlPreviewLocation | null {
   // SSH 文件路由上的授权读会被 terminal_file_grant_mismatch 拒绝，所以有真实部署时先走 SSH。
   return (
     managedSshLocation(args) ??
     artifactLocation(args) ??
     ownerWorkspaceLocation(args) ??
-    sshOutsideLocation(args)
+    sshOutsideLocation(args) ??
+    sshRoutedDocumentLocation(args)
   )
 }
 
@@ -189,105 +288,25 @@ export function htmlPreviewDespiteHostFileRefusal(
   return { isDirectory: false, escapesWorktree: true }
 }
 
-type PreviewPage = {
-  id: string
-  url: string
-  docLocation?: unknown
-  browserRuntimeEnvironmentId?: string | null
-}
-
-type PreviewRecoveryState = {
-  browserTabsByWorktree: Record<string, { id: string }[]>
-  browserPagesByWorkspace: Record<string, PreviewPage[] | undefined>
-}
-
-type PreviewRecovery = { pageId: string; worktreeId: string; filePath: string }
-
-/** 浏览器页或标签的引用没变时不用重扫。其它 store 字段更新很频繁。 */
-export function sshRoutedHtmlPreviewInputsChanged(
-  previous: PreviewRecoveryState,
-  next: PreviewRecoveryState
-): boolean {
-  return (
-    previous.browserPagesByWorkspace !== next.browserPagesByWorkspace ||
-    previous.browserTabsByWorktree !== next.browserTabsByWorktree
-  )
-}
-
-function rememberedSshPreview(worktreeId: string, filePath: string): boolean {
-  const location = lookupTerminalHtmlPreview(worktreeId, filePath)
-  return location?.sshPreview === true && location.owner.kind === 'ssh'
+/** 已经开成浏览器页的 HTML：工作区里走 files.read，其余走 SSH 预览。 */
+export function sshRoutedBrowserHtmlLocation(
+  worktreeId: string,
+  filePath: string,
+  worktreePath: string | null
+): TerminalHtmlPreviewLocation | null {
+  const route = sshBrowserRoute(worktreeId)
+  if (!route) {
+    return null
+  }
+  if (route.environmentId && worktreePath && isPathInsideOrEqual(worktreePath, filePath)) {
+    return runtimeWorktreeLocation(route.environmentId, worktreeId, worktreePath, filePath)
+  }
+  return sshDirectoryLocation(route.targetId, filePath)
 }
 
 /**
- * 记下的是 SSH 预览、页面却把绝对路径写进了本地浏览器时，全部拉回文档预览。
- * 已处理的页在扫描里跳过，避免第一个 URL 还没清掉时挡住后面的页。授权预览和手贴且没点过的路径不在结果里。
- */
-export function sshRoutedHtmlPreviewRecoveries(
-  state: PreviewRecoveryState,
-  skipPageIds?: ReadonlySet<string>
-): PreviewRecovery[] {
-  const hits: PreviewRecovery[] = []
-  for (const [worktreeId, tabs] of Object.entries(state.browserTabsByWorktree)) {
-    for (const tab of tabs) {
-      for (const page of state.browserPagesByWorkspace[tab.id] ?? []) {
-        if (
-          skipPageIds?.has(page.id) ||
-          page.docLocation ||
-          page.browserRuntimeEnvironmentId !== null
-        ) {
-          continue
-        }
-        const filePath = page.url.trim()
-        if (!filePath.startsWith('/') || filePath.includes('://') || !isHtmlFilePath(filePath)) {
-          continue
-        }
-        if (!rememberedSshPreview(worktreeId, filePath)) {
-          continue
-        }
-        hits.push({ pageId: page.id, worktreeId, filePath })
-      }
-    }
-  }
-  return hits
-}
-
-const recoveredPreviewPages = new Set<string>()
-
-function pullBarePathBackToDocPreview(recovery: PreviewRecovery): void {
-  const converted = useAppStore.getState().convertBrowserPage(recovery.pageId, {
-    kind: 'workspace-doc',
-    docLocation: {
-      kind: 'workspace-doc',
-      worktreeId: recovery.worktreeId,
-      filePath: recovery.filePath
-    }
-  })
-  if (!converted) {
-    recoveredPreviewPages.delete(recovery.pageId)
-  }
-}
-
-/** 裸路径进 SSH 分区会变成 file://，本机没有这个文件，地址栏留下绝对路径和 ERR_FILE_NOT_FOUND。 */
-export function installSshRoutedHtmlPreviewRecovery(): void {
-  useAppStore.subscribe((state, previous) => {
-    if (previous && !sshRoutedHtmlPreviewInputsChanged(previous, state)) {
-      return
-    }
-    const pending = sshRoutedHtmlPreviewRecoveries(state, recoveredPreviewPages)
-    // 转换会同步写 store。先占住全部 id，嵌套扫描才不会把还没轮到的页再转一次。
-    for (const recovery of pending) {
-      recoveredPreviewPages.add(recovery.pageId)
-    }
-    for (const recovery of pending) {
-      pullBarePathBackToDocPreview(recovery)
-    }
-  })
-}
-
-/**
- * 托管主机上没有工作区认领的 HTML、归属在别的工作区里的 HTML、以及直连 SSH 工作区外的 HTML，
- * 打开应用内文档预览。本地和工作区里的 HTML 返回 false，调用方保持上游。
+ * 托管 SSH 上的 HTML（工作区里和工作区外）、归属在别的工作区里的 HTML、以及直连 SSH 工作区外的 HTML，
+ * 打开应用内文档预览。本地 HTML 和直连 SSH 工作区里的 HTML 返回 false，调用方保持上游。
  */
 export function openRemoteTerminalHtmlPreview(args: OpenArgs): boolean {
   // 没登记终端链接钩子时不改上游：本地系统浏览器、工作区里的文档预览都留在原来的路径。

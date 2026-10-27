@@ -7,6 +7,7 @@ import { toWorktreeRelativePath } from '@/lib/terminal-links'
 import { isHtmlFilePath } from '@/components/terminal-pane/local-html-file-destinations'
 import { openTerminalHtmlFileInBrowser } from '@/components/terminal-pane/terminal-file-link-browser-open'
 import {
+  fileContextForSshHtml,
   htmlPreviewDespiteHostFileRefusal,
   openRemoteTerminalHtmlPreview
 } from './html-preview-open'
@@ -121,13 +122,21 @@ export async function resolveAndRetainTerminalLink(input: {
     },
     findTerminalFileLinkRoute
   )
+  const owner = held.owner
+  // 点击被看成这台 Mac 的文件时，上游会在系统浏览器或 file:// 里打开。SSH 路由的工作区先标上连接。
+  fileContext = fileContextForSshHtml(
+    owner.fileContext,
+    owner.worktreeId,
+    owner.filePath,
+    owner.stat
+  )
   return {
-    fileContext: held.owner.fileContext,
-    worktreeId: held.owner.worktreeId,
-    worktreePath: held.owner.worktreePath,
-    mappedFilePath: held.owner.filePath,
-    statResult: held.owner.stat,
-    hostWorkspaceFile: held.owner.hostWorkspaceFile,
+    fileContext,
+    worktreeId: owner.worktreeId,
+    worktreePath: owner.worktreePath,
+    mappedFilePath: owner.filePath,
+    statResult: owner.stat,
+    hostWorkspaceFile: owner.hostWorkspaceFile,
     hostGrantId,
     clientLocal,
     stayView: held.view
@@ -182,8 +191,8 @@ export function terminalLinkViewFields(
 }
 
 /**
- * 托管主机工作区外的 HTML、以及直连 SSH 工作区外的 HTML，打开应用内文档预览。
- * 本地和工作区里的 HTML 跟上游。放在这里是因为路由文件贴着行数上限。
+ * 托管 SSH 上的 HTML（工作区里和工作区外）、以及直连 SSH 工作区外的 HTML，打开应用内文档预览。
+ * 本地 HTML、直连 SSH 工作区里的 HTML 跟上游。放在这里是因为路由文件贴着行数上限。
  * 返回 true 表示这条链接已经处理完。
  */
 export function openTerminalHtmlUnlessSshSource(args: {
@@ -208,7 +217,7 @@ export function openTerminalHtmlUnlessSshSource(args: {
     args.refuseExplicitNonEditorRoute()
     return true
   }
-  // 授权文件、别的工作区里的服务器 HTML、直连 SSH 工作区外的 HTML。本地不进这里。
+  // 授权文件、别的工作区里的服务器 HTML、托管 SSH 的 HTML、直连 SSH 工作区外的 HTML。本地不进这里。
   if (
     openRemoteTerminalHtmlPreview({
       mappedFilePath: args.mappedFilePath,

@@ -57,6 +57,14 @@ export function forkGithubUpdateFeed(): ForkGithubUpdateFeed {
  * skip：fork 构建但这个进程没登记更新源，不 setFeedURL，也不 checkForUpdates。
  * ready：只把这个匿名公开源交给 setFeedURL。
  */
+/** fork 构建不拼上游下载地址。未登记时把上游地址原样返回。 */
+export function forkGuardedReleaseDownloadUrl(upstreamUrl: string): string {
+  if (isForkBuild()) {
+    throw new Error(FORK_UPSTREAM_RELEASE_BLOCKED)
+  }
+  return upstreamUrl
+}
+
 export function forkReleaseFeedDecision(): ForkReleaseFeedDecision {
   if (feedRegistered) {
     return { kind: 'ready', feed: forkGithubUpdateFeed() }

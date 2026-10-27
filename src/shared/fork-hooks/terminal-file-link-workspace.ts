@@ -70,6 +70,26 @@ export function terminalFileLinkWorkspaceRegistered(): boolean {
   return active
 }
 
+/** 只读的 SSH 或服务器标签才查停留标记。本地只读绝对路径不查，未登记时为 false。 */
+export function terminalSshServerStay(
+  file:
+    | {
+        readOnly?: boolean
+        externalSshTargetId?: string
+        runtimeEnvironmentId?: string
+      }
+    | undefined,
+  worktreeId: string | undefined,
+  filePath: string
+): boolean {
+  if (file?.readOnly !== true) {
+    return false
+  }
+  const remote =
+    Boolean(file.externalSshTargetId?.trim()) || Boolean(file.runtimeEnvironmentId?.trim())
+  return remote && terminalFileLinkStay(worktreeId, filePath)
+}
+
 /** 这个工作区是否记下过该 SSH/服务器路径。未登记时当作没有标记。 */
 export function terminalFileLinkStay(worktreeId: string | undefined, filePath: string): boolean {
   if (!active || !worktreeId) {

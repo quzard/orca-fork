@@ -30,7 +30,7 @@ import { captureRuntimeEnvironmentRequestRevision } from '@/runtime/runtime-envi
 import { chatScratchFileAddress } from '@/runtime/runtime-chat-scratch-file-address'
 import { stampCleanTabDiskBaseline } from './editor-clean-tab-disk-baseline'
 import { applyEditorFileLoadFailure } from './editor-deleted-file-reload'
-import { terminalFileLinkStay } from '../../../../shared/fork-hooks/terminal-file-link-workspace'
+import { terminalSshServerStay } from '../../../../shared/fork-hooks/terminal-file-link-workspace'
 
 const inFlightFileReads = new Map<string, InFlightContentRead<FileContent>>()
 
@@ -83,11 +83,7 @@ export function useEditorPanelFileContentLoader({
         const isLiveTailLogTab =
           restoredOpenFile?.readOnly === true && restoredOpenFile.liveTail === true
         // fork: 只读的 SSH/服务器链接按归属工作区读。本地只读绝对路径仍走上游，不再查停留标记。
-        const sshServerStay =
-          restoredOpenFile?.readOnly === true &&
-          (Boolean(restoredOpenFile.externalSshTargetId?.trim()) ||
-            Boolean(restoredOpenFile.runtimeEnvironmentId?.trim())) &&
-          terminalFileLinkStay(worktreeId, filePath)
+        const sshServerStay = terminalSshServerStay(restoredOpenFile, worktreeId, filePath)
         // Client-local tabs must not inherit workspace SSH/runtime ownership; explicit stamps still route.
         const isClientLocalTab = restoredOpenFile
           ? isClientLocalReadOnlyTab(restoredOpenFile) && !sshServerStay

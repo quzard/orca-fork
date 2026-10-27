@@ -157,7 +157,7 @@ async function finalizePackagedOrcadTemplate(resourcesDir, options) {
   }
   // fork: 收窄目标时，压缩前的校验也只查这个子集，未设置则仍是全部目标。
   compactPackagedOrcadRipgrep(resourcesDir, resolveForkOrcadTemplateTargets())
-  referencePackagedOrcadBrowser(resourcesDir)
+  referencePackagedOrcadBrowser(resourcesDir, resolveForkOrcadTemplateTargets())
 }
 
 /** `inner-signing-list.txt` lines are app-relative Windows paths; keep the template's. */

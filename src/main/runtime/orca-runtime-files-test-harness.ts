@@ -76,15 +76,16 @@ export function createRuntimeFileCommands(options?: {
       ? { resolveKnownWorkspaceFileTarget: options.resolveKnownWorkspaceFileTarget }
       : {}),
     resolveTerminalCwd: options?.resolveTerminalCwd ?? vi.fn(() => path),
-    ...(options?.resolveTerminalContext
-      ? { resolveTerminalContext: options.resolveTerminalContext }
-      : {}),
+    resolveTerminalContext:
+      options?.resolveTerminalContext ??
+      vi.fn(() => ({
+        worktreeId: worktree.id,
+        connectionId: store.getRepo(worktree.repoId)?.connectionId ?? null
+      })),
     ...(options?.resolveTerminalFileUriHostname
       ? { resolveTerminalFileUriHostname: options.resolveTerminalFileUriHostname }
       : {}),
-    ...(options?.hasRecentTerminalOutputPath
-      ? { hasRecentTerminalOutputPath: options.hasRecentTerminalOutputPath }
-      : {}),
+    hasRecentTerminalOutputPath: options?.hasRecentTerminalOutputPath ?? vi.fn(() => true),
     ...(options?.hasRecentNativeChatOutputPath
       ? { hasRecentNativeChatOutputPath: options.hasRecentNativeChatOutputPath }
       : {}),

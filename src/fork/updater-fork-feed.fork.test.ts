@@ -56,9 +56,12 @@ describe('fork desktop updater never pins a stablyai release feed', () => {
     autoUpdaterMock.checkForUpdates.mockResolvedValue(undefined)
     const { setupAutoUpdater, checkForUpdatesFromMenu } = await loadForkUpdater(true)
 
-    setupAutoUpdater({ webContents: { send: vi.fn() } } as never, {
-      getLastUpdateCheckAt: () => Date.now()
-    })
+    setupAutoUpdater(
+      { isDestroyed: () => false, webContents: { send: vi.fn(), isDestroyed: () => false } } as never,
+      {
+        getLastUpdateCheckAt: () => Date.now()
+      }
+    )
     expect(feedUrls().some((url) => UPSTREAM_RELEASE_URL.test(url))).toBe(false)
 
     checkForUpdatesFromMenu()
@@ -82,9 +85,12 @@ describe('fork desktop updater never pins a stablyai release feed', () => {
     autoUpdaterMock.checkForUpdates.mockResolvedValue(undefined)
     const { setupAutoUpdater, checkForUpdatesFromMenu } = await loadForkUpdater(false)
 
-    setupAutoUpdater({ webContents: { send: vi.fn() } } as never, {
-      getLastUpdateCheckAt: () => 0
-    })
+    setupAutoUpdater(
+      { isDestroyed: () => false, webContents: { send: vi.fn(), isDestroyed: () => false } } as never,
+      {
+        getLastUpdateCheckAt: () => 0
+      }
+    )
     checkForUpdatesFromMenu()
     await new Promise((resolve) => setTimeout(resolve, 20))
 

@@ -154,6 +154,8 @@ describe('durable archive on placeholder rows', () => {
       worktreesByRepo: {} as Record<string, Worktree[]>,
       detectedWorktreesByRepo: {},
       projectHostSetups: [],
+      endpointProjects: [],
+      endpointProjectHostSetups: [],
       sshConnectionStates: new Map(),
       sortEpoch: 0
     }

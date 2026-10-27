@@ -52,6 +52,8 @@ const mocks = vi.hoisted(() => {
     >,
     projects: [] as [],
     projectHostSetups: [] as [],
+    endpointProjects: [] as [],
+    endpointProjectHostSetups: [] as [],
     openFiles: [] as {
       id: string
       filePath: string

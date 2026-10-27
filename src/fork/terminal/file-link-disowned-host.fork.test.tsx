@@ -307,9 +307,10 @@ describe('a chat link whose host disowns the path', () => {
     expect(openPreview).not.toHaveBeenCalled()
     expect(createBrowserTabMock).not.toHaveBeenCalled()
     expect(activateAndRevealWorkspace).not.toHaveBeenCalled()
+    // 上游把 exists:false 记成主机上找不到，不再当成「每个工作区之外」。
     expect(onOpenFailure).toHaveBeenCalledWith({
-      verdict: 'unverifiable',
-      error: new Error(`${HTML} is outside every workspace on its host`)
+      verdict: 'missing',
+      error: new HostFileRefusal(`File not found on its host: ${HTML}`)
     })
   })
 

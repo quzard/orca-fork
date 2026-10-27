@@ -128,13 +128,15 @@ describe('workspace context menu Sleep and Delete labels', () => {
     expect(source).toContain(
       "sleepLabel: forkMenuLabel('sleep', isMultiContext, sleepableWorktrees.length, sleepLabel)"
     )
-    expect(source).toContain(
-      "? `Sleep ${sleepableWorktrees.length} Workspace${sleepableWorktrees.length === 1 ? '' : 's'}`"
+    const labels = readFileSync(
+      join(process.cwd(), 'src/renderer/src/components/sidebar/workspace-batch-action-labels.ts'),
+      'utf8'
     )
-    expect(source).toContain(": 'Sleep'")
-    expect(source).toContain(
-      "? `Delete ${batchDeleteWorktrees.length} Workspace${batchDeleteWorktrees.length === 1 ? '' : 's'}`"
-    )
-    expect(source).toContain(": 'Delete Selected'")
+    expect(labels).toContain("'Sleep 1 Workspace'")
+    expect(labels).toContain("'Sleep {{count}} Workspaces'")
+    expect(labels).toContain("'Sleep'")
+    expect(labels).toContain("'Delete 1 Workspace'")
+    expect(labels).toContain("'Delete {{count}} Workspaces'")
+    expect(labels).toContain("'Delete Selected'")
   })
 })

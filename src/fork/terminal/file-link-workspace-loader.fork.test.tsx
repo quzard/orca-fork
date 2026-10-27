@@ -68,6 +68,12 @@ vi.mock('@/lib/worktree-host-connection-phase', () => ({
   selectWorktreeHostConnectionPhase: () => ({ phase: 'local', targetId: null })
 }))
 
+// 归属工作区已经不在时，上游会再要一次授权。这里没有主机，授权失败，仍是原来的外部文件错误。
+vi.mock('@/runtime/runtime-terminal-artifact-grant', () => ({
+  renewTerminalArtifactGrant: vi.fn(async () => null),
+  hostSavesGrantedFiles: vi.fn(async () => false)
+}))
+
 const SOURCE = 'wt-ha'
 const HOME = 'folder:home'
 const HOME_FILE = '/Users/me/Library/Application Support/orca/generated.png'

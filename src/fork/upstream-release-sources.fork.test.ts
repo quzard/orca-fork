@@ -10,7 +10,6 @@ const GATED_SOURCES = [
   'src/main/updater-nudge.ts',
   'src/main/updater-prerelease-feed.ts',
   'src/main/updater-release-builds.ts',
-  'src/main/updater/updater-release-feed.ts',
   'src/main/updater/updater-setup.ts',
   'src/shared/release-channel.ts'
 ]

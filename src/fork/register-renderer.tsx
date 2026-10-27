@@ -47,6 +47,7 @@ import {
 import { registerComposerSeed } from './sidebar/register-composer-seed'
 import { installForkLocaleOverlays } from './i18n/locale-overlay'
 import { registerForkWorktreeContextMenuLabels } from './sidebar/context-menu-labels'
+import { installManagedSshAddressPreview } from './terminal/html-preview-address'
 import { installSshRoutedHtmlPreviewRecovery } from './terminal/html-preview-reclaim'
 import { registerTerminalFileLinkStayWatch } from './terminal/file-link-stay-watch'
 import { registerWorkspaceRepositorySourceControl } from './source-control/register'
@@ -83,6 +84,7 @@ export function registerForkRendererModules(): void {
   registerComposerSeed()
   registerForkWorktreeContextMenuLabels()
   registerTerminalFileLinkStayWatch()
+  installManagedSshAddressPreview()
   installSshRoutedHtmlPreviewRecovery()
   registerOpenInLauncher({
     id: CURSOR_REMOTE_SSH_LAUNCHER_ID,

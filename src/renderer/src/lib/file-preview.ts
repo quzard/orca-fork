@@ -22,7 +22,10 @@ import { findSiblingGroupId } from '@/store/slices/tabs'
 import type { CreateBrowserTabOptions } from '@/store/slices/browser/browser-slice-contract'
 import { ORCA_BROWSER_BLANK_URL } from '../../../shared/constants'
 import { chatScratchFileAddress } from '@/runtime/runtime-chat-scratch-file-address'
-import { lookupTerminalHtmlPreview } from '../../../shared/fork-hooks/terminal-html-preview'
+import {
+  lookupTerminalHtmlPreview,
+  managedSshAddressRouteEligible
+} from '../../../shared/fork-hooks/terminal-html-preview'
 import { selectFolderWorkspaces, selectWorktreesByRepo } from '@/store/workspace-record-selectors'
 import { findWorkspaceShowingDoc } from './file-preview-page-conversion'
 
@@ -96,8 +99,12 @@ export function getWorkspaceFilePreviewPlan(
     // Paired files.read is bounded to worktrees/chat scratch roots; explain out-of-root paths before they become preview 404s.
     if (outsideWorktree && !chatScratchFileAddress(filePath)) {
       const remembered = lookupTerminalHtmlPreview(worktreeId, filePath)
-      // Address bar already stored the managed SSH preview. Honor it instead of the paired refusal.
-      if (remembered?.sshPreview === true && remembered.owner.kind === 'ssh') {
+      // Honor a managed SSH preview only while that browser route is still eligible.
+      if (
+        remembered?.sshPreview === true &&
+        remembered.owner.kind === 'ssh' &&
+        managedSshAddressRouteEligible(worktreeId, state)
+      ) {
         return webClientDocPreviewRefusal() ?? { status: 'doc-preview' }
       }
       return {

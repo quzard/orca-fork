@@ -3,7 +3,10 @@ import { folderWorkspaceKey } from '../../../shared/workspace-scope'
 import type { BrowserPageDocLocation } from '../../../shared/browser-workspace-types'
 import { getRelativePathInsideRoot, joinPath } from '@/lib/path'
 import { getWorkspaceFilePreviewPlan } from '@/lib/file-preview'
-import { rememberManagedSshAddressPreview } from '../../../fork/terminal/html-preview-open'
+import {
+  commitManagedSshAddressPreview,
+  managedSshAddressPreviewEligible
+} from '../../../shared/fork-hooks/terminal-html-preview'
 import type { AppState } from '@/store/types'
 import { htmlFilePathFromUrl } from '../../../shared/html-file-url'
 import { authorityKey } from '../../../shared/host-authority'
@@ -61,11 +64,11 @@ function planToTarget(
   filePath: string
 ): WorkspaceDocAddressTarget {
   const plan = getWorkspaceFilePreviewPlan(state, worktreeId, filePath)
-  // Paired files.read refuses outside the worktree. A live managed SSH route records the click preview instead.
+  // Paired files.read refuses outside the worktree. Eligibility is a pure check; submit records the preview.
   if (
     plan.status === 'unsupported' &&
     plan.reason === 'outside-worktree' &&
-    rememberManagedSshAddressPreview(worktreeId, filePath, state)
+    managedSshAddressPreviewEligible(worktreeId, filePath, state)
   ) {
     return {
       status: 'workspace-doc',
@@ -83,6 +86,17 @@ function planToTarget(
   }
   // A local file keeps today's file:// tab; the URL pipeline handles it.
   return { status: 'not-a-workspace-doc' }
+}
+
+/** Submit and navigate only. Parsing must not leave a preview entry behind. */
+export function commitWorkspaceDocAddressPreview(
+  state: AppState,
+  target: WorkspaceDocAddressTarget
+): void {
+  if (target.status !== 'workspace-doc') {
+    return
+  }
+  commitManagedSshAddressPreview(target.docLocation.worktreeId, target.docLocation.filePath, state)
 }
 
 /** Resolve previewable documents before URL handling turns paths into local file:// that client guests refuse or remote hosts misresolve. Absolute paths try current then known roots; ./ paths use current only. Bare relative text is hostname-ambiguous and stays a URL. */

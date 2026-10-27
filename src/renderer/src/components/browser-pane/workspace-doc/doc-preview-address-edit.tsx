@@ -4,7 +4,10 @@ import BrowserAddressBar from '@/components/browser-pane/assemble-chrome/Browser
 import { resolveBrowserAddressBarSubmission } from '@/components/browser-pane/navigate/browser-address-bar-navigation'
 import { translate } from '@/i18n/i18n'
 import { convertBrowserPageToWorkspaceDoc } from '@/lib/file-preview'
-import { resolveWorkspaceDocAddressTarget } from '@/lib/workspace-doc-address-input'
+import {
+  commitWorkspaceDocAddressPreview,
+  resolveWorkspaceDocAddressTarget
+} from '@/lib/workspace-doc-address-input'
 import { useAppStore } from '@/store'
 import { DocPreviewDocumentChip } from './doc-preview-document-chip'
 import type { DocPreviewDocumentIdentity } from './doc-preview-document-identity'
@@ -75,8 +78,11 @@ export function DocPreviewAddressEdit({
 
   const submit = useCallback((): void => {
     const typed = inputRef.current?.value ?? ''
+    const state = useAppStore.getState()
     // Workspace paths retarget the preview or activate the document’s existing tab.
-    const docTarget = resolveWorkspaceDocAddressTarget(useAppStore.getState(), worktreeId, typed)
+    const docTarget = resolveWorkspaceDocAddressTarget(state, worktreeId, typed)
+    // Recording waits until submit so typing a path cannot keep a preview entry.
+    commitWorkspaceDocAddressPreview(state, docTarget)
     if (docTarget.status === 'workspace-doc') {
       convertBrowserPageToWorkspaceDoc(previewId, docTarget.docLocation)
       exitEdit()

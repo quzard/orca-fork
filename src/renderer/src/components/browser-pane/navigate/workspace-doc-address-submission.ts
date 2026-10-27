@@ -1,6 +1,9 @@
 import type { BrowserLoadError } from '../../../../../shared/browser-workspace-types'
 import { convertBrowserPageToWorkspaceDoc } from '@/lib/file-preview'
-import { resolveWorkspaceDocAddressTarget } from '@/lib/workspace-doc-address-input'
+import {
+  commitWorkspaceDocAddressPreview,
+  resolveWorkspaceDocAddressTarget
+} from '@/lib/workspace-doc-address-input'
 import { useAppStore } from '@/store'
 
 /** Consume workspace paths before URL resolution targets the wrong host or a refused file: URL; return false to continue URL handling. */
@@ -10,11 +13,10 @@ export function routeWorkspaceDocAddressSubmission(params: {
   value: string
   onLoadError: (loadError: BrowserLoadError) => void
 }): boolean {
-  const docTarget = resolveWorkspaceDocAddressTarget(
-    useAppStore.getState(),
-    params.worktreeId,
-    params.value
-  )
+  const state = useAppStore.getState()
+  const docTarget = resolveWorkspaceDocAddressTarget(state, params.worktreeId, params.value)
+  // Recording waits until submit so a parse or suggestion cannot keep the entry.
+  commitWorkspaceDocAddressPreview(state, docTarget)
   if (docTarget.status === 'workspace-doc') {
     convertBrowserPageToWorkspaceDoc(params.pageId, docTarget.docLocation)
     return true

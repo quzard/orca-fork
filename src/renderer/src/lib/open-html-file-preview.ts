@@ -1,5 +1,8 @@
 import { openFileInBrowserTab } from './file-preview'
-import { resolveWorkspaceDocAddressTarget } from './workspace-doc-address-input'
+import {
+  commitWorkspaceDocAddressPreview,
+  resolveWorkspaceDocAddressTarget
+} from './workspace-doc-address-input'
 import { selectWorkspaceSurface } from './workspace-surface-reveal'
 import { useAppStore } from '@/store'
 
@@ -10,6 +13,8 @@ export function openHtmlFilePreview(params: {
 }): void {
   const state = useAppStore.getState()
   const target = resolveWorkspaceDocAddressTarget(state, params.worktreeId, params.filePath)
+  // The second plan check below still refuses an outside path until this record exists.
+  commitWorkspaceDocAddressPreview(state, target)
   if (target.status === 'unsupported') {
     throw new Error(target.message)
   }

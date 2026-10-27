@@ -3,7 +3,10 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { useAppStore } from '@/store'
 import { makeRepo, makeWorktree } from '@/components/worktree-jump-palette-test-fixtures'
-import { resolveWorkspaceDocAddressTarget } from '@/lib/workspace-doc-address-input'
+import {
+  commitWorkspaceDocAddressPreview,
+  resolveWorkspaceDocAddressTarget
+} from '@/lib/workspace-doc-address-input'
 import { buildDocPreviewGrantRequest } from '@/lib/doc-preview-grants'
 import { convertBrowserPageToWorkspaceDoc, getWorkspaceFilePreviewPlan } from '@/lib/file-preview'
 import { routeWorkspaceDocAddressSubmission } from '@/components/browser-pane/navigate/workspace-doc-address-submission'
@@ -12,8 +15,10 @@ import { filesystemPathToFileUri } from '../../shared/file-uri-path'
 import type { PublicKnownRuntimeEnvironment } from '../../shared/runtime-environments'
 import {
   lookupTerminalHtmlPreview,
+  rememberTerminalHtmlPreview,
   resetTerminalHtmlPreviewForTests
 } from '../../shared/fork-hooks/terminal-html-preview'
+import { installManagedSshAddressPreview } from './html-preview-address'
 import type { BrowserLoadError } from '../../shared/browser-workspace-types'
 import type { AppState } from '@/store/types'
 
@@ -111,6 +116,7 @@ function seed(options?: {
 }
 
 beforeEach(() => {
+  installManagedSshAddressPreview()
   resetTerminalHtmlPreviewForTests()
   const state = useAppStore.getState()
   snapshot = {
@@ -166,6 +172,13 @@ describe('address bar navigation to outside-workspace HTML on managed SSH', () =
       status: 'workspace-doc',
       docLocation: { kind: 'workspace-doc', worktreeId: WORKTREE_ID, filePath: OUTSIDE }
     })
+    // 解析不能写记录，否则只是敲路径就会绕过后面的拒绝。
+    expect(lookupTerminalHtmlPreview(WORKTREE_ID, OUTSIDE)).toBeNull()
+    expect(getWorkspaceFilePreviewPlan(useAppStore.getState(), WORKTREE_ID, OUTSIDE)).toMatchObject(
+      { status: 'unsupported', reason: 'outside-worktree' }
+    )
+
+    commitWorkspaceDocAddressPreview(useAppStore.getState(), target)
     const location = {
       owner: { kind: 'ssh' as const, connectionId: DEMO_SSH },
       requestBase: PAGES,
@@ -227,12 +240,14 @@ describe('address bar navigation to outside-workspace HTML on managed SSH', () =
       browserRuntimeEnvironmentId: null
     })
     const pageId = useAppStore.getState().browserPagesByWorkspace[tab.id]?.[0]?.id ?? ''
-    const target = resolveWorkspaceDocAddressTarget(useAppStore.getState(), WORKTREE_ID, OUTSIDE)
+    const state = useAppStore.getState()
+    const target = resolveWorkspaceDocAddressTarget(state, WORKTREE_ID, OUTSIDE)
 
     expect(target.status).toBe('workspace-doc')
     if (target.status !== 'workspace-doc') {
       return
     }
+    commitWorkspaceDocAddressPreview(state, target)
     expect(convertBrowserPageToWorkspaceDoc(pageId, target.docLocation)).toBe('converted')
 
     const page = useAppStore.getState().browserPagesByWorkspace[tab.id]?.[0]
@@ -242,6 +257,57 @@ describe('address bar navigation to outside-workspace HTML on managed SSH', () =
     expect(
       buildDocPreviewGrantRequest(useAppStore.getState(), WORKTREE_ID, OUTSIDE)?.sshPreview
     ).toBe(true)
+  })
+
+  it.each<{ routingEnabled: boolean; disabledTargetIds: string[] }>([
+    { routingEnabled: false, disabledTargetIds: [] },
+    { routingEnabled: true, disabledTargetIds: [DEMO_SSH] }
+  ])('forgets an address-bar preview when the route becomes ineligible (%j)', (options) => {
+    const state = useAppStore.getState()
+    const target = resolveWorkspaceDocAddressTarget(state, WORKTREE_ID, OUTSIDE)
+    commitWorkspaceDocAddressPreview(state, target)
+    expect(lookupTerminalHtmlPreview(WORKTREE_ID, OUTSIDE)?.sshPreview).toBe(true)
+
+    useAppStore.setState({
+      settings: {
+        ...getDefaultSettings('/home/demo'),
+        browserSshWorkspaceRoutingEnabled: options.routingEnabled,
+        browserSshWorkspaceRoutingDisabledTargetIds: options.disabledTargetIds
+      }
+    })
+
+    expect(lookupTerminalHtmlPreview(WORKTREE_ID, OUTSIDE)).toBeNull()
+    expect(getWorkspaceFilePreviewPlan(useAppStore.getState(), WORKTREE_ID, OUTSIDE)).toMatchObject(
+      { status: 'unsupported', reason: 'outside-worktree' }
+    )
+    expect(buildDocPreviewGrantRequest(useAppStore.getState(), WORKTREE_ID, OUTSIDE)).toBeNull()
+  })
+
+  it('does not keep honoring a remembered SSH preview after the route is disabled', () => {
+    const location = {
+      owner: { kind: 'ssh' as const, connectionId: DEMO_SSH },
+      requestBase: PAGES,
+      root: PAGES,
+      entryRelativePath: 'demo-notes-20260101.html',
+      sshPreview: true as const
+    }
+    rememberTerminalHtmlPreview(WORKTREE_ID, OUTSIDE, location)
+    expect(getWorkspaceFilePreviewPlan(useAppStore.getState(), WORKTREE_ID, OUTSIDE)).toEqual({
+      status: 'doc-preview'
+    })
+
+    useAppStore.setState({
+      settings: {
+        ...getDefaultSettings('/home/demo'),
+        browserSshWorkspaceRoutingEnabled: false
+      }
+    })
+
+    // 点击记下的记录还在，但计划不再按旧记录放行。
+    expect(lookupTerminalHtmlPreview(WORKTREE_ID, OUTSIDE)).toEqual(location)
+    expect(getWorkspaceFilePreviewPlan(useAppStore.getState(), WORKTREE_ID, OUTSIDE)).toMatchObject(
+      { status: 'unsupported', reason: 'outside-worktree' }
+    )
   })
 
   it('does not turn a local HTML path into a managed SSH preview', () => {

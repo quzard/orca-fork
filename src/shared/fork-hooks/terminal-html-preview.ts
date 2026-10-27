@@ -33,8 +33,48 @@ type Serve = { kind: 'artifact'; grantId: string; absolutePath: string } | { kin
 
 const locations = new Map<string, TerminalHtmlPreviewLocation>()
 const serves = new Map<string, Serve>()
+// 只有地址栏提交写进来。点击记下的预览不在这里，关路由时不能一起清掉。
+const addressBarKeys = new Set<string>()
 
 let sshReader: SshHtmlPreviewReader | null = null
+
+type ManagedSshAddressPreviewBridge = {
+  eligible(worktreeId: string, filePath: string, state: unknown): boolean
+  remember(worktreeId: string, filePath: string, state: unknown): boolean
+  routeEligible(worktreeId: string, state: unknown): boolean
+}
+
+let addressPreview: ManagedSshAddressPreviewBridge | null = null
+
+/** 登记地址栏的托管 SSH 预览。传 null 取消。未登记时解析保持上游拒绝。 */
+export function registerManagedSshAddressPreview(
+  next: ManagedSshAddressPreviewBridge | null
+): void {
+  addressPreview = next
+}
+
+/** 解析用。不写记录。 */
+export function managedSshAddressPreviewEligible(
+  worktreeId: string,
+  filePath: string,
+  state: unknown
+): boolean {
+  return addressPreview?.eligible(worktreeId, filePath, state) === true
+}
+
+/** 提交导航时才写记录。 */
+export function commitManagedSshAddressPreview(
+  worktreeId: string,
+  filePath: string,
+  state: unknown
+): boolean {
+  return addressPreview?.remember(worktreeId, filePath, state) === true
+}
+
+/** 已记下的 SSH 预览是否还能放行。未登记或路由关掉时不算。 */
+export function managedSshAddressRouteEligible(worktreeId: string, state: unknown): boolean {
+  return addressPreview?.routeEligible(worktreeId, state) === true
+}
 
 function locationKey(worktreeId: string, filePath: string): string {
   return `${worktreeId}\0${filePath}`
@@ -97,8 +137,32 @@ export function readSshHtmlPreview(
   return sshReader ? sshReader(connectionId, absolutePath) : Promise.resolve(null)
 }
 
+/** 地址栏提交写过这条路径。点击之后再记同一条时要拿掉，关路由才不会清掉点击的预览。 */
+export function markAddressBarTerminalHtmlPreview(worktreeId: string, filePath: string): void {
+  addressBarKeys.add(locationKey(worktreeId, filePath))
+}
+
+export function unmarkAddressBarTerminalHtmlPreview(worktreeId: string, filePath: string): void {
+  addressBarKeys.delete(locationKey(worktreeId, filePath))
+}
+
+/** 路由关掉或目标进禁用列表时，只丢掉地址栏写的记录。 */
+export function forgetIneligibleAddressBarTerminalHtmlPreviews(
+  stillEligible: (worktreeId: string) => boolean
+): void {
+  for (const key of addressBarKeys) {
+    const worktreeId = key.slice(0, key.indexOf('\0'))
+    if (stillEligible(worktreeId)) {
+      continue
+    }
+    addressBarKeys.delete(key)
+    locations.delete(key)
+  }
+}
+
 export function resetTerminalHtmlPreviewForTests(): void {
   locations.clear()
   serves.clear()
+  addressBarKeys.clear()
   sshReader = null
 }

@@ -20,6 +20,7 @@ import {
 } from '../../shared/execution-host'
 import {
   rememberTerminalHtmlPreview,
+  unmarkAddressBarTerminalHtmlPreview,
   type TerminalHtmlPreviewLocation
 } from '../../shared/fork-hooks/terminal-html-preview'
 import {
@@ -115,7 +116,7 @@ function outsideClickedWorktree(args: OpenArgs): boolean {
   return args.statResult.escapesWorktree || !isPathInsideOrEqual(root, args.mappedFilePath)
 }
 
-function sshDirectoryLocation(
+export function sshDirectoryLocation(
   connectionId: string,
   absolutePath: string
 ): TerminalHtmlPreviewLocation | null {
@@ -167,7 +168,7 @@ type SshBrowserRoute = { targetId: string; environmentId: string | null; eligibl
  * 和 SSH 路由浏览器同一条资格。点 HTML 时开关关掉也算：file:// 读的仍是这台 Mac。
  * `eligible` 只给事后拉回用。开关关掉时标签在本机分区，手贴的本机 file:// 不能收成远端预览。
  */
-function sshBrowserRoute(
+export function sshBrowserRoute(
   worktreeId: string,
   state = useAppStore.getState()
 ): SshBrowserRoute | null {
@@ -348,36 +349,6 @@ export function htmlPreviewDespiteHostFileRefusal(
   return { isDirectory: false, escapesWorktree: true }
 }
 
-/**
- * 地址栏从已打开的文档预览，或 SSH 路由的浏览器页，跳到工作区外的 HTML。
- * 路由开着时记下和点击相同的 SSH 预览，连接 id 是真实 sshTargetId。调用方再把当前页转成文档预览。
- * 开关关掉、目标在禁用列表、或临时 Orb（runtime-ssh-）时不记，调用方保持配对运行时的拒绝。
- */
-export function rememberManagedSshAddressPreview(
-  worktreeId: string,
-  filePath: string,
-  state = useAppStore.getState()
-): boolean {
-  if (!isHtmlFilePath(filePath)) {
-    return false
-  }
-  const route = sshBrowserRoute(worktreeId, state)
-  // 点击在开关关掉时也要避开 file://。地址栏不是点击：关掉时页在本机分区，不能收成远端预览。
-  if (!route?.eligible) {
-    return false
-  }
-  const root = state.getKnownWorktreeById(worktreeId)?.path ?? null
-  if (root && isPathInsideOrEqual(root, filePath)) {
-    return false
-  }
-  const location = sshDirectoryLocation(route.targetId, filePath)
-  if (!location) {
-    return false
-  }
-  rememberTerminalHtmlPreview(worktreeId, filePath, location)
-  return true
-}
-
 /** 已经开成浏览器页的 HTML：工作区里走 files.read，其余走 SSH 预览。 */
 export function sshRoutedBrowserHtmlLocation(
   worktreeId: string,
@@ -408,6 +379,8 @@ export function openRemoteTerminalHtmlPreview(args: OpenArgs): boolean {
     return false
   }
   rememberTerminalHtmlPreview(args.worktreeId, args.mappedFilePath, location)
+  // 点击重写了同一条路径。关路由时只清地址栏写的记录，不能把这次点击也清掉。
+  unmarkAddressBarTerminalHtmlPreview(args.worktreeId, args.mappedFilePath)
   activateAndRevealWorkspace(args.worktreeId, { providesInitialSurface: true })
   useAppStore.getState().createBrowserTab(args.worktreeId, ORCA_BROWSER_BLANK_URL, {
     docLocation: {

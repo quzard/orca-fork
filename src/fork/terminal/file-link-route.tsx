@@ -9,6 +9,7 @@ import { openTerminalHtmlFileInBrowser } from '@/components/terminal-pane/termin
 import {
   fileContextForSshHtml,
   htmlPreviewDespiteHostFileRefusal,
+  openManagedSshHtmlSourceFallback,
   openRemoteTerminalHtmlPreview
 } from './html-preview-open'
 import type { BrowserLinkOpenContext } from '@/lib/browser-link-destination'
@@ -226,6 +227,17 @@ export function openTerminalHtmlUnlessSshSource(args: {
       statResult: args.statResult,
       worktreeId: args.worktreeId,
       hostWorkspaceFile: args.hostWorkspaceFile
+    })
+  ) {
+    return true
+  }
+  // 工作区外标上的 sshTargetId 不是桌面 SSH 连接。预览失败时只读走运行时，不把这条 id 交给编辑器。
+  if (
+    openManagedSshHtmlSourceFallback({
+      fileContext: args.fileContext,
+      mappedFilePath: args.mappedFilePath,
+      worktreeId: args.worktreeId,
+      statResult: args.statResult
     })
   ) {
     return true

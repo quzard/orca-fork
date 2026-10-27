@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { OutputBundle } from 'rolldown'
 import {
   SANDBOXED_PRELOAD_ENTRY_FILES,
+  assertSandboxedPreloadsHaveNoChunkRequires,
   inlineRolldownRuntimeIntoSandboxedPreloads
 } from '../build-plugins/sandboxed-preload-runtime'
 
@@ -55,5 +56,32 @@ describe('sandboxed preload rolldown runtime', () => {
       expect(main.code).toContain(`require("./${RUNTIME_NAME}")`)
     }
     expect(output[RUNTIME_NAME]?.type).toBe('chunk')
+    expect(() => assertSandboxedPreloadsHaveNoChunkRequires(output)).not.toThrow()
+  })
+
+  it('fails when a preload still requires a chunk after inlining', () => {
+    const output = bundle()
+    const runtime = output[RUNTIME_NAME]
+    if (runtime?.type === 'chunk') {
+      runtime.code = `${RUNTIME_CODE}\nrequire("./chunks/rolldown-runtime-other.js");`
+    }
+    inlineRolldownRuntimeIntoSandboxedPreloads(output)
+    expect(() => assertSandboxedPreloadsHaveNoChunkRequires(output)).toThrow(
+      /still require \.\/chunks\//
+    )
+  })
+
+  it('fails when the runtime require pattern no longer matches but a chunk require remains', () => {
+    const output = bundle()
+    const preload = output['browser-window-close-preload.js']
+    if (preload?.type === 'chunk') {
+      preload.code = 'require("./chunks/helper.js");'
+    }
+    expect(inlineRolldownRuntimeIntoSandboxedPreloads(output)).toEqual([
+      'doc-preview-link-preload.js'
+    ])
+    expect(() => assertSandboxedPreloadsHaveNoChunkRequires(output)).toThrow(
+      /browser-window-close-preload\.js/
+    )
   })
 })

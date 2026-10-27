@@ -13,7 +13,11 @@ import {
 import type { TerminalFileContext } from '@/components/terminal-pane/terminal-file-path-mapping'
 import { ORCA_BROWSER_BLANK_URL } from '../../shared/constants'
 import { isPathInsideOrEqual, relativePathInsideRoot } from '../../shared/cross-platform-path'
-import { isRuntimeOwnedSshTargetId, parseExecutionHostId } from '../../shared/execution-host'
+import {
+  isRuntimeOwnedSshTargetId,
+  parseExecutionHostId,
+  toRuntimeExecutionHostId
+} from '../../shared/execution-host'
 import {
   rememberTerminalHtmlPreview,
   type TerminalHtmlPreviewLocation
@@ -157,9 +161,12 @@ function sshOutsideLocation(args: OpenArgs): TerminalHtmlPreviewLocation | null 
   return sshDirectoryLocation(connectionId, args.mappedFilePath)
 }
 
-type SshBrowserRoute = { targetId: string; environmentId: string | null }
+type SshBrowserRoute = { targetId: string; environmentId: string | null; eligible: boolean }
 
-/** 和 SSH 路由浏览器同一条资格。路由开关关掉也算：file:// 读的仍是这台 Mac，不是远端。 */
+/**
+ * 和 SSH 路由浏览器同一条资格。点 HTML 时开关关掉也算：file:// 读的仍是这台 Mac。
+ * `eligible` 只给事后拉回用。开关关掉时标签在本机分区，手贴的本机 file:// 不能收成远端预览。
+ */
 function sshBrowserRoute(worktreeId: string): SshBrowserRoute | null {
   const state = useAppStore.getState()
   const hostId = getExecutionHostIdForWorktree(state, worktreeId)
@@ -173,8 +180,15 @@ function sshBrowserRoute(worktreeId: string): SshBrowserRoute | null {
   const parsed = parseExecutionHostId(hostId)
   return {
     targetId: route.targetId,
-    environmentId: parsed?.kind === 'runtime' ? parsed.environmentId : null
+    environmentId: parsed?.kind === 'runtime' ? parsed.environmentId : null,
+    eligible: route.eligible
   }
+}
+
+/** 没有 SSH 路由时，已记下的预览仍可拉回。路由在、但开关关掉时不要动本机分区里的页。 */
+export function sshRoutedHtmlMayReclaim(worktreeId: string): boolean {
+  const route = sshBrowserRoute(worktreeId)
+  return !route || route.eligible
 }
 
 function runtimeWorktreeLocation(
@@ -252,6 +266,50 @@ export function fileContextForSshHtml(
     return fileContext
   }
   return { ...fileContext, connectionId: route.targetId }
+}
+
+/**
+ * 预览铸不出来、又要退回编辑器时，标上去的 sshTargetId 不能当成桌面 SSH 连接。
+ * 只有工作区外的绝对路径会带上 externalSshTargetId。托管部署上桌面往往没有这条连接，
+ * 编辑器会报「工作区主机变了」。改成只读打开，运行时 id 用部署所在的环境，不带这条连接。
+ * 工作区外运行时读不到，编辑器报路径在工作区外。工作区里的 HTML 仍交给文档预览计划。
+ */
+export function openManagedSshHtmlSourceFallback(args: {
+  fileContext: TerminalFileContext
+  mappedFilePath: string
+  worktreeId: string
+  statResult: { escapesWorktree: boolean }
+}): boolean {
+  if (args.fileContext.target.kind === 'environment' || !args.fileContext.connectionId) {
+    return false
+  }
+  const route = sshBrowserRoute(args.worktreeId)
+  if (!route?.environmentId || route.targetId !== args.fileContext.connectionId) {
+    return false
+  }
+  const root = args.fileContext.worktreePath
+  const outside =
+    !root || args.statResult.escapesWorktree || !isPathInsideOrEqual(root, args.mappedFilePath)
+  if (!outside) {
+    return false
+  }
+  activateAndRevealWorkspace(args.worktreeId, {
+    providesInitialSurface: true,
+    executionHostId: toRuntimeExecutionHostId(route.environmentId)
+  })
+  useAppStore.getState().openFile(
+    {
+      filePath: args.mappedFilePath,
+      relativePath: args.mappedFilePath,
+      worktreeId: args.worktreeId,
+      runtimeEnvironmentId: route.environmentId,
+      readOnly: true,
+      language: 'html',
+      mode: 'edit'
+    },
+    { forceContentReload: true }
+  )
+  return true
 }
 
 function previewLocation(args: OpenArgs): TerminalHtmlPreviewLocation | null {

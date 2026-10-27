@@ -7,7 +7,7 @@ import {
   lookupTerminalHtmlPreview,
   rememberTerminalHtmlPreview
 } from '../../shared/fork-hooks/terminal-html-preview'
-import { sshRoutedBrowserHtmlLocation } from './html-preview-open'
+import { sshRoutedBrowserHtmlLocation, sshRoutedHtmlMayReclaim } from './html-preview-open'
 
 type PreviewPage = {
   id: string
@@ -87,9 +87,12 @@ function listedWorktreePath(worktreeId: string): string | null {
   return null
 }
 
-/** 文件树等没走过终端钩子的 file://，补上和点击相同的读取记录，后面的扫描才能拉回。 */
-function seedUnrememberedSshHtml(state: PreviewRecoveryState): void {
+/** 文件树等没走过终端钩子的 file://，补上和点击相同的读取记录，后面的扫描才能拉回。路由关掉时不补。 */
+export function seedUnrememberedSshHtml(state: PreviewRecoveryState): void {
   for (const [worktreeId, tabs] of Object.entries(state.browserTabsByWorktree)) {
+    if (!sshRoutedHtmlMayReclaim(worktreeId)) {
+      continue
+    }
     for (const tab of tabs) {
       for (const page of state.browserPagesByWorkspace[tab.id] ?? []) {
         if (page.docLocation || page.browserRuntimeEnvironmentId) {
@@ -122,6 +125,10 @@ export function sshRoutedHtmlPreviewRecoveries(
 ): PreviewRecovery[] {
   const hits: PreviewRecovery[] = []
   for (const [worktreeId, tabs] of Object.entries(state.browserTabsByWorktree)) {
+    // 开关关掉时页在本机分区。已记下的预览也不拉，避免手贴的本机 file:// 被收成远端文档。
+    if (!sshRoutedHtmlMayReclaim(worktreeId)) {
+      continue
+    }
     for (const tab of tabs) {
       for (const page of state.browserPagesByWorkspace[tab.id] ?? []) {
         if (skipPageIds?.has(page.id) || page.docLocation || page.browserRuntimeEnvironmentId) {

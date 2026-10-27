@@ -23,6 +23,7 @@ import { filesystemPathToFileUri } from '../../shared/file-uri-path'
 import { HostFileRefusal } from '@/components/terminal-pane/terminal-host-workspace-file'
 import { htmlPreviewDespiteHostFileRefusal } from './html-preview-open'
 import {
+  seedUnrememberedSshHtml,
   sshRoutedHtmlPreviewInputsChanged,
   sshRoutedHtmlPreviewRecoveries
 } from './html-preview-reclaim'
@@ -122,6 +123,7 @@ beforeEach(() => {
   previewPlan.mockClear()
   openPreview.mockClear()
   storeState.worktreesByRepo = {}
+  storeState.settings = undefined
   Reflect.deleteProperty(storeState, 'runtimeEnvironments')
 })
 
@@ -424,6 +426,58 @@ describe('a chat link whose host disowns the path', () => {
     expect(openFilePathMock).not.toHaveBeenCalled()
   })
 
+  it('opens outside managed SSH html read-only on the runtime when preview cannot be built', async () => {
+    resetTerminalFileLinkWorkspaceForTests()
+    try {
+      deployOverSsh(DEMO_SSH)
+      const root = '/home/demo/wt/demo-app'
+      storeState.worktreesByRepo = {
+        'repo-demo': [
+          {
+            id: 'wt-feat',
+            path: root,
+            repoId: 'repo-demo',
+            hostId: 'runtime:env-1'
+          }
+        ]
+      }
+
+      openDetectedFilePath(CHINESE_HTML, null, null, {
+        worktreeId: 'wt-feat',
+        worktreePath: root,
+        runtimeEnvironmentId: null,
+        sourceTabId: 'chat-1'
+      })
+      await flushDoubleRaf()
+
+      expect(createBrowserTabMock).not.toHaveBeenCalled()
+      expect(openFilePathMock).not.toHaveBeenCalled()
+      expect(openFileMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          filePath: CHINESE_HTML,
+          relativePath: CHINESE_HTML,
+          worktreeId: 'wt-feat',
+          runtimeEnvironmentId: 'env-1',
+          readOnly: true,
+          language: 'html',
+          mode: 'edit'
+        }),
+        { forceContentReload: true }
+      )
+      expect(openFileMock.mock.calls.at(-1)?.[0]).not.toHaveProperty('externalSshTargetId')
+      expect(openFileMock.mock.calls.at(-1)?.[0]).not.toHaveProperty('terminalArtifactGrantId')
+      expect(activateAndRevealWorkspace).toHaveBeenCalledWith('wt-feat', {
+        providesInitialSurface: true,
+        executionHostId: 'runtime:env-1'
+      })
+    } finally {
+      registerTerminalFileLinkWorkspace({
+        rememberSshStay: () => {},
+        lookupStay: () => false
+      })
+    }
+  })
+
   it('keeps an ephemeral runtime SSH target on the artifact grant', async () => {
     deployOverSsh('runtime-ssh-orb')
     grantedFile(HTML)
@@ -530,6 +584,44 @@ describe('a bare path that replaced a remembered html preview', () => {
       { pageId: 'page-file', worktreeId: 'wt-feat', filePath: CHINESE_HTML },
       { pageId: 'page-file-encoded', worktreeId: 'wt-feat', filePath: CHINESE_HTML_2 }
     ])
+  })
+
+  it('leaves a local file url alone when the SSH browser route is off', () => {
+    deployOverSsh(DEMO_SSH)
+    const root = '/home/demo/wt/demo-app'
+    const localFile = '/home/demo/local-notes/演示-本地.html'
+    storeState.worktreesByRepo = {
+      'repo-demo': [
+        {
+          id: 'wt-feat',
+          path: root,
+          repoId: 'repo-demo',
+          hostId: 'runtime:env-1'
+        }
+      ]
+    }
+    storeState.settings = {
+      browserSshWorkspaceRoutingEnabled: false
+    } as unknown as NonNullable<typeof storeState.settings>
+    rememberTerminalHtmlPreview('wt-feat', CHINESE_HTML, sshPreviewLocation(CHINESE_HTML))
+    const pages = {
+      browserTabsByWorktree: { 'wt-feat': [{ id: 'browser-1' }] },
+      browserPagesByWorkspace: {
+        'browser-1': [
+          { id: 'pasted-local', url: `file://${localFile}` },
+          {
+            id: 'remembered-remote',
+            url: `file://${CHINESE_HTML}`,
+            browserRuntimeEnvironmentId: null
+          }
+        ]
+      }
+    }
+
+    seedUnrememberedSshHtml(pages)
+
+    expect(lookupTerminalHtmlPreview('wt-feat', localFile)).toBeNull()
+    expect(sshRoutedHtmlPreviewRecoveries(pages)).toEqual([])
   })
 
   it('rescans only when browser pages or tabs change identity', () => {

@@ -1,3 +1,4 @@
+import { getProjectHostSetupProjectionFromState } from '@/store/project-host-setup-selector'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useAppStore } from '@/store'
@@ -6,7 +7,7 @@ import { useAiVaultPanelSessions } from './ai-vault-session-filters'
 import {
   deriveAiVaultScopeSessionPaths,
   deriveAiVaultWorkspaceScopePaths
-} from './ai-vault-scope-paths'
+} from '../../../../shared/ai-vault-scope-paths'
 import { countAiVaultViewAdjustments } from './ai-vault-view-defaults'
 import {
   buildAiVaultProjectContext,
@@ -67,12 +68,26 @@ export default function AiVaultPanel({
   const {
     workspaceId: activeWorktreeId,
     worktree: activeWorktree,
-    repo: activeRepo
+    repo: activeRepo,
+    legacyProjectKey
   } = useAiVaultPanelWorkspace(workspace)
   const repos = useRepos()
   const allWorktrees = useAllWorktrees()
   const projectHostSetupProjection = useProjectHostSetupProjection()
+<<<<<<< HEAD
   const resumeTargetState = useAiVaultResumeTargetState()
+=======
+  const resumeTargetState = useAppStore(
+    useShallow((state) => ({
+      projectHostSetupProjection: getProjectHostSetupProjectionFromState(state),
+      settings: state.settings,
+      folderWorkspaces: selectFolderWorkspaces(state),
+      projectGroups: state.projectGroups,
+      repos: state.repos,
+      worktreesByRepo: selectWorktreesByRepo(state)
+    }))
+  )
+>>>>>>> 55dffb479a8366fb48b49f1bc893f16a0b9455ea
   const settings = useAppStore((s) => s.settings)
   const agentCmdOverrides = settings?.agentCmdOverrides
   const paneActions = useAiVaultOriginalPaneActions()
@@ -150,11 +165,18 @@ export default function AiVaultPanel({
       aiVaultSearchScopeIdentity({
         scope,
         activeWorktreeId: activeWorktree?.id,
-        activeProjectKey
+        activeProjectKey: legacyProjectKey
       }),
-    [activeProjectKey, activeWorktree?.id, scope]
+    [legacyProjectKey, activeWorktree?.id, scope]
   )
-  const search = useAiVaultPanelSearch(query, agents, searchWithin, executionHostScope, searchSort)
+  const search = useAiVaultPanelSearch(
+    query,
+    agents,
+    searchWithin,
+    executionHostScope,
+    searchSort,
+    activeProjectKey ?? undefined
+  )
   const { searching, searchHits } = search
   const searchSessions = useMemo(
     () => withAiVaultHistoryPreviews(search.sessions, history),
@@ -182,9 +204,10 @@ export default function AiVaultPanel({
         repos,
         worktrees: allWorktrees,
         projectHostSetupProjection,
+        settings: settings ?? undefined,
         sessions
       }),
-    [allWorktrees, projectHostSetupProjection, repos, sessions]
+    [allWorktrees, projectHostSetupProjection, repos, sessions, settings]
   )
   const effectiveActiveWorktreeId = activeWorktreeId ?? activeWorktree?.id ?? null
   const {

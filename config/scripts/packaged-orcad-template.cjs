@@ -20,6 +20,10 @@ const {
   compactPackagedOrcadRipgrep,
   resealSignedPackagedRipgrep
 } = require('./compact-packaged-orcad-ripgrep.cjs')
+const {
+  referencePackagedOrcadBrowser,
+  resealSignedPackagedBrowser
+} = require('./packaged-orcad-browser.cjs')
 
 // fork: src/fork/packaging.cjs 不存在或没有覆盖项时，签名排除和模板目标保持上游。
 function loadForkPackagingHooks() {
@@ -151,8 +155,13 @@ async function finalizePackagedOrcadTemplate(resourcesDir, options) {
     }
     resealOrcadTemplateManifest(templateDir, machO)
   }
+<<<<<<< HEAD
   // fork: 收窄目标时，压缩前的校验也只查这个子集，未设置则仍是全部目标。
   compactPackagedOrcadRipgrep(resourcesDir, resolveForkOrcadTemplateTargets())
+=======
+  compactPackagedOrcadRipgrep(resourcesDir)
+  referencePackagedOrcadBrowser(resourcesDir)
+>>>>>>> 55dffb479a8366fb48b49f1bc893f16a0b9455ea
 }
 
 /** `inner-signing-list.txt` lines are app-relative Windows paths; keep the template's. */
@@ -173,11 +182,20 @@ function resealSignedWindowsApp(appDir, signedListFile) {
     return
   }
   resealOrcadTemplateManifest(join(resourcesDir, ORCAD_TEMPLATE_RESOURCE_DIR), signed)
+<<<<<<< HEAD
   resealSignedPackagedRipgrep(
     resourcesDir,
     signedAppPaths.filter((path) => path.startsWith('resources/')).map((path) => path.slice(10))
   )
   verifyPackagedOrcadTemplate(resourcesDir, resolveForkOrcadTemplateTargets())
+=======
+  const signedResources = signedAppPaths
+    .filter((path) => path.startsWith('resources/'))
+    .map((path) => path.slice(10))
+  resealSignedPackagedRipgrep(resourcesDir, signedResources)
+  resealSignedPackagedBrowser(resourcesDir, signedResources)
+  verifyPackagedOrcadTemplate(resourcesDir)
+>>>>>>> 55dffb479a8366fb48b49f1bc893f16a0b9455ea
   console.log(`[packaged-orcad-template] resealed ${signed.length} signed template file(s)`)
 }
 

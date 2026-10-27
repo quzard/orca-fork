@@ -1,5 +1,10 @@
 import { downloadAndOpenRemoteTerminalFile } from './terminal-remote-file-download-open'
+<<<<<<< HEAD
 import { isPathInsideWorktree } from '@/lib/terminal-links'
+=======
+import { findWorkspaceFileRoute } from '@/lib/runtime-workspace-file-route'
+import { isPathInsideWorktree, toWorktreeRelativePath } from '../../../../shared/terminal-links'
+>>>>>>> 55dffb479a8366fb48b49f1bc893f16a0b9455ea
 import { isMissingRuntimePathError } from '@/runtime/runtime-file-metadata-client'
 import { useAppStore } from '@/store'
 import { activateAndRevealWorkspace, activateAndRevealWorktree } from '@/lib/worktree-activation'
@@ -20,12 +25,21 @@ import {
 } from '../../../../shared/execution-host'
 import type { HostWorkspaceFile } from './terminal-host-workspace-file'
 import {
+<<<<<<< HEAD
   adoptSiblingTerminalLink,
   nestedTerminalLinkPath,
   openTerminalHtmlUnlessSshSource,
   resolveAndRetainTerminalLink,
   terminalLinkOpenFields
 } from '../../../../fork/terminal/file-link-route'
+=======
+  CLIENT_LOCAL_FILE_TARGET,
+  hostGrantedEditorFields,
+  resolveHostWorkspaceFile,
+  type HostWorkspaceFile
+} from './terminal-host-workspace-file'
+import { isFloatingWorkspaceId } from '../../../../shared/floating-workspace-worktree'
+>>>>>>> 55dffb479a8366fb48b49f1bc893f16a0b9455ea
 import { captureEditorOpenLinkIntent } from '@/store/slices/editor/tabs/editor-open-target-group'
 import { reserveDetectedFilePathOpenTurn } from './terminal-file-open-turn'
 export { isHtmlFilePath } from './local-html-file-destinations'
@@ -113,7 +127,7 @@ export function openDetectedFilePath(
       getConnectionExecutionHostId(fileContext.connectionId)
     const sourceRuntimeOwnerId = runtimeTargetEnvironmentId(fileContext.target)
     let hostWorkspaceFile: HostWorkspaceFile | null = null
-    let hostGrantId: string | null = null
+    let hostGrant: ReturnType<typeof hostGrantedEditorFields> | null = null
     let clientLocal = false
     if (!fileContext.sourceHostResolved) {
       if (refuseExplicitNonEditorRoute()) {
@@ -156,6 +170,7 @@ export function openDetectedFilePath(
         worktreeId,
         worktreePath,
         mappedFilePath,
+<<<<<<< HEAD
         statResult,
         hostWorkspaceFile,
         hostGrantId,
@@ -168,6 +183,31 @@ export function openDetectedFilePath(
         mappedFilePath,
         terminalHandle: deps.terminalHandle
       }))
+=======
+        deps.terminalHandle
+      )
+      if (linkOwner?.kind === 'grant') {
+        hostGrant = hostGrantedEditorFields(linkOwner)
+        mappedFilePath = linkOwner.absolutePath
+        statResult = { isDirectory: false, escapesWorktree: true }
+      } else if (linkOwner?.kind === 'client') {
+        clientLocal = true
+        fileContext = {
+          ...fileContext,
+          target: CLIENT_LOCAL_FILE_TARGET,
+          connectionId: undefined
+        }
+        statResult = { isDirectory: linkOwner.isDirectory, escapesWorktree: false }
+      } else if (linkOwner) {
+        hostWorkspaceFile = linkOwner
+        // Why: the host already stat'ed the path inside the workspace that holds it; open it there.
+        ;({ worktreeId, worktreePath, absolutePath: mappedFilePath } = hostWorkspaceFile)
+        fileContext = { ...fileContext, worktreeId, worktreePath }
+        statResult = { isDirectory: hostWorkspaceFile.isDirectory, escapesWorktree: false }
+      } else {
+        statResult = await statUserOpenedPath(fileContext, mappedFilePath)
+      }
+>>>>>>> 55dffb479a8366fb48b49f1bc893f16a0b9455ea
     } catch (error) {
       if (isCurrentRequest() && deps.onOpenFailure) {
         // Why: loss of contact with the host is not evidence the file is gone.
@@ -192,7 +232,7 @@ export function openDetectedFilePath(
     const pageDestination =
       canOpenWithSystemDefault &&
       !clientLocal &&
-      hostGrantId === null &&
+      hostGrant === null &&
       !explicitGroupRequest &&
       isHtmlFilePath(mappedFilePath)
         ? (deps.browserDestination ??
@@ -223,12 +263,13 @@ export function openDetectedFilePath(
     }
 
     // Why: a granted file is readable only through its grant, so it opens in Orca, never as a download.
-    if (openWithSystemDefault && !canOpenWithSystemDefault && hostGrantId === null) {
+    if (openWithSystemDefault && !canOpenWithSystemDefault && hostGrant === null) {
       // Shift+Cmd/Ctrl must match popover’s Download & open with default app; OS cannot directly launch remote paths.
       await downloadAndOpenRemoteTerminalFile(fileContext, mappedFilePath)
       return
     }
 
+<<<<<<< HEAD
     // 托管主机工作区外的 HTML、直连 SSH 工作区外的 HTML 打开应用内预览。本地 HTML 走上游。判断在 file-link-route。
     if (
       openTerminalHtmlUnlessSshSource({
@@ -248,6 +289,28 @@ export function openDetectedFilePath(
       })
     ) {
       return
+=======
+    // Route local HTML to Orca browser, including system-browser opens OS could not launch.
+    if (isHtmlFilePath(mappedFilePath) && hostGrant === null) {
+      if (deps.openInSourceGroup) {
+        refuseExplicitNonEditorRoute()
+        return
+      }
+      const fileExecutionHostId = hostWorkspaceFile?.executionHostId ?? sourceFileHostId
+      if (
+        openTerminalHtmlFileInBrowser({
+          filePath: mappedFilePath,
+          worktreeId,
+          clientLocal,
+          canOpenWithSystemDefault,
+          ...(linkContext && !clientLocal ? { fileExecutionHostId } : {}),
+          linkContext,
+          ...(explicitGroupRequest ? { refuseOpenInSourceGroup: refuseExplicitNonEditorRoute } : {})
+        })
+      ) {
+        return
+      }
+>>>>>>> 55dffb479a8366fb48b49f1bc893f16a0b9455ea
     }
 
     if (deps.openInSourceGroupSurface === 'browser') {
@@ -264,6 +327,7 @@ export function openDetectedFilePath(
         : getConnectionExecutionHostId(fileContext.connectionId))
     let relativePath = mappedFilePath
     if (worktreePath && isPathInsideWorktree(mappedFilePath, worktreePath)) {
+<<<<<<< HEAD
       // fork: 更深的工作区拥有这个路径时改成只读视图，否则仍用上游的相对路径。
       ;({ relativePath, stayView } = nestedTerminalLinkPath({
         stayView,
@@ -286,6 +350,26 @@ export function openDetectedFilePath(
         targetWorktreeId = sibling.worktreeId
         targetExecutionHostId = sibling.executionHostId
         relativePath = sibling.relativePath
+=======
+      const maybeRelative = toWorktreeRelativePath(mappedFilePath, worktreePath)
+      // Keep out-of-project absolute paths so restored tabs still name the user’s external file instead of refusing it as a project file.
+      if (maybeRelative !== null && maybeRelative.length > 0 && !statResult.escapesWorktree) {
+        relativePath = maybeRelative
+      }
+    } else if (
+      hostGrant === null &&
+      !isFloatingWorkspaceId(worktreeId) &&
+      store.openFiles.some(
+        (openFile) => openFile.filePath === mappedFilePath && openFile.worktreeId !== worktreeId
+      )
+    ) {
+      // Why: early resolution is only needed to avoid an existing sibling-tab collision.
+      const siblingRoute = findWorkspaceFileRoute(store, targetExecutionHostId, mappedFilePath)
+      if (siblingRoute) {
+        targetWorktreeId = siblingRoute.worktreeId
+        targetExecutionHostId = siblingRoute.executionHostId
+        relativePath = siblingRoute.relativePath
+>>>>>>> 55dffb479a8366fb48b49f1bc893f16a0b9455ea
       }
     }
 
@@ -313,6 +397,7 @@ export function openDetectedFilePath(
         worktreeId: targetWorktreeId || '',
         runtimeEnvironmentId: clientLocal ? null : runtimeEnvironmentId,
         // Why: a tab's owner must match its workspace's to be editable; this one is this computer's.
+<<<<<<< HEAD
         ...terminalLinkOpenFields(
           clientLocal,
           targetWorktreeId,
@@ -322,6 +407,10 @@ export function openDetectedFilePath(
         ),
         // Why: the grant is the only authority to read a host file outside its workspaces.
         ...(hostGrantId !== null ? { readOnly: true, terminalArtifactGrantId: hostGrantId } : {}),
+=======
+        ...(clientLocal && targetWorktreeId === worktreeId ? { readOnly: true } : {}),
+        ...hostGrant,
+>>>>>>> 55dffb479a8366fb48b49f1bc893f16a0b9455ea
         // Retain SSH owner or restored absolute remote paths become indistinguishable from client-local external files.
         ...(relativePath === filePath &&
         fileContext.target.kind === 'local' &&

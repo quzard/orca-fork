@@ -7,8 +7,12 @@ import { discardTerminalOutput } from '@/lib/pane-manager/pane-terminal-output-s
 import { getProviderSessionClaimKey } from '@/lib/sleeping-agent-pane-ownership'
 import { releaseRendererPtyVisibilityClaim } from '../pty-renderer-delivery-claims'
 
+<<<<<<< HEAD
 import { notifyTerminalPaneShown } from '../../../../../shared/fork-hooks/terminal-lifecycle'
 import { isRemoteRuntimePtyId } from '../../../../../shared/remote-runtime-pty-id'
+=======
+import { isRemoteRuntimePtyId } from '../../../../../shared/remote-runtime/remote-runtime-pty-id'
+>>>>>>> 55dffb479a8366fb48b49f1bc893f16a0b9455ea
 import { SHIFT_ENTER_RECONFIRM_IDLE_MS } from './foreground-output-scan'
 import type { PanePtyBinding } from './pane-pty-binding'
 

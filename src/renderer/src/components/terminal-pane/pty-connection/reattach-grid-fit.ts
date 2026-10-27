@@ -1,5 +1,9 @@
+<<<<<<< HEAD
 import { notifyTerminalReconnectFit } from '../../../../../shared/fork-hooks/terminal-lifecycle'
 import { isRemoteRuntimePtyId } from '../../../../../shared/remote-runtime-pty-id'
+=======
+import { isRemoteRuntimePtyId } from '../../../../../shared/remote-runtime/remote-runtime-pty-id'
+>>>>>>> 55dffb479a8366fb48b49f1bc893f16a0b9455ea
 import { safeFitAndThen } from '@/lib/pane-manager/pane-tree-ops'
 import { getFitOverrideForPty } from '@/lib/pane-manager/mobile-fit-overrides'
 

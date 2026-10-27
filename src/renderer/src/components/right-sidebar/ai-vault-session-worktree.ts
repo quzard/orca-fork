@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+<<<<<<< HEAD
 import { parseWslUncPath } from '../../../../shared/wsl-paths'
 import { splitWorktreeIdForFilesystem } from '../../../../shared/worktree/id'
 import {
@@ -14,44 +15,37 @@ import {
 } from '../../../../shared/cross-platform-path'
 import type { AiVaultSession } from '../../../../shared/ai-vault-types'
 import { matchForkCwdCandidates } from '../../../../shared/fork-hooks/ai-vault-cwd'
+=======
+>>>>>>> 55dffb479a8366fb48b49f1bc893f16a0b9455ea
 import type { FolderWorkspace } from '../../../../shared/folder-workspace-types'
 import { folderWorkspaceToWorktree } from '../../../../shared/folder-workspace-worktree'
 import type { Repo } from '../../../../shared/repo-types'
 import type { Worktree } from '../../../../shared/worktree/types'
-import { aiVaultWorktreeCompactPath } from './ai-vault-session-worktree-affordances'
+import type { AiVaultSession } from '../../../../shared/ai-vault-types'
+import {
+  buildAiVaultSessionWorktreeMap,
+  type AiVaultSessionWorktreeInfo
+} from '../../../../shared/ai-vault-session-worktree'
 
+export {
+  aiVaultWorktreeCompactPath,
+  canJumpToAiVaultSessionWorktree,
+  resolveAiVaultSessionWorktreeDisplay,
+  resolveAiVaultSessionWorktreeInfo,
+  withAiVaultCurrentWorktreeStatus,
+  type AiVaultSessionWorktreeInfo,
+  type AiVaultSessionWorktreeStatus
+} from '../../../../shared/ai-vault-session-worktree'
 export {
   aiVaultResumeInSessionWorkspaceLabel,
   aiVaultSessionWorkspaceHeading,
-  aiVaultWorktreeCompactPath,
   aiVaultWorktreeJumpTooltip,
   aiVaultWorktreeStatusLabel,
-  canJumpToAiVaultSessionWorktree,
   isAiVaultFolderWorkspaceId,
   isAiVaultSessionInCurrentWorktree,
   shouldShowAiVaultSessionWorktreeLine,
   shouldShowAiVaultWorktreeStatusBadge
 } from './ai-vault-session-worktree-affordances'
-
-export type AiVaultSessionWorktreeStatus = 'current' | 'active' | 'archived' | 'unavailable'
-
-export type AiVaultSessionWorktreeInfo = {
-  status: AiVaultSessionWorktreeStatus
-  label: string
-  path: string
-  worktreeId?: string
-}
-
-type WorktreeCandidate = {
-  worktree: Worktree
-  path: string
-  hostId: ExecutionHostId
-  status: Exclude<AiVaultSessionWorktreeStatus, 'current'>
-  source: 'current-path' | 'prior-path'
-  // Precomputed so a 500-session scan doesn't re-normalize ~500 roots per session.
-  ownsNormalizedCwd: (normalizedCwd: string) => boolean
-  normalizedPathLength: number
-}
 
 /** Include worktrees and folder: rows; put git first to win equal-path ties in the stable sort. */
 export function aiVaultSessionOwnerWorkspaces(
@@ -73,6 +67,7 @@ export function useAiVaultSessionOwnerWorkspaces(
   )
 }
 
+<<<<<<< HEAD
 export function resolveAiVaultSessionWorktreeInfo({
   session,
   repos = [],
@@ -194,6 +189,8 @@ function resolveWorktreeDisplayFromCandidates(
   return null
 }
 
+=======
+>>>>>>> 55dffb479a8366fb48b49f1bc893f16a0b9455ea
 /** Keep active-worktree state out of this map; callers stamp current per row to avoid rebuilding candidates × sessions. */
 export function useAiVaultSessionWorktreeMap({
   sessions,
@@ -204,91 +201,8 @@ export function useAiVaultSessionWorktreeMap({
   repos?: readonly Pick<Repo, 'id' | 'connectionId' | 'executionHostId'>[]
   worktrees: readonly Worktree[]
 }): ReadonlyMap<string, AiVaultSessionWorktreeInfo> {
-  return useMemo(() => {
-    // Build session-independent candidates and normalized roots once.
-    const candidates = buildWorktreeCandidates(worktrees, repos)
-    return new Map(
-      sessions.flatMap((session) => {
-        const worktreeInfo = resolveWorktreeDisplayFromCandidates(session, candidates)
-        return worktreeInfo ? [[session.id, worktreeInfo] as const] : []
-      })
-    )
-  }, [repos, sessions, worktrees])
-}
-
-function buildWorktreeCandidates(
-  worktrees: readonly Worktree[],
-  repos: readonly Pick<Repo, 'id' | 'connectionId' | 'executionHostId'>[]
-): WorktreeCandidate[] {
-  const candidates: WorktreeCandidate[] = []
-  const repoById = new Map(repos.map((repo) => [repo.id, repo]))
-  for (const worktree of worktrees) {
-    const repo = repoById.get(worktree.repoId)
-    const hostId =
-      normalizeExecutionHostId(worktree.hostId) ??
-      (repo ? getRepoExecutionHostId(repo) : LOCAL_EXECUTION_HOST_ID)
-    if (hasUsablePath(worktree.path)) {
-      candidates.push(makeWorktreeCandidate(worktree, worktree.path, hostId, 'current-path'))
-    }
-    for (const priorWorktreeId of worktree.priorWorktreeIds ?? []) {
-      const parsed = splitWorktreeIdForFilesystem(priorWorktreeId)
-      if (!parsed || parsed.repoId !== worktree.repoId || !hasUsablePath(parsed.worktreePath)) {
-        continue
-      }
-      candidates.push(makeWorktreeCandidate(worktree, parsed.worktreePath, hostId, 'prior-path'))
-    }
-  }
-  return candidates
-}
-
-function makeWorktreeCandidate(
-  worktree: Worktree,
-  path: string,
-  hostId: ExecutionHostId,
-  source: WorktreeCandidate['source']
-): WorktreeCandidate {
-  const ownsCwd = createNormalizedPathInsideOrEqualMatcher(path)
-  // A WSL UNC root also owns sessions recorded under its Linux-native cwd.
-  const wslPath = parseWslUncPath(path)
-  const ownsCwdViaWslAlias = wslPath
-    ? createNormalizedPathInsideOrEqualMatcher(wslPath.linuxPath)
-    : null
-  return {
-    worktree,
-    path,
-    hostId,
-    status: worktree.isArchived ? 'archived' : 'active',
-    source,
-    ownsNormalizedCwd: (normalizedCwd) =>
-      ownsCwd(normalizedCwd) || (ownsCwdViaWslAlias?.(normalizedCwd) ?? false),
-    normalizedPathLength: normalizeRuntimePathForComparison(path).length
-  }
-}
-
-function hasUsablePath(pathValue: string): boolean {
-  const trimmed = pathValue.trim()
-  return Boolean(trimmed && isRuntimePathAbsolute(trimmed))
-}
-
-function compareWorktreeCandidates(left: WorktreeCandidate, right: WorktreeCandidate): number {
-  const lengthDifference = right.normalizedPathLength - left.normalizedPathLength
-  if (lengthDifference !== 0) {
-    return lengthDifference
-  }
-  if (left.source === right.source) {
-    return 0
-  }
-  return left.source === 'current-path' ? -1 : 1
-}
-
-function unavailableWorktreeInfo(pathValue: string): AiVaultSessionWorktreeInfo {
-  return {
-    status: 'unavailable',
-    label: compactPathLabel(pathValue),
-    path: pathValue
-  }
-}
-
-function compactPathLabel(pathValue: string): string {
-  return aiVaultWorktreeCompactPath(pathValue)
+  return useMemo(
+    () => buildAiVaultSessionWorktreeMap({ sessions, repos, worktrees }),
+    [repos, sessions, worktrees]
+  )
 }

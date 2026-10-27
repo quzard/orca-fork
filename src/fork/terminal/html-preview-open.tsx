@@ -6,10 +6,8 @@ import { getExecutionHostIdForWorktree } from '@/lib/worktree-runtime-owner'
 import { basename, dirname } from '@/lib/path'
 import { useAppStore } from '@/store'
 import { isHtmlFilePath } from '@/components/terminal-pane/local-html-file-destinations'
-import {
-  HostFileRefusal,
-  type HostWorkspaceFile
-} from '@/components/terminal-pane/terminal-host-workspace-file'
+import { HostFileRefusal } from '@/components/terminal-pane/host-file-refusal'
+import type { HostWorkspaceFile } from '@/components/terminal-pane/terminal-host-workspace-file'
 import type { TerminalFileContext } from '@/components/terminal-pane/terminal-file-path-mapping'
 import { ORCA_BROWSER_BLANK_URL } from '../../shared/constants'
 import { isPathInsideOrEqual, relativePathInsideRoot } from '../../shared/cross-platform-path'

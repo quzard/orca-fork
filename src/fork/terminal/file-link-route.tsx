@@ -3,7 +3,7 @@
 // 写成 .ts 时 pnpm tc 会在 node 工程里解析这些别名失败。
 import { findWorkspaceFileRoute } from '@/lib/runtime-workspace-file-route'
 import { useAppStore } from '@/store'
-import { toWorktreeRelativePath } from '@/lib/terminal-links'
+import { toWorktreeRelativePath } from '../../shared/terminal-links'
 import { isHtmlFilePath } from '@/components/terminal-pane/local-html-file-destinations'
 import { openTerminalHtmlFileInBrowser } from '@/components/terminal-pane/terminal-file-link-browser-open'
 import {
@@ -46,6 +46,8 @@ export type ResolvedTerminalLink = {
   statResult: LinkStat
   hostWorkspaceFile: HostWorkspaceFile | null
   hostGrantId: string | null
+  // 上游可写授权不强制只读。只读授权、以及不会保存授权文件的旧主机，仍是只读。
+  hostGrantReadOnly: boolean
   clientLocal: boolean
   stayView: TerminalFileLinkRoute | null
 }
@@ -70,6 +72,7 @@ export async function resolveAndRetainTerminalLink(input: {
   let mappedFilePath = input.mappedFilePath
   let hostWorkspaceFile: HostWorkspaceFile | null = null
   let hostGrantId: string | null = null
+  let hostGrantReadOnly = false
   let clientLocal = false
   let statResult: LinkStat | null = null
   let linkOwner: Awaited<ReturnType<typeof resolveHostWorkspaceFile>> = null
@@ -85,6 +88,7 @@ export async function resolveAndRetainTerminalLink(input: {
   }
   if (statResult === null && linkOwner?.kind === 'grant') {
     hostGrantId = linkOwner.grantId
+    hostGrantReadOnly = linkOwner.readOnly
     mappedFilePath = linkOwner.absolutePath
     statResult = { isDirectory: false, escapesWorktree: true }
   } else if (linkOwner?.kind === 'client') {
@@ -139,6 +143,7 @@ export async function resolveAndRetainTerminalLink(input: {
     statResult: owner.stat,
     hostWorkspaceFile: owner.hostWorkspaceFile,
     hostGrantId,
+    hostGrantReadOnly,
     clientLocal,
     stayView: held.view
   }
@@ -307,16 +312,45 @@ export function adoptSiblingTerminalLink(args: {
   }
 }
 
-/** 本机文件的只读条件跟上游。SSH 停留和嵌套降级再补只读字段；没有停留视图时不改上游。 */
+/**
+ * 本机文件的只读条件跟上游。SSH 停留和嵌套降级再补只读字段。
+ * 工作区外的授权：上游可写授权保持可写，只读授权才标只读。
+ * 放在这里是为了让路由文件停在行数上限以内。
+ */
 export function terminalLinkOpenFields(
   clientLocal: boolean,
   targetWorktreeId: string,
   worktreeId: string,
   stayView: TerminalFileLinkRoute | null,
-  runtimeEnvironmentId: string | null | undefined
-): { readOnly?: true; runtimeEnvironmentId?: string | null } {
-  if (clientLocal && targetWorktreeId === worktreeId) {
-    return { readOnly: true }
+  runtimeEnvironmentId: string | null | undefined,
+  hostGrantId: string | null,
+  hostGrantReadOnly: boolean,
+  relativePath: string,
+  filePath: string,
+  fileContext: TerminalFileContext
+): {
+  readOnly?: true
+  runtimeEnvironmentId?: string | null
+  terminalArtifactGrantId?: string
+  externalSshTargetId?: string
+} {
+  const viewFields =
+    clientLocal && targetWorktreeId === worktreeId
+      ? { readOnly: true as const }
+      : terminalLinkViewFields(clientLocal ? null : stayView, runtimeEnvironmentId)
+  return {
+    ...viewFields,
+    ...(hostGrantId !== null
+      ? {
+          terminalArtifactGrantId: hostGrantId,
+          ...(hostGrantReadOnly ? { readOnly: true as const } : {})
+        }
+      : {}),
+    // 保留 SSH 归属，否则还原出来的绝对远端路径会和本机外部文件分不清。
+    ...(relativePath === filePath &&
+    fileContext.target.kind === 'local' &&
+    fileContext.connectionId
+      ? { externalSshTargetId: fileContext.connectionId }
+      : {})
   }
-  return terminalLinkViewFields(clientLocal ? null : stayView, runtimeEnvironmentId)
 }

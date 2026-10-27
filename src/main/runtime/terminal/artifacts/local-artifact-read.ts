@@ -91,7 +91,8 @@ export async function openLocalTerminalArtifactGrant(
 ): Promise<FileHandle> {
   await assertLocalTerminalArtifactPathStillCanonical(grant.absolutePath)
   try {
-    return await open(grant.absolutePath, flags | OPEN_NOFOLLOW)
+    // Why: a path swapped for a FIFO would otherwise block a host threadpool thread.
+    return await open(grant.absolutePath, flags | OPEN_NOFOLLOW | (constants.O_NONBLOCK ?? 0))
   } catch (error) {
     if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ELOOP') {
       throw new Error('terminal_file_grant_stale')

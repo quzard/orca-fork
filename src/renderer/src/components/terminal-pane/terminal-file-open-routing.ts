@@ -1,5 +1,5 @@
 import { downloadAndOpenRemoteTerminalFile } from './terminal-remote-file-download-open'
-import { isPathInsideWorktree } from '@/lib/terminal-links'
+import { isPathInsideWorktree } from '../../../../shared/terminal-links'
 import { isMissingRuntimePathError } from '@/runtime/runtime-file-metadata-client'
 import { useAppStore } from '@/store'
 import { activateAndRevealWorkspace, activateAndRevealWorktree } from '@/lib/worktree-activation'
@@ -114,6 +114,7 @@ export function openDetectedFilePath(
     const sourceRuntimeOwnerId = runtimeTargetEnvironmentId(fileContext.target)
     let hostWorkspaceFile: HostWorkspaceFile | null = null
     let hostGrantId: string | null = null
+    let hostGrantReadOnly = false
     let clientLocal = false
     if (!fileContext.sourceHostResolved) {
       if (refuseExplicitNonEditorRoute()) {
@@ -159,6 +160,7 @@ export function openDetectedFilePath(
         statResult,
         hostWorkspaceFile,
         hostGrantId,
+        hostGrantReadOnly,
         clientLocal,
         stayView
       } = await resolveAndRetainTerminalLink({
@@ -318,16 +320,13 @@ export function openDetectedFilePath(
           targetWorktreeId,
           worktreeId,
           stayView,
-          runtimeEnvironmentId
-        ),
-        // Why: the grant is the only authority to read a host file outside its workspaces.
-        ...(hostGrantId !== null ? { readOnly: true, terminalArtifactGrantId: hostGrantId } : {}),
-        // Retain SSH owner or restored absolute remote paths become indistinguishable from client-local external files.
-        ...(relativePath === filePath &&
-        fileContext.target.kind === 'local' &&
-        fileContext.connectionId
-          ? { externalSshTargetId: fileContext.connectionId }
-          : {})
+          runtimeEnvironmentId,
+          hostGrantId,
+          hostGrantReadOnly,
+          relativePath,
+          filePath,
+          fileContext
+        )
       },
       linkIntent,
       { line, column },

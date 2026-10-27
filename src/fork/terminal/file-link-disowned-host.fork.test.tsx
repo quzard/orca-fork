@@ -20,7 +20,7 @@ import {
 } from '../../shared/fork-hooks/terminal-html-preview'
 import { ORCA_BROWSER_BLANK_URL } from '../../shared/constants'
 import { filesystemPathToFileUri } from '../../shared/file-uri-path'
-import { HostFileRefusal } from '@/components/terminal-pane/terminal-host-workspace-file'
+import { HostFileRefusal } from '@/components/terminal-pane/host-file-refusal'
 import { htmlPreviewDespiteHostFileRefusal } from './html-preview-open'
 import {
   seedUnrememberedSshHtml,

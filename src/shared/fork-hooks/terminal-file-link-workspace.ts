@@ -75,8 +75,8 @@ export function terminalSshServerStay(
   file:
     | {
         readOnly?: boolean
-        externalSshTargetId?: string
-        runtimeEnvironmentId?: string
+        externalSshTargetId?: string | null
+        runtimeEnvironmentId?: string | null
       }
     | undefined,
   worktreeId: string | undefined,

@@ -120,7 +120,7 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 
 沙箱 webview 的 `browser-window-close-preload.js` 和 `doc-preview-link-preload.js` 跟主进程打在同一次 Rolldown CJS 构建里。Rolldown 1.2.14 会抽出 `chunks/rolldown-runtime-<hash>.js`，沙箱 `preloadRequire` 加载不了这个相对路径，控制台就是 `Unable to load preload script` 加上 `module not found: ./chunks/rolldown-runtime-….js`。preload 文件本身在 asar 里，不是漏打。同步 #40 的 Rolldown 线程上限和 macOS 终端宿主改回官方 Node 都没改这个版本，也没把 preload 从包里拿掉。`createSandboxedPreloadRuntimeInlinePlugin` 在 `generateBundle` 里把这份运行时内联进这两个入口，其它入口仍引用原来的 chunk。内联之后如果 `browser-window-close-preload.js` 或 `doc-preview-link-preload.js` 还含有 `require("./chunks/`，或者这两个入口不在 bundle 里，构建直接失败。运行时 chunk 自己再去 `require` 另一个 chunk 也会被同一条检查抓住，不会在 Rolldown 升级后悄悄打回沙箱加载失败。这和 `file://` 打不开不是同一个问题。
 
-本地 HTML 跟上游，默认用系统浏览器，fork 不覆盖。地址栏里手贴远程绝对路径不会变成 `orca-preview`，所以不会渲染；要点链接才会铸预览授权。
+本地 HTML 跟上游，默认用系统浏览器，fork 不覆盖。不是 SSH 路由的工作区里，地址栏手贴的绝对路径不会变成 `orca-preview`，要点链接才会铸预览授权。SSH 浏览器路由开着时，手贴的 `file://` HTML 会补上预览记录并拉回文档预览；路由关掉时留在本机。
 
 `src/fork/terminal/file-link-route.tsx` 负责查找归属、在上游解析之后套用 SSH 停留、做嵌套只读降级、把远程 HTML 送进应用内预览、以及同路径兄弟标签是否跳转，并给服务器上的只读视图补回运行时 id，避免路由文件超过行数上限。写成 `.tsx` 是因为 node 工程只收录 `src/fork/**/*.ts`，这个文件要引用渲染进程的 `@/` 别名。`src/fork/terminal/file-link-stay-watch.tsx` 的 `registerTerminalFileLinkStayWatch` 登记停留标记的读写，并监视外层标签；这里没有设置开关。
 

@@ -122,6 +122,8 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 
 本地 HTML 跟上游，默认用系统浏览器，fork 不覆盖。不是 SSH 路由的工作区里，地址栏手贴的绝对路径不会变成 `orca-preview`，要点链接才会铸预览授权。SSH 浏览器路由开着时，手贴的 `file://` HTML 会补上预览记录并拉回文档预览；路由关掉时留在本机。
 
+已经打开的运行时文档预览（或同一工作区里的浏览器页）在地址栏改成工作区外的绝对路径或 `file://` HTML 时，以前仍走 `files.readDocPreview` 的边界检查，提示「工作区之外的文件尚无法在配对服务器上预览」。路由开着、并且部署是真实 `sshTargetId`（不是 `runtime-ssh-`）时，地址栏改记和点击相同的 SSH 预览，再把当前页转成文档预览。字节走这条 SSH 读取。路由关掉或目标在禁用列表里时不记、不转，保留原来的拒绝，也不把本机 `file://` 收成远端预览。连接 id 对不上时仍是空白文档预览加 404，不会退回 `file://`。工作区里的 HTML 仍走 `files.readDocPreview`。
+
 `src/fork/terminal/file-link-route.tsx` 负责查找归属、在上游解析之后套用 SSH 停留、做嵌套只读降级、把远程 HTML 送进应用内预览、以及同路径兄弟标签是否跳转，并给服务器上的只读视图补回运行时 id，避免路由文件超过行数上限。写成 `.tsx` 是因为 node 工程只收录 `src/fork/**/*.ts`，这个文件要引用渲染进程的 `@/` 别名。`src/fork/terminal/file-link-stay-watch.tsx` 的 `registerTerminalFileLinkStayWatch` 登记停留标记的读写，并监视外层标签；这里没有设置开关。
 
 托管服务器上的 orcad 另外登记 `src/shared/fork-hooks/terminal-disowned-host-file.ts`（只在 `installForkOrcadHost`，桌面进程不登记）。登记的是打开函数，实现在 `src/fork/main/disowned-host-file-open.ts`。上游 `terminal-path-resolver.ts` 只调用这个钩子。终端或对话里的路径、`file://`，HTML 与否都一样：这台服务器上没有任何工作区认领，而且近期输出授权也失败时，以前 `files.resolveTerminalPath` 不 stat 就返回 `exists:false`。客户端因此拒绝「outside every workspace on its host」，停留钩子也不会跑。对话链接通常不带 `terminalHandle`，也不带 `nativeChatContext`。登记之后，`crossWorkspace` 的请求会 stat 本机文件。普通文件存在就发只读 `absolute-file` 授权，来源记为 `disowned-host`，绑在发起请求的那个工作区上。非 HTML 仍在编辑器里只读打开源码。`.html` / `.htm` 由客户端打开应用内预览，不进系统浏览器，也不切到 `~`。目录不发源码授权。`~/.ssh`、`~/.gnupg`、`~/.orca`、`~/.aws` 不发授权，软链落到这些目录同样拒绝。SSH 路由不在这台机器上 stat。未登记时仍是 `exists:false`，不碰磁盘。客户端目录里就算有 `~` 文件夹工作区，也不拿它当服务器上的归属。

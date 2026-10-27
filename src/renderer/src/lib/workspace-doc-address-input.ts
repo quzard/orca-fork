@@ -3,6 +3,7 @@ import { folderWorkspaceKey } from '../../../shared/workspace-scope'
 import type { BrowserPageDocLocation } from '../../../shared/browser-workspace-types'
 import { getRelativePathInsideRoot, joinPath } from '@/lib/path'
 import { getWorkspaceFilePreviewPlan } from '@/lib/file-preview'
+import { rememberManagedSshAddressPreview } from '../../../fork/terminal/html-preview-open'
 import type { AppState } from '@/store/types'
 import { htmlFilePathFromUrl } from '../../../shared/html-file-url'
 import { authorityKey } from '../../../shared/host-authority'
@@ -60,6 +61,17 @@ function planToTarget(
   filePath: string
 ): WorkspaceDocAddressTarget {
   const plan = getWorkspaceFilePreviewPlan(state, worktreeId, filePath)
+  // Paired files.read refuses outside the worktree. A live managed SSH route records the click preview instead.
+  if (
+    plan.status === 'unsupported' &&
+    plan.reason === 'outside-worktree' &&
+    rememberManagedSshAddressPreview(worktreeId, filePath, state)
+  ) {
+    return {
+      status: 'workspace-doc',
+      docLocation: { kind: 'workspace-doc', worktreeId, filePath }
+    }
+  }
   if (plan.status === 'doc-preview') {
     return {
       status: 'workspace-doc',

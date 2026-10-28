@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useAppStore } from '@/store'
-import { getProjectHostSetupProjectionFromState } from '@/store/project-host-setup-selector'
 import { selectFolderWorkspaces, selectWorktreesByRepo } from '@/store/workspace-record-selectors'
 import type { Repo } from '../../shared/repo-types'
 import type { Worktree } from '../../shared/worktree/types'
@@ -232,12 +231,13 @@ export function useSearchHostLabels(
 /**
  * 恢复会话时要看的工作区快照。
  * 这段计算原在 AiVaultPanel 里，面板已经顶到 400 行，才挪到这里。
- * 这不是 fork 功能：快照内容和上游面板里的 useAppStore 选择器一样，含 projectHostSetupProjection。
+ * 这不是 fork 功能：快照内容和上游面板里的 useAppStore 选择器一样。
+ * 主机投影由面板单独的 useProjectHostSetupProjection 读取，不放进这份快照。
  */
 export function useAiVaultResumeTargetState() {
   return useAppStore(
     useShallow((state) => ({
-      projectHostSetupProjection: getProjectHostSetupProjectionFromState(state),
+      projects: state.projects,
       settings: state.settings,
       folderWorkspaces: selectFolderWorkspaces(state),
       projectGroups: state.projectGroups,

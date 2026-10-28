@@ -103,7 +103,7 @@ export abstract class OrcaRuntimeWithCreateManagedRemoteWorktree extends OrcaRun
     return probeRuntimeWorktreeDrift({
       selector: worktreeSelector,
       store: this.store ? this.requireStore() : null,
-      resolveWorktree: (selector) => this.resolveWorktreeSelector(selector),
+      resolveWorktree: (selector) => this.resolveGitWorktreeSelector(selector),
       resolveRemoteTrackingBase: (repoPath, base, options) =>
         this.resolveRemoteTrackingBase(repoPath, base, options),
       fetchRemote: (repoPath, remote, options) =>
@@ -130,7 +130,7 @@ export abstract class OrcaRuntimeWithCreateManagedRemoteWorktree extends OrcaRun
       updates,
       store: this.store,
       ports: {
-        resolveWorktree: (selector) => this.resolveWorktreeSelector(selector),
+        resolveWorktree: (selector) => this.resolveGitWorktreeSelector(selector),
         validateParent: (worktree, parent) => this.worktreeLineage.validateParent(worktree, parent),
         invalidateResolved: () => this.invalidateResolvedWorktreeCache(),
         invalidateScan: (repoId) => this.invalidateWorktreeScanCacheForRepo(repoId),

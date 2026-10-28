@@ -62,6 +62,8 @@ export async function resolveAndRetainTerminalLink(input: {
   worktreePath: string
   mappedFilePath: string
   terminalHandle?: string | null
+  // 上游把第三个参数改成对象，hostFileOnly 和 terminalHandle 一起传，避免只读主机文件落到本机。
+  hostFileOnly?: boolean
 }): Promise<ResolvedTerminalLink> {
   const sourceWorktreeId = input.worktreeId
   const sourceWorktreePath = input.worktreePath
@@ -77,7 +79,10 @@ export async function resolveAndRetainTerminalLink(input: {
   let statResult: LinkStat | null = null
   let linkOwner: Awaited<ReturnType<typeof resolveHostWorkspaceFile>> = null
   try {
-    linkOwner = await resolveHostWorkspaceFile(fileContext, mappedFilePath, input.terminalHandle)
+    linkOwner = await resolveHostWorkspaceFile(fileContext, mappedFilePath, {
+      terminalHandle: input.terminalHandle,
+      hostFileOnly: input.hostFileOnly
+    })
   } catch (error) {
     // 真实 SSH 部署上，orcad 不会用本机磁盘冒充远端。HTML 改走这条连接的预览。
     const continued = htmlPreviewDespiteHostFileRefusal(error, fileContext, mappedFilePath)

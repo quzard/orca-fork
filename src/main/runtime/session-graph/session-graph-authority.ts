@@ -28,6 +28,10 @@ import {
 } from '../desktop-browser-bridge/desktop-browser-bridge-registry'
 import { runtimeBrowserCommandsFactoryIsAvailable } from '../runtime-browser-commands-factory'
 import { hasPairedPageHost } from '../browser/browser-client-page-opening'
+import {
+  getTerminalWorkspaceResolver,
+  type TerminalWorkspaceHost
+} from '../../../shared/fork-hooks/terminal-lifecycle'
 import { resolveRemoteCliBrowserScopeSelector } from '../desktop-browser-bridge/remote-cli-browser-scope'
 import type { RpcContext } from '../rpc/core'
 
@@ -156,18 +160,37 @@ export abstract class OrcaRuntimeWithTransitionGraphReloadToTerminalState extend
     return workspace
   }
 
-  protected async resolveEmulatorWorkspaceId(selector: string): Promise<string> {
-    const folderWorkspace = this.resolveFolderWorkspaceSelector(selector)
+  /** Folder workspaces first, then Git worktrees; project-group folders have no repo row (STA-12562). Launching needs the folder on disk; teardown must not. */
+  protected async resolveWorkspaceSelector(
+    selector: string,
+    options: { requireUsableFolderPath?: boolean } = {}
+  ): Promise<ResolvedWorktree> {
+    // fork: 可选解析器。返回 null 时继续上游的文件夹和 git 匹配。启动要核对目录在磁盘上，不走这个钩子。
+    if (!options.requireUsableFolderPath) {
+      const forkResolver = getTerminalWorkspaceResolver()
+      if (forkResolver) {
+        // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: this is the runtime host; the hook type stays free of the main-process class.
+        const resolved = await forkResolver(selector, this as TerminalWorkspaceHost)
+        if (resolved != null) {
+          // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: a registered resolver returns ResolvedWorktree; null falls through to the upstream matcher.
+          return resolved as ResolvedWorktree
+        }
+      }
+    }
+    const folderWorkspace = options.requireUsableFolderPath
+      ? (await this.resolveFolderWorkspaceLaunchScope(selector))?.folderWorkspace
+      : this.resolveFolderWorkspaceSelector(selector)
     return folderWorkspace
-      ? folderWorkspaceKey(folderWorkspace.id)
-      : (await this.resolveWorktreeSelector(selector)).id
+      ? this.folderWorkspaceToResolvedWorktree(folderWorkspace)
+      : this.resolveGitWorktreeSelector(selector)
   }
 
-  protected async resolveBrowserWorkspace(selector: string): Promise<ResolvedWorktree> {
-    const folderScope = await this.resolveFolderWorkspaceLaunchScope(selector)
-    return folderScope?.folderWorkspace
-      ? this.folderWorkspaceToResolvedWorktree(folderScope.folderWorkspace)
-      : this.resolveWorktreeSelector(selector)
+  protected async resolveEmulatorWorkspaceId(selector: string): Promise<string> {
+    return (await this.resolveWorkspaceSelector(selector)).id
+  }
+
+  protected resolveBrowserWorkspace(selector: string): Promise<ResolvedWorktree> {
+    return this.resolveWorkspaceSelector(selector, { requireUsableFolderPath: true })
   }
 
   /** Reconcile client-hosted pages per paired device; one attached client cannot account for another's pages. */

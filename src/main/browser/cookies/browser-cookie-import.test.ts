@@ -686,7 +686,8 @@ describe('detectInstalledBrowsers', () => {
       'safari',
       'comet',
       'helium',
-      'ego-lite'
+      'ego-lite',
+      'vivaldi'
     ]
     for (const browser of browsers) {
       expect(validFamilies).toContain(browser.family)

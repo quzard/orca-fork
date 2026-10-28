@@ -37,7 +37,7 @@ export default function HiddenWorktreeRecoveryList({
   const headingId = useId()
   const listRef = useRef<HTMLDivElement>(null)
   const hidden = getHiddenImportableExternalWorktrees(detected)
-  const normalizedQuery = query.trim().toLocaleLowerCase()
+  const normalizedQuery = query.trim().toLowerCase()
   const filtered = normalizedQuery
     ? hidden.filter((worktree) => hiddenWorktreeMatchesQuery(worktree, normalizedQuery))
     : hidden

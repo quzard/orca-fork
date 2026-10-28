@@ -26,11 +26,7 @@ import type { WorkspaceKey } from '../../../shared/folder-workspace-types'
 import type { Repo } from '../../../shared/repo-types'
 import type { RuntimeStore } from '../runtime-store-contract'
 import type { RuntimeWorkspaceCatalog } from './workspace-catalog'
-import {
-  getTerminalWorkspaceResolver,
-  type TerminalWorkspaceHost
-} from '../../../shared/fork-hooks/terminal-lifecycle'
-// 路径比较和元数据合并已从 worktree-logic 拆出；folder: 解析器仍走 fork 钩子。
+// 路径比较和元数据合并已从 worktree-logic 拆出。folder: 解析在 resolveWorkspaceSelector。
 import { areWorktreePathsEqual } from '../../git/worktree-path-comparison'
 import { mergeWorktree } from '../../ipc/worktree-metadata-merge'
 
@@ -47,17 +43,8 @@ export abstract class RuntimeWorkspaceSelectors extends OrcaRuntimeWithResolveBr
     ...args: Parameters<RuntimeWorkspaceCatalog['listResolvedWorktrees']>
   ): ReturnType<RuntimeWorkspaceCatalog['listResolvedWorktrees']>
 
-  protected async resolveWorktreeSelector(selector: string): Promise<ResolvedWorktree> {
-    // fork: 可选解析器。返回 null/undefined 时继续原匹配，不增加 await。
-    const forkResolver = getTerminalWorkspaceResolver()
-    if (forkResolver) {
-      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: this is the runtime host; the hook type stays free of the main-process class.
-      const resolved = await forkResolver(selector, this as TerminalWorkspaceHost)
-      if (resolved != null) {
-        // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: a registered resolver returns ResolvedWorktree; null falls through to the upstream matcher.
-        return resolved as ResolvedWorktree
-      }
-    }
+  /** The repo-backed catalog only: project-group folder workspaces never match. Resolve a workspace with resolveWorkspaceSelector. */
+  protected async resolveGitWorktreeSelector(selector: string): Promise<ResolvedWorktree> {
     const explicitWorktreeId = this.getValidatedExplicitWorktreeIdSelector(selector)
     // Only id selectors name a repo; scoping other selectors would hide fleet-wide ambiguity.
     if (explicitWorktreeId && !this.hasFreshResolvedWorktreeCache()) {

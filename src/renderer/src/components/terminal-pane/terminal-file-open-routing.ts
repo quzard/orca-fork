@@ -64,6 +64,7 @@ type TerminalFileOpenDeps = {
   browserDestination?: HttpLinkDestination
   /** The paired-server terminal that printed the link; lets its host grant a file outside workspaces. */
   terminalHandle?: string | null
+  hostFileOnly?: boolean
   /** Reports a path that could not be verified before opening; skipped once a later open supersedes it. */
   onOpenFailure?: (failure: FileOpenFailure) => void
   /** The tab that owns the link; editor opens place themselves relative to its group. */
@@ -168,7 +169,8 @@ export function openDetectedFilePath(
         worktreeId,
         worktreePath,
         mappedFilePath,
-        terminalHandle: deps.terminalHandle
+        terminalHandle: deps.terminalHandle,
+        hostFileOnly: deps.hostFileOnly
       }))
     } catch (error) {
       if (isCurrentRequest() && deps.onOpenFailure) {

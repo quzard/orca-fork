@@ -67,8 +67,7 @@ export default function AiVaultPanel({
   const {
     workspaceId: activeWorktreeId,
     worktree: activeWorktree,
-    repo: activeRepo,
-    legacyProjectKey
+    repo: activeRepo
   } = useAiVaultPanelWorkspace(workspace)
   const repos = useRepos()
   const allWorktrees = useAllWorktrees()
@@ -151,18 +150,11 @@ export default function AiVaultPanel({
       aiVaultSearchScopeIdentity({
         scope,
         activeWorktreeId: activeWorktree?.id,
-        activeProjectKey: legacyProjectKey
+        activeProjectKey
       }),
-    [legacyProjectKey, activeWorktree?.id, scope]
+    [activeProjectKey, activeWorktree?.id, scope]
   )
-  const search = useAiVaultPanelSearch(
-    query,
-    agents,
-    searchWithin,
-    executionHostScope,
-    searchSort,
-    activeProjectKey ?? undefined
-  )
+  const search = useAiVaultPanelSearch(query, agents, searchWithin, executionHostScope, searchSort)
   const { searching, searchHits } = search
   const searchSessions = useMemo(
     () => withAiVaultHistoryPreviews(search.sessions, history),
@@ -190,10 +182,9 @@ export default function AiVaultPanel({
         repos,
         worktrees: allWorktrees,
         projectHostSetupProjection,
-        settings: settings ?? undefined,
         sessions
       }),
-    [allWorktrees, projectHostSetupProjection, repos, sessions, settings]
+    [allWorktrees, projectHostSetupProjection, repos, sessions]
   )
   const effectiveActiveWorktreeId = activeWorktreeId ?? activeWorktree?.id ?? null
   const {

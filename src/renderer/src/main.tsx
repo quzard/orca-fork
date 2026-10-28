@@ -27,6 +27,7 @@ import { handleGuestWindowCloseMessage } from './components/browser-pane/host-gu
 import { installOsFileDropCancellationGuard } from './lib/os-file-drop-cancellation-guard'
 import { registerForkModules } from '../../fork/register'
 import { registerForkRendererModules } from '../../fork/register-renderer'
+import { installBodyOverlayAttributes } from './lib/body-overlay-attributes'
 
 // fork: 先登记分组模式，再登记渲染槽。主进程登记留在 register-main。
 registerForkModules()
@@ -34,6 +35,8 @@ registerForkRendererModules()
 
 const disposeOsFileDropGuard = installOsFileDropCancellationGuard()
 import.meta.hot?.dispose(disposeOsFileDropGuard)
+const disposeBodyOverlayAttributes = installBodyOverlayAttributes()
+import.meta.hot?.dispose(disposeBodyOverlayAttributes)
 recordRendererCrashBreadcrumb('renderer_bootstrap_started', { dev: import.meta.env.DEV })
 installRendererCrashDiagnostics()
 installTypingLatencyDiagnostic()

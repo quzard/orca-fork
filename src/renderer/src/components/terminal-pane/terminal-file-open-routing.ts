@@ -1,5 +1,4 @@
 import { downloadAndOpenRemoteTerminalFile } from './terminal-remote-file-download-open'
-import { isPathInsideWorktree } from '../../../../shared/terminal-links'
 import { isMissingRuntimePathError } from '@/runtime/runtime-file-metadata-client'
 import { useAppStore } from '@/store'
 import { activateAndRevealWorkspace, activateAndRevealWorktree } from '@/lib/worktree-activation'
@@ -20,9 +19,8 @@ import {
 } from '../../../../shared/execution-host'
 import type { HostWorkspaceFile } from './terminal-host-workspace-file'
 import {
-  adoptSiblingTerminalLink,
-  nestedTerminalLinkPath,
   openTerminalHtmlUnlessSshSource,
+  placeRetainedTerminalLink,
   resolveAndRetainTerminalLink,
   terminalLinkOpenFields
 } from '../../../../fork/terminal/file-link-route'
@@ -259,39 +257,25 @@ export function openDetectedFilePath(
       return
     }
 
-    let targetWorktreeId = worktreeId
     const runtimeOwnerId = runtimeTargetEnvironmentId(fileContext.target) ?? sourceRuntimeOwnerId
-    let targetExecutionHostId =
-      hostWorkspaceFile?.executionHostId ??
-      (runtimeOwnerId
-        ? toRuntimeExecutionHostId(runtimeOwnerId)
-        : getConnectionExecutionHostId(fileContext.connectionId))
-    let relativePath = mappedFilePath
-    if (worktreePath && isPathInsideWorktree(mappedFilePath, worktreePath)) {
-      // fork: 更深的工作区拥有这个路径时改成只读视图，否则仍用上游的相对路径。
-      ;({ relativePath, stayView } = nestedTerminalLinkPath({
-        stayView,
-        executionHostId: targetExecutionHostId,
-        absolutePath: mappedFilePath,
-        sourceWorktreeId: worktreeId,
-        worktreePath,
-        escapesWorktree: statResult.escapesWorktree
-      }))
-    } else {
-      // 已有停留视图时不改走兄弟标签。否则仍是上游的同路径碰撞跳转。
-      const sibling = adoptSiblingTerminalLink({
-        stayView,
-        hostGrantId,
-        worktreeId,
-        mappedFilePath,
-        executionHostId: targetExecutionHostId
-      })
-      if (sibling) {
-        targetWorktreeId = sibling.worktreeId
-        targetExecutionHostId = sibling.executionHostId
-        relativePath = sibling.relativePath
-      }
-    }
+    // fork: 嵌套只读和同路径碰撞都在 file-link-route，避免这个文件超过行数上限。
+    const placed = placeRetainedTerminalLink({
+      stayView,
+      worktreeId,
+      worktreePath,
+      mappedFilePath,
+      escapesWorktree: statResult.escapesWorktree,
+      hostGrantId,
+      targetExecutionHostId:
+        hostWorkspaceFile?.executionHostId ??
+        (runtimeOwnerId
+          ? toRuntimeExecutionHostId(runtimeOwnerId)
+          : getConnectionExecutionHostId(fileContext.connectionId))
+    })
+    stayView = placed.stayView
+    const targetWorktreeId = placed.targetWorktreeId
+    const targetExecutionHostId = placed.targetExecutionHostId
+    const relativePath = placed.relativePath
 
     if (
       explicitGroupRequest &&

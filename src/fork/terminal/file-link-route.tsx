@@ -3,7 +3,7 @@
 // 写成 .ts 时 pnpm tc 会在 node 工程里解析这些别名失败。
 import { findWorkspaceFileRoute } from '@/lib/runtime-workspace-file-route'
 import { useAppStore } from '@/store'
-import { toWorktreeRelativePath } from '../../shared/terminal-links'
+import { isPathInsideWorktree, toWorktreeRelativePath } from '../../shared/terminal-links'
 import { isHtmlFilePath } from '@/components/terminal-pane/local-html-file-destinations'
 import { openTerminalHtmlFileInBrowser } from '@/components/terminal-pane/terminal-file-link-browser-open'
 import {
@@ -182,6 +182,63 @@ export function nestedTerminalLinkPath(input: {
     return { stayView: null, relativePath: maybeRelative }
   }
   return { stayView: null, relativePath: input.absolutePath }
+}
+
+/**
+ * 路径在当前工作区里就做嵌套只读降级，否则沿用上游的同路径碰撞。
+ * 路由文件顶着行数上限，这段判断放在这里。
+ */
+export function placeRetainedTerminalLink(input: {
+  stayView: TerminalFileLinkRoute | null
+  worktreeId: string
+  worktreePath: string
+  mappedFilePath: string
+  escapesWorktree: boolean
+  hostGrantId: string | null
+  targetExecutionHostId: ExecutionHostId
+}): {
+  stayView: TerminalFileLinkRoute | null
+  targetWorktreeId: string
+  targetExecutionHostId: ExecutionHostId
+  relativePath: string
+} {
+  const kept = {
+    stayView: input.stayView,
+    targetWorktreeId: input.worktreeId,
+    targetExecutionHostId: input.targetExecutionHostId,
+    relativePath: input.mappedFilePath
+  }
+  if (input.worktreePath && isPathInsideWorktree(input.mappedFilePath, input.worktreePath)) {
+    const nested = nestedTerminalLinkPath({
+      stayView: input.stayView,
+      executionHostId: input.targetExecutionHostId,
+      absolutePath: input.mappedFilePath,
+      sourceWorktreeId: input.worktreeId,
+      worktreePath: input.worktreePath,
+      escapesWorktree: input.escapesWorktree
+    })
+    return {
+      ...kept,
+      stayView: nested.stayView,
+      relativePath: nested.relativePath
+    }
+  }
+  const sibling = adoptSiblingTerminalLink({
+    stayView: input.stayView,
+    hostGrantId: input.hostGrantId,
+    worktreeId: input.worktreeId,
+    mappedFilePath: input.mappedFilePath,
+    executionHostId: input.targetExecutionHostId
+  })
+  if (!sibling) {
+    return kept
+  }
+  return {
+    ...kept,
+    targetWorktreeId: sibling.worktreeId,
+    targetExecutionHostId: sibling.executionHostId,
+    relativePath: sibling.relativePath
+  }
 }
 
 /**

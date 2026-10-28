@@ -409,9 +409,7 @@ export function terminalLinkOpenFields(
         }
       : {}),
     // 保留 SSH 归属，否则还原出来的绝对远端路径会和本机外部文件分不清。
-    ...(relativePath === filePath &&
-    fileContext.target.kind === 'local' &&
-    fileContext.connectionId
+    ...(relativePath === filePath && fileContext.target.kind === 'local' && fileContext.connectionId
       ? { externalSshTargetId: fileContext.connectionId }
       : {})
   }

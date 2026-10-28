@@ -57,7 +57,10 @@ describe('fork desktop updater never pins a stablyai release feed', () => {
     const { setupAutoUpdater, checkForUpdatesFromMenu } = await loadForkUpdater(true)
 
     setupAutoUpdater(
-      { isDestroyed: () => false, webContents: { send: vi.fn(), isDestroyed: () => false } } as never,
+      {
+        isDestroyed: () => false,
+        webContents: { send: vi.fn(), isDestroyed: () => false }
+      } as never,
       {
         getLastUpdateCheckAt: () => Date.now()
       }
@@ -86,7 +89,10 @@ describe('fork desktop updater never pins a stablyai release feed', () => {
     const { setupAutoUpdater, checkForUpdatesFromMenu } = await loadForkUpdater(false)
 
     setupAutoUpdater(
-      { isDestroyed: () => false, webContents: { send: vi.fn(), isDestroyed: () => false } } as never,
+      {
+        isDestroyed: () => false,
+        webContents: { send: vi.fn(), isDestroyed: () => false }
+      } as never,
       {
         getLastUpdateCheckAt: () => 0
       }

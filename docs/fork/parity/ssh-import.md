@@ -22,17 +22,20 @@ Paths below are generic. Each item is the behavior a registered build must show.
 - [ ] A reattach that already restored the park model does not pulse.
 - [ ] A hidden pane stores the pulse and sends it once, with the size at first show.
 
-## F021 Open an SSH workspace in Cursor
+## F021 Open an SSH workspace in Cursor (upstream #33877)
 
-- [ ] `buildCursorRemoteSshUrl('builder', '/home/Ada Lovelace/project')` is `cursor://vscode-remote/ssh-remote+builder/home/Ada%20Lovelace/project?windowId=_blank`.
-- [ ] The command `cursor`, or an absolute path whose file name is `cursor`, resolves to that URL. `code` stays an executable `--remote ssh-remote+...` launch.
-- [ ] Open in shows a Cursor row unless the user already configured a cursor command.
-- [ ] A direct SSH workspace enables Cursor and VS Code-family rows. The launch uses that connection. File manager stays refused.
+Upstream [stablyai/orca#33877](https://github.com/stablyai/orca/pull/33877) covers this. The fork no longer builds a `cursor://` URL or adds an Open in row.
+
+- [ ] A direct SSH workspace enables Cursor, VS Code, and Zed. Cursor launches `cursor --new-window --remote ssh-remote+<alias> <path>`. VS Code uses `--remote ssh-remote+…`. Zed uses an `ssh://` URL.
+- [ ] Cursor appears in Open in only after it is configured, same as Zed.
+- [ ] The file manager on an SSH workspace stays refused.
 
 ## F043 Managed-server remote open and per-port forward
 
-- [ ] A runtime environment whose `orcadDeployment.sshTargetId` is still in the SSH target list enables the same remote rows. A hydrated missing target does not.
-- [ ] There is no manual environment-to-SSH map.
+Open in for a server reached over SSH is upstream #33877. The remaining fork behavior is the per-port Forward button.
+
+- [ ] A workspace whose files sit on a managed or paired server enables the same remote rows. The SSH target comes from `orcadDeployment` or `sshAccess` and is not an ephemeral `runtime-ssh-` id. Upstream `getWorkspaceEditorSshHost` decides this.
+- [ ] A workspace that server reaches through its own SSH host stays refused. There is no fork environment-to-SSH map and no fork route adjuster.
 - [ ] After renderer registration, each detected port row on that workspace has Forward. It opens the existing forward dialog with that remote port, host `localhost`, and the port's process name.
 - [ ] Before registration, those rows have no Forward button. The existing Forwarded section is unchanged.
 

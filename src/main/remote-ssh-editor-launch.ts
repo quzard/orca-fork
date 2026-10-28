@@ -6,7 +6,6 @@ import {
   resolveExternalEditorExecutable,
   type ExternalEditorLaunchSpec
 } from './external-editor-launch'
-import { resolveForkRemoteEditorLaunch } from '../shared/fork-hooks/remote-editor-launch'
 import { resolveVsCodeSshAuthority } from './ssh/config/vscode-ssh-authority'
 import { resolveZedSshUrl } from './ssh/config/zed-ssh-url'
 
@@ -34,11 +33,6 @@ export function resolveRemoteSshEditorLaunchSpec(
     const authority = resolveVsCodeSshAuthority(target)
     if (!authority.ok) {
       return authority
-    }
-    // fork: registered Cursor stays on the cursor:// URL. Unregistered keeps the CLI launch below.
-    const forkUrl = resolveForkRemoteEditorLaunch(editorCommand, pathValue, authority.authority)
-    if (forkUrl) {
-      return { ok: true, launchSpec: forkUrl }
     }
     spawnArgs = ['--remote', `ssh-remote+${authority.authority}`, pathValue]
     // Cursor may reuse the last workbench; a new window preserves this workspace target.

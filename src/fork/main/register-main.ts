@@ -2,11 +2,9 @@
 
 import { registerAiVaultServiceHeap } from '../../shared/fork-hooks/ai-vault'
 import { registerDeferBrowserSessionProxy } from '../../shared/fork-hooks/startup'
-import { registerForkRemoteEditorLaunch } from '../../shared/fork-hooks/remote-editor-launch'
 import { registerTerminalWorkspaceResolver } from '../../shared/fork-hooks/terminal-lifecycle'
 import { aiVaultServiceHeapMiB } from './ai-vault/heap'
 import { installAiVaultForkServicePolicy } from './ai-vault/service-policy'
-import { cursorRemoteSshLaunchSpec } from '../open-in/cursor-remote-launch'
 import { resolveFolderTerminalWorkspace } from '../terminal/folder-workspace-resolver'
 import { getGitRepoRoot } from '../../main/git/repo-detection'
 import { registerImportedWorktreePath } from '../../shared/fork-hooks/imported-worktree-path'
@@ -34,7 +32,6 @@ export function registerForkMainModules(): void {
   registerDeferBrowserSessionProxy(true)
   registerTerminalWorkspaceResolver(resolveFolderTerminalWorkspace)
   registerImportedWorktreePath(getGitRepoRoot)
-  registerForkRemoteEditorLaunch(cursorRemoteSshLaunchSpec)
   registerKeepFolderWorkspacesOnGroupDeleteInMain(keepFolderWorkspacesOnGroupDelete)
   // 直连 SSH 的 HTML 预览在桌面读文件。orcad 没有这条连接时读取函数返回 null。
   registerSshHtmlPreviewRead(readConnectedSshHtmlPreview)

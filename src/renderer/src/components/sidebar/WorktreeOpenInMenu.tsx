@@ -25,14 +25,7 @@ import type { WorkspaceOwnerRef } from '@/lib/resolve-owner'
 import { NO_OPEN_IN_APPLICATIONS } from '@/lib/open-in-application-selection'
 import { showOpenFailureToast } from './worktree-open-failure-toast'
 import type { OpenInApplication } from '../../../../shared/ui-chrome-types'
-import {
-  adjustOpenInRoute,
-  findOpenInLauncher,
-  listOpenInLaunchers,
-  openInLauncherEntryId
-} from '../../../../shared/fork-hooks/open-in-launcher'
 import { translate } from '@/i18n/i18n'
-import { toSshExecutionHostId } from '../../../../shared/execution-host'
 
 export { getLocalFileManagerLabel } from '@/lib/local-file-manager-label'
 
@@ -65,20 +58,6 @@ export function getWorktreeOpenInEntries(
       target: 'external-editor' as const,
       command: application.command
     })),
-    // fork: 额外启动器。空表不增加条目。已有同命令应用时不再重复一行。
-    ...listOpenInLaunchers()
-      .filter(
-        (launcher) =>
-          !launcher.hiddenBesideCommands?.(
-            openInApplications.map((application) => application.command ?? '')
-          )
-      )
-      .map((launcher) => ({
-        id: openInLauncherEntryId(launcher.id),
-        label: launcher.label,
-        target: launcher.target ?? ('external-editor' as const),
-        command: launcher.command
-      })),
     { id: 'file-manager', label: fileManagerLabel, target: 'file-manager' }
   ]
 }
@@ -88,20 +67,8 @@ export function getOpenInEntryAvailability(
   connectionId?: string | null,
   runtimeEnvironmentId?: string | null,
   ownerUnresolved?: boolean,
-  runtimeSshHost?: WorkspaceEditorSshHost | null,
-  worktreePath?: string
+  runtimeSshHost?: WorkspaceEditorSshHost | null
 ): { disabled: boolean; metadata?: string; disabledReason?: string } {
-  // fork: 登记启动器自带 canOpen 时用它。普通条目走下面的原判断。
-  const forkLauncher = findOpenInLauncher(entry.id)
-  if (forkLauncher?.canOpen) {
-    return forkLauncher.canOpen({
-      worktreePath: worktreePath ?? '',
-      connectionId,
-      runtimeEnvironmentId
-    })
-      ? { disabled: false }
-      : { disabled: true }
-  }
   if (entry.target === 'file-manager') {
     const disabled = isRevealOrEditorOpenBlocked(
       getLocalPathOpenOwnerForRoute({ connectionId, runtimeEnvironmentId, ownerUnresolved })
@@ -121,18 +88,6 @@ export function getOpenInEntryAvailability(
     runtimeSshHost
   })
   if (!capability.allowed) {
-    // fork: 运行时工作区或 Cursor 的远端打开。未登记时仍禁用。
-    const adjusted = adjustOpenInRoute({
-      worktreePath: worktreePath ?? '',
-      connectionId,
-      runtimeEnvironmentId,
-      ownerUnresolved,
-      command: entry.command,
-      target: entry.target
-    })
-    if (adjusted) {
-      return { disabled: adjusted.disabled, metadata: adjusted.metadata }
-    }
     return {
       disabled: true,
       metadata: translate('auto.components.sidebar.WorktreeOpenInMenu.localOnly', 'Local only'),
@@ -207,27 +162,6 @@ export async function openWorktreePath(args: {
     if (capability.allowed) {
       editorConnectionId = capability.sshTargetId ?? editorConnectionId
     } else {
-      // fork: 登记的远端打开改走解析出的 SSH 目标。上游已经允许的编辑器走上面的 sshTargetId。
-      const adjusted = adjustOpenInRoute({
-        worktreePath: args.worktreePath,
-        connectionId: args.connectionId,
-        runtimeEnvironmentId: args.runtimeEnvironmentId,
-        ownerUnresolved: args.ownerUnresolved,
-        command: args.command,
-        target: args.target
-      })
-      if (adjusted && !adjusted.disabled) {
-        const result = await window.api.shell.openInExternalEditor({
-          path: args.worktreePath,
-          command: args.command,
-          connectionId: adjusted.connectionId,
-          ownerHostId: toSshExecutionHostId(adjusted.connectionId)
-        })
-        if (!result.ok) {
-          showOpenFailureToast(result, true)
-        }
-        return
-      }
       if (capability.reason === 'remote-runtime') {
         showOpenFailureToast({ ok: false, reason: 'remote-runtime-unsupported' }, false)
       } else {
@@ -311,20 +245,13 @@ export function WorktreeOpenInMenuItems({
           connectionId,
           runtimeEnvironmentId,
           ownerUnresolved,
-          runtimeSshHost,
-          worktreePath
+          runtimeSshHost
         )
         const item = (
           <DropdownMenuItem
             key={entry.id}
             onClick={stopMenuPropagation}
             onSelect={() => {
-              // fork: 登记了 open 的启动器自己打开。其余条目不变。
-              const forkLauncher = findOpenInLauncher(entry.id)
-              if (forkLauncher?.open) {
-                void forkLauncher.open({ worktreePath, connectionId, runtimeEnvironmentId })
-                return
-              }
               void openInWorktreePath(entry.target, entry.command)
             }}
             disabled={disabled || availability.disabled}

@@ -30,10 +30,7 @@ function remoteLaunchSpec(
   target: SshTarget = BUILDER_ALIAS
 ) {
   const result = resolveRemoteSshEditorLaunchSpec(command, pathValue, target, options)
-  if (!result.ok || result.launchSpec.kind === 'url') {
-    return null
-  }
-  return result.launchSpec
+  return result.ok ? result.launchSpec : null
 }
 
 describe('resolveExternalEditorLaunchSpec', () => {
@@ -530,11 +527,8 @@ describe('resolveRemoteSshEditorLaunchSpec', () => {
     expect(
       remoteLaunchSpec(command, 'C:\\Users\\Ada Lovelace\\project', {
         platform: 'win32'
-      })
-    ).toMatchObject({
-      kind: 'executable',
-      spawnArgs: ['--remote', 'ssh-remote+builder', 'C:\\Users\\Ada Lovelace\\project']
-    })
+      })?.spawnArgs
+    ).toEqual(['--remote', 'ssh-remote+builder', 'C:\\Users\\Ada Lovelace\\project'])
   })
 
   it('supports an existing direct POSIX launcher path containing spaces', () => {

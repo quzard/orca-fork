@@ -38,18 +38,9 @@ export type ExternalEditorShellLaunchSpec = {
   spawnArgs: string[]
 }
 
-export type ExternalEditorProcessLaunchSpec =
+export type ExternalEditorLaunchSpec =
   | ExternalEditorExecutableLaunchSpec
   | ExternalEditorShellLaunchSpec
-
-export type ExternalEditorUrlLaunchSpec = {
-  kind: 'url'
-  url: string
-}
-
-export type ExternalEditorLaunchSpec =
-  | ExternalEditorProcessLaunchSpec
-  | ExternalEditorUrlLaunchSpec
 
 function escapeWindowsPathForShell(pathValue: string): string {
   return /^[a-zA-Z0-9_./@:\\-]+$/.test(pathValue) ? pathValue : `"${pathValue}"`
@@ -178,7 +169,7 @@ function buildShellLaunchSpec(
   command: string,
   pathValue: string,
   platform: NodeJS.Platform
-): ExternalEditorProcessLaunchSpec {
+): ExternalEditorLaunchSpec {
   const shellCommand = `${command} ${escapePathForShell(pathValue, platform)}`
   if (platform === 'win32') {
     // Do not wrap shell commands in start: it consumes quoted titles and can leave cmd /K running.
@@ -201,7 +192,7 @@ export function resolveExternalEditorLaunchSpec(
   command: string | undefined,
   pathValue: string,
   options: { platform?: NodeJS.Platform; fileExists?: (path: string) => boolean } = {}
-): ExternalEditorProcessLaunchSpec {
+): ExternalEditorLaunchSpec {
   const platform = options.platform ?? process.platform
   const fileExists = options.fileExists ?? existsSync
   const trimmed = command?.trim() || EXTERNAL_EDITOR_CLI_COMMAND
@@ -242,7 +233,7 @@ export function resolveExternalEditorExecutable(
     : resolveEditorCliCommand(trimmed, platform, fileExists)
 }
 
-function startExternalEditorProcess(launchSpec: ExternalEditorProcessLaunchSpec): ChildProcess {
+function startExternalEditorProcess(launchSpec: ExternalEditorLaunchSpec): ChildProcess {
   const detachedOptions = {
     detached: true,
     stdio: 'ignore',
@@ -278,12 +269,6 @@ function startExternalEditorProcess(launchSpec: ExternalEditorProcessLaunchSpec)
 }
 
 export async function launchExternalEditor(launchSpec: ExternalEditorLaunchSpec): Promise<void> {
-  if (launchSpec.kind === 'url') {
-    // fork: a registered Cursor remote opens a cursor:// URL.
-    const { shell } = await import('electron')
-    await shell.openExternal(launchSpec.url)
-    return
-  }
   await new Promise<void>((resolvePromise, rejectPromise) => {
     const child = startExternalEditorProcess(launchSpec)
     let settled = false

@@ -79,11 +79,17 @@ fork 新增的界面文字（从 Orca 移除、已移除和隐藏的工作区、
 
 重连 fit 对 `ssh:` 终端先把列数减 1，200ms 后恢复这次记下的尺寸。随后的同尺寸 fit 在脉冲期间被挡住。`remote:` 终端和列数小于等于 2 时不脉冲。从停放模型恢复的完整画面不脉冲。面板当时不可见时先记下，第一次显示再用当时的尺寸脉冲，之后的显示不再补。
 
-## F021 / F043 用 Cursor 或 VS Code 打开远端工作区
+## F021 / F043 用 Cursor、VS Code 或 Zed 打开远端工作区（Open in 由上游 #33877 覆盖）
 
-命令不是 VS Code 启动器时，可以返回 `cursor://vscode-remote/ssh-remote+...`，用 `shell.openExternal` 打开。SSH 主机名或别名放进 URL 前做百分号编码（`@` 保留），含空格、`/`、`?`、`#`、`%` 的别名不会截断 URL。Open in 多一行 Cursor；用户已经配置了 cursor 命令时不重复。直接 SSH，以及托管环境上仍存在的 `orcadDeployment.sshTargetId`，会启用 VS Code 系和 Cursor。文件管理器和解析不出的所有者仍然拒绝。没有手工的环境到 SSH 映射。
+上游 [stablyai/orca#33877](https://github.com/stablyai/orca/pull/33877)（修 #30593）用 CLI 参数打开直接 SSH，以及文件就在这台机器上、经 SSH 到达的托管或配对服务器。Cursor 是 `cursor --new-window --remote ssh-remote+<authority> <path>`，VS Code 系是 `--remote ssh-remote+…`，Zed 是 `ssh://` URL。菜单是否可点由上游 `getExternalEditorOpenCapability` 和 `getWorkspaceEditorSshHost` 决定：编辑器是 Cursor、VS Code 或 Zed；托管侧认 `orcadDeployment` 或 `sshAccess` 上的 `sshTargetId`（临时 `runtime-ssh-` 目标不算），并且工作区文件在这台服务器上。主进程再用 `isEditorSshHostForOwner` 核对主机、代次和围栏。
 
-托管工作区的端口行在渲染进程登记后显示 Forward，打开已有的转发对话框并填上该端口。未登记时没有这个按钮。
+fork 不再改这条打开路径。已经去掉的是：
+
+- `cursor://vscode-remote/ssh-remote+…`，以及用 `shell.openExternal` 打开它。登记之后它挡在上游 CLI 前面。
+- Open in 里多出来的 Cursor 行。Cursor 跟 Zed 一样，在打开方式里配置之后才出现。
+- `adjustRemoteOpenRoute` 和 `environment-ssh-target.ts`。它只在上游判定不能打开时才跑，用连接 id 或 `orcadDeployment.sshTargetId` 打开，并把 `ownerHostId` 写成 `ssh:<id>`，主进程因此跳过运行时围栏。上游已经能打开的直接 SSH，以及「文件在这台服务器上」的托管工作区，不经过它。去掉之后，托管服务器再经自己的 SSH 访问的工作区，以及所有者还没落到这台机器上的路径，跟上游一样保持拒绝。
+
+剩下的 fork 只有托管工作区的端口行：渲染进程登记后，每个检测到的端口有 Forward，打开已有的转发对话框，填上该端口、主机 `localhost` 和进程名。未登记时没有这个按钮。已有的 Forwarded 区不变。
 
 ## F022 软链目录上的 Cursor 会话
 

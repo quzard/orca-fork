@@ -143,7 +143,11 @@ OVR={
 'src/main/runtime/terminal/artifacts/file-grants.ts':('keep','F046：只读授权多一个 disowned-host 来源，和终端输出、对话引用分开'),
 'src/shared/fork-hooks/terminal-disowned-host-file.ts':('keep','F046：登记打开函数。未登记时不 stat，仍返回 exists:false'),
 }
-REVERTED={'src/main/electron-updater-mac-staging-contract.test.ts':'PR D：fork 用例搬到 src/fork/main/*.fork.test.ts',
+REVERTED={'src/main/remote-ssh-editor-launch.ts':'上游 #33877 用 CLI 打开 SSH 上的 Cursor/VS Code/Zed，fork 不再插入 cursor:// 启动',
+ 'src/main/external-editor-launch.ts':'上游 #33877 之后没有 cursor:// URL 启动，shell.openExternal 这条分支已去掉',
+ 'src/main/external-editor-launch.test.ts':'上游 #33877 之后 launchSpec 不再有 url 这一支',
+ 'src/renderer/src/components/sidebar/WorktreeOpenInMenu.tsx':'上游 #33877 覆盖 Open in 的远端启用；fork 不再加 Cursor 行，也不再改路由',
+ 'src/main/electron-updater-mac-staging-contract.test.ts':'PR D：fork 用例搬到 src/fork/main/*.fork.test.ts',
  'src/main/host/safe-storage-availability.test.ts':'PR D：fork 用例搬到 src/fork/main/*.fork.test.ts',
  'src/renderer/src/i18n/locales/en.json':'PR E：36 个 fork 键移到 src/fork/i18n/en.json',
  'src/renderer/src/i18n/en-runtime-required.json':'PR E：fork 键随之移出，与上游一致'}

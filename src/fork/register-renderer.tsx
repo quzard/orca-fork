@@ -1,9 +1,5 @@
 import { i18n } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
-import {
-  registerOpenInLauncher,
-  registerOpenInRouteAdjuster
-} from '../shared/fork-hooks/open-in-launcher'
 import { registerPostImportHook } from '../shared/fork-hooks/post-import'
 import { registerHiddenWorktreeSearch } from '../shared/fork-hooks/sidebar-chrome'
 import {
@@ -15,15 +11,7 @@ import {
   registerDurableWorkspaceArchiveRelease,
   registerDurableWorkspaceMetaReactivate
 } from '../shared/fork-hooks/workspace-durable-archive'
-import { getOrcadSshDeployment } from '../shared/runtime-environments'
 import { registerForkRendererModules as registerAiVaultRendererModules } from './ai-vault/register-renderer'
-import {
-  CURSOR_LAUNCHER_NAME,
-  CURSOR_OPEN_IN_LABEL,
-  CURSOR_REMOTE_SSH_LAUNCHER_ID,
-  isCursorLauncherCommand
-} from './open-in/cursor-remote-url'
-import { adjustRemoteOpenRoute } from './open-in/remote-open-route'
 import { enableWorkspacePortForward } from './ports/workspace-port-forward-flag'
 import { registerArchivedWorkspaceSlot } from './sidebar/archived-workspaces'
 import {
@@ -86,27 +74,6 @@ export function registerForkRendererModules(): void {
   registerTerminalFileLinkStayWatch()
   installManagedSshAddressPreview()
   installSshRoutedHtmlPreviewRecovery()
-  registerOpenInLauncher({
-    id: CURSOR_REMOTE_SSH_LAUNCHER_ID,
-    label: CURSOR_OPEN_IN_LABEL,
-    command: CURSOR_LAUNCHER_NAME,
-    target: 'external-editor',
-    hiddenBesideCommands: (commands) => commands.some((command) => isCursorLauncherCommand(command))
-  })
-  registerOpenInRouteAdjuster((context) => {
-    const state = useAppStore.getState()
-    const environment = state.runtimeEnvironments.find(
-      (entry) => entry.id === context.runtimeEnvironmentId
-    )
-    return adjustRemoteOpenRoute(context, {
-      ownerUnresolved: context.ownerUnresolved,
-      orcadDeploymentSshTargetId: environment
-        ? getOrcadSshDeployment(environment)?.sshTargetId
-        : null,
-      sshTargetLabels: state.sshTargetLabels,
-      sshTargetsHydrated: state.sshTargetsHydrated
-    })
-  })
   registerPostImportHook((details) =>
     import('./import/apply-post-import').then((module) => module.applyForkPostImport(details))
   )

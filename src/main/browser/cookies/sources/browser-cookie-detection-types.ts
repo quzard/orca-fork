@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import type { BrowserSessionProfileSource } from '../../../../shared/browser-workspace-types'
+import { forkChromiumCookieBrowsers } from '../../../../shared/fork-hooks/chromium-cookie-browsers'
 
 export type BrowserProfile = {
   name: string
@@ -79,6 +80,20 @@ export const CHROMIUM_BROWSERS: ChromiumBrowserDef[] = [
     // Only the macOS install is verified.
   }
 ]
+
+// fork: 上游名单在前。同名 family 只留上游，登记不能换掉 Chrome / Arc。
+export function allChromiumBrowsers(): ChromiumBrowserDef[] {
+  const seen = new Set<ChromiumBrowserDef['family']>()
+  const browsers: ChromiumBrowserDef[] = []
+  for (const browser of [...CHROMIUM_BROWSERS, ...forkChromiumCookieBrowsers()]) {
+    if (seen.has(browser.family)) {
+      continue
+    }
+    seen.add(browser.family)
+    browsers.push(browser)
+  }
+  return browsers
+}
 
 export function browserRootPath(def: ChromiumBrowserDef): string | null {
   if (process.platform === 'darwin') {

@@ -19,6 +19,7 @@ import { onDocPreviewGrantRevoked } from '../../main/browser/doc-preview-grant-r
 import { openManagedDisownedHostFile } from './disowned-host-file-open'
 import { readConnectedSshHtmlPreview } from './ssh-html-preview-read'
 import { keepFolderWorkspacesOnGroupDelete } from './project-group-delete'
+import { registerEgoLiteCookieBrowser } from '../ego-lite-cookie-browser'
 
 // registerForkMainModules 可能进两次。撤销监听只挂一次，避免同一条授权被忘掉两遍。
 let htmlPreviewRevokeWatched = false
@@ -27,6 +28,8 @@ let htmlPreviewRevokeWatched = false
 export function registerForkMainModules(): void {
   // orcad 不走 registerForkModules，这里也登记，免得它去拉上游的 agent 状态规则。
   registerForkBuild()
+  // orcad 不走 registerForkModules。远端导入在这台机器上发现浏览器，所以这里也登记。
+  registerEgoLiteCookieBrowser()
   installAiVaultForkServicePolicy()
   registerAiVaultServiceHeap(() => aiVaultServiceHeapMiB())
   registerDeferBrowserSessionProxy(true)

@@ -9,7 +9,7 @@
 - 每日云端变基和家里的 Mac 发布：[docs/fork/DAILY.md](docs/fork/DAILY.md)
 - Linux 验收：[docs/fork/VERIFY.md](docs/fork/VERIFY.md)
 - F024 停用说明：[docs/fork/skill-update-flow.md](docs/fork/skill-update-flow.md)
-- 登记入口：`src/fork/register.ts`（主进程和界面都调用：fork 构建标记、skill 来源、host-directory、旧主机漏发的分组）、`src/fork/main/register-main.ts`（桌面主进程和 orcad：含删除项目组时保留文件夹工作区）、`src/fork/main/register-electron.ts`（只在 Electron 主进程：更新源、文件密钥、权限助手参数）、`src/fork/register-renderer.tsx`（仅界面）
+- 登记入口：`src/fork/register.ts`（主进程和界面都调用：fork 构建标记、skill 来源、host-directory、旧主机漏发的分组、Ego Lite cookie 来源）、`src/fork/main/register-main.ts`（桌面主进程和 orcad：含删除项目组时保留文件夹工作区，以及 orcad 上的 Ego Lite cookie 来源）、`src/fork/main/register-electron.ts`（只在 Electron 主进程：更新源、文件密钥、权限助手参数）、`src/fork/register-renderer.tsx`（仅界面）
 - 目录约定：只在主进程运行的 fork 代码放 `src/fork/main/`；引用渲染进程的 fork 代码用 `.tsx`；`*.fork.test.ts` 是 node 测试，渲染进程测试用 `.fork.test.tsx`。tsconfig 只按这三条通配，不再逐个列文件。`pnpm tc` 在 tsc 之前先跑 `src/fork/tsconfig-boundaries.mjs`，fork 文件引用了所在工程不包含的文件就失败。用到真实 SQLite 运行时存储、或导入会加载 SQLite 的模块（比如 `persistence-test-harness`）的测试，要写进 `config/scripts/vitest-node-runtime-files.mjs` 的 `NODE_RUNTIME_INCLUDE`。直接 import 这些模块的单测也会被 `findSqliteRuntimeTests()` 追加进 `getNodeRuntimeInclude()`；扫描漏掉的（动态 import、共享 helper）仍要手写。两条 fork 测试继续手写在这个列表里。
 - 行数上限：`orcad-entry.ts` 已在 300 行。监听地址和终端准入合成 `resolveOrcadServeBind`（`src/fork/main/orcad-serve-bind.ts`，由 `register-main.ts` 转出，走 orcad-entry 已有的那一行 import）。这不是新行为，顺序仍是先解析地址、再接上准入。AiVault 面板已在 400 行，恢复会话的工作区快照 `useAiVaultResumeTargetState` 与 `useSearchHostLabels` 一样放在 `src/fork/ai-vault/use-list-presentation.tsx`，经面板已有的 fork import 引入。工作区右键菜单的 `forkMenuLabel` 从 commands 模块转出，菜单文件才能并进已有 import，留在 400 行内。
 
@@ -177,6 +177,16 @@ git 目标解析器在 `runtime-construction.ts` 里绑定。`resolveRuntimeGitT
 命令行和配对客户端的 `worktree.rm` 不经过这个对话框，仍会硬删除文件夹。
 
 `DeleteWorktreeDialog.tsx` 顶着行数上限。复选框和软删除在 `src/fork/sidebar/workspace-folder-delete.tsx`，对话框直接 import。空列表时关闭、开关和确认按钮焦点在 `src/fork/sidebar/workspace-folder-delete-lifecycle.tsx`：这是上游对话框里的行为，为了行数挪过来，不是新钩子。同步时把这三处当上游逻辑。行为仍由 `registerForkWorkspaceFolderDelete` 打开；没登记时没有勾选，确认仍硬删除。子工作区在软删除时只归档，不按硬删除那样先删子级。
+
+## F049 从 Ego Lite 导入 Cookie
+
+设置里「会话和 Cookie」的导入菜单，在本机发现 Ego Lite 时多一项「从 Ego Lite」。有多个配置时和 Arc 一样出子菜单。没安装，或配置目录里没有 Cookies 库时不显示这一行，和没装的 Chrome 一样。点选之后走上游的 Chromium 导入：快照、解密、合并、失败提示，菜单底部仍是「Google 登录信息未导入」。Safari 和从文件导入不改。
+
+登记在 `src/fork/ego-lite-cookie-browser.ts`。桌面和渲染进程由 `register.ts` 登记，导入提示名单在渲染进程里算；orcad 不走 `register.ts`，由 `register-main.ts` 再登记一次，远端导入才会在那台机器上发现浏览器。未登记时发现结果、配置切换、Windows 密钥目录和提示名单都与上游一致。登记里如果再写一个已有 family（比如 chrome），上游那一条仍然优先，换不掉 Chrome 或 Arc。
+
+macOS 根目录是 `~/Library/Application Support/Citro Labs/ego lite`，`Local State` 和各个配置直接放在这下面。钥匙串通用密码的服务名是 `ego safe storage`、账户是 `ego`，都是小写；不是按显示名拼出来的 “Ego Lite Safe Storage”。Windows 根目录是 `%LOCALAPPDATA%\Citro Labs\ego lite\User Data`，比 macOS 多一层 `User Data`，和 Chrome 相同；解密仍读这份 `Local State` 里的 DPAPI。这两处路径分别对过 SweetCookieKit 的目录和 citrolabs/ego-lite 的 Windows 问题记录。Linux 还在官方路线图上，不设根目录。Cookie 文件先找 `<配置>/Network/Cookies`，没有再找 `<配置>/Cookies`。配置名单来自 `Local State` 的 `info_cache`，不单独解析 Space。
+
+菜单文案沿用上游的 `From {{value0}}` / `从 {{value0}}`，填进去的名字是 `Ego Lite`。导入之后会话来源的 family 是 `ego-lite`，设置行用 `BROWSER_FAMILY_LABELS` 显示 Ego Lite。
 
 ## F041 普通目录的终端生命周期
 

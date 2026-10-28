@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { resolveChromiumCookiesPath } from '../../chromium-cookie-path'
 import {
-  CHROMIUM_BROWSERS,
+  allChromiumBrowsers,
   browserRootPath,
   discoverProfiles,
   detectFirefox,
@@ -45,7 +45,7 @@ export function detectSafari(): DetectedBrowser | null {
 
 export function detectInstalledBrowsers(): DetectedBrowser[] {
   const detected: DetectedBrowser[] = []
-  for (const browser of CHROMIUM_BROWSERS) {
+  for (const browser of allChromiumBrowsers()) {
     const root = browserRootPath(browser)
     if (!root) {
       continue
@@ -101,7 +101,7 @@ export function selectBrowserProfile(
     return { ...browser, cookiesPath, selectedProfile: profileDirectory }
   }
 
-  const browserDef = CHROMIUM_BROWSERS.find((b) => b.family === browser.family)
+  const browserDef = allChromiumBrowsers().find((b) => b.family === browser.family)
   if (!browserDef) {
     return null
   }

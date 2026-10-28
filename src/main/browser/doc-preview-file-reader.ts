@@ -148,7 +148,7 @@ async function readRuntimeTerminalArtifactPreview(
   grantId: string,
   absolutePath: string
 ): Promise<PreviewFileBytes> {
-  const userDataPath = getCanonicalUserDataPath()
+  const userDataPath = getRuntimeEnvironmentRegistryRoot()
   const response = await callRuntimeEnvironment(
     userDataPath,
     environmentId,

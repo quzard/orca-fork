@@ -35,7 +35,7 @@ export function getEncryptionKey(
     return getMacEncryptionKey(keychainService, keychainAccount)
   }
   if (process.platform === 'linux') {
-    const application = CHROMIUM_BROWSERS.find(
+    const application = allChromiumBrowsers().find(
       (b) => b.family === browser?.family
     )?.linuxKeyringApplication
     return getLinuxEncryptionKey(keychainService, keychainAccount, application)

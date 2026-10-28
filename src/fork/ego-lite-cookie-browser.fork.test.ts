@@ -68,6 +68,7 @@ describe('Ego Lite cookie import registration', () => {
       'Brave',
       'Comet',
       'Helium',
+      'Vivaldi',
       'Ego Lite',
       'Firefox',
       'Safari'
@@ -77,6 +78,7 @@ describe('Ego Lite cookie import registration', () => {
       'Microsoft Edge',
       'Brave',
       'Comet',
+      'Vivaldi',
       'Ego Lite',
       'Firefox'
     ])

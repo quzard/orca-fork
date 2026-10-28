@@ -51,7 +51,6 @@ const findWorkspaceFileRouteMock = vi.hoisted(() => vi.fn())
 const doubles = createTerminalLinkTestDoubles()
 const {
   storeState,
-  statMock,
   openFileMock,
   openFilePathMock,
   runtimeEnvironmentCallMock,
@@ -290,7 +289,7 @@ describe('a chat link whose host disowns the path', () => {
   })
 
   it('refuses exists:false from the host instead of opening a browser or the home workspace', async () => {
-    statMock.mockRejectedValueOnce(new Error('ENOENT: no such file'))
+    // 宿主已经回答 exists:false，不再先打本机 stat。留下的 mockRejectedValueOnce 会漏到后面的用例。
     hostAnswers({
       worktree: 'wt-feat',
       relativePath: null,
@@ -330,7 +329,7 @@ describe('a chat link whose host disowns the path', () => {
 
   it('opens managed SSH html when the host refuses a local grant', async () => {
     deployOverSsh(DEMO_SSH)
-    statMock.mockRejectedValueOnce(new Error('ENOENT: no such file'))
+    // 拒绝来自主机授权，不依赖本机 stat 失败。
     hostAnswers({
       worktree: 'wt-feat',
       relativePath: null,

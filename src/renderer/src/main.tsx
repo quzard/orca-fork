@@ -25,15 +25,21 @@ import { installBrowserClientPageRenderer } from './components/browser-pane/brow
 import { registerBrowserClientPageGuestMessageHandler } from './components/browser-pane/browser-client-page-retained-elements'
 import { handleGuestWindowCloseMessage } from './components/browser-pane/host-guest/browser-page-window-close'
 import { installOsFileDropCancellationGuard } from './lib/os-file-drop-cancellation-guard'
+<<<<<<< HEAD
 import { registerForkModules } from '../../fork/register'
 import { registerForkRendererModules } from '../../fork/register-renderer'
 
 // fork: 先登记分组模式，再登记渲染槽。主进程登记留在 register-main。
 registerForkModules()
 registerForkRendererModules()
+=======
+import { installBodyOverlayAttributes } from './lib/body-overlay-attributes'
+>>>>>>> 92a754a0887b074c976742c29ab2ed6b31487bf6
 
 const disposeOsFileDropGuard = installOsFileDropCancellationGuard()
 import.meta.hot?.dispose(disposeOsFileDropGuard)
+const disposeBodyOverlayAttributes = installBodyOverlayAttributes()
+import.meta.hot?.dispose(disposeBodyOverlayAttributes)
 recordRendererCrashBreadcrumb('renderer_bootstrap_started', { dev: import.meta.env.DEV })
 installRendererCrashDiagnostics()
 installTypingLatencyDiagnostic()

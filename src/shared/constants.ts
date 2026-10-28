@@ -31,6 +31,7 @@ export {
   TASK_WORKTREE_CARD_PROPERTIES,
   getWorktreeCardModeProperties,
   getWorktreeCardModeUpdates,
+  isCurrentCompactWorktreeCardProperties,
   isDefaultedCompactWorktreeCardProperties,
   normalizeWorktreeCardProperties
 } from './worktree/card-properties'
@@ -55,7 +56,11 @@ export const BROWSER_FAMILY_LABELS: Record<string, string> = {
   chromium: 'Chromium',
   comet: 'Comet',
   helium: 'Helium',
+<<<<<<< HEAD
   'ego-lite': 'Ego Lite',
+=======
+  vivaldi: 'Vivaldi',
+>>>>>>> 92a754a0887b074c976742c29ab2ed6b31487bf6
   arc: 'Arc',
   edge: 'Microsoft Edge',
   brave: 'Brave',

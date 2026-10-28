@@ -6,6 +6,8 @@ import type { Plugin, Rollup } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { createBootstrapFatalExitBanner } from './config/build-plugins/bootstrap-fatal-exit-banner'
+import { createBrowserExtensionWorkerShimPlugin } from './config/build-plugins/browser-extension-worker-shim'
+import { createMainLocaleSubsetPlugin } from './config/build-plugins/main-locale-subset'
 import { createPdfjsViewerAssetsPlugin } from './config/build-plugins/pdfjs-viewer-assets'
 import { createProcessHostDevRebuildPlugin } from './config/build-plugins/process-host-dev-rebuild'
 import { createViteCacheRetentionPlugin } from './config/build-plugins/vite-cache-retention'
@@ -230,8 +232,13 @@ export const electronViteConfig: UserConfig = {
           createPlainNodeEntryGuardPlugin(),
           createProcessHostDevRebuildPlugin(),
           createDarkBuildMarkerPlugin(),
+<<<<<<< HEAD
           // 沙箱 preload 不能 require Rolldown 抽出去的 runtime chunk。
           createSandboxedPreloadRuntimeInlinePlugin()
+=======
+          createBrowserExtensionWorkerShimPlugin(),
+          createMainLocaleSubsetPlugin()
+>>>>>>> 92a754a0887b074c976742c29ab2ed6b31487bf6
         ]
       }
     },

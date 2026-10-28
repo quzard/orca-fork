@@ -64,6 +64,7 @@ type TerminalFileOpenDeps = {
   browserDestination?: HttpLinkDestination
   /** The paired-server terminal that printed the link; lets its host grant a file outside workspaces. */
   terminalHandle?: string | null
+  hostFileOnly?: boolean
   /** Reports a path that could not be verified before opening; skipped once a later open supersedes it. */
   onOpenFailure?: (failure: FileOpenFailure) => void
   /** The tab that owns the link; editor opens place themselves relative to its group. */
@@ -151,6 +152,7 @@ export function openDetectedFilePath(
 
     let stayView: Awaited<ReturnType<typeof resolveAndRetainTerminalLink>>['stayView'] = null
     try {
+<<<<<<< HEAD
       // fork: 上游解析之后，SSH/服务器文件留在点击时的工作区。本地跨工作区仍切走。
       ;({
         fileContext,
@@ -170,6 +172,30 @@ export function openDetectedFilePath(
         mappedFilePath,
         terminalHandle: deps.terminalHandle
       }))
+=======
+      const linkOwner = await resolveHostWorkspaceFile(fileContext, mappedFilePath, deps)
+      if (linkOwner?.kind === 'grant') {
+        hostGrant = hostGrantedEditorFields(linkOwner)
+        mappedFilePath = linkOwner.absolutePath
+        statResult = { isDirectory: false, escapesWorktree: true }
+      } else if (linkOwner?.kind === 'client') {
+        clientLocal = true
+        fileContext = {
+          ...fileContext,
+          target: CLIENT_LOCAL_FILE_TARGET,
+          connectionId: undefined
+        }
+        statResult = { isDirectory: linkOwner.isDirectory, escapesWorktree: false }
+      } else if (linkOwner) {
+        hostWorkspaceFile = linkOwner
+        // Why: the host already stat'ed the path inside the workspace that holds it; open it there.
+        ;({ worktreeId, worktreePath, absolutePath: mappedFilePath } = hostWorkspaceFile)
+        fileContext = { ...fileContext, worktreeId, worktreePath }
+        statResult = { isDirectory: hostWorkspaceFile.isDirectory, escapesWorktree: false }
+      } else {
+        statResult = await statUserOpenedPath(fileContext, mappedFilePath)
+      }
+>>>>>>> 92a754a0887b074c976742c29ab2ed6b31487bf6
     } catch (error) {
       if (isCurrentRequest() && deps.onOpenFailure) {
         // Why: loss of contact with the host is not evidence the file is gone.

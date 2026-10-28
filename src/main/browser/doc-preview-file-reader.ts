@@ -3,7 +3,6 @@ import type { RuntimeFilePreviewResult } from '../../shared/runtime-file-contrac
 import type { DocPreviewFileFailureReason } from '../../shared/doc-preview-scheme'
 import { FONT_FILE_MIME_TYPES } from '../../shared/font-file-extensions'
 import { callRuntimeEnvironment } from '../ipc/runtime-environments/runtime-environment-transport-routing'
-import { getCanonicalUserDataPath } from '../persistence'
 import { SSH_HOST_NOT_SERVED_MESSAGE } from '../providers/ssh-host-not-served-error'
 import {
   resolveDocPreviewAuthorityPaths,
@@ -13,10 +12,14 @@ import {
   toRuntimeWorktreeRelativePath,
   type DocPreviewGrant
 } from './doc-preview-grant-registry'
+<<<<<<< HEAD
 import {
   readSshHtmlPreview,
   terminalHtmlPreviewServe
 } from '../../shared/fork-hooks/terminal-html-preview'
+=======
+import { getRuntimeEnvironmentRegistryRoot } from '../ipc/runtime-environments/runtime-environment-registry-root'
+>>>>>>> 92a754a0887b074c976742c29ab2ed6b31487bf6
 
 const DOC_PREVIEW_READ_TIMEOUT_MS = 15_000
 
@@ -103,7 +106,7 @@ async function readRuntimeDocPreviewFile(
   implicitRootRelativePath: string | null,
   authorizedRootRelativePaths: string[]
 ): Promise<PreviewFileBytes> {
-  const userDataPath = getCanonicalUserDataPath()
+  const userDataPath = getRuntimeEnvironmentRegistryRoot()
   const response = await callRuntimeEnvironment(
     userDataPath,
     environmentId,

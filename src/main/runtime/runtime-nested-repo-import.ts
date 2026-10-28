@@ -18,7 +18,11 @@ import {
 } from '../project-groups/nested-repo-import'
 import { createNestedRepoImportTargetResolver } from '../project-groups/nested-repo-import-target'
 import type { RuntimeStore } from './runtime-store-contract'
+<<<<<<< HEAD
 import { stampImportedWorktreePath } from '../../shared/fork-hooks/imported-worktree-path'
+=======
+import { refuseWslHostWindowsDrivePath } from './wsl-host-windows-drive-guard'
+>>>>>>> 92a754a0887b074c976742c29ab2ed6b31487bf6
 
 type RuntimeNestedRepoImportDependencies = {
   getStore: () => RuntimeStore | null
@@ -39,6 +43,7 @@ export class RuntimeNestedRepoImport {
     if (!isAbsolute(path)) {
       throw new Error('Project path must be an absolute path')
     }
+    await refuseWslHostWindowsDrivePath(path)
     await awaitWindowsHostGitEnvironmentReady({ cwd: path })
     return scanNestedRepos({ path, options: { timeoutMs: 15_000 } })
   }
@@ -49,6 +54,7 @@ export class RuntimeNestedRepoImport {
     projectPaths: string[]
     mode: ProjectGroupImportMode
   }): Promise<ProjectGroupImportResult> {
+    await refuseWslHostWindowsDrivePath(args.parentPath)
     await awaitWindowsHostGitEnvironmentReady({ cwd: args.parentPath })
     const store = this.deps.getStore()
     if (!store?.createProjectGroup || !store.moveProjectToGroup) {

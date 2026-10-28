@@ -13,7 +13,7 @@ import { ensureActiveOrcaProfile } from '../orca-profiles/profile-index-store'
 import { getCanonicalUserDataPath } from '../persistence'
 import { getAppEnvironment } from '../../shared/app-environment'
 import { loadWslMoveFence } from '../persistence/moving-wsl-projects/wsl-move-scope-guard'
-import { runGatedWslMoveDesktopRewritePass } from '../persistence/moving-wsl-projects/wsl-move-desktop-rewrite'
+import { startWslMoveStartup } from '../persistence/moving-wsl-projects/wsl-move-startup'
 import { createProfileStateStoreForStartup } from '../persistence/profile-state/profile-state-startup-authority'
 import { getProfileUserDataPath } from '../orca-profiles/profile-storage-paths'
 import { initializeBrowserClientHostId } from '../browser/browser-client-host-id'
@@ -34,7 +34,7 @@ import {
   suppressDevEducationForStore
 } from './dev-education-suppression'
 import {
-  applyBrowserSessionProxies,
+  awaitBrowserSessionProxies,
   setBrowserNetworkProxySettingsResolver
 } from '../browser/browser-session-proxy'
 import { installDocPreviewProtocolHandler } from '../browser/doc-preview-protocol'
@@ -42,6 +42,11 @@ import { installMediaPreviewProtocolHandler } from '../media/media-preview-proto
 import { installJiraImageProtocolHandler } from '../jira/attachments/image-protocol'
 import { registerDocPreviewGrantHandlers } from '../ipc/doc-preview-grant-ipc'
 import { initializeBrowserSessionsForApp } from '../browser/browser-session-startup'
+import {
+  initializeBrowserExtensionSupport,
+  switchBrowserExtensionSupport
+} from '../browser/extensions/browser-extension-startup'
+import { whenBrowserExtensionSessionsLoaded } from '../browser/extensions/browser-extension-session-loader'
 import { browserSessionRegistry } from '../browser/browser-session-registry'
 import { logStartupMilestone } from './startup-diagnostics'
 import { writeHttp1CompatibilityMarker } from './http1-compatibility-marker'
@@ -137,6 +142,9 @@ export async function initializeReadyFoundation(): Promise<void> {
   state.activeOrcaProfile = profile
   // Read durable browser hosting ID before window argv stamps it or renderer and lease ownership diverge.
   initializeBrowserClientHostId(profile.profileDirectory)
+  // Why before the store loads: its pane normalization tells a moved project's retained rows from
+  // a rival host's, and no handler or runtime may give a moving project a new terminal.
+  loadWslMoveFence(getAppEnvironment().getPath('userData'))
   const profileState = await createProfileStateStoreForStartup({
     userDataPath: getProfileUserDataPath(),
     dataFile: profile.dataFile,
@@ -156,9 +164,11 @@ export async function initializeReadyFoundation(): Promise<void> {
   const store = profileState.store
   state.store = store
   setNodeDistMirrorSettingReader(() => store.getSettings().nodeDistMirrorUrl)
-  // Fence WSL moves before handlers/runtime can create terminals in moving projects.
-  loadWslMoveFence(getAppEnvironment().getPath('userData'))
-  void runGatedWslMoveDesktopRewritePass({ userDataPath: getAppEnvironment().getPath('userData') })
+  // Main-process-ready waits on interrupted moves being reset or finished, bounded.
+  state.wslMoveStartupRewriteReady = startWslMoveStartup(
+    getAppEnvironment().getPath('userData'),
+    store
+  )
   // Publish proxy readiness before guarding default-session requests; network awaits it, while window creation can proceed.
   state.initialProxyApplicationReady = applyElectronProxySettings(store.getSettings()).then(
     (result) => {
@@ -239,6 +249,9 @@ export async function initializeReadyFoundation(): Promise<void> {
         )
       }
     }
+    if ('experimentalBrowserExtensions' in updates) {
+      void switchBrowserExtensionSupport(settings.experimentalBrowserExtensions === true)
+    }
     if ('showMenuBarIcon' in updates) {
       // Store owns settings mutations; sync every menu-bar toggle through this listener.
       syncMacMenuBarIcon(settings.showMenuBarIcon !== false)
@@ -264,6 +277,11 @@ export async function initializeReadyFoundation(): Promise<void> {
   installJiraImageProtocolHandler()
   installDocPreviewProtocolHandler()
   registerDocPreviewGrantHandlers()
+  // Session setup needs the extension support decision before loading profiles.
+  initializeBrowserExtensionSupport({
+    enabled: store.getSettings().experimentalBrowserExtensions === true,
+    savedBrowserTabs: store
+  })
   // Desktop webviews and runtime commands share sessions; initialize without waiting for renderer IPC.
   initializeBrowserSessionsForApp({
     orcaProfileId: profile.profile.id,
@@ -280,8 +298,19 @@ export async function initializeReadyFoundation(): Promise<void> {
   })
   browserSiteDisplayController.followZoomSettings(store)
   browserManager.setSiteDisplayController(browserSiteDisplayController)
+<<<<<<< HEAD
   // fork: 登记后不阻塞首窗；未登记时仍等待，失败只记日志，避免第一次打开网页抢在代理之前。
   await applyStartupBrowserSessionProxies(() =>
     applyBrowserSessionProxies(browserSessionRegistry.listProfiles(), store.getSettings())
   )
+=======
+  try {
+    // Await proxy writes so first guest navigation cannot race them.
+    await awaitBrowserSessionProxies(browserSessionRegistry.listProfiles())
+  } catch {
+    console.warn('[proxy] Failed to apply network proxy settings to browser sessions')
+  }
+  // Why bounded: restored tabs should get content scripts, but a slow extension never blocks launch.
+  await whenBrowserExtensionSessionsLoaded(3_000)
+>>>>>>> 92a754a0887b074c976742c29ab2ed6b31487bf6
 }

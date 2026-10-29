@@ -28,12 +28,9 @@ function samePreviewPath(left: string, right: string): boolean {
 }
 
 function toOutcome(
-  source: { content: string; isBinary: boolean; mimeType?: string; truncated?: boolean },
+  source: { content: string; isBinary: boolean; mimeType?: string },
   contentType: string
 ): ReadOutcome {
-  if (source.truncated) {
-    return { ok: false, status: 413, reason: 'too-large', message: TRUNCATED_PREVIEW_MESSAGE }
-  }
   if (!source.isBinary) {
     return { ok: true, bytes: Buffer.from(source.content, 'utf8'), contentType }
   }
@@ -80,8 +77,7 @@ export async function readForkTerminalHtmlPreview(
         {
           content: preview.content,
           isBinary: preview.isBinary,
-          ...(preview.mimeType ? { mimeType: preview.mimeType } : {}),
-          ...(preview.truncated ? { truncated: true } : {})
+          ...(preview.mimeType ? { mimeType: preview.mimeType } : {})
         },
         contentType
       )

@@ -3,6 +3,7 @@ import { getAppEnvironment } from '../../shared/app-environment'
 import { readFetchResponseTextWithinLimit } from '../../shared/fetch-response-body'
 import { readNodeFileSyncWithinLimit } from '../../shared/node-bounded-file-reader'
 import { getVersionChannel, MAIN_RELEASE_REPO } from '../../shared/release-channel'
+import { isForkBuild } from '../../shared/fork-hooks/update-feed'
 import { isWslHostsInternalGateOpen } from '../../shared/wsl-host-internal-gate'
 import {
   parseWslHostsPolicy,
@@ -98,7 +99,8 @@ export class WslHostsPolicyLiveUpdater {
 
   async start(): Promise<void> {
     this.stop()
-    if (!this.deps.isPackaged) {
+    // fork: 不从上游 Releases 拉 WSL 主机策略。
+    if (!this.deps.isPackaged || isForkBuild()) {
       return
     }
     this.channel = wslHostsPolicyChannelForAppVersion(this.deps.appVersion)

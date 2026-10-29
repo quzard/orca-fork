@@ -79,7 +79,7 @@
       "keepFolderMany": "from Orca. Workspace folders on disk will not be deleted.",
       "keepFolderSingle": "Remove <target/> from Orca. The workspace folder on disk will not be deleted.",
       "keepFolderBatch": "Remove <target>{{count}} workspaces</target> from Orca. Workspace folders on disk will not be deleted.",
-      "keepFolderWithChild": "Remove <target/> and <descendants>1 child workspace</descendants> from Orca. The workspace folder on disk will not be deleted.",
+      "keepFolderWithChild": "Remove <target/> and <descendants>1 child workspace</descendants> from Orca. Workspace folders on disk will not be deleted.",
       "keepFolderWithChildren": "Remove <target/> and <descendants>{{count}} child workspaces</descendants> from Orca. Workspace folders on disk will not be deleted.",
       "lineageKeptTitle": "Child workspaces stay on disk",
       "lineageKeptOne": "Removing this workspace also removes 1 child workspace from Orca. Folders on disk will not be deleted.",

@@ -50,7 +50,8 @@ vi.mock('@/store/selectors', () => ({
   useRepoById: (repoId?: string) =>
     repoId ? { id: repoId, name: repoId, displayName: repoId, projectGroupId: null } : undefined,
   useRepoMap: () => new Map(),
-  useWorktreeMap: () => new Map()
+  useWorktreeMap: () => new Map(),
+  getRepoMapFromState: () => new Map()
 }))
 
 vi.mock('@/i18n/i18n', () => ({

@@ -38,19 +38,19 @@ export function normalizeFolderWorkspaces(
       typeof raw.id !== 'string' ||
       raw.id.trim().length === 0 ||
       seen.has(raw.id) ||
-      typeof raw.projectGroupId !== 'string' ||
-      (!folderGroups.has(raw.projectGroupId) && !folderWorkspacesMayOutliveTheirGroup())
+      typeof raw.projectGroupId !== 'string'
     ) {
       continue
     }
     const group = groupsById.get(raw.projectGroupId)
-    if (!group) {
+    // fork: 所属组已经删掉时，登记之后仍保留自带路径的文件夹工作区。
+    if (!group && !folderWorkspacesMayOutliveTheirGroup()) {
       continue
     }
     const folderPath =
       typeof raw.folderPath === 'string' && raw.folderPath.trim().length > 0
         ? raw.folderPath
-        : group.parentPath
+        : group?.parentPath
     if (!folderPath) {
       continue
     }

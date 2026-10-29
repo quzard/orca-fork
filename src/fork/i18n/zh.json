@@ -79,7 +79,7 @@
       "keepFolderMany": "仅从 Orca 移除，不会删除磁盘上的工作区文件夹。",
       "keepFolderSingle": "从 Orca 移除 <target/>。不会删除磁盘上的工作区文件夹。",
       "keepFolderBatch": "从 Orca 移除 <target>{{count}} 个工作区</target>。不会删除磁盘上的工作区文件夹。",
-      "keepFolderWithChild": "从 Orca 移除 <target/> 和 <descendants>1 个子工作区</descendants>。不会删除磁盘上的文件夹。",
+      "keepFolderWithChild": "从 Orca 移除 <target/> 和 <descendants>1 个子工作区</descendants>。不会删除磁盘上的工作区文件夹。",
       "keepFolderWithChildren": "从 Orca 移除 <target/> 和 <descendants>{{count}} 个子工作区</descendants>。不会删除磁盘上的文件夹。",
       "lineageKeptTitle": "子工作区仍留在磁盘上",
       "lineageKeptOne": "同时从 Orca 移除 1 个子工作区，不会删除磁盘上的文件夹。",

@@ -11,6 +11,7 @@ const GATED_SOURCES = [
   'src/main/updater-prerelease-feed.ts',
   'src/main/updater-release-builds.ts',
   'src/main/updater/updater-setup.ts',
+  'src/main/wsl/wsl-hosts-policy-live-update.ts',
   'src/shared/release-channel.ts'
 ]
 

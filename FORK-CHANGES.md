@@ -39,7 +39,7 @@
 - 隐藏工作区可搜索、可恢复。选择器显示目录、分支、分组和路径。设置里的项目列表可以多选后移除，只从 Orca 注销，不删目录。
 - 卡片左侧用淡色、从左侧截断的目录前缀。项目组只有一个工作区、且仓库路径不在组的父目录下时，卡片去掉父目录前缀。
 - 已保存的 `groupBy: repo` 在登记后读成 host-directory。未登记时 `repo` 仍是原来的项目标题。
-- SSH 状态行上的主机类型和连接状态不换行。状态名由 `src/fork/ssh/ssh-status-labels.tsx` 翻译：`SshTargetCard` 的 `STATUS_LABELS` 保持上游的英文字面量，外面包一层 `withForkSshStatusLabels`，读取时翻译。中文来自 fork 的 zh 覆盖层（见下方「界面中文」），其他语言显示英文。参考实现已经去掉远程工作区同步冲突按钮，这里不把那套界面加回来。
+- SSH 状态行上的主机类型和连接状态不换行。连接状态名改用上游 #34680 的 `settings.ssh.status.*`（含中文和其他语言）。`SshTargetCard` 不再包 `withForkSshStatusLabels`。`src/fork/ssh/ssh-status-labels.tsx` 还在，测试仍覆盖它，界面不再走这层。参考实现已经去掉远程工作区同步冲突按钮，这里不把那套界面加回来。
 - 旧远端刷新如果省略 `sidebarGroupId`，本机保留原来的分组。显式 `null` 仍表示取消分组。
 - 组内排序：smart 保持传入顺序，其他模式在组内重排。拖到另一台主机被拒绝。
 - 手动排序时，组内显示和拖放写入用同一个顺序（`src/fork/sidebar/manual-order.ts`）：有效排序值 `manualOrder ?? sortOrder` 从大到小，相同时按名称、再按主机，和上游手动排序、上游拖放目录一致。以前 fork 的显示把没有 `manualOrder` 的行排在最后、按名称排，而写入按有效值算邻居，松手后的行不在插入线的位置。对已有用户：没有 `manualOrder` 的行会出现在它 `sortOrder`（创建时间，或上次智能排序的快照）对应的位置，只变一次，和上游其他分组方式里的顺序一样。拖放的插入位置按显示出来的行计算。

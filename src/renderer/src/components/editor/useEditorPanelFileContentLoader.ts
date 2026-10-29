@@ -20,13 +20,9 @@ import {
   type InFlightContentRead
 } from './editor-panel-content-types'
 import type { EditorPanelContentLoadOptions } from './useEditorPanelExternalContentEvents'
-import {
-  migrateRestoredEditorFileOwner,
-  restoredOwnerMigrationErrorMessage
-} from './migrate-restored-editor-file-owner'
 import { findRestoredEditorWorkspaceRuntimeOwner } from './restored-editor-workspace-runtime-owner'
-import type { RuntimeWorkspaceFileRoute } from '@/lib/runtime-workspace-file-route'
 import { editorTabFileAccess, isClientLocalReadOnlyTab } from '@/lib/local-file-access'
+import { reownRestoredEditorFile } from '../../../../fork/terminal/restored-editor-file-reown'
 import { isFloatingWorkspaceId } from '../../../../shared/floating-workspace-worktree'
 import { grantRestoredHostFile } from './restored-host-file-grant'
 import { captureRuntimeEnvironmentRequestRevision } from '@/runtime/runtime-environment-revision'
@@ -109,24 +105,19 @@ export function useEditorPanelFileContentLoader({
         let readGrantPairing: number | undefined
         let readRelativePath = restoredOpenFile?.relativePath ?? relativePath
         // Re-owning re-keys the tab, which starts a fresh load under the new owner.
-        const reownRestoredFile = async (
-          route: RuntimeWorkspaceFileRoute,
+        const reownRestoredFile = (
+          route: Parameters<typeof reownRestoredEditorFile>[0]['route'],
           runtimeEnvironmentId: string | null
-        ): Promise<void> => {
-          const migration = await migrateRestoredEditorFileOwner(id, route, runtimeEnvironmentId)
-          if (!migration.ok) {
-            throw new Error(restoredOwnerMigrationErrorMessage(migration.reason))
-          }
-          if (fileReadGenerationRef.current[id] !== generation) {
-            return
-          }
-          fileReadGenerationRef.current[id] = ++fileReadGenerationCounterRef.current
-          setFileContents((prev) => {
-            const next = { ...prev }
-            delete next[id]
-            return next
+        ): Promise<void> =>
+          reownRestoredEditorFile({
+            id,
+            generation,
+            route,
+            runtimeEnvironmentId,
+            fileReadGenerationCounterRef,
+            fileReadGenerationRef,
+            setFileContents
           })
-        }
         const workspaceRuntimeOwner =
           restoredOpenFile && !isClientLocalTab
             ? findRestoredEditorWorkspaceRuntimeOwner(

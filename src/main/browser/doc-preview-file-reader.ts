@@ -18,10 +18,7 @@ import {
   toRuntimeWorktreeRelativePath,
   type DocPreviewGrant
 } from './doc-preview-grant-registry'
-import {
-  readSshHtmlPreview,
-  terminalHtmlPreviewServe
-} from '../../shared/fork-hooks/terminal-html-preview'
+import { readForkTerminalHtmlPreview } from '../../fork/main/terminal-html-preview-bytes'
 import { getRuntimeEnvironmentRegistryRoot } from '../ipc/runtime-environments/runtime-environment-registry-root'
 
 const DOC_PREVIEW_READ_TIMEOUT_MS = 15_000
@@ -216,36 +213,6 @@ function notFoundOutcome(message = 'Not found'): DocPreviewReadOutcome {
   return { ok: false, status: 404, reason: 'unreadable', message }
 }
 
-function samePreviewPath(left: string, right: string): boolean {
-  const normalize = (value: string): string => value.replace(/\\/g, '/').replace(/\/+$/, '')
-  return normalize(left) === normalize(right)
-}
-
-async function readRuntimeTerminalArtifactPreview(
-  environmentId: string,
-  worktreeSelector: string,
-  grantId: string,
-  absolutePath: string
-): Promise<PreviewFileBytes> {
-  const userDataPath = getRuntimeEnvironmentRegistryRoot()
-  const response = await callRuntimeEnvironment(
-    userDataPath,
-    environmentId,
-    'files.readTerminalArtifactPreview',
-    { worktree: worktreeSelector, grantId, absolutePath },
-    DOC_PREVIEW_READ_TIMEOUT_MS
-  )
-  if (!response.ok) {
-    throw new Error(response.error.message)
-  }
-  const preview = response.result as RuntimeFilePreviewResult
-  return {
-    content: preview.content,
-    isBinary: preview.isBinary,
-    ...(preview.mimeType ? { mimeType: preview.mimeType } : {})
-  }
-}
-
 export async function readDocPreviewFile(
   grant: DocPreviewGrant,
   relativePath: string
@@ -264,41 +231,12 @@ export async function readDocPreviewFile(
     }
   }
   const contentType = docPreviewContentType(relativePath)
-  // fork: 终端点开的工作区外 HTML。授权文件走 orcad 的绝对路径预览；直连 SSH 由登记的读取函数供字节。
-  const served = terminalHtmlPreviewServe(grant.id)
-  if (served?.kind === 'artifact') {
-    if (grant.owner.kind !== 'runtime' || !samePreviewPath(absolutePath, served.absolutePath)) {
-      return notFoundOutcome()
-    }
-    try {
-      return toOutcome(
-        await readRuntimeTerminalArtifactPreview(
-          grant.owner.environmentId,
-          grant.owner.worktreeSelector,
-          served.grantId,
-          served.absolutePath
-        ),
-        contentType
-      )
-    } catch (error) {
-      return isTooLargeReadError(error)
-        ? { ok: false, status: 413, reason: 'too-large', message: TRUNCATED_PREVIEW_MESSAGE }
-        : notFoundOutcome(error instanceof Error ? error.message : undefined)
-    }
+  const forkPreview = await readForkTerminalHtmlPreview(grant, absolutePath, contentType)
+  if (forkPreview) {
+    return forkPreview
   }
   try {
     if (grant.owner.kind === 'ssh') {
-      if (served?.kind === 'ssh') {
-        const read = await readSshHtmlPreview(grant.owner.connectionId, absolutePath)
-        if (read?.ok) {
-          return { ok: true, bytes: read.bytes, contentType }
-        }
-        if (read && !read.ok) {
-          return read.reason === 'too-large'
-            ? { ok: false, status: 413, reason: 'too-large', message: TRUNCATED_PREVIEW_MESSAGE }
-            : notFoundOutcome(read.message)
-        }
-      }
       return notFoundOutcome(SSH_HOST_NOT_SERVED_MESSAGE)
     }
     const runtimeOwner = grant.owner

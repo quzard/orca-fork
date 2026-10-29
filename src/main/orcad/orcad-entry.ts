@@ -29,7 +29,6 @@ import { orcadWsPortOptions } from './orcad-ws-port-policy'
 import { createOrcadStartupTiming } from './orcad-startup-timing'
 import { ORCA_LAYOUT_OWNER_IS_MAIN } from '../../shared/layout-owner-switch'
 import { installForkOrcadHost, resolveOrcadServeBind } from '../../fork/main/register-main'
-import { placeUnshownLiveTerminalsBestEffort } from '../runtime/terminal/adoption/unshown-live-terminal-placement'
 import { restoreOrcadTerminalAuthority } from './orcad-restored-terminal-authority'
 import { installOrcadFeatureReadiness } from '../runtime/rpc/orcad-feature-readiness'
 

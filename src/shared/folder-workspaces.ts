@@ -72,7 +72,7 @@ export function normalizeFolderWorkspaces(
           ? raw.connectionId
           : raw.connectionId === null
             ? null
-            : (group.connectionId ?? null),
+            : (group?.connectionId ?? null),
       ...(creatorProvenance ? { creatorProvenance } : {}),
       linkedTask,
       ...(raw.linkedItems !== undefined

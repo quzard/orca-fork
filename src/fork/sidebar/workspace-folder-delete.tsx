@@ -179,7 +179,7 @@ function keptFolderDescription(childCount: number, batch: boolean, targetCount: 
   if (childCount === 1) {
     return forkTranslate(
       'fork.workspaceDelete.keepFolderWithChild',
-      'Remove <target/> and <descendants>1 child workspace</descendants> from Orca. The workspace folder on disk will not be deleted.'
+      'Remove <target/> and <descendants>1 child workspace</descendants> from Orca. Workspace folders on disk will not be deleted.'
     )
   }
   if (childCount > 1) {

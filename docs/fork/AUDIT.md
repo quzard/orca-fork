@@ -2,7 +2,7 @@
 
 由 `fork/scripts/generate-audit.py` 生成，改了 fork 文件后重新运行并用 oxfmt 格式化。每个和上游 55dffb479a 不同的文件一行，另列已恢复成上游和已删除的文件。`src/fork/audit-table.fork.test.ts` 检查表和仓库一致。
 
-共 477 行：delete 8，keep 440，revert-to-upstream 8，shrink 21；⚠ 不确定 1 个（保留）。
+共 479 行：delete 8，keep 442，revert-to-upstream 9，shrink 20；⚠ 不确定 1 个（保留）。
 上游文件（不含 fork 目录）里的 fork 改动行数：PR #6 之前（b7755e6357）1518，现在 2792。
 
 | 文件                                                                                    | 功能                     | 决定               | 原因                                                                                                                                                                                                                            |

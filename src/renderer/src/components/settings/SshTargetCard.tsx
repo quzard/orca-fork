@@ -26,21 +26,33 @@ import {
 } from './SshTargetServerStatus'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
-import { withForkSshStatusLabels } from '../../../../fork/ssh/ssh-status-labels'
 
-// fork: connection status names are translated; see src/fork/ssh/ssh-status-labels.tsx.
-export const STATUS_LABELS: Record<SshConnectionStatus, string> = withForkSshStatusLabels({
-  disconnected: 'Disconnected',
-  connecting: 'Connecting…',
-  'auth-failed': 'Auth failed',
-  'deploying-relay': 'Deploying relay…',
-  connected: 'Connected',
-  reconnecting: 'Reconnecting…',
-  'reconnection-failed': 'Reconnection failed',
+export const STATUS_LABELS: Record<SshConnectionStatus, string> = {
+  get disconnected() {
+    return translate('settings.ssh.status.disconnected', 'Disconnected')
+  },
+  get connecting() {
+    return translate('settings.ssh.status.connecting', 'Connecting…')
+  },
+  get 'auth-failed'() {
+    return translate('settings.ssh.status.auth-failed', 'Auth failed')
+  },
+  get 'deploying-relay'() {
+    return translate('settings.ssh.status.deploying-relay', 'Deploying relay…')
+  },
+  get connected() {
+    return translate('settings.ssh.status.connected', 'Connected')
+  },
+  get reconnecting() {
+    return translate('settings.ssh.status.reconnecting', 'Reconnecting…')
+  },
+  get 'reconnection-failed'() {
+    return translate('settings.ssh.status.reconnection-failed', 'Reconnection failed')
+  },
   get error() {
     return translate('auto.components.settings.SshTargetCard.18968ede9e', 'Error')
   }
-})
+}
 
 export function statusColor(status: SshConnectionStatus): string {
   switch (status) {

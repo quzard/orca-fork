@@ -54,6 +54,7 @@ import {
   type AiVaultSessionListKeyboard
 } from './use-ai-vault-session-keyboard-navigation'
 import { useAiVaultPanelHandle, type AiVaultPanelProps } from './ai-vault-panel-handle'
+import { formatClipboardFilePath } from '@/lib/clipboard-file-path'
 
 export default function AiVaultPanel({
   ref,
@@ -368,7 +369,7 @@ export default function AiVaultPanel({
             }
             onCopyPath={(session) =>
               void copyText(
-                session.filePath,
+                formatClipboardFilePath(session.filePath, session.executionHostId),
                 translate('auto.components.right.sidebar.AiVaultPanel.logPath', 'Log path')
               )
             }

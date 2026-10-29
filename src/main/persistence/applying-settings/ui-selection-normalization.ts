@@ -4,7 +4,7 @@ import {
   isRegisteredSidebarGroupMode,
   registeredReplacementForBuiltinGroupBy
 } from '../../../shared/fork-hooks/sidebar-group-mode'
-import { isPluginPanelTabKey } from '../../../shared/plugins/plugin-manifest'
+import { isPluginPanelTabKey } from '../../../shared/plugins/manifest/plugin-manifest'
 
 export function normalizeGroupBy(groupBy: unknown): PersistedState['ui']['groupBy'] {
   if (groupBy === 'none' || groupBy === 'workspace-status' || groupBy === 'pr-status') {

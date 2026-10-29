@@ -17,7 +17,6 @@ import {
   registerWorkspaceFolderDelete,
   takeWorkspaceRecordRemoval,
   workspaceFolderDeleteOffered,
-  workspaceFolderDeleteSuffix,
   workspaceLineageKeptNotice,
   type WorkspaceLineageKeptNotice,
   type WorkspaceRecordIdentity
@@ -165,12 +164,42 @@ type FolderDeleteDialogInput = {
   disabled: boolean
   repos: readonly Pick<Repo, 'id' | 'kind'>[]
   deleteTargets: readonly { repoId: string }[]
-  upstreamSuffix: string
+  // 上游现在给的是整句（带 <target>），不再是拼在名称后面的后缀。
+  upstreamDescription: string
+  batch: boolean
   childCount: number
   dirtyCount: number
   canForceDelete: boolean
   closeModal: () => void
   onDeleted: ((targets: WorktreeRemovalTarget[]) => void) | null
+}
+
+// 不勾选「同时删除文件夹」时，整句改成只从 Orca 移除。勾选或未登记时用上游原文。
+function keptFolderDescription(childCount: number, batch: boolean, targetCount: number): string {
+  if (childCount === 1) {
+    return forkTranslate(
+      'fork.workspaceDelete.keepFolderWithChild',
+      'Remove <target/> and <descendants>1 child workspace</descendants> from Orca. The workspace folder on disk will not be deleted.'
+    )
+  }
+  if (childCount > 1) {
+    return forkTranslate(
+      'fork.workspaceDelete.keepFolderWithChildren',
+      'Remove <target/> and <descendants>{{count}} child workspaces</descendants> from Orca. Workspace folders on disk will not be deleted.',
+      { count: childCount }
+    )
+  }
+  if (batch) {
+    return forkTranslate(
+      'fork.workspaceDelete.keepFolderBatch',
+      'Remove <target>{{count}} workspaces</target> from Orca. Workspace folders on disk will not be deleted.',
+      { count: targetCount }
+    )
+  }
+  return forkTranslate(
+    'fork.workspaceDelete.keepFolderSingle',
+    'Remove <target/> from Orca. The workspace folder on disk will not be deleted.'
+  )
 }
 
 export function keepWorkspaceFolderOnConfirm(
@@ -206,7 +235,7 @@ export function keepWorkspaceFolderOnConfirm(
 }
 
 export function useWorkspaceFolderDeleteDialog(input: FolderDeleteDialogInput): {
-  descriptionSuffix: string
+  description: string
   showChangeLossWarning: boolean
   lineageKeptNotice: WorkspaceLineageKeptNotice | null
   folderOption: ReactNode
@@ -228,11 +257,9 @@ export function useWorkspaceFolderDeleteDialog(input: FolderDeleteDialogInput): 
     />
   ) : null
   return {
-    descriptionSuffix: workspaceFolderDeleteSuffix(
-      input.upstreamSuffix,
-      gitDeleteCount,
-      !offerDeleteFolder || deleteFolder
-    ),
+    description: keepsFolder
+      ? keptFolderDescription(input.childCount, input.batch, input.deleteTargets.length)
+      : input.upstreamDescription,
     showChangeLossWarning: input.dirtyCount > 0 && (!offerDeleteFolder || deleteFolder),
     lineageKeptNotice: keepsFolder ? workspaceLineageKeptNotice(input.childCount) : null,
     folderOption,

@@ -73,6 +73,7 @@ export function installSessionReconcileDispose(session: ConnectPanePtySession): 
     },
     // Why: visible-resume size readback repairs dropped hidden resizes without refitting against xterm's transient hidden DOM fallback.
     noteVisibilityResume() {
+<<<<<<< HEAD
       // fork: 隐藏期间跳过的重绘只在第一次显示时补上。未登记时函数体为空。
       const shownPtyId = session.transport.getPtyId()
       if (shownPtyId) {
@@ -82,6 +83,9 @@ export function installSessionReconcileDispose(session: ConnectPanePtySession): 
           rows: session.pane.terminal.rows
         })
       }
+=======
+      session.foregroundGridDriftProbeSettled = false
+>>>>>>> 21cb9ebb78e2f693f8e7496151aa8c318424abb5
       session.armVisibleRemoteViewportClaim()
       session.claimPendingVisibleRemoteViewport()
       session.ptySizeReassertion.request({ fit: false })
@@ -93,6 +97,7 @@ export function installSessionReconcileDispose(session: ConnectPanePtySession): 
       session.sampleVisiblePaneForegroundAgent()
     },
     reassertPtySizeAfterWindowWake() {
+      session.foregroundGridDriftProbeSettled = false
       session.armVisibleRemoteViewportClaim()
       session.claimPendingVisibleRemoteViewport()
       session.ptySizeReassertion.request({ fit: false })
@@ -203,6 +208,7 @@ export function installSessionReconcileDispose(session: ConnectPanePtySession): 
         cancelAnimationFrame(session.pendingForegroundGridDriftCheckRaf)
         session.pendingForegroundGridDriftCheckRaf = null
       }
+      session.clearForegroundGridDriftTrailingProbe()
       // Why: a pane unmount must never leave its PTY delivery gated — the parked watcher or remounted pane re-decides.
       session.releaseHiddenRendererPtyDelivery()
       if (session.terminalKeyTargetSupportsEvents) {

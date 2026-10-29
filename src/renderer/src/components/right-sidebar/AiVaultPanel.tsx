@@ -54,6 +54,12 @@ import {
   type AiVaultSessionListKeyboard
 } from './use-ai-vault-session-keyboard-navigation'
 import { useAiVaultPanelHandle, type AiVaultPanelProps } from './ai-vault-panel-handle'
+<<<<<<< HEAD
+=======
+import { aiVaultSearchHitHostLabels } from './ai-vault-search-hit-hosts'
+import { selectFolderWorkspaces, selectWorktreesByRepo } from '@/store/workspace-record-selectors'
+import { formatClipboardFilePath } from '@/lib/clipboard-file-path'
+>>>>>>> 21cb9ebb78e2f693f8e7496151aa8c318424abb5
 
 export default function AiVaultPanel({
   ref,
@@ -368,7 +374,7 @@ export default function AiVaultPanel({
             }
             onCopyPath={(session) =>
               void copyText(
-                session.filePath,
+                formatClipboardFilePath(session.filePath, session.executionHostId),
                 translate('auto.components.right.sidebar.AiVaultPanel.logPath', 'Log path')
               )
             }

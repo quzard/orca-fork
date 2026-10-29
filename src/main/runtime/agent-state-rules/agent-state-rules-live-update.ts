@@ -6,7 +6,7 @@ import type { GlobalSettings } from '../../../shared/global-settings-types'
 import { getVersionChannel, MAIN_RELEASE_REPO } from '../../../shared/release-channel'
 import { isForkBuild } from '../../../shared/fork-hooks/update-feed'
 import { getMainHttpClient } from '../../network/http-client'
-import { writePluginFileAtomically } from '../../plugins/plugin-atomic-file-write'
+import { writePluginFileAtomically } from '../../plugins/installation/plugin-atomic-file-write'
 import {
   activateAgentStateRules,
   BUNDLED_AGENT_STATE_RULES,

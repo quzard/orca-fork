@@ -1,10 +1,14 @@
 import type { PersistedState } from '../../../shared/persisted-state-types'
 import { getDefaultUIState } from '../../../shared/constants'
+<<<<<<< HEAD
 import {
   isRegisteredSidebarGroupMode,
   registeredReplacementForBuiltinGroupBy
 } from '../../../shared/fork-hooks/sidebar-group-mode'
 import { isPluginPanelTabKey } from '../../../shared/plugins/plugin-manifest'
+=======
+import { isPluginPanelTabKey } from '../../../shared/plugins/manifest/plugin-manifest'
+>>>>>>> 21cb9ebb78e2f693f8e7496151aa8c318424abb5
 
 export function normalizeGroupBy(groupBy: unknown): PersistedState['ui']['groupBy'] {
   if (groupBy === 'none' || groupBy === 'workspace-status' || groupBy === 'pr-status') {

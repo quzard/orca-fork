@@ -26,10 +26,11 @@ import {
 import {
   countFolderWorkspaceDeletes,
   getDeleteWorktreeDialogCopy,
-  getDeleteWorktreeLineageDialogCopy,
+  getDeleteWorktreeLineageDialogDescription,
   isFolderWorkspaceDelete as getIsFolderWorkspaceDelete
 } from './delete-worktree-dialog-copy'
 import { translate } from '@/i18n/i18n'
+import { useUiLanguageRevision } from '@/i18n/use-ui-language-revision'
 import type { WorktreeRemovalTarget } from '../../../../shared/worktree/removal'
 import { useDeleteWorktreeStatusHydration } from './use-delete-worktree-status-hydration'
 import { useConfirmedWorktreeDeleteTargets } from './use-confirmed-worktree-delete-targets'
@@ -49,6 +50,7 @@ import { confirmUnsavedDiscard } from '@/store/slices/worktrees/teardown/removed
 import { useDeleteWorktreeDialogTargets } from './use-delete-worktree-dialog-targets'
 
 const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
+  useUiLanguageRevision()
   const activeModal = useAppStore((s) => s.activeModal)
   const modalData = useAppStore((s) => s.modalData)
   const closeModal = useAppStore((s) => s.closeModal)
@@ -106,7 +108,6 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
   const isFolderWorkspaceDelete = !isBatchDelete && getIsFolderWorkspaceDelete(repoMap, worktree)
   const deleteCopy = getDeleteWorktreeDialogCopy({
     isBatchDelete,
-    worktree,
     worktreeCount: worktrees.length,
     folderWorkspaceDeleteCount: countFolderWorkspaceDeletes(repoMap, worktrees),
     isFolderWorkspaceDelete
@@ -129,7 +130,7 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
     () => countFolderWorkspaceDeletes(repoMap, lineageDelete.deleteAllTargets),
     [lineageDelete.deleteAllTargets, repoMap]
   )
-  const lineageDeleteCopy = getDeleteWorktreeLineageDialogCopy({
+  const lineageDeleteDescription = getDeleteWorktreeLineageDialogDescription({
     childWorkspaceCount,
     deleteTargetCount: lineageDelete.deleteAllTargets.length,
     folderWorkspaceDeleteCount: lineageFolderWorkspaceDeleteCount
@@ -339,10 +340,15 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
           <DeleteWorktreeDialogDescription
             showChangeLossWarning={folderDelete.showChangeLossWarning}
             targetClassName={deleteCopy.targetClassName}
+<<<<<<< HEAD
             targetLabel={deleteCopy.targetLabel}
             canDeleteAllLineage={canDeleteAllLineage}
             childTargetLabel={lineageDeleteCopy.childTargetLabel}
             descriptionSuffix={folderDelete.descriptionSuffix}
+=======
+            targetName={isBatchDelete ? undefined : worktree?.displayName}
+            description={canDeleteAllLineage ? lineageDeleteDescription : deleteCopy.description}
+>>>>>>> 21cb9ebb78e2f693f8e7496151aa8c318424abb5
           />
         </DialogHeader>
 

@@ -253,3 +253,7 @@ launchd 里签名可能停在 Orca Local Signing 的钥匙串确认上。`--boot
 `push_github.sh` 在 [fork/push_github.sh](fork/push_github.sh)。主机、仓库路径、GitHub 地址和分支都要由环境变量给出，没有内置默认值。示例路径是 `/srv/wt/project`。
 
 早期方案和评审笔记没有入库，见 [docs/fork/historical-notes.md](docs/fork/historical-notes.md)。
+
+## F050 聊天盖住终端时藏起 xterm 画布
+
+原生聊天盖住终端时，给 `.xterm` 打上 `data-native-chat-covered`。`terminal.css` 把该终端里的 canvas 设成 `visibility: hidden` 和 `pointer-events: none`。盖层卸下后去掉属性。分屏里没被盖住的终端不动。画布仍占布局盒，不释放 WebGL backing。

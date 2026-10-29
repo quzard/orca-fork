@@ -2,8 +2,8 @@
 
 由 `fork/scripts/generate-audit.py` 生成，改了 fork 文件后重新运行并用 oxfmt 格式化。每个和上游 55dffb479a 不同的文件一行，另列已恢复成上游和已删除的文件。`src/fork/audit-table.fork.test.ts` 检查表和仓库一致。
 
-共 479 行：delete 8，keep 442，revert-to-upstream 9，shrink 20；⚠ 不确定 1 个（保留）。
-上游文件（不含 fork 目录）里的 fork 改动行数：PR #6 之前（b7755e6357）1518，现在 2792。
+共 482 行：delete 8，keep 445，revert-to-upstream 9，shrink 20；⚠ 不确定 1 个（保留）。
+上游文件（不含 fork 目录）里的 fork 改动行数：PR #6 之前（b7755e6357）1518，现在 2831。
 
 | 文件                                                                                    | 功能                     | 决定               | 原因                                                                                                                                                                                                                            |
 | --------------------------------------------------------------------------------------- | ------------------------ | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -486,3 +486,6 @@
 | `src/shared/worktree/meta-types.ts`                                                     | SB 侧栏/工作区           | keep               | 上游文件，fork 改动 2 行，已是最小写法                                                                                                                                                                                          |
 | `src/shared/worktree/reused-path-archive.ts`                                            | F048 删除工作区          | keep               | F048：同一路径新建时清掉复用元数据里的 isArchived。发现扫描和血统轮换不走这里                                                                                                                                                   |
 | `src/shared/worktree/types.ts`                                                          | SB 侧栏/工作区           | keep               | 上游文件，fork 改动 2 行，已是最小写法                                                                                                                                                                                          |
+| `src/renderer/src/assets/terminal.css`                                                  | F050 聊天盖住画布        | keep               | F050：聊天盖住时画布 visibility:hidden 且 pointer-events:none。画布仍占布局盒                                                                                                                                                   |
+| `src/renderer/src/components/native-chat/native-chat-paste-routing.test.tsx`            | F050 聊天盖住画布        | keep               | F050：盖上后被盖住的终端带 data-native-chat-covered，兄弟终端和卸下后不带                                                                                                                                                       |
+| `src/renderer/src/components/terminal-pane/use-covered-terminal-focus-handoff.ts`       | F050 聊天盖住画布        | keep               | F050：盖住时给 .xterm 打 data-native-chat-covered，卸下时去掉                                                                                                                                                                   |

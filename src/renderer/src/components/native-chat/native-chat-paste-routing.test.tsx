@@ -7,6 +7,7 @@ import { APP_MENU_PASTE_EVENT } from '@/lib/app-menu-paste'
 import { useNativeChatPasteBridge } from './use-native-chat-paste-bridge'
 import type { NativeChatComposerHandle } from './NativeChatComposer'
 import { NativeChatPaneCover } from '../terminal-pane/NativeChatPaneCover'
+import { NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE } from '../terminal-pane/use-covered-terminal-focus-handoff'
 import { NativeChatQuestionCard } from './NativeChatQuestionCard'
 import { focusNativeChatCover } from '../terminal-pane/native-chat-covered-pane'
 import { registerTerminalPanePasteListeners } from '../terminal-pane/terminal-pane-paste-listeners'
@@ -63,9 +64,14 @@ function terminalPane(id: number): FakePane {
   container.dataset.leafId = `leaf-${id}`
   const element = document.createElement('div')
   element.className = 'xterm'
+  const screen = document.createElement('div')
+  screen.className = 'xterm-screen'
+  const linkLayer = document.createElement('canvas')
+  linkLayer.className = 'xterm-link-layer'
+  screen.append(linkLayer)
   const helper = document.createElement('textarea')
   helper.className = 'xterm-helper-textarea'
-  element.append(helper)
+  element.append(screen, helper)
   container.append(element)
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: cover code reads only element and focus.
   const terminal = { element, focus: () => helper.focus() } as unknown as ManagedPane['terminal']
@@ -268,6 +274,10 @@ describe('a chat cover owns focus over its terminal', () => {
     f.cover()
     expect(document.activeElement).toBe(f.shell())
     expect(f.pane.terminal.element?.inert).toBe(true)
+    expect(f.pane.terminal.element?.getAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe('')
+    expect(f.sibling.terminal.element?.hasAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe(
+      false
+    )
     f.pane.terminal.focus()
     expect(document.activeElement).toBe(f.shell())
   })
@@ -293,6 +303,9 @@ describe('a chat cover owns focus over its terminal', () => {
     f.cover()
     f.uncover()
     expect(f.pane.terminal.element?.inert).toBe(false)
+    expect(f.pane.terminal.element?.hasAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe(
+      false
+    )
     expect(document.activeElement).toBe(f.pane.helper)
   })
 

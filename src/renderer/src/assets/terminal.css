@@ -57,6 +57,20 @@
   visibility: hidden;
 }
 
+/* 聊天盖层是 z-10 的 HTML，但 macOS 仍把 xterm 画布（WebGL 清屏色 #282c34，以及
+   z-index: 2 的 .xterm-link-layer）合成到它上面。link-layer 本身通常是透明的，
+   却会吃掉命中，所以选不中下面的转录。盖住期间藏起同一 .xterm-screen 里的全部画布：
+   不透明块和命中目标是同一叠层，WebGL 盒子即使比 link-layer 小，也会一起消失。
+   用 visibility 而不是 display:none，画布仍占着布局盒，隐藏画布释放逻辑不会把 backing 清掉。 */
+.xterm[data-native-chat-covered] {
+  pointer-events: none;
+}
+
+.xterm[data-native-chat-covered] canvas {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 /* Divider: the element is a wide transparent hit area; the visible line is
    drawn by ::after so that setting `background` on the element never hides it. */
 .pane-divider.is-vertical,

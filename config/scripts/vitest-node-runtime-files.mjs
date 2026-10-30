@@ -39,6 +39,10 @@ const NODE_RUNTIME_INCLUDE = [
   'src/fork/main/project-group-delete.fork.test.ts',
   // Asserts payloads are collected; Bun's GC scans the stack conservatively and may keep one alive.
   'src/shared/ws-inbound-message-queue.test.ts',
+  'src/renderer/src/lib/ai-vault-tab-title-sync-inputs.test.ts',
+  'src/renderer/src/components/sidebar/HostRemoveDialog.test.tsx',
+  // Asserts an observer survives a forced collection; conservative retention would hide a lost one.
+  'config/scripts/happy-dom-mutation-observer-retention.test.ts',
   // These reach Node SQLite through a shared helper or a dynamic import, which the scan skips.
   'src/main/claude/claude-transcript-catch-up.test.ts',
   'src/main/claude/claude-transcript-duration.test.ts',

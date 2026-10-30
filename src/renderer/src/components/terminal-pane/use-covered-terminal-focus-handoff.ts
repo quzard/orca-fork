@@ -69,6 +69,83 @@ function marksAddedXterm(records: MutationRecord[]): boolean {
   return false
 }
 
+// 终端聊天盖层和智能体会话盖层会盖住同一棵 .xterm。谁先卸下都不能清掉另一个还在用的标记。
+const holdersByElement = new WeakMap<HTMLElement, Set<symbol>>()
+
+function holdCoveredXterm(
+  element: HTMLElement,
+  holder: symbol,
+  cover: HTMLElement,
+  ownerDocument: Document
+): void {
+  let holders = holdersByElement.get(element)
+  if (!holders) {
+    holders = new Set()
+    holdersByElement.set(element, holders)
+  }
+  if (!holders.has(holder) && element.contains(ownerDocument.activeElement)) {
+    // 先把焦点交出去，再 inert，否则焦点会掉到 body。
+    if (!focusNativeChatPromptCard(cover, null)) {
+      cover.focus({ preventScroll: true })
+    }
+  }
+  holders.add(holder)
+  element.inert = true
+  // 属性选择器盖住后创建的画布；xterm 改画布尺寸时不会清掉它。
+  element.setAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE, '')
+}
+
+function releaseCoveredXterm(element: HTMLElement, holder: symbol): void {
+  const holders = holdersByElement.get(element)
+  if (!holders?.delete(holder)) {
+    return
+  }
+  if (holders.size > 0) {
+    return
+  }
+  holdersByElement.delete(element)
+  element.inert = false
+  element.removeAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)
+}
+
+/** 窗格，以及同组里后打开的终端宿主。智能体会话盖层不在 .pane 里，只观察窗格会漏掉后挂上的 .xterm。 */
+function observationRoots(cover: HTMLElement): HTMLElement[] {
+  const roots: HTMLElement[] = []
+  const seen = new Set<Node>()
+  const add = (node: Element | null | undefined): void => {
+    if (!(node instanceof HTMLElement) || seen.has(node)) {
+      return
+    }
+    seen.add(node)
+    roots.push(node)
+  }
+  add(cover.closest('.pane'))
+  const host = cover.closest<HTMLElement>(RETAINED_PANE_HOST_SELECTOR)
+  const group = host?.getAttribute(RETAINED_PANE_GROUP_ATTRIBUTE)
+  const surface = host?.closest('[data-workspace-surface-id]')
+  if (surface) {
+    add(surface)
+  }
+  if (!host || !group) {
+    return roots
+  }
+  if (!surface) {
+    add(host.parentElement)
+  }
+  for (const other of host.ownerDocument.querySelectorAll<HTMLElement>(
+    RETAINED_PANE_HOST_SELECTOR
+  )) {
+    if (other === host || other.getAttribute(RETAINED_PANE_GROUP_ATTRIBUTE) !== group) {
+      continue
+    }
+    if (other.closest('[data-workspace-surface-id]') !== surface) {
+      continue
+    }
+    add(other)
+  }
+  return roots
+}
+
 /** Commit focus to the visible chat cover before making xterm inert, preventing later terminal.focus from sending keys to a hidden agent. */
 export function useCoveredTerminalFocusHandoff(
   coverRef: RefObject<HTMLElement | null>,
@@ -84,6 +161,7 @@ export function useCoveredTerminalFocusHandoff(
       return
     }
     const ownerDocument = cover.ownerDocument
+    const holder = Symbol()
     const marked = new Set<HTMLElement>()
     let disposed = false
     const sync = (): void => {
@@ -95,45 +173,36 @@ export function useCoveredTerminalFocusHandoff(
         if (next.has(element)) {
           continue
         }
-        element.inert = false
-        element.removeAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)
         marked.delete(element)
+        releaseCoveredXterm(element, holder)
       }
       for (const element of next) {
         if (marked.has(element)) {
           continue
         }
-        // 先把焦点交出去，再 inert，否则焦点会掉到 body。
-        if (element.contains(ownerDocument.activeElement)) {
-          if (!focusNativeChatPromptCard(cover, null)) {
-            cover.focus({ preventScroll: true })
-          }
-        }
-        element.inert = true
-        // 属性选择器盖住后创建的画布；xterm 改画布尺寸时不会清掉它。
-        element.setAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE, '')
+        holdCoveredXterm(element, holder, cover, ownerDocument)
         marked.add(element)
       }
     }
     sync()
-    const pane = cover.closest('.pane')
     const observer =
-      pane && typeof MutationObserver !== 'undefined'
-        ? new MutationObserver((records) => {
+      typeof MutationObserver === 'undefined'
+        ? null
+        : new MutationObserver((records) => {
             if (marksAddedXterm(records)) {
               sync()
             }
           })
-        : null
-    if (pane && observer) {
-      observer.observe(pane, { childList: true, subtree: true })
+    if (observer) {
+      for (const root of observationRoots(cover)) {
+        observer.observe(root, { childList: true, subtree: true })
+      }
     }
     return () => {
       disposed = true
       observer?.disconnect()
       for (const element of marked) {
-        element.inert = false
-        element.removeAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)
+        releaseCoveredXterm(element, holder)
       }
       // Unmount cleanup runs before React detaches the cover, so this still sees chat focus.
       if (terminal && cover.contains(ownerDocument.activeElement)) {

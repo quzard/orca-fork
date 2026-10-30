@@ -1,9 +1,11 @@
 // @vitest-environment happy-dom
 
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
+import { createPortal } from 'react-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RETAINED_PANE_GROUP_ATTRIBUTE } from '../tab-group/tab-group-body-anchor'
 import { UNFOCUSED_SPLIT_GROUP_OPACITY } from '../tab-group/split-group-dim'
+import { NativeChatPaneCover } from '../terminal-pane/NativeChatPaneCover'
 import { NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE } from '../terminal-pane/use-covered-terminal-focus-handoff'
 import type { Tab, TabGroup } from '../../../../shared/tab-types'
 
@@ -268,6 +270,84 @@ describe('StructuredAgentSessionPaneOverlayLayer', () => {
     }
   })
 
+  it('keeps the terminal marked when only the agent-session cover goes away', () => {
+    const surface = document.createElement('div')
+    surface.setAttribute('data-workspace-surface-id', WORKTREE_ID)
+    const terminalHost = document.createElement('div')
+    terminalHost.setAttribute('data-retained-pane-host', '')
+    terminalHost.setAttribute(RETAINED_PANE_GROUP_ATTRIBUTE, GROUP_ID)
+    const paneEl = document.createElement('div')
+    paneEl.className = 'pane'
+    const xterm = document.createElement('div')
+    xterm.className = 'xterm'
+    paneEl.append(xterm)
+    terminalHost.append(paneEl)
+    const reactRoot = document.createElement('div')
+    surface.append(terminalHost, reactRoot)
+    document.body.append(surface)
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the cover reads container, element, and focus.
+    const pane = {
+      container: paneEl,
+      terminal: { element: xterm, focus: () => {} }
+    } as unknown as Parameters<typeof NativeChatPaneCover>[0]['pane']
+    try {
+      const view = render(
+        <>
+          {createPortal(<NativeChatPaneCover pane={pane}>{null}</NativeChatPaneCover>, paneEl)}
+          <StructuredAgentSessionPaneOverlayLayer worktreeId={WORKTREE_ID} isWorktreeActive />
+        </>,
+        { container: reactRoot }
+      )
+      expect(xterm.getAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe('')
+      expect(xterm.inert).toBe(true)
+
+      act(() => {
+        mocks.store?.setState({
+          groupsByWorktree: { [WORKTREE_ID]: [createGroup('not-a-chat')] }
+        })
+      })
+      expect(xterm.getAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe('')
+      expect(xterm.inert).toBe(true)
+
+      view.rerender(
+        <StructuredAgentSessionPaneOverlayLayer worktreeId={WORKTREE_ID} isWorktreeActive />
+      )
+      expect(xterm.hasAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe(false)
+      expect(xterm.inert).toBe(false)
+    } finally {
+      surface.remove()
+    }
+  })
+
+  it('marks a same-group xterm that opens after the agent cover is visible', async () => {
+    const surface = document.createElement('div')
+    surface.setAttribute('data-workspace-surface-id', WORKTREE_ID)
+    const reactRoot = document.createElement('div')
+    surface.append(reactRoot)
+    document.body.append(surface)
+    try {
+      render(<StructuredAgentSessionPaneOverlayLayer worktreeId={WORKTREE_ID} isWorktreeActive />, {
+        container: reactRoot
+      })
+      const terminalHost = document.createElement('div')
+      terminalHost.setAttribute('data-retained-pane-host', '')
+      terminalHost.setAttribute(RETAINED_PANE_GROUP_ATTRIBUTE, GROUP_ID)
+      surface.append(terminalHost)
+      const xterm = document.createElement('div')
+      xterm.className = 'xterm'
+      const linkLayer = document.createElement('canvas')
+      linkLayer.className = 'xterm-link-layer'
+      xterm.append(linkLayer)
+      terminalHost.append(xterm)
+      await flushHappyDom()
+      expect(xterm.getAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe('')
+      expect(xterm.inert).toBe(true)
+      expect(linkLayer.closest('[data-native-chat-covered]')).toBe(xterm)
+    } finally {
+      surface.remove()
+    }
+  })
+
   it('marks no column as focused when the focused group id names nothing', () => {
     act(() => {
       mocks.store?.setState({ activeGroupIdByWorktree: { [WORKTREE_ID]: 'group-removed' } })
@@ -280,6 +360,13 @@ describe('StructuredAgentSessionPaneOverlayLayer', () => {
     expect(chatSurface(view.container, FIRST_TAB_ID).dataset.chatFocusedGroup).toBe('false')
   })
 })
+
+function flushHappyDom(): Promise<void> {
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: happy-dom's test window exposes this flush.
+  return (
+    window as unknown as { happyDOM: { waitUntilComplete: () => Promise<void> } }
+  ).happyDOM.waitUntilComplete()
+}
 
 function createState(activeTabId: string): MockAppState {
   return {

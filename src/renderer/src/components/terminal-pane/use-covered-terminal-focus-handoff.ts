@@ -1,5 +1,6 @@
 import { useLayoutEffect, type RefObject } from 'react'
 import type { Terminal } from '@xterm/xterm'
+import { RETAINED_PANE_GROUP_ATTRIBUTE } from '../tab-group/tab-group-body-anchor'
 import { focusNativeChatPromptCard } from '../native-chat/use-native-chat-prompt-card-focus'
 
 /**
@@ -11,36 +12,64 @@ export const NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE = 'data-native-chat-covered'
 
 const RETAINED_PANE_HOST_SELECTOR = '[data-retained-pane-host]'
 
-/**
- * 只藏这一层盖住的终端。同一分栏组里别的标签也挂着 RetainedPaneHost，
- * 按组 id 或整块工作区去扫会把那些标签的分屏终端画布一起藏掉。
- * 盖层在窗格里就只看这个 `.pane`；智能体会话盖层不在窗格里，就只看它自己的宿主。
- */
-function coverScope(cover: HTMLElement): HTMLElement | null {
-  return (
-    cover.closest<HTMLElement>('.pane') ?? cover.closest<HTMLElement>(RETAINED_PANE_HOST_SELECTOR)
-  )
+/** 隐藏标签的 RetainedPaneHost 是 display:none，并且带 inert / aria-hidden。标上之后切回去会一直灰。 */
+function retainedHostIsHidden(host: HTMLElement): boolean {
+  if (host.hasAttribute('inert') || host.getAttribute('aria-hidden') === 'true') {
+    return true
+  }
+  if (host.style.display === 'none') {
+    return true
+  }
+  const view = host.ownerDocument.defaultView
+  return view?.getComputedStyle(host).display === 'none'
 }
 
+function addXtermsIn(scope: Element, cover: HTMLElement, found: Set<HTMLElement>): void {
+  for (const node of scope.querySelectorAll<HTMLElement>('.xterm')) {
+    if (!cover.contains(node)) {
+      found.add(node)
+    }
+  }
+}
+
+/**
+ * 终端聊天盖层在窗格里，只标这个 `.pane`。
+ * 智能体会话盖层自己的宿主里没有 `.xterm`，终端在同组、同一工作区表面的兄弟宿主里。
+ * 只标当前还显示着的兄弟；display:none 的其他标签留在 DOM 里，不能打标。
+ */
 function coveredXterms(
   cover: HTMLElement,
   terminalElement: HTMLElement | null | undefined
 ): HTMLElement[] {
   const found = new Set<HTMLElement>()
-  const scope = coverScope(cover)
-  // 已卸下的 terminal.element 不在窗格里，仍要标上；连在别的标签里的不能标。
-  if (
-    terminalElement &&
-    (!terminalElement.isConnected || (scope !== null && scope.contains(terminalElement)))
-  ) {
-    found.add(terminalElement)
-  }
-  if (scope) {
-    for (const node of scope.querySelectorAll<HTMLElement>('.xterm')) {
-      if (!cover.contains(node)) {
-        found.add(node)
-      }
+  const pane = cover.closest<HTMLElement>('.pane')
+  if (pane) {
+    // 已卸下的 terminal.element 不在窗格里，仍要标上；连在别的标签里的不能标。
+    if (terminalElement && (!terminalElement.isConnected || pane.contains(terminalElement))) {
+      found.add(terminalElement)
     }
+    addXtermsIn(pane, cover, found)
+    return [...found]
+  }
+  const host = cover.closest<HTMLElement>(RETAINED_PANE_HOST_SELECTOR)
+  const group = host?.getAttribute(RETAINED_PANE_GROUP_ATTRIBUTE)
+  if (!host || !group) {
+    if (terminalElement && !terminalElement.isConnected) {
+      found.add(terminalElement)
+    }
+    return [...found]
+  }
+  const surface = host.closest('[data-workspace-surface-id]')
+  for (const other of host.ownerDocument.querySelectorAll<HTMLElement>(
+    RETAINED_PANE_HOST_SELECTOR
+  )) {
+    if (other === host || other.getAttribute(RETAINED_PANE_GROUP_ATTRIBUTE) !== group) {
+      continue
+    }
+    if (other.closest('[data-workspace-surface-id]') !== surface || retainedHostIsHidden(other)) {
+      continue
+    }
+    addXtermsIn(other, cover, found)
   }
   return [...found]
 }
@@ -98,10 +127,31 @@ function releaseCoveredXterm(element: HTMLElement, holder: symbol): void {
   element.removeAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)
 }
 
-/** 只观察这一层自己的窗格或宿主，后挂上的 .xterm 才能补标，又不会看见别的标签。 */
+/** 窗格盖层只观察自己的窗格。会话盖层只观察当前可见的同组兄弟宿主，不观察整块工作区。 */
 function observationRoots(cover: HTMLElement): HTMLElement[] {
-  const scope = coverScope(cover)
-  return scope ? [scope] : []
+  const pane = cover.closest<HTMLElement>('.pane')
+  if (pane) {
+    return [pane]
+  }
+  const host = cover.closest<HTMLElement>(RETAINED_PANE_HOST_SELECTOR)
+  const group = host?.getAttribute(RETAINED_PANE_GROUP_ATTRIBUTE)
+  if (!host || !group) {
+    return []
+  }
+  const surface = host.closest('[data-workspace-surface-id]')
+  const roots: HTMLElement[] = []
+  for (const other of host.ownerDocument.querySelectorAll<HTMLElement>(
+    RETAINED_PANE_HOST_SELECTOR
+  )) {
+    if (other === host || other.getAttribute(RETAINED_PANE_GROUP_ATTRIBUTE) !== group) {
+      continue
+    }
+    if (other.closest('[data-workspace-surface-id]') !== surface || retainedHostIsHidden(other)) {
+      continue
+    }
+    roots.push(other)
+  }
+  return roots
 }
 
 /** Commit focus to the visible chat cover before making xterm inert, preventing later terminal.focus from sending keys to a hidden agent. */

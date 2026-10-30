@@ -257,4 +257,6 @@ launchd 里签名可能停在 Orca Local Signing 的钥匙串确认上。`--boot
 
 ## F050 聊天盖住终端时藏起 xterm 画布
 
-原生聊天盖住终端时，给 `.xterm` 打上 `data-native-chat-covered`。`terminal.css` 把该终端里的 canvas 设成 `visibility: hidden` 和 `pointer-events: none`。盖层卸下后去掉属性。分屏里没被盖住的终端不动。画布仍占布局盒，不释放 WebGL backing。
+原生聊天盖住终端时，给被盖住的 `.xterm` 打上 `data-native-chat-covered`。`terminal.css` 把该终端里的 canvas 设成 `visibility: hidden` 和 `pointer-events: none`。盖层卸下后去掉属性。分屏里没被盖住的终端不动。画布仍占布局盒，不释放 WebGL backing。
+
+终端聊天盖层打在窗格里实际连着的 `.xterm` 上，不只看 `terminal.element`（可能还没 open，或指向已经卸下的节点）。智能体会话盖层不进窗格，它和终端是同一组里叠放的 `RetainedPaneHost`；盖层可见时，同一 `data-retained-pane-group` 下其他宿主里的 `.xterm` 同样打上属性。盖住后才出现的 `.xterm` 会补上。

@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo } from 'react'
+import { memo, useCallback, useMemo, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import type { Tab, TabGroup } from '../../../../shared/tab-types'
 import { useAppStore } from '@/store'
@@ -7,6 +7,7 @@ import {
   structuredAgentSessionTargetForHost
 } from '@/runtime/structured-agent-session-owner'
 import { RetainedPaneHost } from '../tab-group/RetainedPaneHost'
+import { useCoveredTerminalFocusHandoff } from '../terminal-pane/use-covered-terminal-focus-handoff'
 import NativeChatView from './NativeChatView'
 import { isStructuredTab } from '../../../../shared/structured-agent-session-tab'
 
@@ -36,6 +37,9 @@ const StructuredAgentSessionOverlaySlot = memo(function StructuredAgentSessionOv
   // Resolve from the tab’s recorded host because workspace ids can collide across hosts.
   const owner = useAppStore((state) => structuredAgentSessionOwnerForTab(state, tab))
   const target = useMemo(() => structuredAgentSessionTargetForHost(owner), [owner])
+  // 盖层和终端是同一锚点上的两个宿主，不经过 NativeChatPaneCover，所以这里单独把画布标上。
+  const coverRef = useRef<HTMLDivElement>(null)
+  useCoveredTerminalFocusHandoff(coverRef, null, target !== null && isActive)
   if (!target) {
     return null
   }
@@ -47,16 +51,22 @@ const StructuredAgentSessionOverlaySlot = memo(function StructuredAgentSessionOv
       data-structured-agent-session-overlay-tab-id={tab.id}
       onFocusOwningGroup={onFocusOwningGroup}
     >
-      <NativeChatView
-        mode="structured"
-        tabId={tab.id}
-        groupId={groupId}
-        sessionId={tab.entityId}
-        agent={tab.agentSessionAgent}
-        isVisible={isActive}
-        isFocusedGroup={isFocusedGroup}
-        target={target}
-      />
+      <div
+        ref={coverRef}
+        tabIndex={-1}
+        className="flex h-full min-h-0 min-w-0 w-full flex-col outline-none"
+      >
+        <NativeChatView
+          mode="structured"
+          tabId={tab.id}
+          groupId={groupId}
+          sessionId={tab.entityId}
+          agent={tab.agentSessionAgent}
+          isVisible={isActive}
+          isFocusedGroup={isFocusedGroup}
+          target={target}
+        />
+      </div>
     </RetainedPaneHost>
   )
 })

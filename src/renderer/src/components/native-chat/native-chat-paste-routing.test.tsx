@@ -298,6 +298,60 @@ describe('a chat cover owns focus over its terminal', () => {
     expect(f.pane.terminal.element?.inert).toBe(true)
   })
 
+  it('marks the pane xterm that terminal.element does not point at', () => {
+    const container = document.createElement('div')
+    container.className = 'pane'
+    const live = document.createElement('div')
+    live.className = 'xterm'
+    const linkLayer = document.createElement('canvas')
+    linkLayer.className = 'xterm-link-layer'
+    live.append(linkLayer)
+    container.append(live)
+    const detached = document.createElement('div')
+    detached.className = 'xterm'
+    const siblingPane = document.createElement('div')
+    siblingPane.className = 'pane'
+    const siblingXterm = document.createElement('div')
+    siblingXterm.className = 'xterm'
+    siblingPane.append(siblingXterm)
+    document.body.append(container, siblingPane)
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the cover reads container, element, and focus.
+    const pane = {
+      container,
+      terminal: { element: detached, focus: () => detached.focus() }
+    } as unknown as Parameters<typeof NativeChatPaneCover>[0]['pane']
+    render(createPortal(<NativeChatPaneCover pane={pane}>{null}</NativeChatPaneCover>, container))
+    expect(live.getAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe('')
+    expect(live.inert).toBe(true)
+    expect(linkLayer.closest('[data-native-chat-covered]')).toBe(live)
+    expect(siblingXterm.hasAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe(false)
+  })
+
+  it('marks an xterm that opens after the chat cover is up', async () => {
+    const container = document.createElement('div')
+    container.className = 'pane'
+    document.body.append(container)
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the cover reads container, element, and focus.
+    const pane = {
+      container,
+      terminal: { element: undefined, focus: () => {} }
+    } as unknown as Parameters<typeof NativeChatPaneCover>[0]['pane']
+    render(createPortal(<NativeChatPaneCover pane={pane}>{null}</NativeChatPaneCover>, container))
+    const live = document.createElement('div')
+    live.className = 'xterm'
+    const linkLayer = document.createElement('canvas')
+    linkLayer.className = 'xterm-link-layer'
+    live.append(linkLayer)
+    container.append(live)
+    // happy-dom delivers MutationObserver on its own microtask queue.
+    await // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: happy-dom's test window exposes this flush.
+    (
+      window as unknown as { happyDOM: { waitUntilComplete: () => Promise<void> } }
+    ).happyDOM.waitUntilComplete()
+    expect(live.getAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe('')
+    expect(linkLayer.closest('[data-native-chat-covered]')).toBe(live)
+  })
+
   it('returns focus to the terminal when the chat that held it goes away', () => {
     const f = fixture()
     f.cover()

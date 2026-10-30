@@ -2,7 +2,9 @@
 
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { RETAINED_PANE_GROUP_ATTRIBUTE } from '../tab-group/tab-group-body-anchor'
 import { UNFOCUSED_SPLIT_GROUP_OPACITY } from '../tab-group/split-group-dim'
+import { NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE } from '../terminal-pane/use-covered-terminal-focus-handoff'
 import type { Tab, TabGroup } from '../../../../shared/tab-types'
 
 type MockAppState = {
@@ -227,6 +229,43 @@ describe('StructuredAgentSessionPaneOverlayLayer', () => {
     act(() => mocks.store?.setState({ activeGroupIdByWorktree: { [WORKTREE_ID]: GROUP_ID } }))
     expect(first?.style.opacity).toBe('1')
     expect(second?.style.opacity).toBe(dim)
+  })
+
+  it('marks same-group terminal canvases while the agent-session cover is visible', () => {
+    const terminalHost = document.createElement('div')
+    terminalHost.setAttribute('data-retained-pane-host', '')
+    terminalHost.setAttribute(RETAINED_PANE_GROUP_ATTRIBUTE, GROUP_ID)
+    const covered = document.createElement('div')
+    covered.className = 'xterm'
+    const linkLayer = document.createElement('canvas')
+    linkLayer.className = 'xterm-link-layer'
+    covered.append(linkLayer)
+    terminalHost.append(covered)
+    const otherGroup = document.createElement('div')
+    otherGroup.setAttribute('data-retained-pane-host', '')
+    otherGroup.setAttribute(RETAINED_PANE_GROUP_ATTRIBUTE, SECOND_GROUP_ID)
+    const otherXterm = document.createElement('div')
+    otherXterm.className = 'xterm'
+    otherGroup.append(otherXterm)
+    document.body.append(terminalHost, otherGroup)
+    try {
+      render(<StructuredAgentSessionPaneOverlayLayer worktreeId={WORKTREE_ID} isWorktreeActive />)
+      expect(covered.getAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe('')
+      expect(covered.inert).toBe(true)
+      expect(linkLayer.closest('[data-native-chat-covered]')).toBe(covered)
+      expect(otherXterm.hasAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe(false)
+
+      act(() => {
+        mocks.store?.setState({
+          groupsByWorktree: { [WORKTREE_ID]: [createGroup('not-a-chat')] }
+        })
+      })
+      expect(covered.hasAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe(false)
+      expect(covered.inert).toBe(false)
+    } finally {
+      terminalHost.remove()
+      otherGroup.remove()
+    }
   })
 
   it('marks no column as focused when the focused group id names nothing', () => {

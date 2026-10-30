@@ -26,6 +26,7 @@ import {
 import { HOST_DIRECTORY_GROUP_BY, hostDirectorySectionKey } from './section-keys'
 import { registerForkRendererModules } from '../register-renderer'
 import { getWorktreeDragGroups } from '../../renderer/src/components/sidebar/worktree-list/drag/groups'
+import { getWorktreeIdFromHostIdentity } from '../../shared/worktree/host-qualified-identity'
 import {
   hiddenWorktreeMatchesQuery,
   hiddenWorktreeSearchMinimum
@@ -317,7 +318,9 @@ describe('host-directory sidebar rows', () => {
     const loose = getWorktreeDragGroups(rows).find(
       (entry) => entry.key === hostDirectorySectionKey(DEVBOX, null)
     )
-    expect(loose?.worktreeIds).toEqual(expect.arrayContaining(['wt-gone', 'wt-null']))
+    expect(loose?.worktreeIds.map(getWorktreeIdFromHostIdentity)).toEqual(
+      expect.arrayContaining(['wt-gone', 'wt-null'])
+    )
   })
 
   it('ignores a project group that lives on another host', () => {

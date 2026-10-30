@@ -9,7 +9,19 @@ import {
   refreshWorktreeSidebarDragSession,
   type WorktreeSidebarDragSession
 } from '../../renderer/src/components/sidebar/worktree-sidebar-drag-autoscroll'
+import {
+  getWorktreeHostIdentity,
+  getWorktreeIdFromHostIdentity
+} from '../../shared/worktree/host-qualified-identity'
 import { hostDirectorySectionKey, looseHostSectionKey } from './section-keys'
+
+function cardKey(id: string): string {
+  return getWorktreeHostIdentity({ id })
+}
+
+function workspaceIds(ids: readonly string[] | undefined): string[] {
+  return (ids ?? []).map(getWorktreeIdFromHostIdentity)
+}
 
 const HOST = 'local'
 const GROUP = hostDirectorySectionKey(HOST, 'g1')
@@ -31,13 +43,15 @@ function rows(looseFirst: boolean): HostSectionRow[] {
 
 function startDrag(list: HostSectionRow[], id: string): WorktreeSidebarDragSession | null {
   const sourceGroupKey = getWorktreeDragIndexes(list).groupKeyByRowKey.get(`${LOOSE}:${id}`)!
+  const key = cardKey(id)
   const session: WorktreeSidebarDragSession = {
-    draggingWorktreeId: id,
+    draggingWorktreeId: key,
     sourceGroupKey,
     draggedIds: [id],
     draggedCopies: [],
     reorderDraggedIds: [id],
-    reorderUnitDraggedIds: [id],
+    reorderDraggedKeys: [key],
+    reorderUnitDraggedKeys: [key],
     rects: [],
     grab: null,
     anchor: null
@@ -63,20 +77,28 @@ describe('dragging an ungrouped workspace (section without a header row)', () =>
     it(`keys the drag groups by section, ungrouped list ${where} a group`, () => {
       const list = rows(looseFirst)
       const groups = getWorktreeDragGroups(list)
-      expect(groups.find((group) => group.key === GROUP)?.worktreeIds).toEqual(['a'])
-      expect(groups.find((group) => group.key === LOOSE)?.worktreeIds).toEqual([
+      expect(workspaceIds(groups.find((group) => group.key === GROUP)?.worktreeIds)).toEqual(['a'])
+      expect(workspaceIds(groups.find((group) => group.key === LOOSE)?.worktreeIds)).toEqual([
         'b',
         'c',
         'c-child'
       ])
       const units = getWorktreeDragUnitGroups(list)
-      expect(units.find((group) => group.key === LOOSE)?.worktreeIds).toEqual(['b', 'c'])
-      expect(units.find((group) => group.key === GROUP)?.worktreeIds).toEqual(['a'])
+      expect(workspaceIds(units.find((group) => group.key === LOOSE)?.worktreeIds)).toEqual([
+        'b',
+        'c'
+      ])
+      expect(workspaceIds(units.find((group) => group.key === GROUP)?.worktreeIds)).toEqual(['a'])
     })
   }
 
   it('leaves upstream headerless rows in the ALL group', () => {
     const list = [item('x', 'all'), item('y', 'all')] as unknown as HostSectionRow[]
-    expect(getWorktreeDragGroups(list)).toEqual([{ key: 'all', worktreeIds: ['x', 'y'] }])
+    expect(
+      getWorktreeDragGroups(list).map((group) => ({
+        key: group.key,
+        worktreeIds: workspaceIds(group.worktreeIds)
+      }))
+    ).toEqual([{ key: 'all', worktreeIds: ['x', 'y'] }])
   })
 })

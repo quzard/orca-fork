@@ -1,5 +1,6 @@
 // Manual-order values a cross-group drop writes. Kept apart from the write plan so each stays small.
 import { folderWorkspaceToWorktree } from '../../shared/folder-workspace-worktree'
+import { getWorktreeIdFromHostIdentity } from '../../shared/worktree/host-qualified-identity'
 import type { Worktree } from '../../shared/worktree/types'
 import type { WorktreeDragGroup } from '../../renderer/src/components/sidebar/worktree-manual-order'
 import { manualOrderKey, manualOrderedRows } from './manual-order'
@@ -219,7 +220,10 @@ export function buildGroupDropOrder(
   belongsToTarget: (id: string) => boolean,
   now = Date.now()
 ): OrderUpdates {
-  const visible = groups.find((group) => group.key === target.key)?.worktreeIds ?? []
+  // 拖放分组的成员是主机身份（主机|工作区 id）。这里仍按工作区 id 写排序，先还原。
+  const visible = (groups.find((group) => group.key === target.key)?.worktreeIds ?? []).map(
+    getWorktreeIdFromHostIdentity
+  )
   const rows = manualOrderedRows(
     Object.values(state.worktreesByRepo).flat(),
     state.folderWorkspaces
@@ -231,7 +235,10 @@ export function buildGroupDropOrder(
   const hidden = orderedIds.filter(
     (id) => !visibleSet.has(id) && !dragged.has(id) && belongsToTarget(id)
   )
-  const shown = groups.flatMap((group) => group.worktreeIds).filter((id) => dragged.has(id))
+  const shown = groups
+    .flatMap((group) => group.worktreeIds)
+    .map(getWorktreeIdFromHostIdentity)
+    .filter((id) => dragged.has(id))
   const moved = [...new Set([...shown, ...draggedIds])]
   // The drop index counts the rows the target group shows.
   const bounded = Math.max(0, Math.min(dropIndex, visible.length))

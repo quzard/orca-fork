@@ -42,6 +42,43 @@ describe('worktree.set on a host that strips the sidebar group fields', () => {
     })
   })
 
+  it('accepts a current host show that echoes the group on the full worktree', async () => {
+    // 当前主机的 show 带回整份工作区，分组在其中。这不是旧主机只回 manualOrder 的那种回复。
+    mocks.callRuntimeRpc.mockResolvedValue({
+      worktree: {
+        id,
+        path: '/srv/app',
+        branch: 'refs/heads/master',
+        displayName: 'app',
+        comment: '',
+        sortOrder: 1,
+        manualOrder: 7,
+        sidebarGroupId: 'g1'
+      }
+    })
+    await expect(
+      persistWorktreeMeta(target, id, { sidebarGroupId: 'g1', manualOrder: 7 })
+    ).resolves.toBeUndefined()
+  })
+
+  it('still fails a full worktree that applied the order and left the group off', async () => {
+    // 旧主机：manualOrder 写上了，sidebarGroupId 从请求和合并里都丢掉了。整份工作区也一样。
+    mocks.callRuntimeRpc.mockResolvedValue({
+      worktree: {
+        id,
+        path: '/srv/app',
+        branch: 'refs/heads/master',
+        displayName: 'app',
+        comment: '',
+        sortOrder: 1,
+        manualOrder: 7
+      }
+    })
+    await expect(
+      persistWorktreeMeta(target, id, { sidebarGroupId: 'g1', manualOrder: 7 })
+    ).rejects.toMatchObject({ code: SIDEBAR_FIELDS_NOT_APPLIED_CODE })
+  })
+
   it('accepts a host that applied the group and the clear', async () => {
     mocks.callRuntimeRpc.mockResolvedValue({ worktree: { sidebarGroupId: null } })
     await expect(

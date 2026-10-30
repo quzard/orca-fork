@@ -1,12 +1,16 @@
 // @vitest-environment happy-dom
 
+import { useRef } from 'react'
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { createPortal } from 'react-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RETAINED_PANE_GROUP_ATTRIBUTE } from '../tab-group/tab-group-body-anchor'
 import { UNFOCUSED_SPLIT_GROUP_OPACITY } from '../tab-group/split-group-dim'
 import { NativeChatPaneCover } from '../terminal-pane/NativeChatPaneCover'
-import { NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE } from '../terminal-pane/use-covered-terminal-focus-handoff'
+import {
+  NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE,
+  useCoveredTerminalFocusHandoff
+} from '../terminal-pane/use-covered-terminal-focus-handoff'
 import type { Tab, TabGroup } from '../../../../shared/tab-types'
 
 type MockAppState = {
@@ -233,44 +237,53 @@ describe('StructuredAgentSessionPaneOverlayLayer', () => {
     expect(second?.style.opacity).toBe(dim)
   })
 
-  it('marks same-group terminal canvases while the agent-session cover is visible', () => {
-    const terminalHost = document.createElement('div')
-    terminalHost.setAttribute('data-retained-pane-host', '')
-    terminalHost.setAttribute(RETAINED_PANE_GROUP_ATTRIBUTE, GROUP_ID)
-    const covered = document.createElement('div')
-    covered.className = 'xterm'
-    const linkLayer = document.createElement('canvas')
-    linkLayer.className = 'xterm-link-layer'
-    covered.append(linkLayer)
-    terminalHost.append(covered)
-    const otherGroup = document.createElement('div')
-    otherGroup.setAttribute('data-retained-pane-host', '')
-    otherGroup.setAttribute(RETAINED_PANE_GROUP_ATTRIBUTE, SECOND_GROUP_ID)
-    const otherXterm = document.createElement('div')
-    otherXterm.className = 'xterm'
-    otherGroup.append(otherXterm)
-    document.body.append(terminalHost, otherGroup)
+  it('does not mark a plain terminal in another tab of the same group', () => {
+    const surface = document.createElement('div')
+    surface.setAttribute('data-workspace-surface-id', WORKTREE_ID)
+    const coveredHost = retainedHost(GROUP_ID)
+    const coveredPane = document.createElement('div')
+    coveredPane.className = 'pane'
+    const covered = xtermWithLinkLayer()
+    coveredPane.append(covered.xterm)
+    const siblingPane = document.createElement('div')
+    siblingPane.className = 'pane'
+    const sibling = xtermWithLinkLayer()
+    siblingPane.append(sibling.xterm)
+    coveredHost.append(coveredPane, siblingPane)
+    const otherTab = retainedHost(GROUP_ID)
+    const otherPane = document.createElement('div')
+    otherPane.className = 'pane'
+    const other = xtermWithLinkLayer()
+    otherPane.append(other.xterm)
+    otherTab.append(otherPane)
+    const reactRoot = document.createElement('div')
+    surface.append(coveredHost, otherTab, reactRoot)
+    document.body.append(surface)
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the cover reads container, element, and focus.
+    const pane = {
+      container: coveredPane,
+      terminal: { element: covered.xterm, focus: () => {} }
+    } as unknown as Parameters<typeof NativeChatPaneCover>[0]['pane']
     try {
-      render(<StructuredAgentSessionPaneOverlayLayer worktreeId={WORKTREE_ID} isWorktreeActive />)
-      expect(covered.getAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe('')
-      expect(covered.inert).toBe(true)
-      expect(linkLayer.closest('[data-native-chat-covered]')).toBe(covered)
-      expect(otherXterm.hasAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe(false)
-
-      act(() => {
-        mocks.store?.setState({
-          groupsByWorktree: { [WORKTREE_ID]: [createGroup('not-a-chat')] }
-        })
-      })
-      expect(covered.hasAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe(false)
-      expect(covered.inert).toBe(false)
+      render(
+        <>
+          {createPortal(<NativeChatPaneCover pane={pane}>{null}</NativeChatPaneCover>, coveredPane)}
+          <StructuredAgentSessionPaneOverlayLayer worktreeId={WORKTREE_ID} isWorktreeActive />
+        </>,
+        { container: reactRoot }
+      )
+      expect(covered.xterm.getAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe('')
+      expect(covered.linkLayer.closest('[data-native-chat-covered]')).toBe(covered.xterm)
+      expect(sibling.xterm.hasAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe(false)
+      expect(sibling.xterm.inert).toBe(false)
+      expect(other.xterm.hasAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe(false)
+      expect(other.xterm.inert).toBe(false)
     } finally {
-      terminalHost.remove()
-      otherGroup.remove()
+      surface.remove()
     }
   })
 
-  it('keeps the terminal marked when only the agent-session cover goes away', () => {
+  it('keeps the terminal marked when only one of two covers on that pane goes away', () => {
     const surface = document.createElement('div')
     surface.setAttribute('data-workspace-surface-id', WORKTREE_ID)
     const terminalHost = document.createElement('div')
@@ -282,8 +295,11 @@ describe('StructuredAgentSessionPaneOverlayLayer', () => {
     xterm.className = 'xterm'
     paneEl.append(xterm)
     terminalHost.append(paneEl)
+    const otherTab = retainedHost(GROUP_ID)
+    const other = xtermWithLinkLayer()
+    otherTab.append(other.xterm)
     const reactRoot = document.createElement('div')
-    surface.append(terminalHost, reactRoot)
+    surface.append(terminalHost, otherTab, reactRoot)
     document.body.append(surface)
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the cover reads container, element, and focus.
     const pane = {
@@ -291,27 +307,17 @@ describe('StructuredAgentSessionPaneOverlayLayer', () => {
       terminal: { element: xterm, focus: () => {} }
     } as unknown as Parameters<typeof NativeChatPaneCover>[0]['pane']
     try {
-      const view = render(
-        <>
-          {createPortal(<NativeChatPaneCover pane={pane}>{null}</NativeChatPaneCover>, paneEl)}
-          <StructuredAgentSessionPaneOverlayLayer worktreeId={WORKTREE_ID} isWorktreeActive />
-        </>,
-        { container: reactRoot }
-      )
+      const view = render(<Covers pane={pane} second terminalCover />, { container: reactRoot })
       expect(xterm.getAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe('')
       expect(xterm.inert).toBe(true)
+      expect(other.xterm.hasAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe(false)
 
-      act(() => {
-        mocks.store?.setState({
-          groupsByWorktree: { [WORKTREE_ID]: [createGroup('not-a-chat')] }
-        })
-      })
+      view.rerender(<Covers pane={pane} second={false} terminalCover />)
       expect(xterm.getAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe('')
       expect(xterm.inert).toBe(true)
+      expect(other.xterm.hasAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe(false)
 
-      view.rerender(
-        <StructuredAgentSessionPaneOverlayLayer worktreeId={WORKTREE_ID} isWorktreeActive />
-      )
+      view.rerender(<Covers pane={pane} second={false} terminalCover={false} />)
       expect(xterm.hasAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe(false)
       expect(xterm.inert).toBe(false)
     } finally {
@@ -319,7 +325,7 @@ describe('StructuredAgentSessionPaneOverlayLayer', () => {
     }
   })
 
-  it('marks a same-group xterm that opens after the agent cover is visible', async () => {
+  it('marks an xterm that opens inside this cover and ignores one opened in another tab', async () => {
     const surface = document.createElement('div')
     surface.setAttribute('data-workspace-surface-id', WORKTREE_ID)
     const reactRoot = document.createElement('div')
@@ -329,20 +335,22 @@ describe('StructuredAgentSessionPaneOverlayLayer', () => {
       render(<StructuredAgentSessionPaneOverlayLayer worktreeId={WORKTREE_ID} isWorktreeActive />, {
         container: reactRoot
       })
-      const terminalHost = document.createElement('div')
-      terminalHost.setAttribute('data-retained-pane-host', '')
-      terminalHost.setAttribute(RETAINED_PANE_GROUP_ATTRIBUTE, GROUP_ID)
-      surface.append(terminalHost)
-      const xterm = document.createElement('div')
-      xterm.className = 'xterm'
-      const linkLayer = document.createElement('canvas')
-      linkLayer.className = 'xterm-link-layer'
-      xterm.append(linkLayer)
-      terminalHost.append(xterm)
+      const agentHost = reactRoot.querySelector<HTMLElement>(
+        `[data-structured-agent-session-overlay-tab-id="${FIRST_TAB_ID}"]`
+      )
+      if (!agentHost) {
+        throw new Error('missing agent cover host')
+      }
+      const late = xtermWithLinkLayer()
+      agentHost.append(late.xterm)
+      const otherTab = retainedHost(GROUP_ID)
+      const other = xtermWithLinkLayer()
+      otherTab.append(other.xterm)
+      surface.append(otherTab)
       await flushHappyDom()
-      expect(xterm.getAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe('')
-      expect(xterm.inert).toBe(true)
-      expect(linkLayer.closest('[data-native-chat-covered]')).toBe(xterm)
+      expect(late.xterm.getAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe('')
+      expect(late.linkLayer.closest('[data-native-chat-covered]')).toBe(late.xterm)
+      expect(other.xterm.hasAttribute(NATIVE_CHAT_COVERED_TERMINAL_ATTRIBUTE)).toBe(false)
     } finally {
       surface.remove()
     }
@@ -360,6 +368,51 @@ describe('StructuredAgentSessionPaneOverlayLayer', () => {
     expect(chatSurface(view.container, FIRST_TAB_ID).dataset.chatFocusedGroup).toBe('false')
   })
 })
+
+function Covers({
+  pane,
+  second,
+  terminalCover
+}: {
+  pane: Parameters<typeof NativeChatPaneCover>[0]['pane']
+  second: boolean
+  terminalCover: boolean
+}): React.JSX.Element {
+  return (
+    <>
+      {createPortal(
+        <>
+          {terminalCover ? <NativeChatPaneCover pane={pane}>{null}</NativeChatPaneCover> : null}
+          <PaneSecondCover active={second} />
+        </>,
+        pane.container
+      )}
+      <StructuredAgentSessionPaneOverlayLayer worktreeId={WORKTREE_ID} isWorktreeActive />
+    </>
+  )
+}
+
+function PaneSecondCover({ active }: { active: boolean }): React.JSX.Element {
+  const ref = useRef<HTMLDivElement>(null)
+  useCoveredTerminalFocusHandoff(ref, null, active)
+  return <div ref={ref} />
+}
+
+function retainedHost(groupId: string): HTMLDivElement {
+  const host = document.createElement('div')
+  host.setAttribute('data-retained-pane-host', '')
+  host.setAttribute(RETAINED_PANE_GROUP_ATTRIBUTE, groupId)
+  return host
+}
+
+function xtermWithLinkLayer(): { xterm: HTMLDivElement; linkLayer: HTMLCanvasElement } {
+  const xterm = document.createElement('div')
+  xterm.className = 'xterm'
+  const linkLayer = document.createElement('canvas')
+  linkLayer.className = 'xterm-link-layer'
+  xterm.append(linkLayer)
+  return { xterm, linkLayer }
+}
 
 function flushHappyDom(): Promise<void> {
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: happy-dom's test window exposes this flush.

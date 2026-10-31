@@ -1,10 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { mergeWorktree } from '../../main/ipc/worktree-metadata-merge'
 import { mergeWorktreeMetaForWrite } from '../../main/persistence/loading-store/worktree-meta-write-normalization'
-import {
-  registerDurableWorkspaceMetaReactivate,
-  reactivateRegisteredArchivedWorktreeMeta
-} from '../../shared/fork-hooks/workspace-durable-archive'
 import type { WorktreeMeta } from '../../shared/worktree/meta-types'
 import {
   registerReusedPathUnarchive,
@@ -15,7 +11,6 @@ import {
   rememberWorkspaceArchive,
   stampWorkspaceArchive
 } from './durable-workspace-archive'
-import { reactivateArchivedWorktreeMeta } from './reused-path-worktree-meta'
 
 const PATH = '/srv/wt/project/checkout'
 const ID = `repo-1::${PATH}`
@@ -54,7 +49,6 @@ function scannedRow(meta: WorktreeMeta) {
 
 describe('same-path recreate after soft-delete', () => {
   let meta: WorktreeMeta
-  let updateMeta: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
     meta = archivedMeta()
@@ -68,12 +62,6 @@ describe('same-path recreate after soft-delete', () => {
         }
       }
     })
-    updateMeta = vi.fn(async (args: { updates: Partial<WorktreeMeta> }) => {
-      meta = mergeWorktreeMetaForWrite(meta, args.updates)
-      return meta
-    })
-    vi.stubGlobal('window', { api: { worktrees: { updateMeta } } })
-    registerDurableWorkspaceMetaReactivate(reactivateArchivedWorktreeMeta)
     rememberWorkspaceArchive({
       id: ID,
       path: PATH,
@@ -81,11 +69,6 @@ describe('same-path recreate after soft-delete', () => {
       hostId: 'local',
       pathOnly: false
     })
-  })
-
-  afterEach(() => {
-    registerDurableWorkspaceMetaReactivate(undefined)
-    vi.unstubAllGlobals()
   })
 
   it('stays archived after the hide list is cleared until create resets the reused meta', () => {
@@ -117,15 +100,5 @@ describe('same-path recreate after soft-delete', () => {
     const rotated = mergeWorktreeMetaForWrite(meta, { instanceId: 'rotated-parent' })
     expect(rotated.isArchived).toBe(true)
     expect(rotated.instanceId).toBe('rotated-parent')
-  })
-
-  it('leaves another host archived', async () => {
-    const other = archivedMeta('other-instance')
-    await reactivateRegisteredArchivedWorktreeMeta({
-      worktreeId: ID,
-      executionHostId: 'local'
-    })
-    expect(meta.isArchived).toBe(false)
-    expect(other.isArchived).toBe(true)
   })
 })

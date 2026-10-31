@@ -9,7 +9,8 @@ import {
 import {
   registerDurableWorkspaceArchive,
   registerDurableWorkspaceArchiveRelease,
-  registerDurableWorkspaceMetaReactivate
+  registerImportedWorktreeReactivate,
+  registerRemovedWorkspaceArchiveRelease
 } from '../shared/fork-hooks/workspace-durable-archive'
 import { registerForkRendererModules as registerAiVaultRendererModules } from './ai-vault/register-renderer'
 import { enableWorkspacePortForward } from './ports/workspace-port-forward-flag'
@@ -18,7 +19,10 @@ import {
   releaseDurableArchiveForWorkspace,
   stampWorkspaceArchive
 } from './sidebar/durable-workspace-archive'
-import { reactivateArchivedWorktreeMeta } from './sidebar/reused-path-worktree-meta'
+import {
+  reactivateImportedWorktrees,
+  releaseRemovedWorkspaceArchive
+} from './sidebar/workspace-archive-release'
 import { installHostDirectoryRowPlan } from './sidebar/install-row-plan'
 import { registerHostDirectorySortReader } from './sidebar/section-keys'
 import { registerSettingsProjectBulkSlot } from './sidebar/settings-project-bulk'
@@ -54,7 +58,8 @@ export function registerForkRendererModules(): void {
   registerForkWorkspaceFolderDelete()
   registerDurableWorkspaceArchive(stampWorkspaceArchive)
   registerDurableWorkspaceArchiveRelease(releaseDurableArchiveForWorkspace)
-  registerDurableWorkspaceMetaReactivate(reactivateArchivedWorktreeMeta)
+  registerRemovedWorkspaceArchiveRelease(releaseRemovedWorkspaceArchive)
+  registerImportedWorktreeReactivate(reactivateImportedWorktrees)
   registerHiddenWorktreeSearch({
     minimum: 1,
     matches: (worktree, query) => (worktree.branch ?? '').toLocaleLowerCase().includes(query)

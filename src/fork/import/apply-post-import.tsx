@@ -16,25 +16,7 @@ import {
 import { parentFolderImportRequested } from './parent-folder-request'
 import { mergeSelectedWorktreeInbox } from './selected-worktree-paths'
 import { releaseDurableArchiveAtPath } from '../sidebar/durable-workspace-archive'
-import { reactivateArchivedWorktreeMeta } from '../sidebar/reused-path-worktree-meta'
-
-async function releaseImportedWorktree(args: {
-  id: string
-  path: string
-  repoId: string
-  hostId?: ExecutionHostId
-}): Promise<void> {
-  try {
-    await reactivateArchivedWorktreeMeta({
-      worktreeId: args.id,
-      executionHostId: args.hostId
-    })
-  } catch (error) {
-    console.error('Failed to clear archived workspace metadata:', error)
-    return
-  }
-  releaseDurableArchiveAtPath(args)
-}
+import { releaseImportedWorktree } from '../sidebar/workspace-archive-release'
 
 async function keepSelectedWorktrees(details: ForkPostImportDetails): Promise<void> {
   const projects = details.importedProjects ?? []

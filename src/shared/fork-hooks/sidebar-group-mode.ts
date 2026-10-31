@@ -1,16 +1,9 @@
 // fork: 侧栏分组模式注册表。内置四种模式不进入表，未注册时查找永远为空。
 import type { ExecutionHostId } from '../execution-host'
 import type { PersistedUIState } from '../persisted-ui-state-types'
-import type { ProjectGroup } from '../project-group-types'
-import type { Repo } from '../repo-types'
 import type { planSidebarRows } from '../sidebar-list/sidebar-row-plan'
-import type { Worktree } from '../worktree/types'
 
 const BUILTIN_GROUP_BY_IDS = new Set(['none', 'workspace-status', 'repo', 'pr-status'])
-
-export type SidebarGroupKeyContext = {
-  projectGroups?: readonly ProjectGroup[]
-}
 
 /** Arguments a registered mode receives. Callers pass the sidebar's existing plan inputs. */
 export type SidebarPlanArgs = {
@@ -43,23 +36,14 @@ export type SidebarGroupMode = {
   id: string
   label: string
   description?: string
-  /** 分组标题的 tone class。缺省用中性色。 */
-  headerTone?: string
   /** Default group for a profile that has not saved one. At most one mode should set this. */
   isDefault?: boolean
   /** Keep a host header even when only one host is visible. */
   retainHostHeaders?: boolean
   /** A saved built-in id that should open this mode. `repo` is the host-and-directory view. */
   replacesBuiltinGroupBy?: 'repo'
-  /** 返回上游 `OrderedGroupEntry[]`。参数即 `buildOrderedGroups` 的 args。 */
-  buildOrderedGroups?: (args: SidebarPlanArgs) => unknown
   /** Full row plan. Omitted modes still use the upstream plan. */
   buildRowPlan?: (args: SidebarPlanArgs) => SidebarRowPlan
-  groupKeyForWorktree?: (
-    worktree: Worktree,
-    repo: Repo | undefined,
-    context?: SidebarGroupKeyContext
-  ) => string
 }
 
 const modes = new Map<string, SidebarGroupMode>()

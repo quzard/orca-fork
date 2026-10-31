@@ -85,7 +85,6 @@ export function SshTargetStatusRow({
       <div className="min-w-0 flex-1">
         <div className="truncate text-[12px] font-medium">{label}</div>
         <div className="flex min-w-0 items-center gap-1.5 text-[10px] text-muted-foreground">
-          {/* fork: the host type and connection status stay on one line. */}
           <span className="shrink-0 whitespace-nowrap">
             {translate('auto.components.status.bar.SshTargetStatusRow.sshHost', 'SSH Host')}
           </span>

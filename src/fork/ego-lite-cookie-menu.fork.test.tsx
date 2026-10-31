@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { BrowserSessionProfile } from '../shared/browser-workspace-types'
 
 const { importCookiesFromBrowser } = vi.hoisted(() => ({
@@ -28,6 +28,7 @@ vi.mock('@/lib/browser-cookie-import-toast', () => ({
 }))
 
 import { BrowserProfileRow } from '../renderer/src/components/settings/BrowserProfileRow'
+import { registerEgoLiteCookieBrowser } from './ego-lite-cookie-browser'
 
 const profile: BrowserSessionProfile = {
   id: 'default',
@@ -38,6 +39,11 @@ const profile: BrowserSessionProfile = {
 }
 
 describe('Import Cookie menu — Ego Lite', () => {
+  // The renderer registration names the family in the settings row.
+  beforeAll(() => {
+    registerEgoLiteCookieBrowser()
+  })
+
   afterEach(() => {
     cleanup()
     importCookiesFromBrowser.mockClear()

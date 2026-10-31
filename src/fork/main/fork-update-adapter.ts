@@ -1,4 +1,4 @@
-// fork: 把 fork-background-download 的判断接到更新器事件上。只由 src/main/updater-fork-background.ts 使用。
+// fork: 把 fork-background-download 的判断接到更新器事件上。只由 updater-background-wiring.ts 使用。
 
 import type { UpdateStatus } from '../../shared/update-status-types'
 import {

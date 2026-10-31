@@ -1,9 +1,11 @@
+// fork: wires the background-download decisions into upstream's updater events and release pin.
 import { autoUpdater as nativeUpdater } from 'electron'
-import { registerForkInstallerReadyProbe } from '../fork/main/fork-background-download'
-import { createForkUpdateAdapter } from '../fork/main/fork-update-adapter'
-import type { ForkUpdateAdapter } from '../fork/main/fork-update-adapter'
-import type { UpdaterHandlerContext } from './updater-handler-context'
-import { isMacInstallerReady, resetMacInstallState } from './updater-mac-install'
+import { forkUpdateFeed, type ForkGithubUpdateFeed } from '../../shared/fork-hooks/update-feed'
+import type { UpdaterHandlerContext } from '../../main/updater-handler-context'
+import { isMacInstallerReady, resetMacInstallState } from '../../main/updater-mac-install'
+import { registerForkInstallerReadyProbe } from './fork-background-download'
+import { createForkUpdateAdapter } from './fork-update-adapter'
+import type { ForkUpdateAdapter } from './fork-update-adapter'
 
 const STAGING_FAILED = 'macOS could not stage the downloaded update'
 
@@ -50,4 +52,19 @@ export function bindForkBackgroundUpdates(ctx: UpdaterHandlerContext): ForkUpdat
     })
   }
   return adapter
+}
+
+/** Release checks in a fork build pin only the anonymous quzard/orca-fork feed, never upstream's. */
+export function pinForkUpdateFeed(updater: {
+  allowPrerelease: boolean
+  setFeedURL(options: ForkGithubUpdateFeed): void
+}): boolean {
+  const feed = forkUpdateFeed()
+  if (!feed) {
+    return false
+  }
+  // Fork releases are GitHub prereleases; electron-updater's own differential download applies.
+  updater.allowPrerelease = true
+  updater.setFeedURL(feed)
+  return true
 }

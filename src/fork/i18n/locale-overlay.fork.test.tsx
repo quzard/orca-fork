@@ -11,20 +11,26 @@ function leafKeys(value: unknown, prefix = ''): string[] {
   if (typeof value !== 'object' || value === null) {
     return [prefix]
   }
+  // SAFETY: the typeof/null check above narrows to a JSON object.
   return Object.entries(value as Catalog).flatMap(([key, child]) =>
     leafKeys(child, prefix ? `${prefix}.${key}` : key)
   )
 }
 
 function lookup(catalog: unknown, key: string): unknown {
-  return key
-    .split('.')
-    .reduce<unknown>((node, part) => (node as Catalog | undefined)?.[part], catalog)
+  return (
+    key
+      .split('.')
+      // SAFETY: a missing segment yields undefined, which the optional chain carries through.
+      .reduce<unknown>((node, part) => (node as Catalog | undefined)?.[part], catalog)
+  )
 }
 
+// SAFETY: both locale files are JSON objects keyed by string.
 const upstreamEn = JSON.parse(
   readFileSync('src/renderer/src/i18n/locales/en.json', 'utf8')
 ) as Catalog
+// SAFETY: as above.
 const upstreamZh = JSON.parse(
   readFileSync('src/renderer/src/i18n/locales/zh.json', 'utf8')
 ) as Catalog
@@ -78,16 +84,14 @@ describe('fork zh overlay', () => {
     expect(i18n.getResource('en', 'translation', 'fork.sidebar.groupRollbackFailed')).toBe(
       '{{error}} Could not put back: {{names}}.'
     )
-    expect(i18n.getResource('en', 'translation', 'fork.workspaceRemoval.undo')).toBe('Undo')
+    expect(i18n.getResource('en', 'translation', 'fork.sidebar.hostMode')).toBe('Host')
   })
 
   it('never overwrites a key the loaded catalog already has', async () => {
     const instance = i18n.cloneInstance()
-    instance.addResourceBundle('fr', 'translation', { fork: { sample: { kept: 'up' } } })
-    installForkLocaleOverlays(instance, {
-      fr: { fork: { sample: { kept: 'overlay', added: 'overlay2' } } }
-    })
-    expect(instance.getResource('fr', 'translation', 'fork.sample.kept')).toBe('up')
-    expect(instance.getResource('fr', 'translation', 'fork.sample.added')).toBe('overlay2')
+    instance.addResourceBundle('fr', 'translation', { demo: { kept: 'up' } })
+    installForkLocaleOverlays(instance, { fr: { demo: { kept: 'overlay', added: 'overlay2' } } })
+    expect(instance.getResource('fr', 'translation', 'demo.kept')).toBe('up')
+    expect(instance.getResource('fr', 'translation', 'demo.added')).toBe('overlay2')
   })
 })

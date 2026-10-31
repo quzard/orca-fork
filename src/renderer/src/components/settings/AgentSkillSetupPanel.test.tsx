@@ -11,9 +11,6 @@ import { doneResult, planOf, sharedEntry } from '../skills/bundled-skill-plan-fi
 import { TooltipProvider } from '../ui/tooltip'
 import { AgentSkillSetupPanel } from './AgentSkillSetupPanel'
 
-// fork: keep the build commit here; the fork pin is covered in src/fork/skills-source-commit-renderer.fork.test.tsx.
-vi.mock('../../../../cli/skills-source-commit', () => ({}))
-
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 const mocks = vi.hoisted(() => {

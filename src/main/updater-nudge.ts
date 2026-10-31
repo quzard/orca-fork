@@ -9,7 +9,6 @@ export type NudgeConfig = {
 }
 
 export async function fetchNudge(): Promise<NudgeConfig | null> {
-  // fork: 不请求上游站点。
   if (isForkBuild()) {
     return null
   }

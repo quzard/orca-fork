@@ -1,9 +1,10 @@
 import { pbkdf2Sync } from 'node:crypto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { allChromiumBrowsers } from '../main/browser/cookies/sources/browser-cookie-detection-types'
+import { CHROMIUM_BROWSERS } from '../main/browser/cookies/sources/browser-cookie-detection-types'
 import { BROWSER_FAMILY_LABELS } from '../shared/constants'
 import { getBrowserCookieImportSourceLabels } from '../shared/browser-cookie-import-sources'
-import { registerForkChromiumCookieBrowsers } from '../shared/fork-hooks/chromium-cookie-browsers'
+import { registerForkCookieImportSources } from '../shared/fork-hooks/chromium-cookie-browsers'
+import { appendChromiumCookieBrowser } from './main/ego-lite-cookie-detection'
 import {
   EGO_LITE_BROWSER_FAMILY,
   EGO_LITE_KEYCHAIN_ACCOUNT,
@@ -48,10 +49,12 @@ const MAC_ROOT = `/Users/test/Library/Application Support/${EGO_LITE_MAC_PROFILE
 
 describe('Ego Lite cookie import registration', () => {
   afterEach(() => {
-    registerForkChromiumCookieBrowsers([])
+    registerForkCookieImportSources([])
   })
 
-  it('maps the family key to the menu label Ego Lite', () => {
+  it('maps the family key to the menu label Ego Lite once registered', () => {
+    expect(BROWSER_FAMILY_LABELS[EGO_LITE_BROWSER_FAMILY]).toBeUndefined()
+    registerEgoLiteCookieBrowser()
     expect(BROWSER_FAMILY_LABELS[EGO_LITE_BROWSER_FAMILY]).toBe('Ego Lite')
   })
 
@@ -86,17 +89,15 @@ describe('Ego Lite cookie import registration', () => {
   })
 
   it('does not let a registration replace Chrome', () => {
-    registerForkChromiumCookieBrowsers([
-      {
-        family: 'chrome',
-        label: 'Not Chrome',
-        keychainService: 'nope',
-        keychainAccount: 'nope',
-        macRoot: EGO_LITE_MAC_PROFILE_ROOT
-      }
-    ])
+    appendChromiumCookieBrowser({
+      family: 'chrome',
+      label: 'Not Chrome',
+      keychainService: 'nope',
+      keychainAccount: 'nope',
+      macRoot: EGO_LITE_MAC_PROFILE_ROOT
+    })
 
-    const chrome = allChromiumBrowsers().filter((browser) => browser.family === 'chrome')
+    const chrome = CHROMIUM_BROWSERS.filter((browser) => browser.family === 'chrome')
     expect(chrome).toEqual([
       expect.objectContaining({
         label: 'Google Chrome',
@@ -131,7 +132,8 @@ describe('detectInstalledBrowsers — Ego Lite', () => {
   })
 
   async function registeredDetection() {
-    const { registerEgoLiteCookieBrowser: register } = await import('./ego-lite-cookie-browser')
+    const { registerEgoLiteCookieDetection: register } =
+      await import('./main/ego-lite-cookie-detection')
     register()
     return import('../main/browser/cookies/browser-cookie-import')
   }
@@ -343,7 +345,8 @@ describe('detectInstalledBrowsers — Ego Lite on Windows', () => {
 
   it('detects Ego Lite under Local AppData with the User Data segment', async () => {
     mockInstallAt(egoRoot)
-    const { registerEgoLiteCookieBrowser: register } = await import('./ego-lite-cookie-browser')
+    const { registerEgoLiteCookieDetection: register } =
+      await import('./main/ego-lite-cookie-detection')
     register()
     const { detectInstalledBrowsers } =
       await import('../main/browser/cookies/browser-cookie-import')
@@ -357,7 +360,8 @@ describe('detectInstalledBrowsers — Ego Lite on Windows', () => {
 
   it('does not treat the macOS layout without User Data as a Windows install', async () => {
     mockInstallAt(`${slashPath(localAppData)}/${EGO_LITE_MAC_PROFILE_ROOT}`)
-    const { registerEgoLiteCookieBrowser: register } = await import('./ego-lite-cookie-browser')
+    const { registerEgoLiteCookieDetection: register } =
+      await import('./main/ego-lite-cookie-detection')
     register()
     const { detectInstalledBrowsers } =
       await import('../main/browser/cookies/browser-cookie-import')
@@ -429,7 +433,8 @@ describe('Ego Lite Windows cookie key', () => {
       return { code: 0, timedOut: false, stdout: `${key.toString('base64')}\n`, stderr: '' }
     })
 
-    const { registerEgoLiteCookieBrowser: register } = await import('./ego-lite-cookie-browser')
+    const { registerEgoLiteCookieDetection: register } =
+      await import('./main/ego-lite-cookie-detection')
     register()
     const { getWindowsEncryptionKey } =
       await import('../main/browser/cookies/sources/browser-cookie-key')

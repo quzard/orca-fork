@@ -11,9 +11,6 @@ import {
 } from './LinearAgentSkillSetupPrompt'
 import type { LinearAgentSkillPromptSettings } from './linear-agent-skill-runtime'
 
-// fork: keep the build commit here; the fork pin is covered in src/fork/skills-source-commit-renderer.fork.test.tsx.
-vi.mock('../../../../cli/skills-source-commit', () => ({}))
-
 const HOST_DISMISS_STORAGE_KEY = 'orca.linearTicketsSkill.setupDismissed.host'
 const FEDORA_DISMISS_STORAGE_KEY = 'orca.linearTicketsSkill.setupDismissed.wsl.Fedora'
 

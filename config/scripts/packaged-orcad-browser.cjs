@@ -19,7 +19,7 @@ function manifestPath(resourcesDir) {
 }
 
 /** The template omits drivers for size; point a target at the app's own copy so its slot still gets one (#33846). */
-function referencePackagedOrcadBrowser(resourcesDir, targets) {
+function referencePackagedOrcadBrowser(resourcesDir) {
   const path = manifestPath(resourcesDir)
   const manifest = JSON.parse(readFileSync(path, 'utf8'))
   const referenced = []
@@ -36,7 +36,7 @@ function referencePackagedOrcadBrowser(resourcesDir, targets) {
   if (referenced.length > 0) {
     writeFileSync(path, `${JSON.stringify(manifest, null, 2)}\n`)
   }
-  verifyPackagedOrcadTemplate(resourcesDir, targets)
+  verifyPackagedOrcadTemplate(resourcesDir)
   return referenced
 }
 

@@ -16,8 +16,8 @@ import {
 import { isExternallyManagedLinuxInstall } from './linux-update-package-type'
 import * as linuxPackageRecovery from './linux-package-update-recovery'
 import { preExtractDownloadedAppImageUpdate } from './cli/appimage-copy-pre-extraction'
-import { bindForkBackgroundUpdates } from './updater-fork-background'
-import type { ForkUpdateAdapter } from './updater-fork-background'
+import { bindForkBackgroundUpdates } from '../fork/main/updater-background-wiring'
+import type { ForkUpdateAdapter } from '../fork/main/updater-background-wiring'
 
 const AUTO_UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000
 const AUTO_UPDATE_RETRY_INTERVAL_MS = 60 * 60 * 1000

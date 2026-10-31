@@ -1,5 +1,4 @@
 import { app } from 'electron'
-import { forkReleaseFeedDecision } from '../../shared/fork-hooks/update-feed'
 import { isMacInstallRequested } from '../updater-mac-install'
 import { withUpdaterSpan } from '../observability/instrumentation'
 import {
@@ -45,10 +44,6 @@ export abstract class UpdaterScheduling extends UpdaterCheckFailure {
   protected runBackgroundUpdateCheck(
     nudgeId: string | null = this.getPersistedPendingUpdateNudgeId()
   ): boolean {
-    // fork: 没登记更新源时 pin 会返回 not-available，但这里仍会接着 checkForUpdates。先停掉。
-    if (forkReleaseFeedDecision().kind === 'skip') {
-      return false
-    }
     if (
       this.pendingQuitAndInstallTimer ||
       this.quitAndInstallInProgress ||

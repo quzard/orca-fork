@@ -9,9 +9,7 @@ import {
 } from './startup/main-window-actions'
 import { openMainWindow as openMainWindowController } from './startup/main-window-controller'
 import { mainProcessState as state } from './startup/main-process-state'
-import { registerForkModules } from '../fork/register'
-import { registerForkElectronModules } from '../fork/main/register-electron'
-import { registerForkMainModules } from '../fork/main/register-main'
+import { registerForkDesktopMain } from '../fork/main/register-electron'
 import { runMainProcessPreflight } from './startup/main-process-preflight'
 import { runWslHolderUninstallPreflight } from './startup/wsl-holder-uninstall-preflight'
 import { runAgentHooksUninstallPreflight } from './startup/agent-hooks-uninstall-preflight'
@@ -121,11 +119,7 @@ clearWindowsStdHandleInheritance()
 installWindowsIsolatedSpawner()
 // A relaunch or installer inherits the parent's published WSL gate state; this process recomputes.
 ignoreInheritedWslHostsGateState()
-// fork: the file secret store must be registered before preflight installs the desktop SecretStore.
-registerForkModules()
-registerForkElectronModules()
-registerForkMainModules()
-
+registerForkDesktopMain() // fork: before preflight, which installs the SecretStore
 // The uninstaller's holder release and hook removal run instead of the app, never alongside it.
 const preflightReady =
   !runWslHolderUninstallPreflight() &&

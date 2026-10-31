@@ -38,7 +38,7 @@ import { installPaneHostCapabilityFlags } from './pane-host-capability-flags'
 import { installPtyInputRecovery } from './pty-input-recovery'
 import { installAgentPreReadyTypedDraft } from './agent-pre-ready-typed-draft'
 import { installPtyInputForward } from './pty-input-forward'
-import { holdResizeForTuiPulse } from '../../../../../fork/terminal/reconnect-tui-pulse'
+import { holdDesktopResizeDuringTuiRepaint } from '../../../../../shared/fork-hooks/terminal-lifecycle'
 import { installPtyResizeGeometry } from './pty-resize-geometry'
 import { installSessionReconcileDispose } from './session-reconcile-dispose'
 import { findTerminalTabForPane } from './terminal-tab-id'
@@ -218,11 +218,7 @@ export function connectPanePty(
   }
   installPtyKittyFileReader(session)
   installPtyInputForward(session)
-  // fork: a one-column reconnect pulse must survive the fit that follows it.
-  session.shouldSuppressDesktopPtyResize = holdResizeForTuiPulse(
-    () => session.transport.getPtyId(),
-    session.shouldSuppressDesktopPtyResize
-  )
+  holdDesktopResizeDuringTuiRepaint(session)
   installPtyResizeGeometry(session)
   installRunDeferredConnect(session)
   return installSessionReconcileDispose(session)

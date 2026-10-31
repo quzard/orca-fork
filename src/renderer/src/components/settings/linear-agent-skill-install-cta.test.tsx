@@ -8,9 +8,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TooltipProvider } from '../ui/tooltip'
 import { LinearAgentSkillInstallCta } from './linear-agent-skill-install-cta'
 
-// fork: keep the build commit here; the fork pin is covered in src/fork/skills-source-commit-renderer.fork.test.tsx.
-vi.mock('../../../../cli/skills-source-commit', () => ({}))
-
 const mocks = vi.hoisted(() => ({
   agentRuntime: ((): ProjectAgentSkillRuntime | undefined => undefined)(),
   skillState: {

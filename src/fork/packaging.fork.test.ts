@@ -17,13 +17,19 @@ import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const require = createRequire(import.meta.url)
-// oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: packaging.cjs exports these four fields and nothing else is read.
+// oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: packaging.cjs exports these five fields and nothing else is read.
 const packaging = require('./packaging.cjs') as {
+  LOCAL_TEMPLATE_TARGETS: string[]
+  assertLocalTemplateTargets: (manifestPath: string) => void
   extraMacSignIgnore: string[]
   localSigningIdentity: string
   orcadTemplateTargets: (env?: NodeJS.ProcessEnv) => string[] | undefined
-  templateTargetNames: (manifest: { targets?: Record<string, unknown> }) => string[]
 }
+// oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: upstream's verifier exports this function.
+const { verifyPackagedOrcadTemplate } =
+  require('../../config/scripts/verify-packaged-orcad-template.cjs') as {
+    verifyPackagedOrcadTemplate: (resourcesDir: string, targets?: string[]) => void
+  }
 
 describe('fork packaging', () => {
   it('uses the fixed local signing identity and narrows template targets only when asked', () => {
@@ -36,11 +42,59 @@ describe('fork packaging', () => {
         ORCA_ORCAD_TEMPLATE_TARGETS: 'darwin-arm64, linux-x64-glibc'
       })
     ).toEqual(['darwin-arm64', 'linux-x64-glibc'])
-    expect(
-      packaging.templateTargetNames({
-        targets: { 'darwin-arm64': {}, 'linux-x64-glibc': {} }
-      })
-    ).toEqual(['darwin-arm64', 'linux-x64-glibc'])
+  })
+
+  it('requires both x86_64 Linux slots, glibc 2.17 included, in the Mac template', () => {
+    expect(packaging.LOCAL_TEMPLATE_TARGETS).toEqual([
+      'darwin-arm64',
+      'linux-x64-glibc',
+      'linux-arm64-glibc',
+      'linux-x64-glibc217'
+    ])
+    const dir = mkdtempSync(join(tmpdir(), 'fork-template-targets-'))
+    try {
+      const manifest = join(dir, 'orcad-template.json')
+      const targets = (names: string[]) =>
+        writeFileSync(
+          manifest,
+          JSON.stringify({ targets: Object.fromEntries(names.map((n) => [n, {}])) })
+        )
+      targets(packaging.LOCAL_TEMPLATE_TARGETS)
+      expect(() => packaging.assertLocalTemplateTargets(manifest)).not.toThrow()
+      targets(packaging.LOCAL_TEMPLATE_TARGETS.filter((name) => name !== 'linux-x64-glibc217'))
+      expect(() => packaging.assertLocalTemplateTargets(manifest)).toThrow(/linux-x64-glibc217/)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('narrows the default packaged-template check only while the env names targets', async () => {
+    const { writeOrcadTemplateTestFixture } =
+      await import('../../config/scripts/orcad-template-test-fixture.mjs')
+    const root = mkdtempSync(join(tmpdir(), 'fork-template-narrow-'))
+    const saved = process.env.ORCA_ORCAD_TEMPLATE_TARGETS
+    try {
+      const templateDir: string = await writeOrcadTemplateTestFixture(root)
+      const manifestPath = join(templateDir, 'orcad-template.json')
+      const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+      const kept = ['darwin-arm64', 'linux-x64-glibc']
+      for (const target of Object.keys(manifest.targets).filter((name) => !kept.includes(name))) {
+        delete manifest.targets[target]
+        rmSync(join(templateDir, 'targets', target), { recursive: true })
+      }
+      writeFileSync(manifestPath, JSON.stringify(manifest))
+      delete process.env.ORCA_ORCAD_TEMPLATE_TARGETS
+      expect(() => verifyPackagedOrcadTemplate(root)).toThrow('target manifest inventory mismatch')
+      process.env.ORCA_ORCAD_TEMPLATE_TARGETS = kept.join(',')
+      expect(() => verifyPackagedOrcadTemplate(root)).not.toThrow()
+    } finally {
+      if (saved === undefined) {
+        delete process.env.ORCA_ORCAD_TEMPLATE_TARGETS
+      } else {
+        process.env.ORCA_ORCAD_TEMPLATE_TARGETS = saved
+      }
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 
   it('is what the mac signer and the install script actually call', () => {
@@ -66,14 +120,8 @@ describe('fork packaging', () => {
     )
     expect(installer).toContain('export ORCA_ORCAD_TEMPLATE_TARGETS="$TEMPLATE_TARGETS"')
     expect(installer).not.toMatch(/ORCA_ORCAD_TEMPLATE_TARGETS=.*glibc217/)
-    for (const target of [
-      'linux-x64-glibc',
-      'linux-arm64-glibc',
-      'linux-x64-glibc217',
-      'darwin-arm64'
-    ]) {
-      expect(installer).toContain(target)
-    }
+    // Once right after the template build, once on the packaged app.
+    expect(installer.match(/assertLocalTemplateTargets\(/g)).toHaveLength(2)
     expect(installer).toContain('ORCA_REQUIRE_ORCAD_TEMPLATE=1')
     expect(installer).toContain('ORCA_MAC_RELEASE=0')
     // The Linux orcad containers mount only the repo, so pnpm must not link deps from outside it.
@@ -85,9 +133,7 @@ describe('fork packaging', () => {
     expect(localBuild).toContain('...builderArgs')
     expect(localBuild).toContain('process.argv.slice(2)')
     expect(installer).toContain('orcad-template/orcad-template.json')
-    expect(installer).toContain('out/cli/skills-source-commit.js')
     expect(installer).not.toContain('generate:skill-bundle-manifest')
-    expect(installer).not.toContain('--print-built-targets')
     expect(installer).not.toContain('dist/local-release')
     expect(installer).not.toContain('--publish')
     // --install-built was only for the deleted release-personal-orca.mjs.
@@ -323,7 +369,8 @@ describe('fork packaging', () => {
     const main = readFileSync(resolve('src/main/orcad/main.ts'), 'utf8')
     const build = readFileSync(resolve('config/scripts/orcad-entry-build.mjs'), 'utf8')
     const register = readFileSync(resolve('src/fork/main/register-main.ts'), 'utf8')
-    expect(entry).toContain('installForkOrcadHost(installOrcadHostAdapters)')
+    // The fork registers before upstream's host adapters, which stay one untouched upstream line.
+    expect(entry).toMatch(/installForkOrcadHost\(\)\n\s*installOrcadHostAdapters\(\)/)
     expect(register).toMatch(/function installForkOrcadHost[^}]*registerForkMainModules\(\)/)
     expect(main).toContain("from './orcad-entry'")
     expect(build).toContain("export const ORCAD_ENTRY_POINT = 'src/main/orcad/main.ts'")

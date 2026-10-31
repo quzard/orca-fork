@@ -1,8 +1,4 @@
 import { isBenignCheckFailure } from '../updater-fallback'
-import {
-  FORK_BACKGROUND_CHECK_FAILURE_LOG,
-  planForkCheckFailure
-} from '../../fork/main/fork-background-download'
 import { ReleaseFeedPreflightError } from './updater-state'
 import type { CheckFailureSource } from './updater-state'
 import { UpdaterReleaseFeed } from './updater-release-feed'
@@ -24,34 +20,8 @@ export abstract class UpdaterCheckFailure extends UpdaterReleaseFeed {
     )
   }
 
-  protected keepForkStagedUpdate(userInitiated?: boolean): boolean {
-    const plan = planForkCheckFailure(this.currentStatus.state, Boolean(userInitiated), {
-      localBuild: this.activeUpdateSource === 'local',
-      pinned: this.isPinnedBuildActive
-    })
-    if (plan.kind === 'none') {
-      return false
-    }
-    console.info(FORK_BACKGROUND_CHECK_FAILURE_LOG)
-    this.backgroundCheckLaunchPending = false
-    this.userInitiatedCheck = false
-    this.finishActiveUpdateCheckAttempt()
-    this.availableVersion = plan.version
-    if (plan.kind === 'restart') {
-      this.sendStatus({
-        state: 'downloaded',
-        version: plan.version,
-        releaseUrl: this.getKnownReleaseUrl()
-      })
-    }
-    if (plan.kind === 'staging') {
-      this.sendStatus({ state: 'downloading', percent: 100, version: plan.version })
-    }
-    if (!userInitiated) {
-      this.scheduleAutomaticUpdateCheck(this.getAutomaticRetryInterval())
-    }
-    return true
-  }
+  /** fork: keeps a downloaded or staging fork update through a failed check (ForkBackgroundUpdates). */
+  protected abstract keepForkStagedUpdate(userInitiated?: boolean): boolean
 
   protected async sendCheckFailureStatus(
     message: string,

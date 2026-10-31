@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { createClient } from 'electron-updater/out/providerFactory'
-import { forkGithubUpdateFeed } from '../shared/fork-hooks/update-feed'
+import { forkUpdateFeed, registerForkBuild } from '../shared/fork-hooks/update-feed'
 
 const ENV_TOKENS = ['GH_TOKEN', 'GITHUB_TOKEN'] as const
 const saved = Object.fromEntries(ENV_TOKENS.map((name) => [name, process.env[name]]))
@@ -45,11 +45,16 @@ function recordingProvider(seen: SeenRequest[]): {
   }
   const updater = { allowPrerelease: true, currentVersion: '1.4.228-local.1.aaaaaaaaaaaa' }
   const runtime = { executor, platform: 'darwin', isUseMultipleRangeRequest: false }
-  return createClient(forkGithubUpdateFeed(), updater as never, runtime as never) as never
+  const feed = forkUpdateFeed()
+  if (!feed) {
+    throw new Error('register the fork build first')
+  }
+  return createClient(feed, updater as never, runtime as never) as never
 }
 
 describe('fork update feed provider', () => {
   afterEach(() => {
+    registerForkBuild(false)
     for (const name of ENV_TOKENS) {
       if (saved[name] === undefined) {
         delete process.env[name]
@@ -59,7 +64,18 @@ describe('fork update feed provider', () => {
     }
   })
 
+  it('has no feed until a fork build registers, then only the public quzard/orca-fork one', () => {
+    expect(forkUpdateFeed()).toBeNull()
+    registerForkBuild()
+    const feed = forkUpdateFeed()
+    expect(feed).toEqual({ provider: 'github', owner: 'quzard', repo: 'orca-fork', private: false })
+    // A caller mutating its copy cannot leak a token into the next one.
+    Object.assign(feed ?? {}, { token: 'x' })
+    expect(forkUpdateFeed()).not.toHaveProperty('token')
+  })
+
   it('reads quzard/orca-fork anonymously, ignoring GH_TOKEN / GITHUB_TOKEN', async () => {
+    registerForkBuild()
     process.env.GH_TOKEN = 'env-token-must-not-be-used'
     process.env.GITHUB_TOKEN = 'env-token-must-not-be-used'
     const seen: SeenRequest[] = []

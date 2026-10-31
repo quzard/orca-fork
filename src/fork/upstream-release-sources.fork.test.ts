@@ -18,8 +18,15 @@ const GATED_SOURCES = [
 const UPSTREAM_RELEASE_SOURCE =
   /stablyai\/orca[\w-]*\/releases|stablyai\\\/orca\\\/releases|onorca\.dev\/whats-new|\b\w*RELEASE_REPO\b|getReleaseRepoForChannel\(/
 
-const ROOTS = ['src/main', 'src/shared', 'src/renderer/src', 'src/preload', 'src/cli']
+const ROOTS = ['src/main', 'src/shared', 'src/renderer/src', 'src/preload', 'src/cli', 'src/fork']
 const SKIP = /\.(test|spec)\.tsx?$|__fixtures__|\/i18n\/locales\/|updater-test-harness\.ts$/
+
+// A guard that survives only in a comment does not count.
+function code(file: string): string {
+  return readFileSync(file, 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(^|[^:])\/\/.*$/gm, '$1')
+}
 
 function walk(dir: string, out: string[]): void {
   for (const name of readdirSync(dir)) {
@@ -44,7 +51,7 @@ describe('upstream release URL sources', () => {
       .sort()
     expect(hits).toEqual(GATED_SOURCES)
     for (const file of GATED_SOURCES) {
-      expect(readFileSync(file, 'utf8'), file).toContain('isForkBuild()')
+      expect(code(file), file).toContain('isForkBuild()')
     }
   })
 })

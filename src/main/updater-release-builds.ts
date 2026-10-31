@@ -156,7 +156,6 @@ export async function listReleaseBuilds(
   channel: ReleaseChannel,
   platform: NodeJS.Platform = process.platform
 ): Promise<ReleaseBuild[]> {
-  // fork: 版本列表不请求上游仓库。
   if (isForkBuild()) {
     return []
   }
@@ -203,7 +202,6 @@ export type ResolvedTargetBuild = {
 }
 
 export function resolveTargetBuild(channel: ReleaseChannel, tag: string): ResolvedTargetBuild {
-  // fork: 指定版本不能拼出上游下载地址。
   if (isForkBuild()) {
     throw new Error(FORK_UPSTREAM_RELEASE_BLOCKED)
   }

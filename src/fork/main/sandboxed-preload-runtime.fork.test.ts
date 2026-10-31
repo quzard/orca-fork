@@ -4,12 +4,13 @@ import {
   SANDBOXED_PRELOAD_ENTRY_FILES,
   assertSandboxedPreloadsHaveNoChunkRequires,
   inlineRolldownRuntimeIntoSandboxedPreloads
-} from '../build-plugins/sandboxed-preload-runtime'
+} from './sandboxed-preload-runtime'
 
 const RUNTIME_NAME = 'chunks/rolldown-runtime-Cj7rkB0V.js'
 const RUNTIME_CODE = 'exports.__toESM = function __toESM(mod) { return mod };'
 
 function bundle(): OutputBundle {
+  // SAFETY: the plugin reads only type, fileName and code of each chunk.
   return {
     'index.js': {
       type: 'chunk',
@@ -31,7 +32,7 @@ function bundle(): OutputBundle {
       fileName: RUNTIME_NAME,
       code: RUNTIME_CODE
     }
-  } as OutputBundle
+  } as unknown as OutputBundle
 }
 
 describe('sandboxed preload rolldown runtime', () => {

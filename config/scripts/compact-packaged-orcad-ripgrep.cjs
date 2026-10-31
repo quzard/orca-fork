@@ -13,14 +13,11 @@ function sha256(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex')
 }
 
-/**
- * Only compact the desktop's copy; the qualified template artifact remains self-contained.
- * `targets` 省略时校验全部目标。fork 在本地只打了部分槽时传入收窄后的名单。
- */
-function compactPackagedOrcadRipgrep(resourcesDir, targets) {
+/** Only compact the desktop's copy; the qualified template artifact remains self-contained. */
+function compactPackagedOrcadRipgrep(resourcesDir) {
   const templateDir = join(resourcesDir, 'orcad-template')
   const manifestPath = join(templateDir, ORCAD_TEMPLATE_MANIFEST_FILENAME)
-  verifyPackagedOrcadTemplate(resourcesDir, targets)
+  verifyPackagedOrcadTemplate(resourcesDir)
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
   let removedBytes = 0
   for (const [target, entry] of Object.entries(manifest.targets)) {
@@ -50,7 +47,7 @@ function compactPackagedOrcadRipgrep(resourcesDir, targets) {
     manifest.schemaVersion = 4
     writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
   }
-  verifyPackagedOrcadTemplate(resourcesDir, targets)
+  verifyPackagedOrcadTemplate(resourcesDir)
   return removedBytes
 }
 

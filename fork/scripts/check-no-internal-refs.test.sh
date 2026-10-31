@@ -18,15 +18,15 @@ fail() {
 }
 
 repo="${BASE}/repo"
-mkdir -p "$repo/src/main" "$repo/src/cli" "$repo/fork/scripts/verify"
+mkdir -p "$repo/src/main" "$repo/src/fork" "$repo/fork/scripts/verify"
 cd "$repo"
 git init -q -b main
 seq 1 40 | sed 's/^/export const line = /' >src/main/upstream-file.ts
-echo "export const FORK_SKILLS_SOURCE_COMMIT = 'pending'" >src/cli/skills-source-commit.ts
+echo "export const FORK_SKILLS_SOURCE_COMMIT = 'pending'" >src/fork/skills-source-commit.ts
 git add . && git commit -q -m upstream
 base="$(git rev-parse HEAD)"
 git update-ref refs/remotes/upstream/main "$base"
-printf "export const FORK_SKILLS_SOURCE_COMMIT = '%s'\n" "$base" >src/cli/skills-source-commit.ts
+printf "export const FORK_SKILLS_SOURCE_COMMIT = '%s'\n" "$base" >src/fork/skills-source-commit.ts
 cp "${ROOT}/fork/scripts/verify/check-no-internal-refs.sh" fork/scripts/verify/
 # 身份检查的下限写死在脚本里；这个临时仓库没有那个提交，所以副本把下限换成这里的上游提交。
 sed "s/^readonly FLOOR=.*/readonly FLOOR=\"${base}\"/" "${ROOT}/fork/scripts/verify/check-commit-identity.sh" \

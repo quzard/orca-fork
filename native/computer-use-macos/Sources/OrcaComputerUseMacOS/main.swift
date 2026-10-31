@@ -3167,10 +3167,7 @@ private final class PermissionRuntime: NSObject, NSApplicationDelegate {
             terminateWhenDragAssistantCloses: initialPermission != nil
         )
         if let initialPermission {
-            if ForkPermissionCard.enabled {
-                // fork: keep the authorization window up so the app card can be dragged.
-                windowController?.showWindow(nil)
-            }
+            if ForkPermissionCard.enabled { windowController?.showWindow(nil) }
             windowController?.openPermission(initialPermission)
         } else {
             windowController?.showWindow(nil)
@@ -3382,14 +3379,6 @@ private enum PermissionKind: CaseIterable {
     }
 }
 
-/// fork: the draggable app card in the permission window. Off unless the fork app passes the
-/// argument, so an upstream launch keeps upstream's window.
-private enum ForkPermissionCard {
-    static let argument = "--fork-drag-card"
-    static let enabled = CommandLine.arguments.contains(argument)
-    static let dragHint = "Drag the app card below into the permission list in System Settings, then enable its switch."
-}
-
 private final class PermissionView: NSView {
     private let appURL = Bundle.main.bundleURL
     private let showDragAssistant: (PermissionKind) -> Void
@@ -3425,32 +3414,19 @@ private final class PermissionView: NSView {
         addSubview(stack)
         contentStack = stack
 
+        let icon = NSImageView(image: NSWorkspace.shared.icon(forFile: appURL.path))
+        icon.imageScaling = .scaleProportionallyUpOrDown
+        icon.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            icon.widthAnchor.constraint(equalToConstant: 58),
+            icon.heightAnchor.constraint(equalToConstant: 58)
+        ])
+
         let missingPermissions = permissionStatus.map { snapshot in
             PermissionKind.allCases.filter { !$0.isGranted(in: snapshot) }
         } ?? []
         let checking = permissionStatus == nil
         let ready = !checking && missingPermissions.isEmpty
-        // fork: the card keeps one place in every state, so checking, missing and ready never
-        // swap layouts; it only accepts a drag while a permission is still missing.
-        let showsDragCard = ForkPermissionCard.enabled && !checking && !ready
-        let usesCardLayout = ForkPermissionCard.enabled
-
-        let headerArt: NSView
-        if usesCardLayout {
-            let appTile = DraggableAppTile(appURL: appURL, dragEnabled: showsDragCard)
-            appTile.translatesAutoresizingMaskIntoConstraints = false
-            appTile.heightAnchor.constraint(equalToConstant: 42).isActive = true
-            headerArt = appTile
-        } else {
-            let icon = NSImageView(image: NSWorkspace.shared.icon(forFile: appURL.path))
-            icon.imageScaling = .scaleProportionallyUpOrDown
-            icon.translatesAutoresizingMaskIntoConstraints = false
-            NSLayoutConstraint.activate([
-                icon.widthAnchor.constraint(equalToConstant: 58),
-                icon.heightAnchor.constraint(equalToConstant: 58)
-            ])
-            headerArt = icon
-        }
 
         let titleText = checking
             ? "Checking Computer Use"
@@ -3461,9 +3437,7 @@ private final class PermissionView: NSView {
                 ? "Checking Accessibility and Screenshots."
                 : (ready
                     ? "Orca can use local apps when you ask."
-                    : (showsDragCard
-                        ? ForkPermissionCard.dragHint
-                        : "Grant permissions so Orca can use apps when you ask.")),
+                    : "Grant permissions so Orca can use apps when you ask."),
             size: 12,
             weight: .regular
         )
@@ -3471,19 +3445,15 @@ private final class PermissionView: NSView {
         subtitle.alignment = .center
         subtitle.maximumNumberOfLines = 3
 
-        let header = NSStackView(
-            views: usesCardLayout ? [title, subtitle, headerArt] : [headerArt, title, subtitle]
-        )
+        let header = NSStackView(views: [icon, title, subtitle])
         header.orientation = .vertical
         header.alignment = .centerX
         header.spacing = 6
         header.translatesAutoresizingMaskIntoConstraints = false
         stack.addArrangedSubview(header)
         header.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
-        if usesCardLayout {
-            headerArt.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
-        }
         subtitle.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -10).isActive = true
+        ForkPermissionCard.install(in: header, replacing: icon, subtitle: subtitle, appURL: appURL, draggable: !checking && !ready)
 
         if checking {
             let progress = NSProgressIndicator()
@@ -4005,28 +3975,13 @@ private final class PermissionDragAssistantView: NSView {
     }
 }
 
-private final class DraggableAppTile: NSView, NSDraggingSource {
+class DraggableAppTile: NSView, NSDraggingSource {
     private let appURL: URL
-    // fork: the permission window shows the card while checking and when ready, without a drag.
-    private let dragEnabled: Bool
 
     override var mouseDownCanMoveWindow: Bool { false }
 
-    // fork: System Settings is in front; the card must drag from an inactive window.
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
-        ForkPermissionCard.enabled ? true : super.acceptsFirstMouse(for: event)
-    }
-
-    // fork: the icon and title belong to the card, so a drag starts anywhere on it.
-    override func hitTest(_ point: NSPoint) -> NSView? {
-        let hit = super.hitTest(point)
-        guard ForkPermissionCard.enabled else { return hit }
-        return hit == nil ? nil : self
-    }
-
-    init(appURL: URL, dragEnabled: Bool = true) {
+    init(appURL: URL) {
         self.appURL = appURL
-        self.dragEnabled = dragEnabled
         super.init(frame: .zero)
         wantsLayer = true
         layer?.cornerRadius = 12
@@ -4041,7 +3996,6 @@ private final class DraggableAppTile: NSView, NSDraggingSource {
     }
 
     override func mouseDragged(with event: NSEvent) {
-        guard dragEnabled else { return }
         let item = NSPasteboardItem()
         item.setString(appURL.absoluteString, forType: .fileURL)
         item.setString(appURL.path, forType: .string)

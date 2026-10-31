@@ -13,8 +13,7 @@ export function LocalPortSection({
   onToggle,
   onStopPort,
   onShowDetails,
-  onOpenInBrowser,
-  onForward
+  onOpenInBrowser
 }: {
   id: string
   title: string
@@ -25,7 +24,6 @@ export function LocalPortSection({
   onStopPort: (port: WorkspacePort) => void
   onShowDetails: (port: WorkspacePort) => void
   onOpenInBrowser?: (port: WorkspacePort, event?: React.MouseEvent<HTMLButtonElement>) => void
-  onForward?: (port: WorkspacePort) => void
 }): React.JSX.Element | null {
   if (ports.length === 0 && !emptyText) {
     return null
@@ -61,7 +59,6 @@ export function LocalPortSection({
                   onStop={onStopPort}
                   onShowDetails={onShowDetails}
                   onOpenInBrowser={onOpenInBrowser}
-                  onForward={onForward}
                 />
               ))
             : emptyText && <div className="py-1 text-xs text-muted-foreground">{emptyText}</div>}

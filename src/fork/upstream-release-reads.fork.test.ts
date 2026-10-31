@@ -26,24 +26,8 @@ import { fetchChangelog } from '../main/updater-changelog'
 import { fetchNudge } from '../main/updater-nudge'
 import { fetchNewerReleaseTagsWithReadiness } from '../main/updater-prerelease-feed'
 import { listReleaseBuilds, resolveTargetBuild } from '../main/updater-release-builds'
-import {
-  FORK_UPSTREAM_RELEASE_BLOCKED,
-  registerForkBuild,
-  registerForkUpdateFeed
-} from '../shared/fork-hooks/update-feed'
+import { FORK_UPSTREAM_RELEASE_BLOCKED, registerForkBuild } from '../shared/fork-hooks/update-feed'
 import { getReleaseNotesUrlForVersion } from '../shared/release-channel'
-
-const forkStates = [
-  ['a fork build without the desktop feed (renderer, orcad)', () => registerForkBuild()],
-  ['the desktop with the fork feed registered', () => registerForkUpdateFeed()],
-  [
-    'both registered',
-    () => {
-      registerForkBuild()
-      registerForkUpdateFeed()
-    }
-  ]
-] as const
 
 async function agentRulesFetches(): Promise<ReturnType<typeof vi.fn>> {
   const userDataPath = mkdtempSync(join(tmpdir(), 'fork-agent-rules-'))
@@ -69,7 +53,6 @@ async function agentRulesFetches(): Promise<ReturnType<typeof vi.fn>> {
 describe('fork builds never read upstream releases or onorca.dev', () => {
   afterEach(() => {
     registerForkBuild(false)
-    registerForkUpdateFeed(false)
     netFetch.mockReset()
     netRequest.mockReset()
     resolveReleaseApiToken.mockClear()
@@ -86,9 +69,9 @@ describe('fork builds never read upstream releases or onorca.dev', () => {
     )
   })
 
-  for (const [label, register] of forkStates) {
-    it(`blocks every upstream read for ${label}`, async () => {
-      register()
+  {
+    it('blocks every upstream read once a fork build registers', async () => {
+      registerForkBuild()
       const feed = await fetchNewerReleaseTagsWithReadiness('1.4.228-local.1.aaa', 2)
       await expect(listReleaseBuilds('stable')).resolves.toEqual([])
       await expect(listReleaseBuilds('hourly')).resolves.toEqual([])

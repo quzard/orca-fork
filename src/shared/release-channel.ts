@@ -1,9 +1,5 @@
 import { compareAppVersions, isValidAppVersion } from './app-version'
-import {
-  FORK_GITHUB_UPDATE_OWNER,
-  FORK_GITHUB_UPDATE_REPO,
-  isForkBuild
-} from './fork-hooks/update-feed'
+import { forkReleaseNotesUrl, isForkBuild } from './fork-hooks/update-feed'
 
 export type ReleaseChannel = 'stable' | 'rc' | 'hourly' | 'daily' | 'adhoc'
 
@@ -181,12 +177,8 @@ export function getVersionChannel(version: string): ReleaseChannel | null {
 
 /** Dev tags need their publishing repo or links 404. Missing versions use the releases list; latest can fail during GitHub API degradation. */
 export function getReleaseNotesUrlForVersion(version: string | null): string {
-  // fork: 已登记时说明页指向 quzard/orca-fork，不打开上游 hourly/daily 仓库。
   if (isForkBuild()) {
-    const repo = `${FORK_GITHUB_UPDATE_OWNER}/${FORK_GITHUB_UPDATE_REPO}`
-    return version
-      ? `https://github.com/${repo}/releases/tag/v${normalizeTagToVersion(version)}`
-      : `https://github.com/${repo}/releases`
+    return forkReleaseNotesUrl(version && normalizeTagToVersion(version))
   }
   const channel = version ? getVersionChannel(version) : null
   const repo = channel ? getReleaseRepoForChannel(channel) : MAIN_RELEASE_REPO

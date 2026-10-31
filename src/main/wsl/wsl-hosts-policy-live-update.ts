@@ -99,7 +99,6 @@ export class WslHostsPolicyLiveUpdater {
 
   async start(): Promise<void> {
     this.stop()
-    // fork: 不从上游 Releases 拉 WSL 主机策略。
     if (!this.deps.isPackaged || isForkBuild()) {
       return
     }

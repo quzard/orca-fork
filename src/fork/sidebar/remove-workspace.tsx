@@ -128,7 +128,7 @@ export async function removeWorkspaceFromOrca(
     currentState.setActiveWorktree(null)
   }
   try {
-    await currentState.shutdownWorktreeBrowsers(worktree.id)
+    currentState.shutdownWorktreeBrowsers(worktree.id)
     await currentState.shutdownWorktreeTerminals(worktree.id, { keepIdentifiers: true })
   } catch (error) {
     // The archive already landed; the workspace is gone from the list either way.

@@ -372,7 +372,7 @@ describe('nested repository diff hook', () => {
 
   it('rediscovers an old record before routing, and keeps it when the host does not answer', async () => {
     clearDiscoveredRepositoriesForTests()
-    rememberDiscoveredRepositories('wt-1', [libsCore], Date.now() - 61_000)
+    rememberDiscoveredRepositories('wt-1', [libsCore], 0)
     mocks.callRuntimeRpc.mockImplementation(async (_target: unknown, method: string) => {
       if (method === FORK_GIT_WORKSPACE_REPOSITORIES_METHOD) {
         throw new Error('offline')

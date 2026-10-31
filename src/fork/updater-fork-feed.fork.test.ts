@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { loadUpdaterModule, warmUpdaterModule } from '../main/updater-test-module-loader'
 
 const {
@@ -50,10 +50,18 @@ describe('fork desktop updater never pins a stablyai release feed', () => {
     resetUpdaterMocks()
   })
 
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('setup and a menu check pin only the anonymous quzard/orca-fork feed', async () => {
     appMock.getVersion.mockReturnValue('1.4.228-local.1792251680994.aaaaaaaaaaaa')
     autoUpdaterMock.checkForUpdates.mockResolvedValue(undefined)
     const { setupAutoUpdater, checkForUpdatesFromMenu } = await loadForkUpdater()
+    // A check that just ran keeps setup from starting a background check, so only the menu checks.
+    const lastCheckAt = Date.UTC(2026, 10, 1)
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(lastCheckAt)
 
     setupAutoUpdater(
       {
@@ -61,7 +69,7 @@ describe('fork desktop updater never pins a stablyai release feed', () => {
         webContents: { send: vi.fn(), isDestroyed: () => false }
       } as never,
       {
-        getLastUpdateCheckAt: () => Date.now()
+        getLastUpdateCheckAt: () => lastCheckAt
       }
     )
     expect(feedUrls().some((url) => UPSTREAM_RELEASE_URL.test(url))).toBe(false)

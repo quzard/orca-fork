@@ -82,6 +82,7 @@ describe('root repository change list', () => {
     }
   })
 
+  // Real git builds several repositories here; process spawns are slow on Windows runners.
   it('drops nested repository directories and keeps a real untracked root file', async () => {
     root = mkdtempSync(join(tmpdir(), 'orca-root-status-'))
     previous = hasAppEnvironment() ? getAppEnvironment() : null
@@ -118,6 +119,7 @@ describe('root repository change list', () => {
     expect(nested.entries.map((entry) => entry.path)).toContain('local.txt')
   }, 120_000)
 
+  // Real git builds several repositories here; process spawns are slow on Windows runners.
   it('keeps a registered submodule gitlink and still hides a plain nested repo', async () => {
     root = mkdtempSync(join(tmpdir(), 'orca-root-gitlink-'))
     previous = hasAppEnvironment() ? getAppEnvironment() : null

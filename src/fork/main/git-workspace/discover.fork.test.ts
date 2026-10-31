@@ -63,6 +63,7 @@ describe('workspace repository discovery', () => {
     return ws
   }
 
+  // Real git builds several repositories here; process spawns are slow on Windows runners.
   it('lists a first-level worktree and does not walk into a child repository', async () => {
     const ws = await layout()
     const found = await discoverWorkspaceRepositories(ws)
@@ -92,6 +93,7 @@ describe('workspace repository discovery', () => {
     expect(found.timedOut).toBe(false)
   }, 120_000)
 
+  // Real git builds several repositories here; process spawns are slow on Windows runners.
   it('keeps the root when the count cap is one and lists again after a timed-out scan', async () => {
     const ws = await layout()
     const capped = await discoverWorkspaceRepositories(ws, { maxRepos: 1, refresh: true })

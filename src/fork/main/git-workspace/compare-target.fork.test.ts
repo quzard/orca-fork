@@ -31,6 +31,7 @@ describe('workspace compare target', () => {
   let dir: string
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.mocked(getBaseRefDefault).mockReset()
     clearWorkspaceCompareTargetCache()
     if (dir) {
@@ -140,13 +141,16 @@ describe('workspace compare target', () => {
     const filePath = compareTargetFilePath(dir)
     mkdirSync(dirname(filePath), { recursive: true })
     const release = await lock(filePath, { realpath: false })
+    // 只假 setTimeout：这边取锁被拒后的重试停在假时钟上，放锁前不会再试。
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
     const store = new CompareTargetStore(filePath)
     const pending = store.set(key, 'origin/main')
     const foreign = { ...key, repositoryPath: 'app', ref: 'origin/develop' }
     writeFileSync(filePath, `${JSON.stringify({ version: 1, entries: [foreign] })}\n`)
-    await new Promise((resolve) => setTimeout(resolve, 100))
+    await vi.waitFor(() => expect(vi.getTimerCount()).toBe(1), { interval: 1 })
     expect(await refs(store)).toEqual(['origin/develop'])
     await release()
+    await vi.runOnlyPendingTimersAsync()
     await pending
     expect(await refs(store)).toEqual(['origin/develop', 'origin/main'])
     expect(readdirSync(dirname(filePath)).filter((name) => name.endsWith('.tmp'))).toEqual([])

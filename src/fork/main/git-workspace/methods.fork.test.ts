@@ -104,6 +104,7 @@ describe('workspace repository RPC methods', () => {
     }
   })
 
+  // Real git builds several repositories here; process spawns are slow on Windows runners.
   it('reads nested status, diffs and compare targets through the runtime', async () => {
     expect(ALL_RPC_METHODS.map((method) => method.name)).toEqual(
       expect.arrayContaining([...FORK_GIT_WORKSPACE_METHOD_NAMES])

@@ -346,7 +346,7 @@ describe('multi-row group drop', () => {
       inFlight++
       maxInFlight = Math.max(maxInFlight, inFlight)
       const snapshot = { ...blob }
-      await new Promise((resolve) => setTimeout(resolve, id.length % 3))
+      await new Promise((resolve) => setTimeout(resolve, 0))
       Object.keys(blob).forEach((key) => delete blob[key])
       Object.assign(blob, snapshot, { [id]: fields })
       inFlight--

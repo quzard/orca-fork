@@ -40,10 +40,9 @@ import {
 } from './terminal/reconnect-tui-pulse'
 import { registerComposerSeed } from './sidebar/register-composer-seed'
 import { installForkLocaleOverlays } from './i18n/locale-overlay'
-import { installManagedSshAddressPreview } from './terminal/html-preview-address'
-import { installSshRoutedHtmlPreviewRecovery } from './terminal/html-preview-reclaim'
-import { registerTerminalFileLinkStayWatch } from './terminal/file-link-stay-watch'
 import { registerWorkspaceRepositorySourceControl } from './source-control/register'
+import { registerHostFileDocPreviews } from './terminal/host-file-doc-preview'
+import { registerKeptHostFileViewHooks } from './terminal/kept-host-file-view'
 
 /** Renderer hooks. Kept out of the node program so it can read the app store. */
 export function registerForkRendererModules(): void {
@@ -78,9 +77,8 @@ export function registerForkRendererModules(): void {
     consumeDeferredSshReconnectTui(info, resizePty)
   })
   registerComposerSeed()
-  registerTerminalFileLinkStayWatch()
-  installManagedSshAddressPreview()
-  installSshRoutedHtmlPreviewRecovery()
+  registerHostFileDocPreviews()
+  registerKeptHostFileViewHooks()
   registerPostImportHook((details) =>
     import('./import/apply-post-import').then((module) => module.applyForkPostImport(details))
   )

@@ -60,6 +60,16 @@ vi.mock('@/lib/file-owner-runtime-target', () => ({
   requireRuntimeTargetForFileOwner: () => mocks.target
 }))
 
+const rpcOptions = expect.objectContaining({ timeoutMs: expect.any(Number) })
+
+const libsCore = {
+  repositoryPath: 'libs/core',
+  kind: 'nested' as const,
+  uninitialized: false,
+  depth: 2,
+  realPath: '/ws/libs/core'
+}
+
 const diffBody = {
   kind: 'text',
   originalContent: '',
@@ -93,15 +103,7 @@ describe('nested repository diff hook', () => {
     clearDiscoverySkipsForTests()
     resetWorkspaceRepositoryDiffForTests()
     registerWorkspaceRepositoryDiff(readNestedRepositoryDiff)
-    rememberDiscoveredRepositories('wt-1', [
-      {
-        repositoryPath: 'libs/core',
-        kind: 'nested',
-        uninitialized: false,
-        depth: 2,
-        realPath: '/ws/libs/core'
-      }
-    ])
+    rememberDiscoveredRepositories('wt-1', [libsCore])
     mocks.connectionId = undefined
     mocks.target = { kind: 'local' }
     mocks.supports.mockReset()
@@ -151,7 +153,7 @@ describe('nested repository diff hook', () => {
       { kind: 'local' },
       FORK_GIT_WORKSPACE_DIFF_METHOD,
       expect.objectContaining({ repositoryPath: 'libs/core', filePath: 'src/a.ts', staged: false }),
-      {}
+      rpcOptions
     )
     expect(mocks.getRuntimeGitDiff).not.toHaveBeenCalled()
   })
@@ -189,19 +191,7 @@ describe('nested repository diff hook', () => {
     clearDiscoveredRepositoriesForTests()
     mocks.callRuntimeRpc.mockImplementation(async (_target: unknown, method: string) => {
       if (method === FORK_GIT_WORKSPACE_REPOSITORIES_METHOD) {
-        return {
-          repositories: [
-            {
-              repositoryPath: 'libs/core',
-              kind: 'nested',
-              uninitialized: false,
-              depth: 2,
-              realPath: '/ws/libs/core'
-            }
-          ],
-          truncated: false,
-          timedOut: false
-        }
+        return { repositories: [libsCore], truncated: false, timedOut: false }
       }
       return diffBody
     })
@@ -217,13 +207,13 @@ describe('nested repository diff hook', () => {
       { kind: 'local' },
       FORK_GIT_WORKSPACE_REPOSITORIES_METHOD,
       expect.objectContaining({ worktree: 'id:wt-1', refresh: false }),
-      {}
+      rpcOptions
     )
     expect(mocks.callRuntimeRpc).toHaveBeenCalledWith(
       { kind: 'local' },
       FORK_GIT_WORKSPACE_DIFF_METHOD,
       expect.objectContaining({ repositoryPath: 'libs/core', filePath: 'src/a.ts' }),
-      {}
+      rpcOptions
     )
     expect(mocks.getRuntimeGitDiff).not.toHaveBeenCalled()
   })
@@ -231,15 +221,7 @@ describe('nested repository diff hook', () => {
   it('keeps a root file on the upstream diff after a cold discovery', async () => {
     clearDiscoveredRepositoriesForTests()
     mocks.callRuntimeRpc.mockResolvedValue({
-      repositories: [
-        {
-          repositoryPath: 'libs/core',
-          kind: 'nested',
-          uninitialized: false,
-          depth: 2,
-          realPath: '/ws/libs/core'
-        }
-      ],
+      repositories: [libsCore],
       truncated: false,
       timedOut: false
     })
@@ -250,7 +232,7 @@ describe('nested repository diff hook', () => {
       { kind: 'local' },
       FORK_GIT_WORKSPACE_REPOSITORIES_METHOD,
       expect.objectContaining({ worktree: 'id:wt-1' }),
-      {}
+      rpcOptions
     )
     expect(mocks.getRuntimeGitDiff).toHaveBeenCalled()
     expect(mocks.callRuntimeRpc).not.toHaveBeenCalledWith(
@@ -276,7 +258,7 @@ describe('nested repository diff hook', () => {
       { kind: 'local' },
       FORK_GIT_WORKSPACE_REPOSITORIES_METHOD,
       expect.objectContaining({ worktree: 'id:wt-1' }),
-      {}
+      rpcOptions
     )
     expect(mocks.getRuntimeGitDiff).toHaveBeenCalled()
     expect(mocks.callRuntimeRpc).not.toHaveBeenCalledWith(
@@ -359,7 +341,64 @@ describe('nested repository diff hook', () => {
       { kind: 'local' },
       FORK_GIT_WORKSPACE_DIFF_METHOD,
       expect.objectContaining({ repositoryPath: 'libs/core', filePath: 'src/a.ts' }),
-      {}
+      rpcOptions
+    )
+    expect(mocks.getRuntimeGitDiff).not.toHaveBeenCalled()
+  })
+
+  it('passes the old path of a staged rename inside the nested repo', async () => {
+    await act(async () => {
+      await load!(
+        file({
+          filePath: '/ws/libs/core/src/new.ts',
+          relativePath: 'libs/core/src/new.ts',
+          diffSource: 'staged',
+          branchOldPath: 'libs/core/src/old.ts'
+        })
+      )
+    })
+    expect(mocks.callRuntimeRpc).toHaveBeenCalledWith(
+      { kind: 'local' },
+      FORK_GIT_WORKSPACE_DIFF_METHOD,
+      expect.objectContaining({
+        repositoryPath: 'libs/core',
+        filePath: 'src/new.ts',
+        oldPath: 'src/old.ts',
+        staged: true
+      }),
+      rpcOptions
+    )
+  })
+
+  it('rediscovers an old record before routing, and keeps it when the host does not answer', async () => {
+    clearDiscoveredRepositoriesForTests()
+    rememberDiscoveredRepositories('wt-1', [libsCore], Date.now() - 61_000)
+    mocks.callRuntimeRpc.mockImplementation(async (_target: unknown, method: string) => {
+      if (method === FORK_GIT_WORKSPACE_REPOSITORIES_METHOD) {
+        throw new Error('offline')
+      }
+      return diffBody
+    })
+    await act(async () => {
+      await load!(
+        file({
+          filePath: '/ws/libs/core/src/a.ts',
+          relativePath: 'libs/core/src/a.ts'
+        })
+      )
+    })
+    expect(mocks.callRuntimeRpc).toHaveBeenCalledWith(
+      { kind: 'local' },
+      FORK_GIT_WORKSPACE_REPOSITORIES_METHOD,
+      expect.objectContaining({ worktree: 'id:wt-1' }),
+      rpcOptions
+    )
+    // 旧记录说它在嵌套仓库里：发现失败也不改拿根仓库的 diff。
+    expect(mocks.callRuntimeRpc).toHaveBeenCalledWith(
+      { kind: 'local' },
+      FORK_GIT_WORKSPACE_DIFF_METHOD,
+      expect.objectContaining({ repositoryPath: 'libs/core', filePath: 'src/a.ts' }),
+      rpcOptions
     )
     expect(mocks.getRuntimeGitDiff).not.toHaveBeenCalled()
   })
@@ -390,7 +429,7 @@ describe('nested repository diff hook', () => {
         filePath: 'src/a.ts',
         compare: expect.objectContaining({ headOid: OID, mergeBase: MERGE })
       }),
-      {}
+      rpcOptions
     )
     expect(mocks.getRuntimeGitBranchDiff).not.toHaveBeenCalled()
   })

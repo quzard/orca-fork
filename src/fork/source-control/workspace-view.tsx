@@ -61,8 +61,13 @@ function UninitializedOtherGroup({ paths }: { paths: readonly string[] }): React
   )
 }
 
+function Note({ children }: { children: string }): React.JSX.Element {
+  return <p className="px-3 text-xs text-muted-foreground">{children}</p>
+}
+
 export function WorkspaceRepositoryGroups({
   list,
+  listError,
   statuses,
   compares,
   worktreeId,
@@ -71,11 +76,12 @@ export function WorkspaceRepositoryGroups({
   onRefresh
 }: {
   list: WorkspaceRepositoryList | null
+  listError: string | null
   statuses: Readonly<Record<string, WorkspaceRepositoryStatus>>
   compares: Readonly<Record<string, GitBranchCompareResult>>
   worktreeId: string
   worktreePath: string
-  onCommitTarget: (repositoryPath: string, branch: string, ref: string | null) => void
+  onCommitTarget: (repositoryPath: string, branch: string, ref: string | null) => Promise<void>
   onRefresh: () => void
 }): React.JSX.Element {
   const [onlyChanged, setOnlyChanged] = useState(() => readOnlyShowChanged())
@@ -120,30 +126,39 @@ export function WorkspaceRepositoryGroups({
         </Button>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto scrollbar-sleek">
+        {listError ? (
+          <Note>
+            {forkTranslate(
+              'fork.sourceControl.listError',
+              "Couldn't list repositories: {{error}}",
+              {
+                error: listError
+              }
+            )}
+          </Note>
+        ) : null}
         {list?.truncated ? (
-          <p className="px-3 text-xs text-muted-foreground">
+          <Note>
             {forkTranslate('fork.sourceControl.truncated', 'Some repositories were not listed.')}
-          </p>
+          </Note>
         ) : null}
         {list?.timedOut ? (
-          <p className="px-3 text-xs text-muted-foreground">
+          <Note>
             {forkTranslate('fork.sourceControl.timedOut', 'Repository search timed out.')}
-          </p>
+          </Note>
         ) : null}
-        {!list ? (
-          <p className="px-3 text-xs text-muted-foreground">
-            {forkTranslate('fork.sourceControl.loading', 'Looking for repositories…')}
-          </p>
+        {!list && !listError ? (
+          <Note>{forkTranslate('fork.sourceControl.loading', 'Looking for repositories…')}</Note>
         ) : null}
         {list && list.repositories.length === 0 ? (
-          <p className="px-3 text-xs text-muted-foreground">
+          <Note>
             {forkTranslate('fork.sourceControl.empty', 'No git repositories in this workspace.')}
-          </p>
+          </Note>
         ) : null}
         {noVisibleChanges ? (
-          <p className="px-3 text-xs text-muted-foreground">
+          <Note>
             {forkTranslate('fork.sourceControl.noChanges', 'No repositories with changes.')}
-          </p>
+          </Note>
         ) : null}
         {visible.map((repository) => (
           <WorkspaceRepoSection
@@ -174,28 +189,33 @@ export function WorkspaceRepositoriesView({
   visible: boolean
 }): React.JSX.Element {
   const [refreshToken, setRefreshToken] = useState(0)
+  const [nudgeToken, setNudgeToken] = useState(0)
   const poll = useWorkspaceRepositoryPoll({
     enabled: visible,
     target,
     worktreeId,
-    refreshToken
+    refreshToken,
+    nudgeToken
   })
   const worktree = toRuntimeWorktreeSelector(worktreeId)
-  const commitTarget = (repositoryPath: string, branch: string, ref: string | null): void => {
-    // 拒绝的 ref 留在输入框里，不刷新，避免把还没写上的目标显示成已保存。
-    void callWorkspaceGit(target, FORK_GIT_WORKSPACE_SET_COMPARE_TARGET_METHOD, {
+  // 失败交给比较目标输入框显示，草稿留着。成功后马上跑一轮：目标变了，这个仓库会重比。
+  const commitTarget = async (
+    repositoryPath: string,
+    branch: string,
+    ref: string | null
+  ): Promise<void> => {
+    await callWorkspaceGit(target, FORK_GIT_WORKSPACE_SET_COMPARE_TARGET_METHOD, {
       worktree,
       repositoryPath,
       branch,
       ref
-    }).then(
-      () => setRefreshToken((value) => value + 1),
-      () => undefined
-    )
+    })
+    setNudgeToken((value) => value + 1)
   }
   return (
     <WorkspaceRepositoryGroups
       list={poll.list}
+      listError={poll.listError}
       statuses={poll.statuses}
       compares={poll.compares}
       worktreeId={worktreeId}

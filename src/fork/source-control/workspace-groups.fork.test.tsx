@@ -13,9 +13,21 @@ import {
 import type { WorkspaceRepositoryRecord, WorkspaceRepositoryStatus } from '../git-workspace/types'
 import { WorkspaceRepositoryGroups } from './workspace-view'
 
+const mocks = vi.hoisted(() => ({
+  openUncommittedEntry:
+    vi.fn<
+      (state: unknown, worktreeId: string, worktreePath: string, entry: GitStatusEntry) => void
+    >(),
+  onCommitTarget: vi.fn(async () => undefined)
+}))
+
 vi.mock('@/runtime/runtime-rpc-client', () => ({
   callRuntimeRpc: vi.fn(),
   runtimeEnvironmentSupportsCapability: vi.fn()
+}))
+
+vi.mock('@/components/right-sidebar/source-control/listing/open-uncommitted-entry', () => ({
+  openUncommittedEntry: mocks.openUncommittedEntry
 }))
 
 vi.mock('@/store', () => ({
@@ -104,11 +116,12 @@ function groups(args: {
         truncated: false,
         timedOut: false
       }}
+      listError={null}
       statuses={args.statuses}
       compares={args.compares}
       worktreeId="wt-1"
       worktreePath="/ws"
-      onCommitTarget={() => undefined}
+      onCommitTarget={mocks.onCommitTarget}
       onRefresh={() => undefined}
     />
   )
@@ -133,6 +146,9 @@ describe('workspace repository groups', () => {
 
   beforeEach(() => {
     localStorage.clear()
+    mocks.openUncommittedEntry.mockReset()
+    mocks.onCommitTarget.mockReset()
+    mocks.onCommitTarget.mockResolvedValue(undefined)
     container = document.createElement('div')
     document.body.appendChild(container)
     root = createRoot(container)
@@ -330,5 +346,98 @@ describe('workspace repository groups', () => {
       })
     )
     expect(repoPaths()).toEqual(['demo-web'])
+  })
+  it('opens a nested rename by root-relative paths and a nested conflict as a plain diff', async () => {
+    const renamed: GitStatusEntry = {
+      path: 'src/new.ts',
+      oldPath: 'src/old.ts',
+      status: 'renamed',
+      area: 'staged'
+    }
+    const conflicted: GitStatusEntry = {
+      path: 'src/merge.ts',
+      status: 'modified',
+      area: 'unstaged',
+      conflictKind: 'both_modified',
+      conflictStatus: 'unresolved',
+      conflictStatusSource: 'git'
+    }
+    await render(
+      groups({
+        statuses: {
+          ...clean.statuses,
+          'demo-web': { ...status('demo-web', []), entries: [renamed, conflicted] }
+        },
+        compares: clean.compares
+      })
+    )
+    const section = container.querySelector('[data-repository-path="demo-web"]')
+    const rows = [...(section?.querySelectorAll('button') ?? [])].filter((node) =>
+      node.textContent?.startsWith('src/')
+    )
+    await act(async () => {
+      rows.forEach((row) => row.click())
+    })
+    expect(mocks.openUncommittedEntry).toHaveBeenCalledWith(
+      expect.anything(),
+      'wt-1',
+      '/ws',
+      expect.objectContaining({ path: 'demo-web/src/new.ts', oldPath: 'demo-web/src/old.ts' })
+    )
+    const conflictOpen = mocks.openUncommittedEntry.mock.calls.find(
+      (call) => call[3].path === 'demo-web/src/merge.ts'
+    )
+    expect(conflictOpen?.[3]).toMatchObject({ conflictKind: undefined, conflictStatus: undefined })
+  })
+
+  it('shows why a repository is not clean or cannot be compared', async () => {
+    localStorage.setItem(SOURCE_CONTROL_ONLY_CHANGED_STORAGE_KEY, '1')
+    await render(
+      groups({
+        statuses: {
+          ...clean.statuses,
+          'demo-api': { ...status('demo-api', []), readError: 'index.lock exists' }
+        },
+        compares: {
+          ...clean.compares,
+          'demo-web': {
+            ...finishedCompare('invalid-base'),
+            summary: {
+              ...finishedCompare('invalid-base').summary,
+              errorMessage: 'origin/mian not found'
+            }
+          }
+        }
+      })
+    )
+    // 读不出状态的仓库不能当成干净的滤掉，而且展开说明原因。
+    expect(repoPaths()).toContain('demo-api')
+    expect(header('demo-api').getAttribute('aria-expanded')).toBe('true')
+    expect(container.textContent).toContain('index.lock exists')
+    expect(container.textContent).toContain('origin/mian not found')
+  })
+
+  it('keeps the draft and shows the error when the host refuses a compare target', async () => {
+    mocks.onCommitTarget.mockRejectedValue(new Error('invalid ref'))
+    await render(groups(clean))
+    const section = container.querySelector('[data-repository-path="demo-web"]')
+    const input = section?.querySelector('input')
+    const use = [...(section?.querySelectorAll('button') ?? [])].find(
+      (node) => node.textContent === 'Use'
+    )
+    if (!(input instanceof HTMLInputElement) || !use) {
+      throw new Error('compare picker missing')
+    }
+    expect(input.getAttribute('aria-label')).toBe('Compare target')
+    await act(async () => {
+      use.click()
+    })
+    expect(mocks.onCommitTarget).toHaveBeenCalledWith(
+      'demo-web',
+      'refs/heads/feature',
+      'origin/main'
+    )
+    expect(section?.querySelector('[role="alert"]')?.textContent).toContain('invalid ref')
+    expect(input.value).toBe('origin/main')
   })
 })

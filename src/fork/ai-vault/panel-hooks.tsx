@@ -151,10 +151,10 @@ export function useForkVaultHostMenu<T extends AiVaultHostScopeOption>(
     enabled ? connectedRuntimeHostKey(s.runtimeStatusByEnvironmentId) : ''
   )
   useEffect(() => {
-    for (const session of history) {
+    for (const session of enabled ? history : []) {
       hostsWithHistory.add(session.executionHostId)
     }
-  }, [history])
+  }, [enabled, history])
   const activeHostId = activeWorktree
     ? getWorktreeExecutionHostId(activeWorktree, activeRepo ?? undefined)
     : null

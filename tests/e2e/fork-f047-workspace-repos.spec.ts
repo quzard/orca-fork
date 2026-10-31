@@ -8,7 +8,7 @@ import {
   withManagedHost
 } from './helpers/orcad-managed-workspace'
 import { quotePosixShell } from '../../src/shared/shell-argument-quoting'
-import { forkShot, useEnglishUi } from './fork-managed-host-links'
+import { forkShot, switchUiToEnglish } from './fork-managed-host-links'
 
 skipUnlessManagedDockerHost()
 test.skip(process.platform === 'win32', 'The Docker SSH host uses POSIX tooling')
@@ -38,7 +38,7 @@ test('workspace repos on a managed host list the root and a worktree-add checkou
     const { page } = await launchManagedWorkspace(fixture, {
       repoPath: appPath,
       folderPath: '/root/wt/lib',
-      beforeSeed: useEnglishUi
+      beforeSeed: switchUiToEnglish
     })
     await page.evaluate(() => {
       const state = window.__store!.getState()

@@ -18,7 +18,7 @@ export async function forkShot(page: Page, testInfo: TestInfo, name: string): Pr
 }
 
 /** English UI for the selectors below, whatever language this desktop runs in. */
-export async function useEnglishUi(page: Page): Promise<void> {
+export async function switchUiToEnglish(page: Page): Promise<void> {
   await page.evaluate(() => window.__store!.getState().updateSettings({ uiLanguage: 'en' }))
 }
 

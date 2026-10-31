@@ -22,7 +22,7 @@ import {
   readDocPreviewTabs,
   readOpenedFile,
   recordDesktopOpens,
-  useEnglishUi
+  switchUiToEnglish
 } from './fork-managed-host-links'
 
 skipUnlessManagedDockerHost()
@@ -85,7 +85,7 @@ test('host terminal links to files outside the workspace stay in the clicked wor
       const { app, page, seeded, environmentId } = await launchManagedWorkspace(fixture, {
         repoPath: appPath,
         folderPath: libPath,
-        beforeSeed: useEnglishUi
+        beforeSeed: switchUiToEnglish
       })
       await recordDesktopOpens(app)
       const hostId = toRuntimeExecutionHostId(environmentId)

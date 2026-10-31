@@ -22,7 +22,7 @@
 - 全文搜索保持命中顺序。多台主机的命中在行上标出来源，由上游 #31261 提供（环境名和 i18n 提示）。索引状态只在上游的设置「智能体会话搜索」页里看。
 - 主机菜单把没有会话、不是当前工作区所在、没连上、也不是当前选中的主机收进「其他已配置主机」。「有会话」包括这个窗口里此前列出过会话的主机，选中某一台主机后其他有会话的主机不会跳进子菜单；从子菜单选中的主机移到主列表，按钮上仍是保存时起的名字。「连上」看托管/配对的运行时服务器的连接状态；上游菜单只列当前工作区的 SSH 主机，原来按 SSH 连接判断的那条已经不起作用。上游菜单那行 `hostOptions.map(` 不改（改了会让上游的 host-list-render 计数检查失败，develop 上一直是失败的），主列表之外的主机经 `otherVaultHosts` 交给子菜单。
 - 原来面板顶部的「正在扫描历史…」和「N 台主机」删掉了：扫描中有上游刷新按钮的转圈和「Scanning sessions」，主机数从主机行就能看出来。
-- `src/fork/ai-vault/agents-panel-empty-profile.fork.test.tsx` 用空配置渲染整个「Agents」面板，检查不会报 React #185（Maximum update depth exceeded）：fork 代码以前在 zustand 选择器里每次新建数组，`useSyncExternalStore` 一直重渲染，右侧栏崩溃。`agents-panel-multi-host.fork.test.tsx` 用本机加几台托管的 Linux 服务器渲染同一个面板（主机行、折叠、全部收起、主机菜单和选中单台主机后的菜单），钩子行被合并冲掉时会失败。
+- `src/fork/ai-vault/agents-panel-empty-profile.fork.test.tsx` 用空配置渲染整个「Agents」面板，检查不会报 React #185（Maximum update depth exceeded）：fork 代码以前在 zustand 选择器里每次新建数组，`useSyncExternalStore` 一直重渲染，右侧栏崩溃。它不再用 20 毫秒的真实等待，改在 `act` 里渲染（上游的 ast-grep 门禁不许测试里用真实时间）；选择器每次返回新数组时它仍会报 Maximum update depth exceeded。`agents-panel-multi-host.fork.test.tsx` 用本机加几台托管的 Linux 服务器渲染同一个面板（主机行、折叠、全部收起、主机菜单和选中单台主机后的菜单），钩子行被合并冲掉时会失败。
 - 扫描进程的内存按本机内存计算，下限仍是 384 MiB。工具输出按块写入索引，索引版本在上游之上 +1，旧的截断索引会重建。
 - 启动时浏览器分区的代理改成后台应用，不再挡住第一个窗口。每个分区在排队时同步标成「代理未就绪」，请求守卫会扣住该分区的请求直到代理生效，失败则取消请求，所以不会有请求先走直连。上游的 try/catch 保留，只把等待的那一行换成 `deferStartupProxyWait(...)`。`src/fork/main/startup/browser-session-proxy.fork.test.ts` 验证这一点。
 - 不再有 Mac 签名对 `/ai-vault/` 的排除：包里没有这样的路径，这条只会在上游以后放进同名目录时悄悄跳过签名。

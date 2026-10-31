@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { assertTerminalArtifactNotHardLinked, terminalFileStatIdentity } from './artifact-integrity'
+import { terminalFileStatIdentity } from './artifact-integrity'
 import { runtimeFileSshTargetId, type ResolvedRuntimeFileTarget } from '../../files/file-target'
 
 const TERMINAL_FILE_GRANT_TTL_MS = 10 * 60 * 1000
@@ -33,9 +33,6 @@ export type TerminalFileGrant = {
   statIdentity: string | null
   // Linux can reuse inodes and coarse mtimes; the digest catches same-size content swaps.
   contentDigest: string | null
-  readOnly: boolean
-  // fork: disowned-host 是托管 orcad 上、没有工作区认领时的只读授权，不是终端输出。
-  provenance: 'terminal-output' | 'native-chat' | 'disowned-host'
   expiryTimer?: ReturnType<typeof setTimeout>
 }
 
@@ -48,12 +45,9 @@ export class RuntimeTerminalFileGrants {
     worktreeId: string
     absolutePath: string
     clientId?: string
-    readOnly?: boolean
-    provenance: TerminalFileGrant['provenance']
     stats: RuntimeFileStatLike
     contentDigest?: string | null
   }): TerminalFileGrant {
-    assertTerminalArtifactNotHardLinked(args.stats)
     const grant: TerminalFileGrant = {
       id: randomUUID(),
       worktreeId: args.worktreeId,
@@ -62,9 +56,7 @@ export class RuntimeTerminalFileGrants {
       ...(args.clientId ? { clientId: args.clientId } : {}),
       expiresAt: Date.now() + TERMINAL_FILE_GRANT_TTL_MS,
       statIdentity: terminalFileStatIdentity(args.stats),
-      contentDigest: args.contentDigest ?? null,
-      readOnly: args.readOnly === true,
-      provenance: args.provenance
+      contentDigest: args.contentDigest ?? null
     }
     this.terminalFileGrants.set(grant.id, grant)
     this.scheduleTerminalFileGrantExpiry(grant)

@@ -50,7 +50,7 @@ export function buildDocPreviewGrantRequest(
         }
       : chatScratchFileAddress(filePath)
   if (!environmentId || !base) {
-    return hostFileDocLocation(environmentId, worktreeId, worktreeRoot, root, entryRelativePath)
+    return hostFileDocLocation(environmentId, worktreeId, worktreeRoot, filePath)
   }
   return {
     owner: {

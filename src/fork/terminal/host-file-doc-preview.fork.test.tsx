@@ -1,5 +1,6 @@
-// F046: a server document outside the clicked workspace is previewable, its grant is rooted at its
-// own folder, and images it names are read from the host through grants.
+// F046: a server document outside the clicked workspace is previewable: outside every workspace its
+// grant is rooted at its own folder, inside another workspace at that workspace; images it names are
+// read from the host through grants.
 import { describe, expect, it, vi } from 'vitest'
 import { getWorkspaceFilePreviewPlan } from '@/lib/file-preview'
 import { buildDocPreviewGrantRequest } from '@/lib/doc-preview-grants'
@@ -12,7 +13,7 @@ import {
 import { hostFileDocFolder } from '../../shared/fork-hooks/host-file-doc-preview'
 import { registerHostFileDocPreviews } from './host-file-doc-preview'
 
-vi.mock('@/store', () => ({ useAppStore: { getState: () => ({}) } }))
+vi.mock('@/store', () => ({ useAppStore: { getState: () => state } }))
 vi.mock('@/lib/connection-owner-resolution', () => ({
   getConnectionIdForFileFromState: () => null
 }))
@@ -23,15 +24,21 @@ vi.mock('@/lib/worktree-runtime-owner', () => ({
 installRuntimeFileClientEnvironment()
 
 const WORKTREE = '/srv/app'
+const LIBRARY = '/srv/lib'
 const PAGES = '/home/me/.answer-me-with-html/pages'
 const REPORT = `${PAGES}/report.html`
 const NOTES = '/home/me/notes/plan.md'
 const IMAGE = '/home/me/notes/img/chart.png'
+const worktrees = [
+  { id: 'wt-1', repoId: 'repo-1', path: WORKTREE, hostId: 'runtime:env-1' },
+  { id: 'wt-lib', repoId: 'repo-1', path: LIBRARY, hostId: 'runtime:env-1' }
+]
 const state = {
-  repos: [{ id: 'repo-1', connectionId: null }],
-  worktreesByRepo: { 'repo-1': [{ id: 'wt-1', repoId: 'repo-1' }] },
+  repos: [{ id: 'repo-1', path: WORKTREE, connectionId: null, executionHostId: 'runtime:env-1' }],
+  worktreesByRepo: { 'repo-1': worktrees },
   folderWorkspaces: [],
-  getKnownWorktreeById: () => ({ id: 'wt-1', path: WORKTREE })
+  projectGroups: [],
+  getKnownWorktreeById: (id: string) => worktrees.find((worktree) => worktree.id === id)
 } as never
 
 const imageContext = {
@@ -103,7 +110,23 @@ describe('a server document outside the clicked workspace', () => {
 
     const location = buildDocPreviewGrantRequest(state, 'wt-1', `${WORKTREE}/docs/a.html`)
     expect(location).toMatchObject({ requestBase: WORKTREE, entryRelativePath: 'docs/a.html' })
-    expect(hostFileDocFolder(location)).toBeNull()
+    expect(hostFileDocFolder(location)).toBe(WORKTREE)
+  })
+
+  it('reads a document another workspace holds through that workspace', () => {
+    registerHostFileDocPreviews()
+
+    expect(buildDocPreviewGrantRequest(state, 'wt-1', `${LIBRARY}/docs/b.html`)).toEqual({
+      owner: {
+        kind: 'runtime',
+        environmentId: 'env-1',
+        worktreeSelector: 'id:wt-lib',
+        worktreeRoot: LIBRARY
+      },
+      requestBase: LIBRARY,
+      root: `${LIBRARY}/docs`,
+      entryRelativePath: 'docs/b.html'
+    })
   })
 
   it('reads an image a Markdown file outside the workspace names through a host grant', async () => {

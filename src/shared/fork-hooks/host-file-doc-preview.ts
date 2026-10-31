@@ -17,8 +17,7 @@ type HostFileDocPreviewRenderer = {
     environmentId: string
     worktreeId: string
     worktreeRoot: string
-    root: string
-    entryRelativePath: string
+    filePath: string
   }) => HostFileDocLocation
   readDocumentResource: (
     target: RuntimeClientTarget & { kind: 'environment' },
@@ -66,13 +65,12 @@ export function hostFileDocLocation(
   environmentId: string | null,
   worktreeId: string,
   worktreeRoot: string | null,
-  root: string,
-  entryRelativePath: string
+  filePath: string
 ): HostFileDocLocation | null {
   if (!renderer || !environmentId || !worktreeRoot) {
     return null
   }
-  return renderer.location({ environmentId, worktreeId, worktreeRoot, root, entryRelativePath })
+  return renderer.location({ environmentId, worktreeId, worktreeRoot, filePath })
 }
 
 /** An image a document outside the workspace names; null keeps upstream's error. */
@@ -88,7 +86,7 @@ export function readHostDocumentResource(
   return worktreeId ? renderer.readDocumentResource(target, worktreeId, filePath) : null
 }
 
-/** The folder a directory request means; null keeps upstream's worktree-root label. */
+/** The folder relative requests resolve against; null keeps upstream's worktree-root label. */
 export function hostFileDocFolder(
   location: HostFileDocPreviewGrantLocation | null | undefined
 ): string | null {

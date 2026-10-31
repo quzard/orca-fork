@@ -33,10 +33,11 @@ export function skipConfirmHardDeletes<T extends Worktree>(
 /**
  * One text of the lineage notice: `kept` (the keep-folder wording) when the dialog keeps folders,
  * else the caller's own translation. Exposed as `.t` so the translation call keeps its key.
+ * Not named `translate`: the key extractor would read a `translate(...args)` call here as keys.
  */
 export function keptLineageText<A extends unknown[]>(
-  translate: (...args: A) => string,
+  ownText: (...args: A) => string,
   kept: string | undefined
 ): { t: (...args: A) => string } {
-  return { t: (...args) => kept ?? translate(...args) }
+  return { t: (...args) => kept ?? ownText(...args) }
 }

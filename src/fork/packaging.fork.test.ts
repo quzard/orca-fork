@@ -323,7 +323,8 @@ describe('fork packaging', () => {
     const main = readFileSync(resolve('src/main/orcad/main.ts'), 'utf8')
     const build = readFileSync(resolve('config/scripts/orcad-entry-build.mjs'), 'utf8')
     const register = readFileSync(resolve('src/fork/main/register-main.ts'), 'utf8')
-    expect(entry).toContain('installForkOrcadHost(installOrcadHostAdapters)')
+    // The fork registers before upstream's host adapters, which stay one untouched upstream line.
+    expect(entry).toMatch(/installForkOrcadHost\(\)\n\s*installOrcadHostAdapters\(\)/)
     expect(register).toMatch(/function installForkOrcadHost[^}]*registerForkMainModules\(\)/)
     expect(main).toContain("from './orcad-entry'")
     expect(build).toContain("export const ORCAD_ENTRY_POINT = 'src/main/orcad/main.ts'")

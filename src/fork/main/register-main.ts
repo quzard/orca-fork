@@ -41,16 +41,9 @@ export function registerForkMainModules(): void {
   }
 }
 
-/**
- * orcad: the fork's registrations, then the host adapters. One call, so orcad-entry.ts stays within
- * its 300-line limit with upstream's lines unchanged.
- */
-export function installForkOrcadHost(installHostAdapters: () => void): void {
+/** orcad only, before upstream installs its host adapters. */
+export function installForkOrcadHost(): void {
   registerForkMainModules()
   // 只有托管 orcad 放开「没有工作区认领、但文件存在」的只读打开。桌面运行时不登记。
   registerDisownedHostFileOpen(openManagedDisownedHostFile)
-  installHostAdapters()
 }
-
-// 转出给 orcad-entry 已有的那一行 import。监听地址和终端准入不是 fork 行为，只为留在 300 行上限内。
-export { resolveOrcadServeBind } from './orcad-serve-bind'

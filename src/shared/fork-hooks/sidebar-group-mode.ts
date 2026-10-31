@@ -9,6 +9,7 @@ const BUILTIN_GROUP_BY_IDS = new Set(['none', 'workspace-status', 'repo', 'pr-st
 export type SidebarPlanArgs = {
   worktrees?: unknown
   repoMap?: unknown
+  repoOfWorktree?: unknown
   prCache?: unknown
   workspaceStatuses?: unknown
   projectOrderBy?: unknown

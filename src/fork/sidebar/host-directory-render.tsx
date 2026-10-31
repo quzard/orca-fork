@@ -82,7 +82,7 @@ function appendPinned(rows: Row[], args: HostDirectoryRenderArgs): void {
     pinned.items.map((worktree) => ({
       kind: 'worktree' as const,
       worktree,
-      repo: args.repoMap.get(worktree.repoId)
+      repo: args.repoOf(worktree)
     })),
     PINNED_SECTION_KEY,
     labels,
@@ -239,7 +239,7 @@ function pushItemRow(
 ): void {
   const { args } = context
   const worktree = occurrence.row
-  const repo = args.repoMap.get(worktree.repoId)
+  const repo = args.repoOf(worktree)
   const directoryLabel = groupedCardDirectoryLabel({
     repo,
     worktreePath: worktree.path,

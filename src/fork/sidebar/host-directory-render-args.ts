@@ -17,6 +17,8 @@ export type HostDirectoryRenderArgs = {
     }[]
   }
   repoMap: Map<string, Repo>
+  /** The row's own registration: same-id projects can be registered on two hosts. */
+  repoOf: (worktree: Worktree) => Repo | undefined
   projectGroups: readonly ProjectGroup[]
   defaultHostId: ExecutionHostId
   sortBy: WorkspaceSortBy | undefined

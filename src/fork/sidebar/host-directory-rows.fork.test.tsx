@@ -125,6 +125,7 @@ function hostDirectoryRows(args: {
   placeholders?: string[]
   pending?: { creationId: string; repoId: string }[]
   sortBy?: 'name' | 'smart' | 'recent' | 'manual' | 'repo'
+  repoOfWorktree?: (worktree: Worktree) => Repo | undefined
 }) {
   const repoMap = new Map(args.repos.map((entry) => [entry.id, entry]))
   // The registered plan reads the sidebar sort from the store; tests pin it ('recent' is its default).
@@ -134,6 +135,7 @@ function hostDirectoryRows(args: {
     groupBy: HOST_DIRECTORY_GROUP_BY as WorktreeGroupBy,
     worktrees: args.worktrees,
     repoMap,
+    ...(args.repoOfWorktree ? { repoOfWorktree: args.repoOfWorktree } : {}),
     prGroupOf: createSidebarPRGroupReader(repoMap, null),
     workspaceStatuses: cloneDefaultWorkspaceStatuses(),
     projectOrderBy: 'manual',
@@ -368,6 +370,25 @@ describe('host-directory sidebar rows', () => {
     })
     expect(rows.some((row) => row.type === 'header' && row.key === 'pinned')).toBe(true)
     expect(rows.some((row) => row.type === 'header' && row.repo?.id === 'empty')).toBe(true)
+  })
+
+  it('inherits each host copy of a same-id project from its own registration', () => {
+    const onDevbox = { ...repo('web', '/srv/wt/web', 'web', DEVBOX), projectGroupId: 'g-dev' }
+    const onMini = { ...repo('web', '/srv/wt/web', 'web', MINI), projectGroupId: 'g-mini' }
+    const rows = hostDirectoryRows({
+      // The bare-id map can hold only one of the two registrations.
+      repos: [onMini],
+      repoOfWorktree: (worktree) => (worktree.hostId === DEVBOX ? onDevbox : onMini),
+      groups: [projectGroup('g-dev', 'Dev', DEVBOX), projectGroup('g-mini', 'Mini', MINI)],
+      worktrees: [
+        workspace('wt-dev', 'web', '/srv/wt/web/dev', 'dev', DEVBOX),
+        workspace('wt-mini', 'web', '/srv/wt/web/mini', 'mini', MINI)
+      ]
+    })
+    const sectionOf = (id: string) =>
+      rows.find((row) => row.type === 'item' && row.worktree.id === id)?.sectionKey
+    expect(sectionOf('wt-dev')).toBe(hostDirectorySectionKey(DEVBOX, 'g-dev'))
+    expect(sectionOf('wt-mini')).toBe(hostDirectorySectionKey(MINI, 'g-mini'))
   })
 
   it('lists both pinned copies of a same-id workspace on two hosts, once each', () => {

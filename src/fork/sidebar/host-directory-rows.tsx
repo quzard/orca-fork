@@ -24,6 +24,7 @@ import { orderWorkspaces } from './workspace-order'
 export type HostDirectoryPlanInput = {
   worktrees: readonly Worktree[]
   repoMap: Map<string, Repo>
+  repoOfWorktree?: (worktree: Worktree) => Repo | undefined
   projectGroups?: readonly ProjectGroup[]
   placeholderRepoIds?: ReadonlySet<string>
   pendingCreations?: readonly { creationId: string; repoId: string }[]
@@ -61,6 +62,10 @@ export function buildHostDirectoryRowPlan(input: SidebarPlanArgs): SidebarRowPla
   setHostDirectoryDefaultHostId(defaultHostId)
   const projectGroups = input.projectGroups ?? []
   const repoMap = input.repoMap
+  const repoOf =
+    typeof input.repoOfWorktree === 'function'
+      ? input.repoOfWorktree
+      : (worktree: Worktree) => repoMap.get(worktree.repoId)
   const sortBy = resolveHostDirectorySortBy(input.workspaceSortBy)
   const visible = input.worktrees.filter((worktree) => !worktree.isArchived)
   const children = input.nestLineage
@@ -95,7 +100,7 @@ export function buildHostDirectoryRowPlan(input: SidebarPlanArgs): SidebarRowPla
       for (const worktree of natural) {
         const key = sectionKeyForWorkspace({
           worktree,
-          repo: repoMap.get(worktree.repoId),
+          repo: repoOf(worktree),
           projectGroups,
           defaultHostId
         })
@@ -111,7 +116,7 @@ export function buildHostDirectoryRowPlan(input: SidebarPlanArgs): SidebarRowPla
             items.map((worktree) => ({
               kind: 'worktree' as const,
               worktree,
-              repo: repoMap.get(worktree.repoId)
+              repo: repoOf(worktree)
             })),
             sortBy,
             now
@@ -134,6 +139,7 @@ export function buildHostDirectoryRowPlan(input: SidebarPlanArgs): SidebarRowPla
       collapsedGroups,
       occurrencePlan,
       repoMap,
+      repoOf,
       projectGroups,
       defaultHostId,
       sortBy,

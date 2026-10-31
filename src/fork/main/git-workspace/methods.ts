@@ -24,24 +24,25 @@ import {
   writeWorkspaceCompareTarget
 } from './reads'
 
+// 桌面本机、orcad 和 orca serve 共用这一份方法表（rpc/methods/index.ts 摊进 ALL_RPC_METHODS）。
 export const FORK_GIT_WORKSPACE_METHODS = [
   defineMethod({
     name: FORK_GIT_WORKSPACE_REPOSITORIES_METHOD,
     permission: 'workspace',
     params: GitWorkspaceRepositoriesParams,
-    handler: (params, { signal }) =>
-      listWorkspaceRepositories(params.worktree, params.refresh === true, signal)
+    handler: (params, ctx) =>
+      listWorkspaceRepositories(ctx, params.worktree, params.refresh === true)
   }),
   defineMethod({
     name: FORK_GIT_WORKSPACE_STATUS_METHOD,
     permission: 'workspace',
     params: GitWorkspaceRepositoryStatusParams,
-    handler: (params, { signal }) =>
+    handler: (params, ctx) =>
       readWorkspaceRepositoryStatus(
+        ctx,
         params.worktree,
         params.repositoryPath,
         params.admissionTier,
-        signal,
         params.refresh === true
       )
   }),
@@ -49,13 +50,13 @@ export const FORK_GIT_WORKSPACE_METHODS = [
     name: FORK_GIT_WORKSPACE_BRANCH_COMPARE_METHOD,
     permission: 'workspace',
     params: GitWorkspaceRepositoryBranchCompareParams,
-    handler: (params, { signal }) =>
+    handler: (params, ctx) =>
       readWorkspaceRepositoryBranchCompare(
+        ctx,
         params.worktree,
         params.repositoryPath,
         params.baseRef,
-        params.admissionTier,
-        signal
+        params.admissionTier
       )
   }),
   defineMethod({
@@ -63,34 +64,26 @@ export const FORK_GIT_WORKSPACE_METHODS = [
     permission: 'workspace',
     params: GitWorkspaceRepositoryDiffParams,
     handler: (params, ctx) =>
-      readWorkspaceRepositoryDiff(
-        params.worktree,
-        params.repositoryPath,
-        params.filePath,
-        params.staged,
-        params.compareAgainstHead,
-        ctx
-      )
+      readWorkspaceRepositoryDiff(ctx, params.worktree, params.repositoryPath, params)
   }),
   defineMethod({
     name: FORK_GIT_WORKSPACE_BRANCH_DIFF_METHOD,
     permission: 'workspace',
     params: GitWorkspaceRepositoryBranchDiffParams,
     handler: (params, ctx) =>
-      readWorkspaceRepositoryBranchDiff(
-        params.worktree,
-        params.repositoryPath,
-        params.filePath,
-        params.oldPath,
-        params.compare,
-        ctx
-      )
+      readWorkspaceRepositoryBranchDiff(ctx, params.worktree, params.repositoryPath, params)
   }),
   defineMethod({
     name: FORK_GIT_WORKSPACE_SET_COMPARE_TARGET_METHOD,
     permission: 'workspace',
     params: GitWorkspaceSetCompareTargetParams,
-    handler: (params) =>
-      writeWorkspaceCompareTarget(params.worktree, params.repositoryPath, params.branch, params.ref)
+    handler: (params, ctx) =>
+      writeWorkspaceCompareTarget(
+        ctx,
+        params.worktree,
+        params.repositoryPath,
+        params.branch,
+        params.ref
+      )
   })
 ]

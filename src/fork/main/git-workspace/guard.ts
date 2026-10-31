@@ -1,9 +1,6 @@
 import { realpath } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
-import {
-  REPOSITORY_FILE_PATH_REJECTED,
-  REPOSITORY_PATH_REJECTED
-} from '../../git-workspace/constants'
+import { REPOSITORY_PATH_REJECTED } from '../../git-workspace/constants'
 import type { WorkspaceRepositoryRecord } from '../../git-workspace/types'
 
 function escapes(root: string, candidate: string): boolean {
@@ -18,23 +15,6 @@ function lexicalRepositoryPath(repositoryPath: string): string {
   const parts = repositoryPath.split(/[\\/]/).filter((part) => part.length > 0)
   if (parts.includes('..')) {
     throw new Error(REPOSITORY_PATH_REJECTED)
-  }
-  return parts.join('/')
-}
-
-export function assertFilePathInsideRepository(filePath: string): string {
-  if (
-    !filePath ||
-    filePath.includes('\0') ||
-    isAbsolute(filePath) ||
-    filePath.startsWith('-') ||
-    filePath.split(/[\\/]/).includes('..')
-  ) {
-    throw new Error(REPOSITORY_FILE_PATH_REJECTED)
-  }
-  const parts = filePath.split(/[\\/]/).filter((part) => part.length > 0 && part !== '.')
-  if (parts.length === 0 || parts.includes('..')) {
-    throw new Error(REPOSITORY_FILE_PATH_REJECTED)
   }
   return parts.join('/')
 }

@@ -2,22 +2,14 @@ import type {
   RpcMethodName,
   RpcParams
 } from '../../../shared/rpc-contract/rpc-params-catalog.generated'
+import type { ForkGitWorkspaceMethodName } from '../../../fork/git-workspace/constants'
 import type { RpcAnyMethodDeclaration } from './core'
 import type { ALL_RPC_METHODS } from './methods'
 
 type RegisteredMethod = (typeof ALL_RPC_METHODS)[number]
 
 // These schemas reach into src/main and have no shared catalog entry.
-type UncataloguedMethod =
-  | 'emulator.install'
-  | 'orchestration.send'
-  | 'orchestration.taskUpdate'
-  | 'git.workspaceRepositories'
-  | 'git.workspaceRepositories.status'
-  | 'git.workspaceRepositories.branchCompare'
-  | 'git.workspaceRepositories.diff'
-  | 'git.workspaceRepositories.branchDiff'
-  | 'git.workspaceRepositories.setCompareTarget'
+type UncataloguedMethod = 'emulator.install' | 'orchestration.send' | 'orchestration.taskUpdate'
 
 type IsAny<T> = 0 extends 1 & T ? true : false
 
@@ -39,7 +31,7 @@ type MismatchedMethod<Method extends RpcAnyMethodDeclaration> =
       ? ParamsMatch<Parameters<Method['handler']>[0], RpcParams<Method['name']>> extends true
         ? never
         : Method['name']
-      : Exclude<Method['name'], UncataloguedMethod>
+      : Exclude<Method['name'], UncataloguedMethod | ForkGitWorkspaceMethodName>
     : never
 
 type AssertNever<T extends never> = T

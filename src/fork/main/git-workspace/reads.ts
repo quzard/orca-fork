@@ -1,71 +1,161 @@
-import { assertGitDiffWithinTransportBudget } from '../../../shared/git-diff-transport-budget'
-import { remoteRpcContentBudget } from '../../../shared/remote-rpc-content-budget'
 import type { GitBranchCompareResult, GitDiffResult } from '../../../shared/git-diff-compare-types'
+import { remoteRpcContentBudget } from '../../../shared/remote-rpc-content-budget'
+import type { GitAdmissionTier } from '../../../shared/rpc-contract/git-admission-tier-params'
 import type { GitRuntimeOptions } from '../../../main/git/git-runtime-options'
 import { resolveRefOid } from '../../../main/git/source-control/compare-ref-oids'
-import { getBranchDiff } from '../../../main/git/status'
+import { RuntimeGitDiffCommands } from '../../../main/runtime/runtime-git-diff-commands'
+import { RuntimeGitStatusCommands } from '../../../main/runtime/runtime-git-status-commands'
 import {
   localGitOptionsForTarget,
   requireLocalRuntimeGitRoute,
-  requireRuntimeGitProvider,
+  type RuntimeGitCommandHost,
   type RuntimeGitTarget
 } from '../../../main/runtime/runtime-git-command-target'
 import { REPOSITORY_UNINITIALIZED } from '../../git-workspace/constants'
-import type { WorkspaceRepositoryList, WorkspaceRepositoryStatus } from '../../git-workspace/types'
-import { forkGitTargetResolver } from './bind-target'
+import type {
+  WorkspaceRepositoryList,
+  WorkspaceRepositoryRecord,
+  WorkspaceRepositoryStatus
+} from '../../git-workspace/types'
 import { resolveWorkspaceCompareTarget } from './compare-target'
-import { CompareTargetStore } from './compare-target-store'
-import { discoverWorkspaceRepositories } from './discover'
-import { assertFilePathInsideRepository, locateWorkspaceRepository } from './guard'
+import { CompareTargetStore, type CompareTargetKey } from './compare-target-store'
+import {
+  discoverWorkspaceRepositories,
+  WORKSPACE_REPOSITORY_MEMBERSHIP_MAX_AGE_MS
+} from './discover'
+import { locateWorkspaceRepository } from './guard'
 import { listedNestedRepositoryRoots, omitNestedRepositoryEntries } from './root-status-entries'
 
-type RpcClient = {
+// RPC 上下文里用到的几项。runtime 是承载这个工作区的运行时（桌面本机或主机上的 orcad）。
+export type WorkspaceRpcCaller = {
+  runtime: object
   clientKind?: 'mobile' | 'runtime'
   requestId?: string
   signal?: AbortSignal
 }
 
-function contentBudget(client: RpcClient): number | undefined {
-  return client.clientKind && client.requestId
-    ? remoteRpcContentBudget(client.requestId)
+// 和上游 git.diff 同一规则：只有 WebSocket 调用方带 clientKind，本机调用不截断。
+function contentBudget(caller: WorkspaceRpcCaller): number | undefined {
+  return caller.clientKind && caller.requestId
+    ? remoteRpcContentBudget(caller.requestId)
     : undefined
 }
 
-function providerFor(target: RuntimeGitTarget, signal?: AbortSignal) {
-  const localGitOptions = localGitOptionsForTarget(target)
-  // 把这次请求的 signal 放进本地 git 选项，WSL 路由仍由 requireRuntimeGitProvider 决定。
-  return requireRuntimeGitProvider({
-    ...target,
-    localGitOptions: signal ? { ...localGitOptions, signal } : localGitOptions
-  })
+type GitTargetResolver = Pick<RuntimeGitCommandHost, 'resolveRuntimeGitTarget'>
+
+// resolveRuntimeGitTarget 在运行时的子类上是 protected，RPC 处理函数只拿得到 runtime 本身。
+function resolvesGitTargets(runtime: object): runtime is GitTargetResolver {
+  return (
+    'resolveRuntimeGitTarget' in runtime && typeof runtime.resolveRuntimeGitTarget === 'function'
+  )
 }
 
-async function ownedTarget(worktree: string): Promise<RuntimeGitTarget> {
-  const target = await forkGitTargetResolver()(worktree)
-  // ssh: 和 runtime: 的仓库不在这台机器上。先拒绝，避免用远端路径扫客户端磁盘。
+async function workspaceTarget(runtime: object, worktree: string): Promise<RuntimeGitTarget> {
+  if (!resolvesGitTargets(runtime)) {
+    throw new Error('runtime_git_target_unavailable')
+  }
+  const target = await runtime.resolveRuntimeGitTarget(worktree)
+  // ssh: 和 runtime: 的仓库不在这台机器上。先拒绝，避免用远端路径扫本机磁盘。
   requireLocalRuntimeGitRoute(target)
   return target
 }
 
-async function openRepository(
-  worktree: string,
-  repositoryPath: string,
-  refresh: boolean,
-  signal?: AbortSignal
-) {
-  const target = await ownedTarget(worktree)
-  const gitOptions = localGitOptionsForTarget(target)
-  const discovery = await discoverWorkspaceRepositories(target.worktree.path, {
-    gitOptions,
-    refresh,
-    signal
+function discover(
+  root: RuntimeGitTarget,
+  options: { refresh?: boolean; membership?: boolean; signal?: AbortSignal }
+): Promise<WorkspaceRepositoryList> {
+  return discoverWorkspaceRepositories(root.worktree.path, {
+    gitOptions: localGitOptionsForTarget(root),
+    refresh: options.refresh === true,
+    ...(options.membership
+      ? { maxAgeMs: WORKSPACE_REPOSITORY_MEMBERSHIP_MAX_AGE_MS, acceptPartial: true }
+      : {}),
+    ...(options.signal ? { signal: options.signal } : {})
   })
-  const entry = await locateWorkspaceRepository(
-    target.worktree.path,
+}
+
+// 根仓库用上游解析出的目标（含共享链接）。嵌套仓库是自己的检出，没有 Orca 仓库行，不继承根的共享链接。
+function repositoryTarget(
+  root: RuntimeGitTarget,
+  entry: WorkspaceRepositoryRecord
+): RuntimeGitTarget {
+  if (entry.repositoryPath === '') {
+    return root
+  }
+  return {
+    worktree: { ...root.worktree, path: entry.realPath },
+    executionHostId: root.executionHostId,
+    ...(root.localGitOptions ? { localGitOptions: root.localGitOptions } : {})
+  }
+}
+
+type OpenedRepository = {
+  root: RuntimeGitTarget
+  entry: WorkspaceRepositoryRecord
+  discovery: WorkspaceRepositoryList
+  target: RuntimeGitTarget
+  status: RuntimeGitStatusCommands
+  diff: RuntimeGitDiffCommands
+}
+
+async function openRepository(
+  caller: WorkspaceRpcCaller,
+  worktree: string,
+  repositoryPath: string
+): Promise<OpenedRepository> {
+  const root = await workspaceTarget(caller.runtime, worktree)
+  const signal = caller.signal
+  let discovery = await discover(root, { membership: true, signal })
+  let entry = await locateWorkspaceRepository(
+    root.worktree.path,
     repositoryPath,
     discovery.repositories
-  )
-  return { target, gitOptions, entry, discovery }
+  ).catch(() => null)
+  if (!entry) {
+    // 上一轮列表里没有，或者目录换过：按列表的 5 秒缓存再判一次（最多 5 秒重扫一次），仍不在就拒绝。
+    discovery = await discover(root, { signal })
+    entry = await locateWorkspaceRepository(
+      root.worktree.path,
+      repositoryPath,
+      discovery.repositories
+    )
+  }
+  const target = repositoryTarget(root, entry)
+  // 上游的读取命令原样复用，只是目标换成这个仓库：路径校验、WSL 路由和传输上限都跟上游一致。
+  const host: RuntimeGitCommandHost = {
+    resolveRuntimeGitTarget: async () => target,
+    getRuntimeSettings: () => ({})
+  }
+  return {
+    root,
+    entry,
+    discovery,
+    target,
+    status: new RuntimeGitStatusCommands(host),
+    diff: new RuntimeGitDiffCommands(host)
+  }
+}
+
+async function openInitialized(
+  caller: WorkspaceRpcCaller,
+  worktree: string,
+  repositoryPath: string
+): Promise<OpenedRepository> {
+  const opened = await openRepository(caller, worktree, repositoryPath)
+  if (opened.entry.uninitialized) {
+    throw new Error(REPOSITORY_UNINITIALIZED)
+  }
+  return opened
+}
+
+// 键里用工作区根的路径，和以前写进文件的覆盖保持一致。
+function compareKey(opened: OpenedRepository, branch: string): CompareTargetKey {
+  return {
+    hostId: opened.root.worktree.hostId ?? opened.root.executionHostId,
+    worktreePath: opened.root.worktree.path,
+    repositoryPath: opened.entry.repositoryPath,
+    branch
+  }
 }
 
 async function baseCommitOid(
@@ -84,36 +174,23 @@ async function baseCommitOid(
   }
 }
 
-function compareKey(target: RuntimeGitTarget, repositoryPath: string, branch: string) {
-  return {
-    hostId: target.worktree.hostId ?? target.executionHostId,
-    worktreePath: target.worktree.path,
-    repositoryPath,
-    branch
-  }
-}
-
 export async function listWorkspaceRepositories(
+  caller: WorkspaceRpcCaller,
   worktree: string,
-  refresh: boolean,
-  signal?: AbortSignal
+  refresh: boolean
 ): Promise<WorkspaceRepositoryList> {
-  const target = await ownedTarget(worktree)
-  return discoverWorkspaceRepositories(target.worktree.path, {
-    gitOptions: localGitOptionsForTarget(target),
-    refresh,
-    signal
-  })
+  const root = await workspaceTarget(caller.runtime, worktree)
+  return discover(root, { refresh, signal: caller.signal })
 }
 
 export async function readWorkspaceRepositoryStatus(
+  caller: WorkspaceRpcCaller,
   worktree: string,
   repositoryPath: string,
-  admissionTier: 'interactive' | 'status' | 'background' | undefined,
-  signal?: AbortSignal,
-  refresh = false
+  admissionTier: GitAdmissionTier | undefined,
+  refresh: boolean
 ): Promise<WorkspaceRepositoryStatus> {
-  const opened = await openRepository(worktree, repositoryPath, false, signal)
+  const opened = await openRepository(caller, worktree, repositoryPath)
   if (opened.entry.uninitialized) {
     return {
       repositoryPath: opened.entry.repositoryPath,
@@ -124,21 +201,24 @@ export async function readWorkspaceRepositoryStatus(
       compareTarget: { ref: null, source: 'unset' }
     }
   }
-  const status = await providerFor(opened.target, signal).getStatus(opened.entry.realPath, {
+  const status = await opened.status.getRuntimeGitStatus(worktree, {
     admissionTier: admissionTier ?? 'status',
     includeLineStats: false,
-    signal
+    ...(caller.signal ? { signal: caller.signal } : {})
   })
   const branch = status.branch ?? null
+  const repoPath = opened.target.worktree.path
+  const gitOptions = localGitOptionsForTarget(opened.target)
   const compareTarget = await resolveWorkspaceCompareTarget({
     store: CompareTargetStore.fromUserData(),
-    key: compareKey(opened.target, opened.entry.repositoryPath, branch ?? ''),
-    repoAbsolutePath: opened.entry.realPath,
-    gitOptions: opened.gitOptions,
+    key: compareKey(opened, branch ?? ''),
+    repoAbsolutePath: repoPath,
+    gitOptions,
     head: status.head ?? null,
     refresh
   })
-  const baseOid = await baseCommitOid(opened.entry.realPath, compareTarget.ref, opened.gitOptions)
+  // 比较目标解析只给出 ref 名。带上它现在的提交，基线被 fetch 推进时界面才知道要重比。
+  const baseOid = await baseCommitOid(repoPath, compareTarget.ref, gitOptions)
   // 根仓库会把嵌套检出报成未跟踪目录。只去掉未跟踪条目；gitlink 指针仍算根仓库的改动。
   const entries =
     opened.entry.repositoryPath === ''
@@ -155,94 +235,64 @@ export async function readWorkspaceRepositoryStatus(
     entries,
     ...(status.upstreamStatus ? { upstreamStatus: status.upstreamStatus } : {}),
     ...(status.didHitLimit ? { didHitLimit: true } : {}),
+    ...(status.readError ? { readError: status.readError } : {}),
     compareTarget,
     baseOid
   }
 }
 
 export async function readWorkspaceRepositoryBranchCompare(
+  caller: WorkspaceRpcCaller,
   worktree: string,
   repositoryPath: string,
   baseRef: string,
-  admissionTier: 'interactive' | 'status' | 'background' | undefined,
-  signal?: AbortSignal
+  admissionTier: GitAdmissionTier | undefined
 ): Promise<GitBranchCompareResult> {
-  const opened = await openRepository(worktree, repositoryPath, false, signal)
-  if (opened.entry.uninitialized) {
-    throw new Error(REPOSITORY_UNINITIALIZED)
-  }
-  return providerFor(opened.target, signal).getBranchCompare(opened.entry.realPath, baseRef, {
-    admissionTier: admissionTier ?? 'background'
-  })
+  const opened = await openInitialized(caller, worktree, repositoryPath)
+  return opened.diff.getRuntimeGitBranchCompare(worktree, baseRef, admissionTier ?? 'background')
 }
 
 export async function readWorkspaceRepositoryDiff(
+  caller: WorkspaceRpcCaller,
   worktree: string,
   repositoryPath: string,
-  filePath: string,
-  staged: boolean,
-  compareAgainstHead: boolean | undefined,
-  client: RpcClient
+  file: { filePath: string; staged: boolean; compareAgainstHead?: boolean; oldPath?: string }
 ): Promise<GitDiffResult> {
-  const opened = await openRepository(worktree, repositoryPath, false, client.signal)
-  if (opened.entry.uninitialized) {
-    throw new Error(REPOSITORY_UNINITIALIZED)
-  }
-  const relativePath = assertFilePathInsideRepository(filePath)
-  return assertGitDiffWithinTransportBudget(
-    await providerFor(opened.target, client.signal).getDiff(
-      opened.entry.realPath,
-      relativePath,
-      staged,
-      compareAgainstHead
-    ),
-    contentBudget(client)
+  const opened = await openInitialized(caller, worktree, repositoryPath)
+  return opened.diff.getRuntimeGitDiff(
+    worktree,
+    file.filePath,
+    file.staged,
+    file.compareAgainstHead,
+    contentBudget(caller),
+    file.oldPath
   )
 }
 
 export async function readWorkspaceRepositoryBranchDiff(
+  caller: WorkspaceRpcCaller,
   worktree: string,
   repositoryPath: string,
-  filePath: string,
-  oldPath: string | undefined,
-  compare: { headOid: string; mergeBase: string },
-  client: RpcClient
+  file: { filePath: string; oldPath?: string; compare: { mergeBase: string; headOid: string } }
 ): Promise<GitDiffResult> {
-  const opened = await openRepository(worktree, repositoryPath, false, client.signal)
-  if (opened.entry.uninitialized) {
-    throw new Error(REPOSITORY_UNINITIALIZED)
-  }
-  // 和上游 git.branchDiff 一样：先确认这条路由能在本机（含 WSL）执行。
-  requireRuntimeGitProvider(opened.target)
-  return assertGitDiffWithinTransportBudget(
-    await getBranchDiff(
-      opened.entry.realPath,
-      {
-        headOid: compare.headOid,
-        mergeBase: compare.mergeBase,
-        filePath: assertFilePathInsideRepository(filePath),
-        ...(oldPath ? { oldPath: assertFilePathInsideRepository(oldPath) } : {})
-      },
-      {
-        ...opened.gitOptions,
-        admissionTier: 'interactive',
-        ...(client.signal ? { signal: client.signal } : {})
-      }
-    ),
-    contentBudget(client)
+  const opened = await openInitialized(caller, worktree, repositoryPath)
+  return opened.diff.getRuntimeGitBranchDiff(
+    worktree,
+    file.compare,
+    file.filePath,
+    file.oldPath,
+    contentBudget(caller)
   )
 }
 
 export async function writeWorkspaceCompareTarget(
+  caller: WorkspaceRpcCaller,
   worktree: string,
   repositoryPath: string,
   branch: string,
   ref: string | null
 ): Promise<{ repositoryPath: string; branch: string; ref: string | null }> {
-  const opened = await openRepository(worktree, repositoryPath, false)
-  await CompareTargetStore.fromUserData().set(
-    compareKey(opened.target, opened.entry.repositoryPath, branch),
-    ref
-  )
+  const opened = await openRepository(caller, worktree, repositoryPath)
+  await CompareTargetStore.fromUserData().set(compareKey(opened, branch), ref)
   return { repositoryPath: opened.entry.repositoryPath, branch, ref }
 }

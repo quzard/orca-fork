@@ -20,6 +20,7 @@ import { resolveSidebarGroupId, folderWorkspaceHostId } from './membership'
 import {
   EMPTY_PROJECT_GROUP_PREFIX,
   WORKSPACE_SIDEBAR_GROUP_ATTRIBUTE,
+  hostDirectoryDefaultHostId,
   looseHostSectionKey,
   parseHostDirectorySectionKey
 } from './section-keys'
@@ -146,13 +147,15 @@ function workspaceBelongsToGroup(
   hostId: ExecutionHostId,
   groupId: string | null
 ): boolean {
+  // Rows, projects and groups without a host belong to the sidebar's default host, as drawn.
+  const defaultHostId = hostDirectoryDefaultHostId()
   const groupsById = new Map(state.projectGroups.map((group) => [group.id, group]))
   const worktree = Object.values(state.worktreesByRepo)
     .flat()
     .find((entry) => getWorktreeHostIdentity(entry) === key)
   if (worktree && !worktree.isArchived) {
     const repo = findRepoForHost(state.repos, worktree.repoId, { hostId: worktree.hostId })
-    if (getWorktreeExecutionHostId(worktree, repo ?? undefined, hostId) !== hostId) {
+    if (getWorktreeExecutionHostId(worktree, repo ?? undefined, defaultHostId) !== hostId) {
       return false
     }
     return (
@@ -161,7 +164,7 @@ function workspaceBelongsToGroup(
         inheritedGroupId: repo?.projectGroupId,
         groupsById,
         hostId,
-        defaultHostId: hostId
+        defaultHostId
       }) === groupId
     )
   }
@@ -172,7 +175,7 @@ function workspaceBelongsToGroup(
     return false
   }
   const group = groupsById.get(folder.projectGroupId)
-  if (folderWorkspaceHostId(folder, group, hostId) !== hostId) {
+  if (folderWorkspaceHostId(folder, group, defaultHostId) !== hostId) {
     return false
   }
   return (
@@ -181,7 +184,7 @@ function workspaceBelongsToGroup(
       inheritedGroupId: folder.projectGroupId,
       groupsById,
       hostId,
-      defaultHostId: hostId
+      defaultHostId
     }) === groupId
   )
 }

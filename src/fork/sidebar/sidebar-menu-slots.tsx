@@ -5,7 +5,7 @@ import { DropdownMenuItem } from '../../renderer/src/components/ui/dropdown-menu
 import { Button } from '../../renderer/src/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../../renderer/src/components/ui/tooltip'
 import { forkTranslate } from '../i18n/fork-translate'
-import { getWorktreeExecutionHostId } from '../../shared/execution-host'
+import { getRepoExecutionHostId, getWorktreeExecutionHostId } from '../../shared/execution-host'
 import { useAppStore } from '../../renderer/src/store'
 import {
   registerHostSectionMenuExtra,
@@ -18,12 +18,7 @@ function openVisibility(hostId: string | undefined, repoId?: string): void {
   const state = useAppStore.getState()
   const repo =
     (repoId ? state.repos.find((entry) => entry.id === repoId) : undefined) ??
-    state.repos.find(
-      (entry) =>
-        !hostId ||
-        entry.executionHostId === hostId ||
-        (!entry.executionHostId && hostId === 'local')
-    )
+    state.repos.find((entry) => !hostId || getRepoExecutionHostId(entry) === hostId)
   if (!repo) {
     return
   }

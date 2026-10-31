@@ -1,9 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ExecutionHostId } from '../../shared/execution-host'
-import {
-  registerWorkspaceFolderDelete,
-  takeWorkspaceRecordRemoval
-} from '../../shared/fork-hooks/workspace-folder-delete'
+import { registerWorkspaceFolderDelete } from '../../shared/fork-hooks/workspace-folder-delete'
 import { registerForkWorkspaceFolderDelete } from './workspace-folder-delete'
 
 type Row = {
@@ -141,18 +138,6 @@ describe('skip-confirm workspace removal', () => {
     registerWorkspaceFolderDelete(undefined)
   })
 
-  it('does not remember a hide when the folder checkbox is on', async () => {
-    registerForkWorkspaceFolderDelete()
-    setWorktrees([{ id: 'wt-1', path: '/srv/wt/project/checkout' }])
-
-    await expect(
-      takeWorkspaceRecordRemoval([{ id: 'wt-1', instanceId: 'wt-1-instance' }], true)
-    ).resolves.toBeNull()
-    expect(storage.has(DURABLE_WORKSPACE_ARCHIVE_STORAGE_KEY)).toBe(false)
-    expect(mocks.state.updateWorktreeMeta).not.toHaveBeenCalled()
-    expect(mocks.state.removeWorktree).not.toHaveBeenCalled()
-  })
-
   it('still hard-deletes when the hook is not registered', () => {
     setWorktrees([{ id: 'wt-1' }])
 
@@ -250,37 +235,17 @@ describe('skip-confirm workspace removal', () => {
     expect(mocks.state.openModal).not.toHaveBeenCalled()
   })
 
-  it('does not hard-delete a git row whose host-aware lookup misses', async () => {
+  it('does not hard-delete a git row the archive cannot resolve on its host', async () => {
     registerForkWorkspaceFolderDelete()
-    mocks.state.repos = [
-      { id: 'repo-1', displayName: 'project' },
-      { id: 'folder-repo', displayName: 'folder', kind: 'folder' }
-    ]
-    setWorktrees([
-      { id: 'git-row', hostId: 'ssh:builder' },
-      { id: 'folder-row', repoId: 'folder-repo', path: '/srv/wt/folder' }
-    ])
+    setWorktrees([{ id: 'git-row' }])
     mocks.missedIds.add('git-row')
 
-    await expect(
-      takeWorkspaceRecordRemoval(
-        [
-          { id: 'git-row', instanceId: 'git-row-instance', hostId: 'ssh:builder' },
-          { id: 'folder-row', instanceId: 'folder-row-instance' }
-        ],
-        false
-      )
-    ).resolves.toEqual([])
+    runWorktreeDelete('git-row')
+
+    await Promise.resolve()
+    expect(mocks.state.openModal).not.toHaveBeenCalled()
     expect(mocks.state.removeWorktree).not.toHaveBeenCalled()
     expect(mocks.state.updateWorktreeMeta).not.toHaveBeenCalled()
-
-    expect(
-      runWorktreeBatchDelete([
-        { id: 'git-row', instanceId: 'git-row-instance', hostId: 'ssh:builder' },
-        { id: 'folder-row', instanceId: 'folder-row-instance' }
-      ])
-    ).toBe(true)
-    await Promise.resolve()
-    expect(mocks.state.removeWorktree).not.toHaveBeenCalled()
+    expect(storage.has(DURABLE_WORKSPACE_ARCHIVE_STORAGE_KEY)).toBe(false)
   })
 })

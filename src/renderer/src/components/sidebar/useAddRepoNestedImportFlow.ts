@@ -1,3 +1,4 @@
+/* oxlint-disable max-lines -- fork: hook call only */
 import { useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 import { track } from '@/lib/telemetry'
@@ -112,7 +113,10 @@ export function useAddRepoNestedImportFlow({
       }
       const foundCount = nestedScan.repos.length
       const selectedCount = nestedSelectedPaths.size
-      const paths = getSelectedNestedRepoPathsInScanOrder(nestedScan, nestedSelectedPaths)
+      const selectedProjectPaths = getSelectedNestedRepoPathsInScanOrder(
+        nestedScan,
+        nestedSelectedPaths
+      )
       const runtimeKind = nestedRuntimeKind ?? getNestedRepoRuntimeKind(nestedConnectionId)
       const gen = ++nestedImportGenRef.current
       setIsAdding(true)
@@ -132,7 +136,7 @@ export function useAddRepoNestedImportFlow({
         const result = await importNestedRepos({
           parentPath: nestedScan.selectedPath,
           groupName: nestedGroupName,
-          projectPaths: paths,
+          projectPaths: selectedProjectPaths,
           ...(nestedConnectionId ? { connectionId: nestedConnectionId } : {}),
           ...(nestedImportScanId ? { scanId: nestedImportScanId } : {}),
           runtimeEnvironmentId: nestedRuntimeEnvironmentId,
@@ -203,9 +207,14 @@ export function useAddRepoNestedImportFlow({
             : activeRuntimeEnvironmentId?.trim()
               ? 'runtime_server_path'
               : 'local_folder_picker'
-          // fork: 把父目录和所选子路径交给随后的交接回调。未登记时立即返回。
           noteForkPostImportContext(
-            nestedHandoff(nestedScan, paths, result, nestedConnectionId, nestedRuntimeEnvironmentId)
+            nestedHandoff(
+              nestedScan,
+              selectedProjectPaths,
+              result,
+              nestedConnectionId,
+              nestedRuntimeEnvironmentId
+            )
           )
           await onGitRepoReady(
             repo.id,

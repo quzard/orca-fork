@@ -14,7 +14,7 @@ import {
   LOCAL_EXECUTION_HOST_ID,
   toRuntimeExecutionHostId
 } from '../../../../shared/execution-host'
-import { runForkPostImport } from '../../../../shared/fork-hooks/post-import'
+import { runForkRepoRegistered } from '../../../../shared/fork-hooks/post-import'
 import type { RepoSlice } from './repo-state'
 import { ERROR_TOAST_DURATION } from './repo-state'
 import { fetchRuntimeAddProjectPathStatus, getRuntimeEnvironmentDisplayName } from './owner-routing'
@@ -147,16 +147,9 @@ export function createRepoAddActions(
           // Why after the set(): the project row carrying the runtime override only exists once the repo is in state.
           warnIfProjectCrossesWslFilesystemBoundary(repo, get().projects, get().settings)
         }
-        // fork: 登记完成回调。未登记时不 await。
-        const pendingPostImport = runForkPostImport({
-          phase: 'registered',
-          repoId: repo.id,
-          path,
-          worktreePath: path,
-          executionHostId: getRepoExecutionHostId(repo)
-        })
-        if (pendingPostImport) {
-          await pendingPostImport
+        const forkPostImport = runForkRepoRegistered(repo, path)
+        if (forkPostImport) {
+          await forkPostImport
         }
         return repo
       } catch (err) {

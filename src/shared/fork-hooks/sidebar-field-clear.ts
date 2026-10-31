@@ -5,11 +5,12 @@
 export const CLEARABLE_SIDEBAR_FIELDS = ['sidebarGroupId', 'manualOrder'] as const
 export type ClearableSidebarField = (typeof CLEARABLE_SIDEBAR_FIELDS)[number]
 
+type SidebarFields = { sidebarGroupId?: string | null; manualOrder?: number }
+
 /** Fields present on `updates` with the value `undefined`: the caller asked to clear them. */
 export function sidebarFieldsToClear(updates: object): ClearableSidebarField[] {
   return CLEARABLE_SIDEBAR_FIELDS.filter(
-    (field) =>
-      Object.hasOwn(updates, field) && (updates as Record<string, unknown>)[field] === undefined
+    (field) => Object.hasOwn(updates, field) && Reflect.get(updates, field) === undefined
   )
 }
 
@@ -31,24 +32,9 @@ export function encodeSidebarFieldClears<T extends object>(
   }
   const rest = { ...updates }
   for (const field of clearFields) {
-    delete (rest as Record<string, unknown>)[field]
+    Reflect.deleteProperty(rest, field)
   }
   return { updates: rest, clearFields }
-}
-
-/** Host side: the cleared fields become own `undefined` keys, which a spread merge removes. */
-export function decodeSidebarFieldClears<T extends object>(
-  updates: T,
-  clearFields: readonly ClearableSidebarField[] | undefined
-): T {
-  if (!clearFields || clearFields.length === 0) {
-    return updates
-  }
-  const next = { ...updates }
-  for (const field of clearFields) {
-    ;(next as Record<string, unknown>)[field] = undefined
-  }
-  return next
 }
 
 /** For untyped IPC input: keeps only known field names. */
@@ -60,12 +46,64 @@ export function parseClearableSidebarFields(value: unknown): ClearableSidebarFie
 }
 
 /**
+ * Host side, in place: each cleared field becomes an own `undefined` key on `updates`, which the
+ * spread merge of the write removes. `clearFields` may be untyped IPC input.
+ */
+export function applySidebarFieldClears(updates: object, clearFields: unknown): void {
+  for (const field of parseClearableSidebarFields(clearFields) ?? []) {
+    Reflect.set(updates, field, undefined)
+  }
+}
+
+/** Host side, as an expression: `updates` with the cleared fields as own `undefined` keys. */
+export function decodeSidebarFieldClears<T extends object>(
+  updates: T,
+  clearFields: readonly ClearableSidebarField[] | undefined
+): T {
+  if (!clearFields || clearFields.length === 0) {
+    return updates
+  }
+  const next = { ...updates }
+  applySidebarFieldClears(next, clearFields)
+  return next
+}
+
+/**
+ * The worktree.set reply: each sidebar field this write set or cleared, as the store holds it after
+ * the write. `show` may resolve a row whose projection lacks the field; echoing the request instead
+ * would hide a store that did not apply it. An older host has no echo, so its reply still lacks a
+ * group it dropped and the client reports it (fork/sidebar/sidebar-fields-applied).
+ */
+export function echoSidebarFields<T extends SidebarFields>(
+  shown: T,
+  updates: object,
+  written: SidebarFields | undefined
+): T {
+  const echoed = { ...shown }
+  if (Object.hasOwn(updates, 'sidebarGroupId')) {
+    if (written?.sidebarGroupId === undefined) {
+      delete echoed.sidebarGroupId
+    } else {
+      echoed.sidebarGroupId = written.sidebarGroupId
+    }
+  }
+  if (Object.hasOwn(updates, 'manualOrder')) {
+    if (written?.manualOrder === undefined) {
+      delete echoed.manualOrder
+    } else {
+      echoed.manualOrder = written.manualOrder
+    }
+  }
+  return echoed
+}
+
+/**
  * True when a host answered without the requested group or clear, e.g. an older host whose schema
  * strips them. Folder writes reconcile; worktree writes fail (fork/sidebar/sidebar-fields-applied).
  */
 export function folderSidebarFieldsNotApplied(
-  updates: { sidebarGroupId?: string | null; manualOrder?: number },
-  updated: { sidebarGroupId?: string | null; manualOrder?: number }
+  updates: SidebarFields,
+  updated: SidebarFields
 ): boolean {
   if (updates.sidebarGroupId !== undefined && updated.sidebarGroupId !== updates.sidebarGroupId) {
     return true
@@ -78,8 +116,8 @@ export function folderSidebarFieldsNotApplied(
  * 字段自己的 `undefined` 表示清除，不能和「这次没改」混在一起。
  */
 export function applyFolderSidebarFieldUpdate(
-  workspace: { sidebarGroupId?: string | null; manualOrder?: number },
-  updates: { sidebarGroupId?: string | null; manualOrder?: number }
+  workspace: SidebarFields,
+  updates: SidebarFields
 ): void {
   if (updates.sidebarGroupId !== undefined) {
     workspace.sidebarGroupId = updates.sidebarGroupId

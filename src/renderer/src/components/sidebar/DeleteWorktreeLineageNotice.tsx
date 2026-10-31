@@ -14,6 +14,7 @@ import type {
   DeleteWorktreeDirtyChangePreview
 } from './delete-worktree-dirty-change-counts'
 import { translate } from '@/i18n/i18n'
+import { keptLineageText } from '../../../../shared/fork-hooks/workspace-folder-delete'
 
 type DeleteWorktreeLineageNoticeProps = {
   descendants: readonly Worktree[]
@@ -22,7 +23,6 @@ type DeleteWorktreeLineageNoticeProps = {
   dirtyChangeCountsByWorktreeId: ReadonlyMap<string, number>
   dirtyChangePreviewsByWorktreeId: ReadonlyMap<string, DeleteWorktreeDirtyChangePreview>
   changeCheckStatesByWorktreeId?: ReadonlyMap<string, DeleteWorktreeChangeCheckState>
-  // 软删除时替换“子工作区会被删掉”这两句。未传入时仍是上游原文。
   folderKeptNotice?: { title: string; body: string } | null
 }
 
@@ -35,6 +35,8 @@ export function DeleteWorktreeLineageNotice({
   changeCheckStatesByWorktreeId,
   folderKeptNotice
 }: DeleteWorktreeLineageNoticeProps): JSX.Element | null {
+  const title = keptLineageText(translate, folderKeptNotice?.title)
+  const body = keptLineageText(translate, folderKeptNotice?.body)
   const projects = useAppStore((s) => s.projects)
   const projectHostSetups = useAppStore((s) => s.projectHostSetups)
   const projectIndex = useMemo(
@@ -67,23 +69,20 @@ export function DeleteWorktreeLineageNotice({
         <Workflow className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
           <div className="font-medium text-foreground">
-            {folderKeptNotice?.title ??
-              translate(
-                'auto.components.sidebar.DeleteWorktreeLineageNotice.a940f3c96e',
-                'Child workspaces will be deleted'
-              )}
+            {title.t(
+              'auto.components.sidebar.DeleteWorktreeLineageNotice.a940f3c96e',
+              'Child workspaces will be deleted'
+            )}
           </div>
           <div className="mt-1 text-muted-foreground">
-            {folderKeptNotice?.body ??
-              translate(
-                'auto.components.sidebar.DeleteWorktreeLineageNotice.alsoDeletesChildren',
-                'Deleting this workspace also deletes {{count}} child workspaces.',
-                {
-                  count: childWorkspaceCount,
-                  defaultValue_one:
-                    'Deleting this workspace also deletes {{count}} child workspace.'
-                }
-              )}
+            {body.t(
+              'auto.components.sidebar.DeleteWorktreeLineageNotice.alsoDeletesChildren',
+              'Deleting this workspace also deletes {{count}} child workspaces.',
+              {
+                count: childWorkspaceCount,
+                defaultValue_one: 'Deleting this workspace also deletes {{count}} child workspace.'
+              }
+            )}
             {foreignProjects.length > 0 ? ` (${foreignProjects.join(', ')})` : null}
           </div>
           {/* Constrain grid min-content width so nowrap paths cannot widen the modal. */}

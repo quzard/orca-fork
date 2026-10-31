@@ -1,9 +1,15 @@
 // Manual-order values a cross-group drop writes. Kept apart from the write plan so each stays small.
+import { normalizeExecutionHostId } from '../../shared/execution-host'
 import { folderWorkspaceToWorktree } from '../../shared/folder-workspace-worktree'
-import { getWorktreeIdFromHostIdentity } from '../../shared/worktree/host-qualified-identity'
+import {
+  getWorktreeHostIdentity,
+  getWorktreeIdFromHostIdentity
+} from '../../shared/worktree/host-qualified-identity'
 import type { Worktree } from '../../shared/worktree/types'
+import { folderWorkspaceKey } from '../../shared/workspace-scope'
 import type { WorktreeDragGroup } from '../../renderer/src/components/sidebar/worktree-manual-order'
 import { manualOrderKey, manualOrderedRows } from './manual-order'
+import { parseHostDirectorySectionKey } from './section-keys'
 import type { GroupDropState, GroupDropTarget } from './workspace-group-drop-plan'
 
 export const GROUP_DROP_ORDER_STRIDE = 1000
@@ -12,9 +18,9 @@ export const GROUP_DROP_MIN_ORDER_STEP = 1e-6
 
 type OrderUpdates = ReadonlyMap<string, { manualOrder: number }>
 
-/** Every row's manual-sort key (manual-order.ts), the one the sidebar draws by. */
+/** Every row's manual-sort key (manual-order.ts), the one the sidebar draws by, by host identity. */
 function effectiveOrderKeys(rows: readonly Worktree[]): Map<string, number> {
-  return new Map(rows.map((row) => [row.id, manualOrderKey(row)]))
+  return new Map(rows.map((row) => [getWorktreeHostIdentity(row), manualOrderKey(row)]))
 }
 
 /** True when the keys explain the order: never rising from one row to the next. */
@@ -79,13 +85,26 @@ function sectionOrder(
 function storedManualOrders(state: GroupDropState): Map<string, number | undefined> {
   const stored = new Map<string, number | undefined>()
   for (const row of Object.values(state.worktreesByRepo).flat()) {
-    stored.set(row.id, row.manualOrder)
+    stored.set(getWorktreeHostIdentity(row), row.manualOrder)
   }
   for (const workspace of state.folderWorkspaces) {
     const row = folderWorkspaceToWorktree(workspace)
-    stored.set(row.id, row.manualOrder)
+    stored.set(getWorktreeHostIdentity(row), row.manualOrder)
   }
   return stored
+}
+
+/** The host identity a dragged id has on the drop's host, the key drag groups use for that card. */
+function draggedRowKey(state: GroupDropState, id: string, hostId: string): string | null {
+  const folder = state.folderWorkspaces.find(
+    (entry) => entry.id === id || folderWorkspaceKey(entry.id) === id
+  )
+  if (folder) {
+    return getWorktreeHostIdentity(folderWorkspaceToWorktree(folder))
+  }
+  const host = normalizeExecutionHostId(hostId)
+  const worktree = host ? state.getKnownWorktreeById(id, host) : undefined
+  return worktree ? getWorktreeHostIdentity(worktree) : null
 }
 
 function changedOnly(
@@ -210,6 +229,10 @@ function renumberWithinList(
  * order, the moved rows at the drop point. Those values stay inside the gap left by rows of other
  * sections, so the order across the full list is kept; only when that gap has no room either is
  * the whole section renumbered from its own top. Only the returned rows change.
+ *
+ * Rows are told apart by host identity: a same-id workspace on another host keeps its own key and
+ * place. `belongsToTarget` gets host identities; the result is keyed by workspace id, since every
+ * written row is on the target section's host.
  */
 export function buildGroupDropOrder(
   state: GroupDropState,
@@ -217,29 +240,47 @@ export function buildGroupDropOrder(
   target: GroupDropTarget,
   draggedIds: readonly string[],
   dropIndex: number,
-  belongsToTarget: (id: string) => boolean,
+  belongsToTarget: (key: string) => boolean,
   now = Date.now()
 ): OrderUpdates {
-  // 拖放分组的成员是主机身份（主机|工作区 id）。这里仍按工作区 id 写排序，先还原。
-  const visible = (groups.find((group) => group.key === target.key)?.worktreeIds ?? []).map(
-    getWorktreeIdFromHostIdentity
+  const hostId = parseHostDirectorySectionKey(target.key)?.hostId ?? ''
+  const draggedKeys = draggedIds.flatMap((id) => draggedRowKey(state, id, hostId) ?? [])
+  const byKey = buildGroupDropOrderByKey(
+    state,
+    groups.find((group) => group.key === target.key)?.worktreeIds ?? [],
+    groups.flatMap((group) => group.worktreeIds),
+    draggedKeys,
+    dropIndex,
+    belongsToTarget,
+    now
   )
+  return new Map(
+    [...byKey].map(([key, update]) => [getWorktreeIdFromHostIdentity(key), update] as const)
+  )
+}
+
+function buildGroupDropOrderByKey(
+  state: GroupDropState,
+  visible: readonly string[],
+  shownKeys: readonly string[],
+  draggedKeys: readonly string[],
+  dropIndex: number,
+  belongsToTarget: (key: string) => boolean,
+  now: number
+): OrderUpdates {
   const rows = manualOrderedRows(
     Object.values(state.worktreesByRepo).flat(),
     state.folderWorkspaces
   )
-  const orderedIds = rows.map((row) => row.id)
+  const orderedIds = rows.map((row) => getWorktreeHostIdentity(row))
   const keys = effectiveOrderKeys(rows)
   const visibleSet = new Set(visible)
-  const dragged = new Set(draggedIds)
+  const dragged = new Set(draggedKeys)
   const hidden = orderedIds.filter(
     (id) => !visibleSet.has(id) && !dragged.has(id) && belongsToTarget(id)
   )
-  const shown = groups
-    .flatMap((group) => group.worktreeIds)
-    .map(getWorktreeIdFromHostIdentity)
-    .filter((id) => dragged.has(id))
-  const moved = [...new Set([...shown, ...draggedIds])]
+  const shown = shownKeys.filter((id) => dragged.has(id))
+  const moved = [...new Set([...shown, ...draggedKeys])]
   // The drop index counts the rows the target group shows.
   const bounded = Math.max(0, Math.min(dropIndex, visible.length))
   const removedBefore = visible.slice(0, bounded).filter((id) => dragged.has(id)).length

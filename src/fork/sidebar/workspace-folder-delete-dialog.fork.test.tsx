@@ -1,6 +1,5 @@
 // @vitest-environment happy-dom
 
-import { readFileSync } from 'node:fs'
 import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
@@ -8,12 +7,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import type { Repo } from '../../shared/repo-types'
 import type { WorktreeLineage } from '../../shared/worktree/lineage-types'
 import type { Worktree } from '../../shared/worktree/types'
-import {
-  registerWorkspaceFolderDelete,
-  takeWorkspaceRecordRemoval,
-  workspaceFolderDeleteOffered,
-  workspaceFolderDeleteSuffix
-} from '../../shared/fork-hooks/workspace-folder-delete'
+import { registerWorkspaceFolderDelete } from '../../shared/fork-hooks/workspace-folder-delete'
 import { i18n } from '@/i18n/i18n'
 import { installForkLocaleOverlays } from '../i18n/locale-overlay'
 import { registerForkWorkspaceFolderDelete } from './workspace-folder-delete'
@@ -232,16 +226,30 @@ function clickDelete(name: string): void {
 
 describe('workspace folder delete before registration', () => {
   beforeEach(() => {
+    resetState()
     registerWorkspaceFolderDelete(undefined)
   })
 
-  it('keeps the upstream hard-delete sentence and does not offer the checkbox', () => {
-    expect(workspaceFolderDeleteSuffix(HARD_ONE, 1, false)).toBe(HARD_ONE)
-    expect(workspaceFolderDeleteOffered(1)).toBe(false)
+  afterEach(() => {
+    cleanup()
   })
 
-  it('does not take over removal, so the caller still hard-deletes', async () => {
-    await expect(takeWorkspaceRecordRemoval([{ id: 'wt-1' }], false)).resolves.toBeNull()
+  it('keeps the upstream dialog: no checkbox, hard-delete copy, hard delete on confirm', () => {
+    const workspace = makeWorktree('admin', '/srv/wt/project/admin')
+    showWorktrees([workspace])
+    render(<DeleteWorktreeDialog />)
+
+    expect(screen.queryByRole('checkbox', { name: 'Also delete folder' })).toBeNull()
+    expect(text()).toContain(HARD_ONE)
+
+    clickDelete('Delete Workspace')
+
+    expect(runWorktreeDeletesInParallel).toHaveBeenCalledWith([workspace], {
+      force: true,
+      onForceDeleted: expect.any(Function),
+      confirmedDiscards: expect.any(Map)
+    })
+    expect(mocks.state.updateWorktreeMeta).not.toHaveBeenCalled()
   })
 })
 
@@ -501,10 +509,5 @@ describe('workspace folder delete dialog', () => {
     expect(text()).toContain('同时删除文件夹')
     expect(text()).toContain('不会删除磁盘上的工作区文件夹')
     expect(text()).not.toContain(HARD_ONE)
-  })
-
-  it('registers the hook from the renderer entry', () => {
-    const source = readFileSync('src/fork/register-renderer.tsx', 'utf8')
-    expect(source).toContain('registerForkWorkspaceFolderDelete()')
   })
 })

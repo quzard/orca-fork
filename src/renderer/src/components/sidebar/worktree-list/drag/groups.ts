@@ -29,8 +29,7 @@ export function getWorktreeDragGroups(rows: HostSectionRow[]): WorktreeDragGroup
     if (row.sectionKey === PINNED_GROUP_KEY && naturalWorktreeKeys.has(worktreeKey)) {
       continue
     }
-    // fork: a section without a header row (the fork's ungrouped list) starts its own group under
-    // its own key; it used to join the previous group or ALL, and the drag session cancelled.
+    // fork: a header-less section (the fork's ungrouped list) is its own group, not the previous one.
     if (!current || (row.sectionKey !== ALL_GROUP_KEY && row.sectionKey !== current.key)) {
       current = { key: row.sectionKey, ids: [] }
       groups.push({ key: current.key, worktreeIds: current.ids })

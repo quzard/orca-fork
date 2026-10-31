@@ -14,12 +14,13 @@ export type WorktreeMenuGroups = {
   onRemove: () => void
 }
 
+/** The context menu model's own fields, so the menu passes its model as is. */
 export type WorktreeMenuGroupsArgs = {
   worktree: Worktree
   repo: Repo | null | undefined
   projectGroups: readonly ProjectGroup[]
-  onMove: (groupId: string) => void
-  onRemove: () => void
+  handleMoveProjectToGroup: (groupId: string) => void
+  handleRemoveProjectFromGroup: () => void
 }
 
 type MenuGroupsHook = (args: WorktreeMenuGroupsArgs) => WorktreeMenuGroups
@@ -37,7 +38,7 @@ export function worktreeMenuGroups(args: WorktreeMenuGroupsArgs): WorktreeMenuGr
   return {
     groups: args.projectGroups,
     currentGroupId: args.repo?.projectGroupId ?? null,
-    onMove: args.onMove,
-    onRemove: args.onRemove
+    onMove: args.handleMoveProjectToGroup,
+    onRemove: args.handleRemoveProjectFromGroup
   }
 }

@@ -2,6 +2,8 @@
 import type { Worktree } from '../../shared/worktree/types'
 import { registerWorkspaceChoiceFormatter } from '../../shared/fork-hooks/sidebar-chrome'
 import { useAppStore } from '../../renderer/src/store'
+import { findRepoForHost } from '../../renderer/src/store/slices/repo-host-identity'
+import { branchName } from '../../renderer/src/lib/git-utils'
 import { getWorktreeExecutionHostId } from '../../shared/execution-host'
 import { directoryLabelForRepo, directoryLabelsForHost } from './directory-label'
 import { resolveSidebarGroupId } from './membership'
@@ -9,7 +11,8 @@ import { hostDirectoryDefaultHostId } from './section-keys'
 
 function workspaceChoiceText(worktree: Worktree): { label: string; value: string } {
   const state = useAppStore.getState()
-  const repo = state.repos.find((entry) => entry.id === worktree.repoId)
+  const repo =
+    findRepoForHost(state.repos, worktree.repoId, { hostId: worktree.hostId }) ?? undefined
   const defaultHostId = hostDirectoryDefaultHostId()
   const hostId = getWorktreeExecutionHostId(worktree, repo, defaultHostId)
   const directory =
@@ -25,7 +28,7 @@ function workspaceChoiceText(worktree: Worktree): { label: string; value: string
   const groupName = groupId ? groupsById.get(groupId)?.name : undefined
   const parts = [
     directory || worktree.displayName,
-    worktree.branch,
+    branchName(worktree.branch),
     groupName,
     worktree.path
   ].filter((part): part is string => Boolean(part && part.length > 0))

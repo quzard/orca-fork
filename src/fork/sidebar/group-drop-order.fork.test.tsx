@@ -3,13 +3,21 @@ import { normalizeExecutionHostId, type ExecutionHostId } from '../../shared/exe
 import type { Worktree } from '../../shared/worktree/types'
 import { hostDirectorySectionKey, looseHostSectionKey } from './section-keys'
 import { buildWorktreeManualOrderCatalog } from '../../renderer/src/components/sidebar/worktree-manual-order-catalog'
-import { getWorktreeIdFromHostIdentity } from '../../shared/worktree/host-qualified-identity'
+import {
+  composeWorktreeHostIdentity,
+  getWorktreeIdFromHostIdentity
+} from '../../shared/worktree/host-qualified-identity'
 import { buildGroupDropOrder } from './group-drop-order'
 import { planGroupDropItems, type GroupDropState } from './workspace-group-drop-plan'
 
 const HOST = normalizeExecutionHostId('ssh:devbox') as ExecutionHostId
 const LOOSE = looseHostSectionKey(HOST)
 const GROUP = hostDirectorySectionKey(HOST, 'g1')
+
+// Drag groups list host identities, as the sidebar's drag groups do.
+function keys(ids: readonly string[], host: ExecutionHostId = HOST): string[] {
+  return ids.map((id) => composeWorktreeHostIdentity(host, id))
+}
 
 function row(id: string, extra: Partial<Worktree>): Worktree {
   return {
@@ -52,8 +60,8 @@ const state: GroupDropState = {
 }
 
 const groups = [
-  { key: GROUP, worktreeIds: ['moved'] },
-  { key: LOOSE, worktreeIds: ['a', 'b', 'c'] }
+  { key: GROUP, worktreeIds: keys(['moved']) },
+  { key: LOOSE, worktreeIds: keys(['a', 'b', 'c']) }
 ]
 
 function order(dropIndex: number) {
@@ -93,8 +101,8 @@ describe('group drop order', () => {
     const updates = buildGroupDropOrder(
       state,
       [
-        { key: GROUP, worktreeIds: ['moved', 'a'] },
-        { key: LOOSE, worktreeIds: ['b', 'c'] }
+        { key: GROUP, worktreeIds: keys(['moved', 'a']) },
+        { key: LOOSE, worktreeIds: keys(['b', 'c']) }
       ],
       { groupId: null, key: LOOSE },
       ['moved', 'a'],
@@ -145,9 +153,9 @@ function applyAndList(
       : entry
   })
   const catalog = buildWorktreeManualOrderCatalog({ worktrees: rows, folderWorkspaces: [] })
-  const loose = catalog.orderedKeys.map(getWorktreeIdFromHostIdentity).filter(
-    (id) => !rows.find((entry) => entry.id === id)!.sidebarGroupId
-  )
+  const loose = catalog.orderedKeys
+    .map(getWorktreeIdFromHostIdentity)
+    .filter((id) => !rows.find((entry) => entry.id === id)!.sidebarGroupId)
   return { rows, loose }
 }
 
@@ -165,8 +173,8 @@ function dropInto(
       getKnownWorktreeById: (id) => rows.find((entry) => entry.id === id)
     },
     [
-      { key: GROUP, worktreeIds: grouped },
-      { key: LOOSE, worktreeIds: [...loose] }
+      { key: GROUP, worktreeIds: keys(grouped) },
+      { key: LOOSE, worktreeIds: keys(loose) }
     ],
     { groupId: null, key: LOOSE },
     dragged,
@@ -329,5 +337,43 @@ describe('group drop order keeps the order across the full list when it renumber
     const updates = dropInto(rows, ['b1', 'b2'], ['moved'], 1)
     const { loose } = applyAndList(rows, updates, ['moved'])
     expect(loose).toEqual(['b1', 'moved', 'b2'])
+  })
+})
+
+describe('group drop order with a same-id workspace on another host', () => {
+  const OTHER = normalizeExecutionHostId('ssh:other') as ExecutionHostId
+
+  it('ranks against the target host row, not its twin', () => {
+    // The twin of "a" on another host sorts first in the full list (2000 > 800).
+    const twins = [
+      row('moved', { sidebarGroupId: 'g1', sortOrder: 900 }),
+      row('a', { sortOrder: 800 }),
+      row('b', { sortOrder: 500 }),
+      row('a', { hostId: OTHER, sortOrder: 2000 })
+    ]
+    const twinState: GroupDropState = {
+      ...state,
+      worktreesByRepo: { r1: twins },
+      getKnownWorktreeById: (id, hostId) =>
+        twins.find((entry) => entry.id === id && (!hostId || entry.hostId === hostId))
+    }
+    const updates = buildGroupDropOrder(
+      twinState,
+      [
+        { key: GROUP, worktreeIds: keys(['moved']) },
+        { key: LOOSE, worktreeIds: keys(['a', 'b']) },
+        { key: looseHostSectionKey(OTHER), worktreeIds: keys(['a'], OTHER) }
+      ],
+      { groupId: null, key: LOOSE },
+      ['moved'],
+      1,
+      () => false,
+      10_000
+    )
+    expect([...updates.keys()]).toEqual(['moved'])
+    const rank = updates.get('moved')!.manualOrder
+    // Between this host's a (800) and b (500): the twin's 2000 must not stand in for a.
+    expect(rank).toBeLessThan(800)
+    expect(rank).toBeGreaterThan(500)
   })
 })

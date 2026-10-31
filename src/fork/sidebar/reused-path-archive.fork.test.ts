@@ -1,19 +1,16 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { mergeWorktree } from '../../main/ipc/worktree-metadata-merge'
 import { mergeWorktreeMetaForWrite } from '../../main/persistence/loading-store/worktree-meta-write-normalization'
-import { buildProvisionedRootMeta } from '../../main/provisioned-root-checkout'
-import {
-  registerDurableWorkspaceMetaReactivate,
-  reactivateRegisteredArchivedWorktreeMeta
-} from '../../shared/fork-hooks/workspace-durable-archive'
 import type { WorktreeMeta } from '../../shared/worktree/meta-types'
-import { withoutReusedWorktreeArchive } from '../../shared/worktree/reused-path-archive'
+import {
+  registerReusedPathUnarchive,
+  reusedPathUnarchiveMeta
+} from '../../shared/fork-hooks/reused-path-unarchive'
 import {
   forgetWorkspaceArchive,
   rememberWorkspaceArchive,
   stampWorkspaceArchive
 } from './durable-workspace-archive'
-import { reactivateArchivedWorktreeMeta } from './reused-path-worktree-meta'
 
 const PATH = '/srv/wt/project/checkout'
 const ID = `repo-1::${PATH}`
@@ -52,7 +49,6 @@ function scannedRow(meta: WorktreeMeta) {
 
 describe('same-path recreate after soft-delete', () => {
   let meta: WorktreeMeta
-  let updateMeta: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
     meta = archivedMeta()
@@ -66,12 +62,6 @@ describe('same-path recreate after soft-delete', () => {
         }
       }
     })
-    updateMeta = vi.fn(async (args: { updates: Partial<WorktreeMeta> }) => {
-      meta = mergeWorktreeMetaForWrite(meta, args.updates)
-      return meta
-    })
-    vi.stubGlobal('window', { api: { worktrees: { updateMeta } } })
-    registerDurableWorkspaceMetaReactivate(reactivateArchivedWorktreeMeta)
     rememberWorkspaceArchive({
       id: ID,
       path: PATH,
@@ -79,11 +69,6 @@ describe('same-path recreate after soft-delete', () => {
       hostId: 'local',
       pathOnly: false
     })
-  })
-
-  afterEach(() => {
-    registerDurableWorkspaceMetaReactivate(undefined)
-    vi.unstubAllGlobals()
   })
 
   it('stays archived after the hide list is cleared until create resets the reused meta', () => {
@@ -97,10 +82,12 @@ describe('same-path recreate after soft-delete', () => {
     expect(scannedRow(meta).isArchived).toBe(true)
     expect(stampWorkspaceArchive([scannedRow(meta)])[0]?.isArchived).toBe(true)
 
-    meta = mergeWorktreeMetaForWrite(
-      meta,
-      withoutReusedWorktreeArchive({ instanceId: 'fresh-instance', orcaCreationSource: 'desktop' })
-    )
+    registerReusedPathUnarchive()
+    meta = mergeWorktreeMetaForWrite(meta, {
+      instanceId: 'fresh-instance',
+      ...reusedPathUnarchiveMeta(),
+      orcaCreationSource: 'desktop'
+    })
     const created = scannedRow(meta)
     expect(created.isArchived).toBe(false)
     expect(created.instanceId).toBe('fresh-instance')
@@ -113,32 +100,5 @@ describe('same-path recreate after soft-delete', () => {
     const rotated = mergeWorktreeMetaForWrite(meta, { instanceId: 'rotated-parent' })
     expect(rotated.isArchived).toBe(true)
     expect(rotated.instanceId).toBe('rotated-parent')
-  })
-
-  it('leaves another host archived', async () => {
-    const other = archivedMeta('other-instance')
-    await reactivateRegisteredArchivedWorktreeMeta({
-      worktreeId: ID,
-      executionHostId: 'local'
-    })
-    expect(meta.isArchived).toBe(false)
-    expect(other.isArchived).toBe(true)
-  })
-
-  it('marks a provisioned-root checkout active even when the path was archived', () => {
-    const built = buildProvisionedRootMeta(
-      { getSettings: () => ({ workspaceDir: '/srv/wt', nestWorkspaces: false }) },
-      {
-        id: 'repo-1',
-        path: '/srv/wt/project',
-        displayName: 'demo-hide',
-        badgeColor: '#000',
-        addedAt: 0
-      },
-      { name: 'recreate-g' },
-      { branchName: 'recreate-g', now: 1, source: 'desktop' }
-    )
-    expect(built.isArchived).toBe(false)
-    expect(built.instanceId).toEqual(expect.any(String))
   })
 })

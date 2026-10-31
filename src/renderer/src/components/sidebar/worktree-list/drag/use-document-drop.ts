@@ -25,18 +25,8 @@ export function useWorktreeDocumentDrop(args: {
         clearWorktreeDrag()
         return
       }
-      // fork: a cross-group drop wins over lineage and status targets, so a card never becomes
-      // a parent by accident.
-      if (
-        commitRegisteredWorkspaceGroupDrop({
-          x: event.clientX,
-          y: event.clientY,
-          sourceGroupKey: session.sourceGroupKey,
-          draggedIds: session.draggedIds,
-          groups: ctx.worktreeDragGroups,
-          container: ctx.scrollRef.current
-        })
-      ) {
+      // fork: a cross-group drop wins over lineage and status targets (no accidental parenting).
+      if (commitRegisteredWorkspaceGroupDrop(event, session, ctx)) {
         event.preventDefault()
         event.stopPropagation()
         clearWorktreeDrag()

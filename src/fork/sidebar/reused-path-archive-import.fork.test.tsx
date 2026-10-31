@@ -1,19 +1,42 @@
 // 导入和外部收件箱走渲染进程。node 工程只收 src/fork/**/*.ts，
 // 这个测试改成 tsx，由 web 工程类型检查；同路径扫描仍留在 .fork.test.ts。
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Repo } from '../../shared/repo-types'
+import type { WorktreeMeta } from '../../shared/worktree/meta-types'
+
+const mocks = vi.hoisted(() => ({
+  state: {
+    repos: [] as Repo[],
+    settings: null,
+    worktreesByRepo: {},
+    updateWorktreeMeta: vi.fn()
+  }
+}))
+
+vi.mock('@/store', () => ({
+  useAppStore: Object.assign(() => undefined, { getState: () => mocks.state })
+}))
+vi.mock('../../renderer/src/store', () => ({
+  useAppStore: Object.assign(() => undefined, { getState: () => mocks.state })
+}))
+
 import { importNewExternalWorktreeInboxPaths } from '../../renderer/src/components/sidebar/new-external-worktrees-inbox-actions'
 import {
-  registerDurableWorkspaceMetaReactivate,
+  registerImportedWorktreeReactivate,
+  registerRemovedWorkspaceArchiveRelease,
   type DurableArchiveRow
 } from '../../shared/fork-hooks/workspace-durable-archive'
-import type { WorktreeMeta } from '../../shared/worktree/meta-types'
+import { dispatchWorktreeRemoval } from '../../renderer/src/store/slices/worktrees/teardown/dispatch-worktree-removal'
 import { applyForkPostImport } from '../import/apply-post-import'
 import {
   forgetWorkspaceArchive,
   rememberWorkspaceArchive,
   stampWorkspaceArchive
 } from './durable-workspace-archive'
-import { reactivateArchivedWorktreeMeta } from './reused-path-worktree-meta'
+import {
+  reactivateImportedWorktrees,
+  releaseRemovedWorkspaceArchive
+} from './workspace-archive-release'
 
 const PATH = '/srv/wt/project/checkout'
 const ID = `repo-1::${PATH}`
@@ -49,7 +72,6 @@ function archiveRow(meta: WorktreeMeta): DurableArchiveRow {
 
 describe('same-path import after soft-delete', () => {
   let meta: WorktreeMeta
-  let updateMeta: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
     meta = archivedMeta()
@@ -63,13 +85,23 @@ describe('same-path import after soft-delete', () => {
         }
       }
     })
-    // 测试替身只套用 updates。真正的合并在 main，不进这个工程。
-    updateMeta = vi.fn(async (args: { updates: Partial<WorktreeMeta> }) => {
-      meta = { ...meta, ...args.updates }
-      return meta
-    })
-    vi.stubGlobal('window', { api: { worktrees: { updateMeta } } })
-    registerDurableWorkspaceMetaReactivate(reactivateArchivedWorktreeMeta)
+    // 测试替身只套用 updates。真正的合并在宿主上，不进这个工程。
+    mocks.state.repos = [
+      {
+        id: 'repo-1',
+        path: '/srv/wt/project',
+        displayName: 'project',
+        badgeColor: '#000',
+        addedAt: 0
+      }
+    ]
+    mocks.state.updateWorktreeMeta
+      .mockReset()
+      .mockImplementation(async (_id: string, updates: Partial<WorktreeMeta>) => {
+        meta = { ...meta, ...updates }
+        return { ok: true }
+      })
+    registerImportedWorktreeReactivate(reactivateImportedWorktrees)
     rememberWorkspaceArchive({
       id: ID,
       path: PATH,
@@ -80,8 +112,7 @@ describe('same-path import after soft-delete', () => {
   })
 
   afterEach(() => {
-    registerDurableWorkspaceMetaReactivate(undefined)
-    vi.unstubAllGlobals()
+    registerImportedWorktreeReactivate(undefined)
   })
 
   it('imports the same path into the active sidebar after the hide list is cleared', async () => {
@@ -101,11 +132,11 @@ describe('same-path import after soft-delete', () => {
     })
 
     const imported = archiveRow(meta)
-    expect(updateMeta).toHaveBeenCalledWith({
-      worktreeId: ID,
-      executionHostId: 'local',
-      updates: { isArchived: false }
-    })
+    expect(mocks.state.updateWorktreeMeta).toHaveBeenCalledWith(
+      ID,
+      { isArchived: false },
+      { executionHostId: 'local' }
+    )
     expect(imported.isArchived).toBe(false)
     expect(stampWorkspaceArchive([imported])[0]?.isArchived).toBe(false)
   })
@@ -125,11 +156,7 @@ describe('same-path import after soft-delete', () => {
 
     await importNewExternalWorktreeInboxPaths({
       projectId: 'repo-1',
-      repo: {
-        importedExternalWorktreePaths: [],
-        externalWorktreeInboxBaselinePaths: [],
-        executionHostId: 'local'
-      },
+      repo: { importedExternalWorktreePaths: [], externalWorktreeInboxBaselinePaths: [] },
       worktreePaths: [PATH],
       setInboxState: vi.fn(),
       updateRepo: vi.fn().mockResolvedValue(true),
@@ -141,17 +168,13 @@ describe('same-path import after soft-delete', () => {
   })
 
   it('keeps the hide when clearing archived meta fails', async () => {
-    updateMeta.mockRejectedValueOnce(new Error('disk'))
+    mocks.state.updateWorktreeMeta.mockResolvedValueOnce({ ok: false, error: 'disk' })
     const fetchWorktrees = vi.fn().mockResolvedValue(true)
     const updateRepo = vi.fn().mockResolvedValue(true)
 
     await importNewExternalWorktreeInboxPaths({
       projectId: 'repo-1',
-      repo: {
-        importedExternalWorktreePaths: [],
-        externalWorktreeInboxBaselinePaths: [],
-        executionHostId: 'local'
-      },
+      repo: { importedExternalWorktreePaths: [], externalWorktreeInboxBaselinePaths: [] },
       worktreePaths: [PATH],
       setInboxState: vi.fn(),
       updateRepo,
@@ -163,5 +186,56 @@ describe('same-path import after soft-delete', () => {
     expect(meta.isArchived).toBe(true)
     const unarchivedScan = archiveRow({ ...archivedMeta(), isArchived: false })
     expect(stampWorkspaceArchive([unarchivedScan])[0]?.isArchived).toBe(true)
+  })
+})
+
+describe('hide record after a confirmed removal', () => {
+  beforeEach(() => {
+    storage.clear()
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (key: string) => storage.get(key) ?? null,
+        setItem: (key: string, value: string) => {
+          storage.set(key, value)
+        }
+      }
+    })
+  })
+
+  afterEach(() => {
+    registerRemovedWorkspaceArchiveRelease(undefined)
+    vi.unstubAllGlobals()
+  })
+
+  it('drops the record once the host confirmed the removal, not when it failed', async () => {
+    rememberWorkspaceArchive({
+      id: ID,
+      path: PATH,
+      repoId: 'repo-1',
+      hostId: 'local',
+      pathOnly: false
+    })
+    registerRemovedWorkspaceArchiveRelease(releaseRemovedWorkspaceArchive)
+    const remove = vi.fn().mockRejectedValueOnce(new Error('dirty')).mockResolvedValueOnce({})
+    vi.stubGlobal('window', { api: { worktrees: { remove } } })
+    const removal = {
+      worktreeId: ID,
+      hostId: 'local' as const,
+      force: false,
+      skipArchive: false,
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: a local removal never reads the store.
+      get: (() => mocks.state) as never,
+      target: { kind: 'local' as const },
+      options: undefined,
+      assertCurrent: () => undefined
+    }
+
+    await expect(dispatchWorktreeRemoval(removal)).rejects.toThrow('dirty')
+    expect(stampWorkspaceArchive([archiveRow(archivedMeta())])[0]?.isArchived).toBe(true)
+
+    await dispatchWorktreeRemoval(removal)
+    const scanned = archiveRow({ ...archivedMeta(), isArchived: false })
+    expect(stampWorkspaceArchive([scanned])[0]?.isArchived).toBe(false)
   })
 })

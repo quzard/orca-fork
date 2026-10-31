@@ -121,22 +121,3 @@ export function buildManagedWorktreeCreateArgs(
     }
   }
 }
-
-/** Omit the field when an older peer did not send it. `null` still clears the group. */
-export function sidebarGroupIdSetPatch(
-  sidebarGroupId: string | null | undefined
-): { sidebarGroupId: string | null } | Record<string, never> {
-  return sidebarGroupId !== undefined ? { sidebarGroupId } : {}
-}
-
-export function worktreeSetLineage<T extends { parentWorktree?: string; noParent?: boolean }>(
-  params: T
-): { parentWorktree: T['parentWorktree']; noParent: boolean } | undefined {
-  if (!params.parentWorktree && params.noParent !== true) {
-    return undefined
-  }
-  return {
-    parentWorktree: params.parentWorktree,
-    noParent: params.noParent === true
-  }
-}

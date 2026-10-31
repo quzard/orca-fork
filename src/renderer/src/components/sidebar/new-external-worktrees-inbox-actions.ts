@@ -1,10 +1,6 @@
 import type { Repo } from '../../../../shared/repo-types'
 import { mergeExternalWorktreeInboxPaths } from '../../../../shared/external-worktree-inbox'
-import { getRepoExecutionHostId } from '../../../../shared/execution-host'
-import {
-  reactivateRegisteredArchivedWorktreeMeta,
-  releaseRegisteredDurableWorkspaceArchive
-} from '../../../../shared/fork-hooks/workspace-durable-archive'
+import { reactivateRegisteredImportedWorktrees } from '../../../../shared/fork-hooks/workspace-durable-archive'
 import { translate } from '@/i18n/i18n'
 
 export type NewExternalWorktreesInboxActionState = {
@@ -23,13 +19,7 @@ type RepoExternalWorktreeInboxUpdate = Partial<
 
 type NewExternalWorktreesInboxActionDeps = {
   projectId: string
-  repo: Pick<
-    Repo,
-    | 'externalWorktreeInboxBaselinePaths'
-    | 'importedExternalWorktreePaths'
-    | 'connectionId'
-    | 'executionHostId'
-  >
+  repo: Pick<Repo, 'externalWorktreeInboxBaselinePaths' | 'importedExternalWorktreePaths'>
   worktreePaths: readonly string[]
   setInboxState: (projectId: string, state: NewExternalWorktreesInboxActionState | null) => void
   updateRepo: (projectId: string, updates: RepoExternalWorktreeInboxUpdate) => Promise<boolean>
@@ -78,34 +68,9 @@ async function refreshAfterRepoInboxUpdate(
     })
     return false
   }
-  // fork: 扫描之前清掉同路径的归档元数据和隐藏记录。只清 localStorage 时，旧 isArchived 仍会把新行留在已移除里。
-  const hostId = getRepoExecutionHostId(args.repo)
-  try {
-    for (const path of args.worktreePaths) {
-      await reactivateRegisteredArchivedWorktreeMeta({
-        worktreeId: `${args.projectId}::${path}`,
-        executionHostId: hostId
-      })
-    }
-  } catch {
-    await args.updateRepo(args.projectId, rollbackUpdates)
-    args.setInboxState(args.projectId, {
-      pending: false,
-      error: newExternalWorktreeInboxImportError()
-    })
-    return false
-  }
-  for (const path of args.worktreePaths) {
-    releaseRegisteredDurableWorkspaceArchive({
-      worktree: {
-        id: `${args.projectId}::${path}`,
-        path,
-        repoId: args.projectId,
-        hostId
-      }
-    })
-  }
-  const refreshed = await args.fetchWorktrees(args.projectId, { requireAuthoritative: true })
+  const refreshed =
+    (await reactivateRegisteredImportedWorktrees(args.projectId, args.worktreePaths)) &&
+    (await args.fetchWorktrees(args.projectId, { requireAuthoritative: true }))
   if (!refreshed) {
     await args.updateRepo(args.projectId, rollbackUpdates)
     args.setInboxState(args.projectId, {

@@ -8,6 +8,7 @@ import { getGitRepoRoot } from '../../main/git/repo-detection'
 import { registerImportedWorktreePath } from '../../shared/fork-hooks/imported-worktree-path'
 import { registerForkBuild } from '../../shared/fork-hooks/update-feed'
 import { registerKeepFolderWorkspacesOnGroupDeleteInMain } from '../../shared/fork-hooks/project-group-delete'
+import { registerReusedPathUnarchive } from '../../shared/fork-hooks/reused-path-unarchive'
 import { registerDisownedHostFileOpen } from '../../shared/fork-hooks/terminal-disowned-host-file'
 import {
   forgetTerminalHtmlPreviewServe,
@@ -33,6 +34,7 @@ export function registerForkMainModules(): void {
   registerDeferBrowserSessionProxy(true)
   registerImportedWorktreePath(getGitRepoRoot)
   registerKeepFolderWorkspacesOnGroupDeleteInMain(keepFolderWorkspacesOnGroupDelete)
+  registerReusedPathUnarchive()
   // 直连 SSH 的 HTML 预览在桌面读文件。orcad 没有这条连接时读取函数返回 null。
   registerSshHtmlPreviewRead(readConnectedSshHtmlPreview)
   if (!htmlPreviewRevokeWatched) {

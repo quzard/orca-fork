@@ -23,12 +23,19 @@ import {
   toggleAllSettingsProjects,
   toggleSettingsProject
 } from './settings-project-bulk'
-import { HOST_DIRECTORY_GROUP_BY, hostDirectorySectionKey } from './section-keys'
+import {
+  HOST_DIRECTORY_GROUP_BY,
+  hostDirectorySectionKey,
+  registerHostDirectorySortReader
+} from './section-keys'
+import { planSidebarRows } from '../../shared/sidebar-list/sidebar-row-plan'
+import { createSidebarPRGroupReader } from '../../renderer/src/components/sidebar/worktree-list/grouping/pr-group-key'
+import { cloneDefaultWorkspaceStatuses } from '../../shared/workspace-statuses'
 import { registerForkRendererModules } from '../register-renderer'
 import { getWorktreeDragGroups } from '../../renderer/src/components/sidebar/worktree-list/drag/groups'
 import { getWorktreeIdFromHostIdentity } from '../../shared/worktree/host-qualified-identity'
 import {
-  hiddenWorktreeMatchesQuery,
+  hiddenWorktreeMatchesExtra,
   hiddenWorktreeSearchMinimum
 } from '../../shared/fork-hooks/sidebar-chrome'
 
@@ -118,35 +125,33 @@ function hostDirectoryRows(args: {
   placeholders?: string[]
   pending?: { creationId: string; repoId: string }[]
   sortBy?: 'name' | 'smart' | 'recent' | 'manual' | 'repo'
+  repoOfWorktree?: (worktree: Worktree) => Repo | undefined
 }) {
   const repoMap = new Map(args.repos.map((entry) => [entry.id, entry]))
-  return buildRows(
+  // The registered plan reads the sidebar sort from the store; tests pin it ('recent' is its default).
+  registerHostDirectorySortReader(() => args.sortBy ?? 'recent')
+  return planSidebarRows({
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: host-directory is a registered mode id, not one of the built-in literals.
-    HOST_DIRECTORY_GROUP_BY as WorktreeGroupBy,
-    args.worktrees,
+    groupBy: HOST_DIRECTORY_GROUP_BY as WorktreeGroupBy,
+    worktrees: args.worktrees,
     repoMap,
-    null,
-    new Set(),
-    undefined,
-    undefined,
-    undefined,
-    {},
-    new Map(args.worktrees.map((entry) => [entry.id, entry])),
-    false,
-    undefined,
-    args.groups ?? [],
-    new Set(args.placeholders ?? []),
-    new Map(),
-    new Map(),
-    args.pending ?? [],
-    undefined,
-    args.folders ?? [],
-    undefined,
-    'local',
-    'single-location',
-    [],
-    args.sortBy
-  )
+    ...(args.repoOfWorktree ? { repoOfWorktree: args.repoOfWorktree } : {}),
+    prGroupOf: createSidebarPRGroupReader(repoMap, null),
+    workspaceStatuses: cloneDefaultWorkspaceStatuses(),
+    projectOrderBy: 'manual',
+    lineageById: {},
+    worktreeMap: new Map(args.worktrees.map((entry) => [entry.id, entry])),
+    nestLineage: false,
+    projectGroups: args.groups ?? [],
+    placeholderRepoIds: new Set(args.placeholders ?? []),
+    importedWorktreesByRepo: new Map(),
+    newExternalWorktreesInboxByRepo: new Map(),
+    pendingCreations: args.pending ?? [],
+    folderWorkspaces: args.folders ?? [],
+    defaultHostId: 'local',
+    pinnedDisplayPolicy: 'single-location',
+    filterRepoIds: []
+  }).render(new Set())
 }
 
 describe('host-directory sidebar rows', () => {
@@ -367,6 +372,42 @@ describe('host-directory sidebar rows', () => {
     expect(rows.some((row) => row.type === 'header' && row.repo?.id === 'empty')).toBe(true)
   })
 
+  it('inherits each host copy of a same-id project from its own registration', () => {
+    const onDevbox = { ...repo('web', '/srv/wt/web', 'web', DEVBOX), projectGroupId: 'g-dev' }
+    const onMini = { ...repo('web', '/srv/wt/web', 'web', MINI), projectGroupId: 'g-mini' }
+    const rows = hostDirectoryRows({
+      // The bare-id map can hold only one of the two registrations.
+      repos: [onMini],
+      repoOfWorktree: (worktree) => (worktree.hostId === DEVBOX ? onDevbox : onMini),
+      groups: [projectGroup('g-dev', 'Dev', DEVBOX), projectGroup('g-mini', 'Mini', MINI)],
+      worktrees: [
+        workspace('wt-dev', 'web', '/srv/wt/web/dev', 'dev', DEVBOX),
+        workspace('wt-mini', 'web', '/srv/wt/web/mini', 'mini', MINI)
+      ]
+    })
+    const sectionOf = (id: string) =>
+      rows.flatMap((row) =>
+        row.type === 'item' && row.worktree.id === id ? [row.sectionKey] : []
+      )[0]
+    expect(sectionOf('wt-dev')).toBe(hostDirectorySectionKey(DEVBOX, 'g-dev'))
+    expect(sectionOf('wt-mini')).toBe(hostDirectorySectionKey(MINI, 'g-mini'))
+  })
+
+  it('lists both pinned copies of a same-id workspace on two hosts, once each', () => {
+    const rows = hostDirectoryRows({
+      repos: [repo('web', '/srv/wt/web', 'web', DEVBOX)],
+      worktrees: [
+        workspace('wt-web', 'web', '/srv/wt/web', 'main', DEVBOX, { isPinned: true }),
+        workspace('wt-web', 'web', '/srv/wt/web', 'main', MINI, { isPinned: true })
+      ]
+    })
+    const pinned = rows.flatMap((row) =>
+      row.type === 'item' && row.sectionKey === 'pinned' ? [row] : []
+    )
+    expect(pinned.map((row) => row.worktree.hostId).sort()).toEqual([DEVBOX, MINI].sort())
+    expect(new Set(pinned.map((row) => row.rowKey)).size).toBe(2)
+  })
+
   it('still emits repo headers for the built-in project mode', () => {
     const entry = repo('web', '/srv/wt/web', 'web')
     const rows = buildRows(
@@ -554,13 +595,13 @@ describe('hidden workspace search', () => {
   it('shows the search from the first archived workspace and matches the branch', () => {
     expect(hiddenWorktreeSearchMinimum()).toBe(1)
     expect(
-      hiddenWorktreeMatchesQuery(
+      hiddenWorktreeMatchesExtra(
         { displayName: 'main', path: '/srv/wt/project', branch: 'topic' },
         'topic'
       )
     ).toBe(true)
     expect(
-      hiddenWorktreeMatchesQuery(
+      hiddenWorktreeMatchesExtra(
         { displayName: 'other', path: '/srv/wt/other', branch: 'main' },
         'topic'
       )

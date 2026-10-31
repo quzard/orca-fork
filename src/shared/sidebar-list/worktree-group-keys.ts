@@ -9,7 +9,6 @@ import {
 import { ALL_GROUP_KEY, getPRLaneKey, getProjectGroupHeaderKey } from './group-keys'
 import { buildProjectGroupingIndex, getProjectGroupingForRepo } from '../project-section-grouping'
 import type { ProjectSectionModel } from '../project-section-grouping'
-import { lookupSidebarGroupMode } from '../fork-hooks/sidebar-group-mode'
 import type { SidebarPRGroupReader, WorktreeGroupBy } from './row-types'
 
 export function getGroupKeyForWorktree(
@@ -19,16 +18,8 @@ export function getGroupKeyForWorktree(
   /** Null reads every worktree as having no PR, which is the in-progress lane. */
   prGroupOf: SidebarPRGroupReader | null,
   workspaceStatuses: readonly WorkspaceStatusDefinition[] = cloneDefaultWorkspaceStatuses(),
-  projectGrouping?: ProjectSectionModel,
-  projectGroups: readonly ProjectGroup[] = []
+  projectGrouping?: ProjectSectionModel
 ): string | null {
-  // fork: 自定义分组的定位键。内置模式查不到登记。
-  const forkGroupMode = lookupSidebarGroupMode(groupBy)
-  if (forkGroupMode?.groupKeyForWorktree) {
-    return forkGroupMode.groupKeyForWorktree(worktree, repoMap.get(worktree.repoId), {
-      projectGroups
-    })
-  }
   if (groupBy === 'none') {
     return ALL_GROUP_KEY
   }
@@ -60,8 +51,7 @@ export function getGroupKeysForWorktree(
     repoMap,
     prGroupOf,
     workspaceStatuses,
-    projectGrouping,
-    projectGroups
+    projectGrouping
   )
   if (!groupKey) {
     return []

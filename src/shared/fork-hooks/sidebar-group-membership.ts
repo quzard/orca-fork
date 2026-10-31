@@ -31,3 +31,14 @@ export function preserveRegisteredSidebarGroupIds<T extends SidebarGroupRow>(
   }
   return preserve(incoming, current, matches)
 }
+
+/**
+ * The fork-owned fields every meta (or folder workspace) to workspace projection carries. Each
+ * projection spreads this, so none of them drops a field the fork stores. `null` (an explicit
+ * ungroup) is kept; an absent field stays absent.
+ */
+export function forkWorkspaceFields(source: { sidebarGroupId?: string | null } | undefined): {
+  sidebarGroupId?: string | null
+} {
+  return source?.sidebarGroupId !== undefined ? { sidebarGroupId: source.sidebarGroupId } : {}
+}

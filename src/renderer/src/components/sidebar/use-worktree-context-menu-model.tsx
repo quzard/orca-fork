@@ -32,7 +32,7 @@ import {
   selectMenuScopedMap,
   shouldRemoveProjectFromContextMenu
 } from './worktree-context-menu-policy'
-import { forkMenuLabel, useWorktreeContextMenuCommands } from './use-worktree-context-menu-commands'
+import { useWorktreeContextMenuCommands } from './use-worktree-context-menu-commands'
 import { useWorktreeParentPickerTransition } from './use-worktree-parent-picker-transition'
 import { useWorktreeContextMenuSecondaryActions } from './use-worktree-context-menu-secondary-actions'
 import { CLOSE_ALL_CONTEXT_MENUS_EVENT } from '@/lib/close-all-context-menus'
@@ -363,7 +363,7 @@ export function useWorktreeContextMenuModel({
     contextWorkspaceStatus,
     createGroupDialogOpen,
     cyclicLineageIds,
-    deleteLabel: forkMenuLabel('delete', isMultiContext, batchDeleteWorktrees.length, deleteLabel),
+    deleteLabel,
     deletingContext,
     deletingSubtree,
     developerMenuRevealed,
@@ -393,7 +393,7 @@ export function useWorktreeContextMenuModel({
     setDeveloperMenuRevealed,
     setMenuOpenState,
     setMenuPoint,
-    sleepLabel: forkMenuLabel('sleep', isMultiContext, sleepableWorktrees.length, sleepLabel),
+    sleepLabel,
     sleepableWorktrees,
     subtreeSleepableWorktrees,
     suppressOpeningPointerEvent,

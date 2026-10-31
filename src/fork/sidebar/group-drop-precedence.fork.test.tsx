@@ -19,6 +19,7 @@ import { registerWorkspaceGroupDrop } from '../../shared/fork-hooks/sidebar-chro
 import { commitWorktreePointerDrop } from '../../renderer/src/components/sidebar/worktree-list/drag/pointer-commit'
 import type { WorktreeDropCommitContext } from '../../renderer/src/components/sidebar/worktree-list/drag/drop-commit-context'
 import type { WorktreePointerDrag } from '../../renderer/src/components/sidebar/worktree-list/drag/row-state'
+import { looseHostSectionKey } from './section-keys'
 
 function context(): WorktreeDropCommitContext {
   return {
@@ -60,11 +61,11 @@ function drop(ctx: WorktreeDropCommitContext): void {
 }
 
 describe('cross-group drop onto the middle of a card', () => {
-  afterEach(() => registerWorkspaceGroupDrop(() => false))
+  afterEach(() => registerWorkspaceGroupDrop(() => false, looseHostSectionKey))
 
   it('moves the workspace to the group and never sets a parent', () => {
     const groupDrop = vi.fn(() => true)
-    registerWorkspaceGroupDrop(groupDrop)
+    registerWorkspaceGroupDrop(groupDrop, looseHostSectionKey)
     const ctx = context()
     drop(ctx)
     expect(groupDrop).toHaveBeenCalledWith(
@@ -75,7 +76,7 @@ describe('cross-group drop onto the middle of a card', () => {
   })
 
   it('keeps upstream lineage parenting when the fork does not take the drop', () => {
-    registerWorkspaceGroupDrop(() => false)
+    registerWorkspaceGroupDrop(() => false, looseHostSectionKey)
     const ctx = context()
     drop(ctx)
     expect(ctx.commitWorktreeLineageParentDrop).toHaveBeenCalledWith(['moved'], 'card')

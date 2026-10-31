@@ -5,8 +5,13 @@ import type { ProjectGroup } from '../../shared/project-group-types'
 import type { Repo } from '../../shared/repo-types'
 import type { Worktree } from '../../shared/worktree/types'
 import { folderWorkspaceKey } from '../../shared/workspace-scope'
+import { findRepoForHost } from '../../renderer/src/store/slices/repo-host-identity'
 import { folderWorkspaceHostId, projectGroupHostId } from './membership'
-import { EMPTY_PROJECT_GROUP_PREFIX, looseHostSectionKey } from './section-keys'
+import {
+  EMPTY_PROJECT_GROUP_PREFIX,
+  hostDirectoryDefaultHostId,
+  looseHostSectionKey
+} from './section-keys'
 import { isSidebarFieldsNotAppliedError, sidebarFieldsErrorCode } from './sidebar-fields-applied'
 import { workspaceGroupLabels } from './workspace-group-labels'
 
@@ -66,7 +71,8 @@ export function resolveGroupDropTarget(
     return { groupId: null, key: looseHostSectionKey(hostId) }
   }
   const onHost = state.projectGroups.some(
-    (group) => group.id === groupId && projectGroupHostId(group, hostId) === hostId
+    (group) =>
+      group.id === groupId && projectGroupHostId(group, hostDirectoryDefaultHostId()) === hostId
   )
   return onHost ? { groupId, key } : { error: workspaceGroupLabels.notOnHost }
 }
@@ -89,6 +95,8 @@ export function planGroupDropItems(
   orderUpdates: ReadonlyMap<string, { manualOrder: number }>
 ): Item[] | { error: string } {
   const groupsById = new Map(state.projectGroups.map((group) => [group.id, group]))
+  // Rows and groups without a host belong to the sidebar's default host, as drawn.
+  const defaultHostId = hostDirectoryDefaultHostId()
   const items: Item[] = []
   const dragged = new Set(draggedIds)
   const reordered = [...orderUpdates.keys()].filter((id) => !dragged.has(id))
@@ -100,7 +108,7 @@ export function planGroupDropItems(
     const folder = findFolder(state, id)
     if (folder) {
       const owner = groupsById.get(folder.projectGroupId)
-      if (folder.isArchived || folderWorkspaceHostId(folder, owner, hostId) !== hostId) {
+      if (folder.isArchived || folderWorkspaceHostId(folder, owner, defaultHostId) !== hostId) {
         return { error: workspaceGroupLabels.hostMismatch }
       }
       items.push({
@@ -113,8 +121,13 @@ export function planGroupDropItems(
       continue
     }
     const worktree = state.getKnownWorktreeById(id, hostId)
-    const repo = worktree ? state.repos.find((entry) => entry.id === worktree.repoId) : undefined
-    if (!worktree || getWorktreeExecutionHostId(worktree, repo, hostId) !== hostId) {
+    const repo = worktree
+      ? findRepoForHost(state.repos, worktree.repoId, { hostId: worktree.hostId })
+      : null
+    if (
+      !worktree ||
+      getWorktreeExecutionHostId(worktree, repo ?? undefined, defaultHostId) !== hostId
+    ) {
       return { error: workspaceGroupLabels.hostMismatch }
     }
     items.push({

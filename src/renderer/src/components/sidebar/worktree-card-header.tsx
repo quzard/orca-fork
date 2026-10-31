@@ -13,7 +13,7 @@ import { formatSparseDirectoryPreview, shouldBeginWorktreeRename } from './workt
 import type { WorktreeCardPresentation } from './worktree-card-presentation'
 import { WorktreeCardSshHostControl } from './WorktreeCardSshHostControl'
 import { WorktreeTitleInlineRename } from './WorktreeTitleInlineRename'
-import { DIRECTORY_TITLE_SEPARATOR } from '../../../../fork/sidebar/section-keys'
+import { renderWorktreeDirectoryPrefix } from '../../../../shared/fork-hooks/sidebar-chrome'
 import type { WorktreeCardController } from './use-worktree-card-controller'
 
 function RepoIdentityChip({
@@ -172,25 +172,7 @@ export function WorktreeCardHeader({
           </RepoIdentityChip>
         )}
 
-        {/* Why: unread alert lives in the left status lane; title-row contrast comes from weight and dimmed read titles. */}
-        {directoryLabel && !titleRenaming ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span
-                dir="rtl"
-                className="max-w-[45%] shrink truncate text-left text-xs text-muted-foreground"
-              >
-                <span dir="ltr">{directoryLabel}</span>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="top">{worktree.path}</TooltipContent>
-          </Tooltip>
-        ) : null}
-        {directoryLabel && !titleRenaming ? (
-          <span className="shrink-0 text-xs text-muted-foreground">
-            {DIRECTORY_TITLE_SEPARATOR}
-          </span>
-        ) : null}
+        {titleRenaming ? null : renderWorktreeDirectoryPrefix(directoryLabel, worktree.path)}
         <WorktreeTitleInlineRename
           displayName={visibleCardTitle}
           disabled={isDeleting || affiliateListMode}

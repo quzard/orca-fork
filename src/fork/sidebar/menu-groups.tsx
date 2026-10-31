@@ -96,8 +96,8 @@ function projectMenuGroups(args: WorktreeMenuGroupsArgs): WorktreeMenuGroups {
   const upstream = {
     groups: args.projectGroups,
     currentGroupId: args.repo?.projectGroupId ?? null,
-    onMove: args.onMove,
-    onRemove: args.onRemove
+    onMove: args.handleMoveProjectToGroup,
+    onRemove: args.handleRemoveProjectFromGroup
   }
   const target = args.repo ? ipcOrRuntimeTargetForHostId(getRepoExecutionHostId(args.repo)) : null
   if (!target) {

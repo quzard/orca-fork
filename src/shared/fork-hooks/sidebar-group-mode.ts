@@ -1,21 +1,15 @@
 // fork: 侧栏分组模式注册表。内置四种模式不进入表，未注册时查找永远为空。
 import type { ExecutionHostId } from '../execution-host'
 import type { PersistedUIState } from '../persisted-ui-state-types'
-import type { ProjectGroup } from '../project-group-types'
-import type { Repo } from '../repo-types'
 import type { planSidebarRows } from '../sidebar-list/sidebar-row-plan'
-import type { Worktree } from '../worktree/types'
 
 const BUILTIN_GROUP_BY_IDS = new Set(['none', 'workspace-status', 'repo', 'pr-status'])
-
-export type SidebarGroupKeyContext = {
-  projectGroups?: readonly ProjectGroup[]
-}
 
 /** Arguments a registered mode receives. Callers pass the sidebar's existing plan inputs. */
 export type SidebarPlanArgs = {
   worktrees?: unknown
   repoMap?: unknown
+  repoOfWorktree?: unknown
   prCache?: unknown
   workspaceStatuses?: unknown
   projectOrderBy?: unknown
@@ -43,23 +37,14 @@ export type SidebarGroupMode = {
   id: string
   label: string
   description?: string
-  /** 分组标题的 tone class。缺省用中性色。 */
-  headerTone?: string
   /** Default group for a profile that has not saved one. At most one mode should set this. */
   isDefault?: boolean
   /** Keep a host header even when only one host is visible. */
   retainHostHeaders?: boolean
   /** A saved built-in id that should open this mode. `repo` is the host-and-directory view. */
   replacesBuiltinGroupBy?: 'repo'
-  /** 返回上游 `OrderedGroupEntry[]`。参数即 `buildOrderedGroups` 的 args。 */
-  buildOrderedGroups?: (args: SidebarPlanArgs) => unknown
   /** Full row plan. Omitted modes still use the upstream plan. */
   buildRowPlan?: (args: SidebarPlanArgs) => SidebarRowPlan
-  groupKeyForWorktree?: (
-    worktree: Worktree,
-    repo: Repo | undefined,
-    context?: SidebarGroupKeyContext
-  ) => string
 }
 
 const modes = new Map<string, SidebarGroupMode>()
@@ -123,6 +108,11 @@ export function getDefaultRegisteredSidebarGroupBy(): PersistedUIState['groupBy'
   return 'repo'
 }
 
+/** Upstream's `groupBy === 'repo'` test for project-header chrome, extended to registered modes. */
+export function hasProjectHeaderChrome(groupBy: string): boolean {
+  return groupBy === 'repo' || isRegisteredSidebarGroupMode(groupBy)
+}
+
 export function sidebarModeRetainsHostHeaders(groupBy: string): boolean {
   return lookupSidebarGroupMode(groupBy)?.retainHostHeaders === true
 }
@@ -152,6 +142,23 @@ export function registeredReplacementForBuiltinGroupBy(
     return mode.id as PersistedUIState['groupBy']
   }
   return undefined
+}
+
+/**
+ * Persisted groupBy, before upstream's built-in checks: a saved Project value opens the registered
+ * mode that replaces it, and a registered id is kept. Undefined otherwise, and while unregistered.
+ */
+export function normalizeRegisteredGroupBy(
+  groupBy: unknown
+): PersistedUIState['groupBy'] | undefined {
+  if (typeof groupBy !== 'string') {
+    return undefined
+  }
+  return (
+    registeredReplacementForBuiltinGroupBy(groupBy) ??
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: only a registered mode id passes the check; the closed union cannot list it.
+    (isRegisteredSidebarGroupMode(groupBy) ? (groupBy as PersistedUIState['groupBy']) : undefined)
+  )
 }
 
 export function hydrateSidebarGroupBy(groupBy: string): PersistedUIState['groupBy'] {

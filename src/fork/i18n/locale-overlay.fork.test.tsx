@@ -63,7 +63,6 @@ describe('fork zh overlay', () => {
   it('shows the Chinese strings once the lazy zh catalog loads, without hiding upstream ones', async () => {
     installForkLocaleOverlays(i18n)
     await i18n.changeLanguage('zh')
-    expect(translate('sshConnectionStatus.connecting', 'Connecting\u2026')).toBe('正在连接…')
     expect(translate('fork.workspaceRemoval.menu', 'Remove from Orca')).toBe('从 Orca 移除')
     expect(translate('fork.sidebar.archivedWorkspaces', 'Removed', { value0: 3 })).toBe(
       '已从 Orca 移除（3）'
@@ -79,20 +78,16 @@ describe('fork zh overlay', () => {
     expect(i18n.getResource('en', 'translation', 'fork.sidebar.groupRollbackFailed')).toBe(
       '{{error}} Could not put back: {{names}}.'
     )
-    expect(i18n.getResource('en', 'translation', 'sshConnectionStatus.authFailed')).toBe(
-      'Auth failed'
-    )
+    expect(i18n.getResource('en', 'translation', 'fork.workspaceRemoval.undo')).toBe('Undo')
   })
 
   it('never overwrites a key the loaded catalog already has', async () => {
     const instance = i18n.cloneInstance()
-    instance.addResourceBundle('fr', 'translation', { sshConnectionStatus: { connected: 'up' } })
+    instance.addResourceBundle('fr', 'translation', { fork: { sample: { kept: 'up' } } })
     installForkLocaleOverlays(instance, {
-      fr: { sshConnectionStatus: { connected: 'overlay', connecting: 'overlay2' } }
+      fr: { fork: { sample: { kept: 'overlay', added: 'overlay2' } } }
     })
-    expect(instance.getResource('fr', 'translation', 'sshConnectionStatus.connected')).toBe('up')
-    expect(instance.getResource('fr', 'translation', 'sshConnectionStatus.connecting')).toBe(
-      'overlay2'
-    )
+    expect(instance.getResource('fr', 'translation', 'fork.sample.kept')).toBe('up')
+    expect(instance.getResource('fr', 'translation', 'fork.sample.added')).toBe('overlay2')
   })
 })

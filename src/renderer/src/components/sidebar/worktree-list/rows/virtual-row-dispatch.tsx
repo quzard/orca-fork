@@ -31,6 +31,7 @@ import {
 } from './item-row'
 import { renderWorktreeSectionHeaderRow, type SectionHeaderRowContext } from './SectionHeader'
 import type { WorktreeRowDragState } from '../drag/row-state'
+import { workspaceDropGroupKey } from '../../../../../../shared/fork-hooks/sidebar-chrome'
 
 export type WorktreeVirtualRowContext = {
   renderRows: RenderRow[]
@@ -233,7 +234,7 @@ export function renderWorktreeVirtualRow(
       data-worktree-virtual-row-key={String(vItem.key)}
       data-worktree-virtual-row-start={vItem.start}
       data-index={vItem.index}
-      data-workspace-sidebar-group={row.sectionKey}
+      data-workspace-sidebar-group={workspaceDropGroupKey(row.sectionKey)}
       ref={ctx.measureVirtualRowElement}
       data-workspace-status-drop-target={itemWorkspaceStatus ? '' : undefined}
       data-workspace-status={itemWorkspaceStatus ?? undefined}

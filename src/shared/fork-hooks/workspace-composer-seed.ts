@@ -13,8 +13,6 @@ export type ComposerSeedInput = {
   initialProjectGroupId?: string
   hasWorkspaceTarget: boolean
   hasWorkspaceStatus: boolean
-  explicitHostId: ExecutionHostId | null
-  explicitGroupId: string | null
   groupHostId: ExecutionHostId | null
   activeHostId: ExecutionHostId | null
   activeGroupId: string | null
@@ -48,12 +46,6 @@ export function readComposerSeed(): ComposerSeed | null {
 }
 
 export function composerSeedForOpen(input: ComposerSeedInput): ComposerSeed | null {
-  if (input.explicitHostId || input.explicitGroupId) {
-    return {
-      ...(input.explicitHostId ? { hostId: input.explicitHostId } : {}),
-      ...(input.explicitGroupId ? { sidebarGroupId: input.explicitGroupId } : {})
-    }
-  }
   if (input.initialProjectGroupId && input.groupHostId) {
     return { hostId: input.groupHostId, sidebarGroupId: input.initialProjectGroupId }
   }

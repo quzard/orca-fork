@@ -12,10 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Trans } from 'react-i18next'
 import { i18n, translate } from '@/i18n/i18n'
-import {
-  getDeleteProjectGroupDialogOption,
-  setDeleteProjectGroupDialogOptionChecked
-} from '../../../../shared/fork-hooks/project-group-delete'
+import { renderDeleteProjectGroupOption } from '../../../../shared/fork-hooks/project-group-delete'
 import type { WorktreePurgeTarget } from '@/store/slices/worktree-helpers'
 import { RemovalUnsavedFilesNotice } from './RemovalUnsavedFilesNotice'
 
@@ -50,9 +47,6 @@ export function ProjectGroupDeleteDialog({
   const mountedRef = useRef(true)
   const confirmButtonRef = useRef<HTMLButtonElement>(null)
   const removeProjectsId = useId()
-  const forkOption = getDeleteProjectGroupDialogOption()
-  const forkOptionId = useId()
-  const [forkOptionChecked, setForkOptionChecked] = useState(false)
   const removeContainedProjectCopy = translate(
     'auto.components.sidebar.ProjectGroupDeleteDialog.removeContainedProjects',
     'Remove {{count}} contained projects',
@@ -69,11 +63,6 @@ export function ProjectGroupDeleteDialog({
     setWasOpen(open)
     if (open && deleting) {
       setDeleting(false)
-    }
-    if (open && forkOption) {
-      const initial = forkOption.defaultChecked === true
-      setForkOptionChecked(initial)
-      setDeleteProjectGroupDialogOptionChecked(initial)
     }
   }
 
@@ -201,27 +190,7 @@ export function ProjectGroupDeleteDialog({
             </div>
           </div>
         )}
-        {forkOption ? (
-          <div className="flex w-full items-start gap-2 rounded-sm px-1 py-1 text-foreground/85">
-            <Checkbox
-              id={forkOptionId}
-              checked={forkOptionChecked}
-              disabled={deleting}
-              onCheckedChange={(checked) => {
-                const next = checked === true
-                setForkOptionChecked(next)
-                setDeleteProjectGroupDialogOptionChecked(next)
-              }}
-              className="mt-0.5"
-            />
-            <span className="min-w-0 flex-1">
-              <Label htmlFor={forkOptionId}>{forkOption.label}</Label>
-              {forkOption.description ? (
-                <span className="mt-0.5 block text-muted-foreground">{forkOption.description}</span>
-              ) : null}
-            </span>
-          </div>
-        ) : null}
+        {renderDeleteProjectGroupOption(deleting)}
         <RemovalUnsavedFilesNotice targets={unsavedTargets} enabled={open} />
         <DialogFooter>
           <Button

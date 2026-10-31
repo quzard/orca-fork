@@ -1,33 +1,49 @@
-// Hosts with no sessions, not the active host, and not a connected SSH target.
+// Hosts with no sessions, not the active or selected host, and not connected go under "Other configured hosts".
 import {
   ALL_EXECUTION_HOSTS_SCOPE,
   LOCAL_EXECUTION_HOST_ID,
-  parseExecutionHostId,
-  type ExecutionHostId
+  normalizeExecutionHostId
 } from '../../shared/execution-host'
 
-export type VaultHostMenuOption = {
-  id: string
-  label: string
-  secondary?: boolean
-}
+type VaultHostMenuOption = { id: string; label: string }
 
-export function markSecondaryVaultHosts<T extends VaultHostMenuOption>(
+// The folded hosts of a main-menu list, keyed by that list, so the menu needs no extra prop.
+const otherHostsByMenu = new WeakMap<object, readonly VaultHostMenuOption[]>()
+
+export function splitVaultHostMenu<T extends VaultHostMenuOption>(
   options: readonly T[],
   args: {
     historyHostIds: ReadonlySet<string>
-    activeHostId: ExecutionHostId | null
-    connectedSshTargetIds: ReadonlySet<string>
+    activeHostId: string | null
+    connectedHostIds: ReadonlySet<string>
+    selected: string
   }
-): (T & { secondary?: boolean })[] {
-  return options.map((option) => {
-    const host = parseExecutionHostId(option.id)
-    const secondary =
-      option.id !== ALL_EXECUTION_HOSTS_SCOPE &&
-      option.id !== LOCAL_EXECUTION_HOST_ID &&
-      option.id !== args.activeHostId &&
-      !args.historyHostIds.has(host?.id ?? LOCAL_EXECUTION_HOST_ID) &&
-      !(host?.kind === 'ssh' && args.connectedSshTargetIds.has(host.targetId))
-    return secondary ? { ...option, secondary: true } : { ...option, secondary: undefined }
-  })
+): readonly T[] {
+  const main: T[] = []
+  const other: T[] = []
+  for (const option of options) {
+    const hostId = normalizeExecutionHostId(option.id)
+    const keep =
+      option.id === ALL_EXECUTION_HOSTS_SCOPE ||
+      option.id === args.selected ||
+      hostId === null ||
+      hostId === LOCAL_EXECUTION_HOST_ID ||
+      hostId === args.activeHostId ||
+      args.historyHostIds.has(hostId) ||
+      args.connectedHostIds.has(hostId)
+    if (keep) {
+      main.push(option)
+    } else {
+      other.push(option)
+    }
+  }
+  if (other.length === 0) {
+    return options
+  }
+  otherHostsByMenu.set(main, other)
+  return main
+}
+
+export function otherVaultHosts(menu: object): readonly VaultHostMenuOption[] {
+  return otherHostsByMenu.get(menu) ?? []
 }

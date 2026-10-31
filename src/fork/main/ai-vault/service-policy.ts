@@ -15,7 +15,11 @@ export function aiVaultForkServicePolicy(): AiVaultForkServicePolicy {
   }
 }
 
-export function applyAiVaultForkServicePolicy(policy: AiVaultForkServicePolicy): void {
+/** Applied in the scanner service from its init message. Absent when the parent registered none. */
+export function applyAiVaultForkServicePolicy(policy: AiVaultForkServicePolicy | undefined): void {
+  if (!policy) {
+    return
+  }
   registerAiVaultToolIndexPolicy(policy.toolIndex)
   registerAiVaultSearchSchemaOffset(policy.schemaOffset)
 }

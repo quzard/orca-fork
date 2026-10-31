@@ -8,7 +8,6 @@ const LOCAL_SIGNING_IDENTITY = 'Orca Local Signing'
 
 // Static payloads the parent bundle already seals. Mach-O and native modules stay signed.
 const MAC_STATIC_RESOURCE_SIGN_IGNORE = [
-  '/ai-vault/',
   '/Contents/Resources/onboarding/feature-wall/[^/]+\\.(gif|png|webp|jpg|jpeg)$',
   '/Contents/Frameworks/Electron Framework\\.framework/(?:Versions/[^/]+/)?Resources/(?:[^/]+\\.lproj/locale\\.pak|(?:chrome_100_percent|chrome_200_percent|resources)\\.pak|icudtl\\.dat|v8_context_snapshot\\.(?:arm64|x64)\\.bin)$'
 ]

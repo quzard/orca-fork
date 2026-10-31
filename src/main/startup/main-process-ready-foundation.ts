@@ -64,7 +64,7 @@ import { agentHookServer } from '../agent-hooks/server'
 import { isAgentStatusHooksEnabled } from '../agent-hooks/managed-agent-hook-controls'
 import { reportProfileStateWriteFailure } from './profile-state-write-failure'
 import { reportProfileStateSaveDelay } from './profile-state-save-delay'
-import { applyStartupBrowserSessionProxies } from '../../fork/main/startup/browser-session-proxy'
+import { deferStartupProxyWait } from '../../fork/main/startup/browser-session-proxy'
 import { preloadSsh2 } from '../ssh/ssh2-module-load'
 
 export async function initializeReadyFoundation(): Promise<void> {
@@ -315,10 +315,12 @@ export async function initializeReadyFoundation(): Promise<void> {
   })
   browserSiteDisplayController.followZoomSettings(store)
   browserManager.setSiteDisplayController(browserSiteDisplayController)
-  // fork: 登记后不阻塞首窗；未登记时仍等待。里面改调上游的 awaitBrowserSessionProxies。
-  await applyStartupBrowserSessionProxies(() =>
-    awaitBrowserSessionProxies(browserSessionRegistry.listProfiles())
-  )
+  try {
+    // Await proxy writes so first guest navigation cannot race them.
+    await deferStartupProxyWait(awaitBrowserSessionProxies(browserSessionRegistry.listProfiles()))
+  } catch {
+    console.warn('[proxy] Failed to apply network proxy settings to browser sessions')
+  }
   // Why bounded: restored tabs should get content scripts, but a slow extension never blocks launch.
   await whenBrowserExtensionSessionsLoaded(3_000)
 }

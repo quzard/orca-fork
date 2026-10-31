@@ -15,8 +15,8 @@ import {
   normalizeRuntimePathSeparators
 } from './cross-platform-path'
 import type { AiVaultSession } from './ai-vault-types'
-import { matchForkCwdCandidates } from './fork-hooks/ai-vault-cwd'
 import type { Worktree } from './worktree/types'
+import { matchAiVaultSessionCwdCandidates } from './ai-vault-session-cwd-candidates'
 
 /** The workspace fields that decide ownership; folder workspaces pass their folder row. */
 export type AiVaultSessionOwnerWorkspace = Pick<
@@ -89,13 +89,14 @@ function resolveWorktreeInfoFromCandidates(
   }
 
   const sessionHostId = normalizeExecutionHostId(session.executionHostId)
-  // fork: 有符号链接别名时按剩余路径更短的工作区优先。没有别名时排序与上游相同。
-  const best = matchForkCwdCandidates(session, candidates, {
-    normalize: normalizeRuntimePathForComparison,
-    owns: (candidate, normalizedCwd) => candidate.ownsNormalizedCwd(normalizedCwd),
-    pathLength: (candidate) => candidate.normalizedPathLength,
-    tieBreak: compareWorktreeCandidates
-  }).find((candidate) => !sessionHostId || candidate.hostId === sessionHostId)
+  const matched = matchAiVaultSessionCwdCandidates(
+    session,
+    session.cwd,
+    candidates.filter((candidate) => !sessionHostId || candidate.hostId === sessionHostId),
+    compareWorktreeCandidates
+  )
+
+  const best = matched[0]
   if (!best) {
     return {
       status: 'unavailable',

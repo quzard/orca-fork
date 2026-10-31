@@ -64,9 +64,9 @@ function getSharedClient(): AiVaultScannerServiceClient {
     processFactory: spawnAiVaultServiceProcess,
     resolveSessionSearchRoots: localAiVaultScanRoots,
     init: () => ({
+      ...aiVaultForkServiceInit(),
       sessionParseCache: getSessionParseCachePersistenceOptions(),
-      sessionSearch: sessionSearchServiceInit(),
-      ...aiVaultForkServiceInit()
+      sessionSearch: sessionSearchServiceInit()
     }),
     onStderr: (text) => console.error('[ai-vault-service]', text.trimEnd()),
     idleTimeoutMs

@@ -2,9 +2,7 @@
   "fork": {
     "aiVault": {
       "collapseAll": "Collapse all groups",
-      "hostCount": "{{count}} hosts",
-      "otherHosts": "Other configured hosts",
-      "scanning": "Scanning history…"
+      "otherHosts": "Other configured hosts"
     },
     "sourceControl": {
       "compare": {

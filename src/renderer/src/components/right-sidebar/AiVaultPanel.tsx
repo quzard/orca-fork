@@ -44,6 +44,7 @@ import { useAiVaultScanProgress } from './ai-vault-scan-progress-store'
 import { aiVaultLocalScanKey } from '../../../../shared/ai-vault-local-scan-key'
 import { useAiVaultPanelWorkspace } from './use-ai-vault-panel-workspace'
 import { useAiVaultPanelQuery } from './use-ai-vault-panel-query'
+import { useForkAiVaultGroups, useForkVaultHostMenu } from '../../../../fork/ai-vault/panel-hooks'
 import {
   aiVaultPanelKeyboardRootProps,
   type AiVaultSessionListKeyboard
@@ -172,6 +173,7 @@ export default function AiVaultPanel({
     [history, search.sessions]
   )
   const sessions = searching ? searchSessions : history
+  const hostMenu = useForkVaultHostMenu(hostScopeOptions, history, executionHostScope, workspace)
   const requestedScanKey = aiVaultLocalScanKey({
     scopePaths,
     includeAntigravityIdeSessions: true,
@@ -229,6 +231,7 @@ export default function AiVaultPanel({
     projectLabelByKey,
     hideEmptySessions
   })
+  const forkList = useForkAiVaultGroups(groups, collapsedGroups, hostMenu, headerAction, workspace)
   const searchHitHostLabels = useMemo(
     () => (searching ? aiVaultSearchHitHostLabels(filteredSessions, hostScopeOptions) : null),
     [filteredSessions, hostScopeOptions, searching]
@@ -269,14 +272,14 @@ export default function AiVaultPanel({
         activeProjectKey={activeProjectKey}
         scope={scope}
         executionHostScope={executionHostScope}
-        hostScopeOptions={hostScopeOptions}
+        hostScopeOptions={hostMenu}
         agents={agents}
         group={group}
         hideEmptySessions={hideEmptySessions}
         sessionLimit={sessionLimit}
         adjustmentCount={viewAdjustmentCount}
         focusSearchRequestId={focusSearchRequestId}
-        headerAction={headerAction}
+        headerAction={forkList.headerAction}
         onSearchKeyDown={
           keyboardRows ? (event) => listKeyboardRef.current?.handleKeyDown(event) : undefined
         }
@@ -324,8 +327,8 @@ export default function AiVaultPanel({
             key={searching ? search.resetKey : 'history'}
             searchHits={searching ? searchHits : undefined}
             searchHitHostLabels={searchHitHostLabels}
-            groups={groups}
-            collapsedGroups={collapsedGroups}
+            groups={forkList.groups}
+            collapsedGroups={forkList.collapsedGroups}
             loading={searching ? search.loading : loading}
             scopePending={!searching && scopePending}
             scanProgressShown={stripProgress !== null}

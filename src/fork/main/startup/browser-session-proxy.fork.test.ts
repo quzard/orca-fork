@@ -11,7 +11,7 @@ import {
   registerDeferBrowserSessionProxy,
   resetStartupForkHooksForTests
 } from '../../../shared/fork-hooks/startup'
-import { applyStartupBrowserSessionProxies } from './browser-session-proxy'
+import { deferStartupProxyWait } from './browser-session-proxy'
 
 function slowSession() {
   let finish: ((error?: Error) => void) | undefined
@@ -38,9 +38,7 @@ describe('startup browser partition proxy', () => {
   it('registered: returns at once, and partition requests wait for the proxy', async () => {
     registerDeferBrowserSessionProxy(true)
     const { proxySession, finish } = slowSession()
-    await applyStartupBrowserSessionProxies(() =>
-      applyProxySettingsToSession(proxySession, settings, { env: {} })
-    )
+    await deferStartupProxyWait(applyProxySettingsToSession(proxySession, settings, { env: {} }))
     // The write started before the first window: a request now is held, not sent direct.
     const readiness = getProxySessionApplicationReadiness(proxySession)
     expect(readiness).toBeInstanceOf(Promise)
@@ -54,9 +52,7 @@ describe('startup browser partition proxy', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { proxySession, finish } = slowSession()
     proxySession.setProxy.mockRejectedValue(new Error('proxy write failed'))
-    await applyStartupBrowserSessionProxies(() =>
-      applyProxySettingsToSession(proxySession, settings, { env: {} })
-    )
+    await deferStartupProxyWait(applyProxySettingsToSession(proxySession, settings, { env: {} }))
     finish()
     await expect(getProxySessionApplicationReadiness(proxySession)).resolves.toBe(false)
     await vi.waitFor(() => expect(warn).toHaveBeenCalled())
@@ -66,7 +62,7 @@ describe('startup browser partition proxy', () => {
   it('unregistered: waits for the proxy, as upstream does', async () => {
     const { proxySession, finish } = slowSession()
     let settled = false
-    const startup = applyStartupBrowserSessionProxies(() =>
+    const startup = deferStartupProxyWait(
       applyProxySettingsToSession(proxySession, settings, { env: {} })
     ).then(() => (settled = true))
     await vi.waitFor(() => expect(proxySession.setProxy).toHaveBeenCalledOnce())

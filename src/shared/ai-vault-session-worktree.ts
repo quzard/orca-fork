@@ -49,6 +49,7 @@ type WorktreeCandidate = {
   // Precomputed so a 500-session scan doesn't re-normalize ~500 roots per session.
   ownsNormalizedCwd: (normalizedCwd: string) => boolean
   normalizedPathLength: number
+  normalizedPath: string
 }
 
 export function resolveAiVaultSessionWorktreeInfo({
@@ -218,41 +219,40 @@ function buildWorktreeCandidates(
       normalizeExecutionHostId(worktree.hostId) ??
       (repo ? getRepoExecutionHostId(repo) : LOCAL_EXECUTION_HOST_ID)
     if (hasUsablePath(worktree.path)) {
-      candidates.push(makeWorktreeCandidate(worktree, worktree.path, hostId, 'current-path'))
+      candidates.push(...makeWorktreeCandidates(worktree, worktree.path, hostId, 'current-path'))
     }
     for (const priorWorktreeId of worktree.priorWorktreeIds ?? []) {
       const parsed = splitWorktreeIdForFilesystem(priorWorktreeId)
       if (!parsed || parsed.repoId !== worktree.repoId || !hasUsablePath(parsed.worktreePath)) {
         continue
       }
-      candidates.push(makeWorktreeCandidate(worktree, parsed.worktreePath, hostId, 'prior-path'))
+      candidates.push(
+        ...makeWorktreeCandidates(worktree, parsed.worktreePath, hostId, 'prior-path')
+      )
     }
   }
   return candidates
 }
 
-function makeWorktreeCandidate(
+function makeWorktreeCandidates(
   worktree: AiVaultSessionOwnerWorkspace,
   path: string,
   hostId: ExecutionHostId,
   source: WorktreeCandidate['source']
-): WorktreeCandidate {
-  const ownsCwd = createNormalizedPathInsideOrEqualMatcher(path)
+): WorktreeCandidate[] {
   // A WSL UNC root also owns sessions recorded under its Linux-native cwd.
   const wslPath = parseWslUncPath(path)
-  const ownsCwdViaWslAlias = wslPath
-    ? createNormalizedPathInsideOrEqualMatcher(wslPath.linuxPath)
-    : null
-  return {
+  const cwdPaths = wslPath ? [path, wslPath.linuxPath] : [path]
+  return cwdPaths.map((cwdPath): WorktreeCandidate => ({
     worktree,
     path,
     hostId,
     status: worktree.isArchived ? 'archived' : 'active',
     source,
-    ownsNormalizedCwd: (normalizedCwd) =>
-      ownsCwd(normalizedCwd) || (ownsCwdViaWslAlias?.(normalizedCwd) ?? false),
+    ownsNormalizedCwd: createNormalizedPathInsideOrEqualMatcher(cwdPath),
+    normalizedPath: normalizeRuntimePathForComparison(cwdPath),
     normalizedPathLength: normalizeRuntimePathForComparison(path).length
-  }
+  }))
 }
 
 function hasUsablePath(pathValue: string): boolean {

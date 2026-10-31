@@ -3,6 +3,7 @@ import { normalizeExecutionHostId, type ExecutionHostId } from '../../shared/exe
 import type { Worktree } from '../../shared/worktree/types'
 import { hostDirectorySectionKey, looseHostSectionKey } from './section-keys'
 import { buildWorktreeManualOrderCatalog } from '../../renderer/src/components/sidebar/worktree-manual-order-catalog'
+import { getWorktreeIdFromHostIdentity } from '../../shared/worktree/host-qualified-identity'
 import { buildGroupDropOrder } from './group-drop-order'
 import { planGroupDropItems, type GroupDropState } from './workspace-group-drop-plan'
 
@@ -144,7 +145,7 @@ function applyAndList(
       : entry
   })
   const catalog = buildWorktreeManualOrderCatalog({ worktrees: rows, folderWorkspaces: [] })
-  const loose = catalog.orderedIds.filter(
+  const loose = catalog.orderedKeys.map(getWorktreeIdFromHostIdentity).filter(
     (id) => !rows.find((entry) => entry.id === id)!.sidebarGroupId
   )
   return { rows, loose }
@@ -267,9 +268,10 @@ describe('group drop order without room between the neighbours', () => {
 
 describe('group drop order keeps the order across the full list when it renumbers', () => {
   function fullOrder(rows: Worktree[]): string[] {
-    return [
-      ...buildWorktreeManualOrderCatalog({ worktrees: rows, folderWorkspaces: [] }).orderedIds
-    ]
+    return buildWorktreeManualOrderCatalog({
+      worktrees: rows,
+      folderWorkspaces: []
+    }).orderedKeys.map(getWorktreeIdFromHostIdentity)
   }
 
   it('renumbers inside the gap other sections leave, so merged views keep their order', () => {

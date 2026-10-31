@@ -1,6 +1,6 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { SYNC_FIT_PANES_EVENT } from '@/constants/terminal'
-import { tabGroupBodyAnchorName } from './tab-group-body-anchor'
+import { RETAINED_PANE_GROUP_ATTRIBUTE, tabGroupBodyAnchorName } from './tab-group-body-anchor'
 import { subscribeTabGroupBodyRect, type TabGroupBodyRect } from './tab-group-body-geometry'
 import { UNFOCUSED_SPLIT_GROUP_OPACITY } from './split-group-dim'
 
@@ -147,6 +147,7 @@ export function RetainedPaneHost({
       // Pane-local layers cannot compete with app notifications or escape their split rectangle.
       className="isolate z-10 min-h-0 min-w-0 overflow-hidden"
       data-retained-pane-host=""
+      {...(groupId !== undefined ? { [RETAINED_PANE_GROUP_ATTRIBUTE]: groupId } : {})}
       {...identity}
       inert={!isVisible}
       aria-hidden={!isVisible}

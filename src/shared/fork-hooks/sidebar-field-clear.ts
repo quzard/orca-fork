@@ -5,17 +5,18 @@
 export const CLEARABLE_SIDEBAR_FIELDS = ['sidebarGroupId', 'manualOrder'] as const
 export type ClearableSidebarField = (typeof CLEARABLE_SIDEBAR_FIELDS)[number]
 
-type SidebarFields = { sidebarGroupId?: string | null; manualOrder?: number }
+/** The sidebar fields of a worktree's meta and of a folder workspace. */
+export type SidebarFields = { sidebarGroupId?: string | null; manualOrder?: number }
 
 /** Fields present on `updates` with the value `undefined`: the caller asked to clear them. */
-export function sidebarFieldsToClear(updates: object): ClearableSidebarField[] {
+export function sidebarFieldsToClear(updates: SidebarFields): ClearableSidebarField[] {
   return CLEARABLE_SIDEBAR_FIELDS.filter(
-    (field) => Object.hasOwn(updates, field) && Reflect.get(updates, field) === undefined
+    (field) => Object.hasOwn(updates, field) && updates[field] === undefined
   )
 }
 
 /** 文件夹工作区更新的线协议：id 与清除字段放在同一条请求里。 */
-export function folderWorkspaceUpdateRequest<T extends object>(
+export function folderWorkspaceUpdateRequest<T extends SidebarFields>(
   folderWorkspaceId: string,
   updates: T
 ): { folderWorkspaceId: string; updates: T; clearFields?: ClearableSidebarField[] } {
@@ -23,7 +24,7 @@ export function folderWorkspaceUpdateRequest<T extends object>(
 }
 
 /** Splits requested clears out of `updates` for the wire. */
-export function encodeSidebarFieldClears<T extends object>(
+export function encodeSidebarFieldClears<T extends SidebarFields>(
   updates: T
 ): { updates: T; clearFields?: ClearableSidebarField[] } {
   const clearFields = sidebarFieldsToClear(updates)
@@ -47,16 +48,26 @@ export function parseClearableSidebarFields(value: unknown): ClearableSidebarFie
 
 /**
  * Host side, in place: each cleared field becomes an own `undefined` key on `updates`, which the
- * spread merge of the write removes. `clearFields` may be untyped IPC input.
+ * spread merge of the write removes.
  */
-export function applySidebarFieldClears(updates: object, clearFields: unknown): void {
-  for (const field of parseClearableSidebarFields(clearFields) ?? []) {
-    Reflect.set(updates, field, undefined)
+export function applySidebarFieldClears(
+  updates: SidebarFields,
+  clearFields: readonly ClearableSidebarField[] | undefined
+): void {
+  for (const field of clearFields ?? []) {
+    updates[field] = undefined
+  }
+}
+
+/** `worktrees:updateMeta` declares no `clearFields`, so its raw IPC args are parsed here. */
+export function applySidebarFieldClearsFromIpcArgs(updates: SidebarFields, ipcArgs: unknown): void {
+  if (typeof ipcArgs === 'object' && ipcArgs !== null && 'clearFields' in ipcArgs) {
+    applySidebarFieldClears(updates, parseClearableSidebarFields(ipcArgs.clearFields))
   }
 }
 
 /** Host side, as an expression: `updates` with the cleared fields as own `undefined` keys. */
-export function decodeSidebarFieldClears<T extends object>(
+export function decodeSidebarFieldClears<T extends SidebarFields>(
   updates: T,
   clearFields: readonly ClearableSidebarField[] | undefined
 ): T {
@@ -76,7 +87,7 @@ export function decodeSidebarFieldClears<T extends object>(
  */
 export function echoSidebarFields<T extends SidebarFields>(
   shown: T,
-  updates: object,
+  updates: SidebarFields,
   written: SidebarFields | undefined
 ): T {
   const echoed = { ...shown }

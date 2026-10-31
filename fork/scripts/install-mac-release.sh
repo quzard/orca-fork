@@ -127,7 +127,7 @@ pnpm run build:release
 pnpm build:orcad-prebuilds
 SLOT="$(node config/scripts/build-orcad-prebuilds.mjs --print-slot)"
 if [[ "$SLOT" != darwin-arm64 ]]; then
-  echo "本机 orcad 槽是 $SLOT；Linux SSH 包需要在 Apple Silicon 上编 darwin-arm64。" >&2
+  echo "本机 orcad 槽是 ${SLOT}；Linux SSH 包需要在 Apple Silicon 上编 darwin-arm64。" >&2
   exit 1
 fi
 pnpm build:orcad-prebuilds --require-slots "$SLOT"
@@ -159,7 +159,7 @@ ORCA_LOCAL_BUILD_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVers
 assert_packaged_artifacts
 codesign --verify --deep --strict "$BUILT_APP"
 if [[ "$BUILD_ONLY" == true ]]; then
-  echo "构建已完成，尚未安装：$BUILT_APP（$ORCA_LOCAL_BUILD_VERSION）"
+  echo "构建已完成，尚未安装：${BUILT_APP}（${ORCA_LOCAL_BUILD_VERSION}）"
   exit 0
 fi
 

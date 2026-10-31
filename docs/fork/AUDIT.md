@@ -2,7 +2,7 @@
 
 由 `python3 fork/scripts/generate-audit.py` 生成（`--check` 只比对）。主表是和上游基点（`src/fork/skills-source-commit.ts` 记录的提交）不同的每个文件，一个不多一个不少；末尾另列已恢复成上游或已删除的文件，它们必须和基点相同。`src/fork/audit-table.fork.test.ts` 检查表和仓库一致。
 
-共 427 行：delete 5，keep 400，revert-to-upstream 22。上游文件（不含 fork 目录）里的 fork 改动 756 行，涉及 145 个文件。
+共 428 行：delete 5，keep 401，revert-to-upstream 22。上游文件（不含 fork 目录）里的 fork 改动 756 行，涉及 145 个文件。
 
 | 文件                                                                                    | 功能                     | 决定 | 原因                                                                                                                                              |
 | --------------------------------------------------------------------------------------- | ------------------------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -139,6 +139,7 @@
 | `src/fork/register-renderer.tsx`                                                        | INFRA 登记/工程/文档     | keep | fork 自有文件                                                                                                                                     |
 | `src/fork/register.ts`                                                                  | INFRA 登记/工程/文档     | keep | fork 自有文件                                                                                                                                     |
 | `src/fork/server-snapshot.fork.test.tsx`                                                | INFRA 登记/工程/文档     | keep | fork 自有文件（测试）                                                                                                                             |
+| `src/fork/shell-scripts-locale.fork.test.ts`                                            | INFRA 登记/工程/文档     | keep | fork 自有文件（测试）                                                                                                                             |
 | `src/fork/sidebar/archived-workspaces.fork.test.tsx`                                    | SB 侧栏                  | keep | fork 自有文件（测试）                                                                                                                             |
 | `src/fork/sidebar/archived-workspaces.tsx`                                              | SB 侧栏                  | keep | fork 自有文件                                                                                                                                     |
 | `src/fork/sidebar/composer-seed-assign.fork.test.tsx`                                   | SB 侧栏                  | keep | fork 自有文件（测试）                                                                                                                             |

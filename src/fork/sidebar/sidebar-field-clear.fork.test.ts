@@ -20,6 +20,7 @@ import type { FolderWorkspace } from '../../shared/folder-workspace-types'
 import type { RuntimeStore } from '../../main/runtime/runtime-store-contract'
 import type { ResolvedWorktree } from '../../main/runtime/runtime-worktree-path-identity'
 import type { Worktree } from '../../shared/worktree/types'
+import type { WorktreeMeta } from '../../shared/worktree/meta-types'
 // 上游把测试夹具挪到 persistence/persistence-test-harness。
 import {
   closeTestStores,
@@ -27,6 +28,7 @@ import {
   testState
 } from '../../main/persistence/persistence-test-harness'
 import { hostWorktreeTarget } from '../../shared/worktree/host-qualified-identity'
+import { assertSidebarFieldsApplied, SidebarFieldsNotAppliedError } from './sidebar-fields-applied'
 
 vi.mock('../../main/ssh/ssh-config-parser', () => ({
   loadUserSshConfig: vi.fn(),
@@ -143,163 +145,100 @@ describe('show echoes the stored group', () => {
   })
 })
 
-describe('runtime worktree.set clear', () => {
+type Fields = { sidebarGroupId?: string | null; manualOrder?: number }
+
+// worktree.set on a current host: `stored` is the meta the store holds after the write, `shown` the
+// row show resolves afterwards (it may lack the field, e.g. a folder repo projection).
+async function runtimeSet(
+  updates: Fields & { comment?: string; clearFields?: ('sidebarGroupId' | 'manualOrder')[] },
+  stored: Fields,
+  shown: Fields
+) {
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the update only reads id, repoId, hostId and instanceId.
+  const worktree = {
+    id: 'repo-1::/srv/app',
+    repoId: 'repo-1',
+    hostId: 'ssh:box',
+    path: '/srv/app',
+    instanceId: 'i-1'
+  } as unknown as ResolvedWorktree
+  const setWorktreeMeta = vi.fn((_target: unknown, _updates: Partial<WorktreeMeta>) => stored)
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the update only reads these store members.
+  const store = { getRepos: () => [], setWorktreeMeta } as unknown as RuntimeStore
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the echo reads only the sidebar fields of the shown row.
+  const shownRow = { id: worktree.id, ...shown } as unknown as Worktree
+  const result = await updateRuntimeManagedWorktreeMetadata({
+    selector: `id:${worktree.id}`,
+    updates,
+    store,
+    ports: {
+      resolveWorktree: vi.fn(async () => worktree),
+      validateParent: vi.fn(),
+      invalidateResolved: vi.fn(),
+      invalidateScan: vi.fn(),
+      notifyChanged: vi.fn(),
+      showWorktree: vi.fn(async () => shownRow)
+    }
+  })
+  return { result, written: setWorktreeMeta.mock.calls[0] }
+}
+
+describe('runtime worktree.set clear and echo', () => {
   it('passes cleared fields to the store as own undefined keys', async () => {
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the update only reads id, repoId, hostId and instanceId.
-    const worktree = {
-      id: 'repo-1::/srv/app',
-      repoId: 'repo-1',
-      hostId: 'ssh:box',
-      path: '/srv/app',
-      instanceId: 'i-1'
-    } as unknown as ResolvedWorktree
-    const setWorktreeMeta = vi.fn()
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the update only reads these store members.
-    const store = {
-      getRepos: () => [],
-      setWorktreeMeta
-    } as unknown as RuntimeStore
-    await updateRuntimeManagedWorktreeMetadata({
-      selector: `id:${worktree.id}`,
-      updates: { comment: 'c', clearFields: ['sidebarGroupId', 'manualOrder'] },
-      store,
-      ports: {
-        resolveWorktree: vi.fn(async () => worktree),
-        validateParent: vi.fn(),
-        invalidateResolved: vi.fn(),
-        invalidateScan: vi.fn(),
-        notifyChanged: vi.fn(),
-        showWorktree: vi.fn(async () => worktree as unknown as Worktree)
-      }
-    })
-    // 写入走 setWorktreeMeta(target, updates)。清掉的字段是 updates 里自己的 undefined 键。
-    expect(setWorktreeMeta.mock.calls[0]?.[1]).toStrictEqual({
+    const { written } = await runtimeSet(
+      { comment: 'c', clearFields: ['sidebarGroupId', 'manualOrder'] },
+      {},
+      {}
+    )
+    expect(written?.[1]).toStrictEqual({
       comment: 'c',
       sidebarGroupId: undefined,
       manualOrder: undefined
     })
   })
 
-  it('echoes a group show left off, so a current host is not reported as too old', async () => {
-    // show 回的是文件夹仓库那种合并：有新的 manualOrder，没有 sidebarGroupId。
-    // 存储已经写入分组。回复必须把这次写入的分组带回，否则客户端会当成旧主机。
-    const shown = {
-      id: 'repo-1::/srv/app',
-      path: '/srv/app',
-      branch: 'refs/heads/master',
-      displayName: 'app',
-      manualOrder: 7,
-      sortOrder: 1
-    } as unknown as Worktree
-    const setWorktreeMeta = vi.fn()
-    const store = {
-      getRepos: () => [],
-      setWorktreeMeta
-    } as unknown as RuntimeStore
-    const worktree = {
-      id: shown.id,
-      repoId: 'repo-1',
-      hostId: 'ssh:box',
-      path: '/srv/app',
-      instanceId: 'i-1'
-    } as unknown as ResolvedWorktree
-    const result = await updateRuntimeManagedWorktreeMetadata({
-      selector: `id:${shown.id}`,
-      updates: { sidebarGroupId: 'g1', manualOrder: 7 },
-      store,
-      ports: {
-        resolveWorktree: vi.fn(async () => worktree),
-        validateParent: vi.fn(),
-        invalidateResolved: vi.fn(),
-        invalidateScan: vi.fn(),
-        notifyChanged: vi.fn(),
-        showWorktree: vi.fn(async () => shown)
-      }
-    })
+  it('echoes the stored group when show left it off, so a current host is not taken as old', async () => {
+    const { result } = await runtimeSet(
+      { sidebarGroupId: 'g1', manualOrder: 7 },
+      { sidebarGroupId: 'g1', manualOrder: 7 },
+      { manualOrder: 7 }
+    )
     expect(result.sidebarGroupId).toBe('g1')
     expect(result.manualOrder).toBe(7)
-    expect(result).not.toBe(shown)
+    expect(() =>
+      assertSidebarFieldsApplied({ sidebarGroupId: 'g1', manualOrder: 7 }, result)
+    ).not.toThrow()
   })
 
-  it('echoes an explicit null when show omitted the group', async () => {
-    // 拖进未分组写的是 null。show 若直接丢掉这个字段，客户端会把它当成没写上。
-    const shown = { id: 'repo-1::/srv/app', manualOrder: 2 } as unknown as Worktree
-    const worktree = {
-      id: shown.id,
-      repoId: 'repo-1',
-      hostId: 'ssh:box',
-      path: '/srv/app',
-      instanceId: 'i-1'
-    } as unknown as ResolvedWorktree
-    const result = await updateRuntimeManagedWorktreeMetadata({
-      selector: `id:${shown.id}`,
-      updates: { sidebarGroupId: null },
-      store: { getRepos: () => [], setWorktreeMeta: vi.fn() } as unknown as RuntimeStore,
-      ports: {
-        resolveWorktree: vi.fn(async () => worktree),
-        validateParent: vi.fn(),
-        invalidateResolved: vi.fn(),
-        invalidateScan: vi.fn(),
-        notifyChanged: vi.fn(),
-        showWorktree: vi.fn(async () => shown)
-      }
-    })
+  it('echoes an explicit null (ungroup)', async () => {
+    const { result } = await runtimeSet({ sidebarGroupId: null }, { sidebarGroupId: null }, {})
     expect(result.sidebarGroupId).toBeNull()
   })
 
   it('echoes a clear by removing the field show still has', async () => {
-    const shown = {
-      id: 'repo-1::/srv/app',
-      sidebarGroupId: 'g1',
-      manualOrder: 3
-    } as unknown as Worktree
-    const worktree = {
-      id: shown.id,
-      repoId: 'repo-1',
-      hostId: 'ssh:box',
-      path: '/srv/app',
-      instanceId: 'i-1'
-    } as unknown as ResolvedWorktree
-    const result = await updateRuntimeManagedWorktreeMetadata({
-      selector: `id:${shown.id}`,
-      updates: { clearFields: ['sidebarGroupId', 'manualOrder'] },
-      store: { getRepos: () => [], setWorktreeMeta: vi.fn() } as unknown as RuntimeStore,
-      ports: {
-        resolveWorktree: vi.fn(async () => worktree),
-        validateParent: vi.fn(),
-        invalidateResolved: vi.fn(),
-        invalidateScan: vi.fn(),
-        notifyChanged: vi.fn(),
-        showWorktree: vi.fn(async () => shown)
-      }
-    })
+    const { result } = await runtimeSet(
+      { clearFields: ['sidebarGroupId', 'manualOrder'] },
+      {},
+      { sidebarGroupId: 'g1', manualOrder: 3 }
+    )
     expect(Object.hasOwn(result, 'sidebarGroupId')).toBe(false)
     expect(Object.hasOwn(result, 'manualOrder')).toBe(false)
-    expect(shown.sidebarGroupId).toBe('g1')
+  })
+
+  it('echoes what the store holds, so a group the store did not keep still fails the write', async () => {
+    const { result } = await runtimeSet(
+      { sidebarGroupId: 'g1', manualOrder: 7 },
+      { manualOrder: 7 },
+      { sidebarGroupId: 'g1', manualOrder: 7 }
+    )
+    expect(Object.hasOwn(result, 'sidebarGroupId')).toBe(false)
+    expect(() =>
+      assertSidebarFieldsApplied({ sidebarGroupId: 'g1', manualOrder: 7 }, result)
+    ).toThrow(SidebarFieldsNotAppliedError)
   })
 
   it('leaves a group this write did not touch on the shown row', async () => {
-    const shown = { id: 'repo-1::/srv/app', sidebarGroupId: 'kept' } as unknown as Worktree
-    const worktree = {
-      id: shown.id,
-      repoId: 'repo-1',
-      hostId: 'ssh:box',
-      path: '/srv/app',
-      instanceId: 'i-1'
-    } as unknown as ResolvedWorktree
-    const result = await updateRuntimeManagedWorktreeMetadata({
-      selector: `id:${shown.id}`,
-      updates: { comment: 'c' },
-      store: { getRepos: () => [], setWorktreeMeta: vi.fn() } as unknown as RuntimeStore,
-      ports: {
-        resolveWorktree: vi.fn(async () => worktree),
-        validateParent: vi.fn(),
-        invalidateResolved: vi.fn(),
-        invalidateScan: vi.fn(),
-        notifyChanged: vi.fn(),
-        showWorktree: vi.fn(async () => shown)
-      }
-    })
+    const { result } = await runtimeSet({ comment: 'c' }, {}, { sidebarGroupId: 'kept' })
     expect(result.sidebarGroupId).toBe('kept')
   })
 })

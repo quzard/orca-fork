@@ -36,7 +36,7 @@ async function runtimeCreateWrites(): Promise<Partial<WorktreeMeta>> {
   }))
   const store = { getProjectHostSetups: () => [], setWorktreeMeta }
   await materializeRuntimeLocalWorktree({
-    request: {},
+    request: { repoSelector: 'id:repo-1', name: 'checkout' },
     repo,
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: create reads only getProjectHostSetups and setWorktreeMeta from the store.
     store: store as never,

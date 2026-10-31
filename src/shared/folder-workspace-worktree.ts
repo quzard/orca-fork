@@ -10,6 +10,7 @@ import { composeWorktreeHostIdentity } from './worktree/host-qualified-identity'
 import { normalizeWorkspaceCreatorProvenance } from './workspace-creator-provenance'
 import { getWorkspaceAttachments } from './workspace-attachments'
 import { normalizeWorkspaceAttachment } from './workspace-attachment-normalization'
+import { forkWorkspaceFields } from './fork-hooks/sidebar-group-membership'
 
 /** Folder Worktrees borrow repoId for their project group; it is never null, so absence cannot detect a non-Git workspace.
  * Keep prefix creation/recognition together to avoid drift. */
@@ -90,10 +91,7 @@ export function folderWorkspaceToWorktree(folderWorkspace: FolderWorkspace): Wor
     isPinned: folderWorkspace.isPinned,
     sortOrder: folderWorkspace.sortOrder,
     manualOrder: folderWorkspace.manualOrder,
-    // fork: null 是明确取消分组，必须留在对象上；没设置则不要写成 undefined。
-    ...(folderWorkspace.sidebarGroupId !== undefined
-      ? { sidebarGroupId: folderWorkspace.sidebarGroupId }
-      : {}),
+    ...forkWorkspaceFields(folderWorkspace),
     lastActivityAt: folderWorkspace.lastActivityAt,
     ...(folderWorkspace.smartTier !== undefined
       ? { smartTier: folderWorkspace.smartTier, smartAt: folderWorkspace.smartAt }

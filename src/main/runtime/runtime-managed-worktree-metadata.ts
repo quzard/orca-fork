@@ -20,7 +20,8 @@ import {
 } from '../persistence/moving-wsl-projects/wsl-move-scope-guard'
 import { RuntimeLineageError } from './runtime-worktree-lineage-resolution'
 import {
-  decodeSidebarFieldClears,
+  applySidebarFieldClears,
+  echoSidebarFields,
   type ClearableSidebarField
 } from '../../shared/fork-hooks/sidebar-field-clear'
 import type { ResolvedWorktree } from './runtime-worktree-path-identity'
@@ -76,7 +77,7 @@ export async function updateRuntimeManagedWorktreeMetadata(args: {
   const normalized: Partial<WorktreeMeta> = clearPushTarget
     ? { ...metaUpdates, pushTarget: undefined }
     : (metaUpdates as Partial<WorktreeMeta>)
-  let persisted: Partial<WorktreeMeta> = omitUndefinedProperties(
+  const persisted: Partial<WorktreeMeta> = omitUndefinedProperties(
     normalized.displayName !== undefined
       ? {
           ...normalized,
@@ -88,7 +89,7 @@ export async function updateRuntimeManagedWorktreeMetadata(args: {
   if (clearPushTarget) {
     persisted.pushTarget = undefined
   }
-  persisted = decodeSidebarFieldClears(persisted, clearFields)
+  applySidebarFieldClears(persisted, clearFields)
   if (lineage?.noParent === true) {
     args.store.removeWorktreeLineage?.(target)
   } else if (lineage?.parentWorktree) {
@@ -138,7 +139,7 @@ export async function updateRuntimeManagedWorktreeMetadata(args: {
   if (isRemovedFolderWorkspaceInstance(args.store, worktree.id, executionHostId)) {
     throw new Error('selector_not_found')
   }
-  args.store.setWorktreeMeta(target, metadataUpdates)
+  const written = args.store.setWorktreeMeta(target, metadataUpdates)
   // Push explicitly for CLI mutations outside renderer optimistic updates.
   args.ports.invalidateResolved()
   args.ports.notifyChanged(worktree.repoId)
@@ -149,26 +150,7 @@ export async function updateRuntimeManagedWorktreeMetadata(args: {
       }
     }
   }
-  const shown = await args.ports.showWorktree(`id:${worktree.id}`)
-  // fork: show 回的工作区不一定带上刚写入的分组。文件夹仓库的合并以前只回 manualOrder，
-  // 或者 show 读到的仍是写入前的那一行。回复形状就和旧主机丢掉 sidebarGroupId 一样，
-  // 客户端会误判成主机过旧。这里按这次实际交给存储的侧栏字段回显；旧主机没有这段逻辑。
-  const echoed = { ...shown }
-  if (Object.hasOwn(metadataUpdates, 'sidebarGroupId')) {
-    if (metadataUpdates.sidebarGroupId === undefined) {
-      delete echoed.sidebarGroupId
-    } else {
-      echoed.sidebarGroupId = metadataUpdates.sidebarGroupId
-    }
-  }
-  if (Object.hasOwn(metadataUpdates, 'manualOrder')) {
-    if (metadataUpdates.manualOrder === undefined) {
-      delete echoed.manualOrder
-    } else {
-      echoed.manualOrder = metadataUpdates.manualOrder
-    }
-  }
-  return echoed
+  return echoSidebarFields(await args.ports.showWorktree(`id:${worktree.id}`), persisted, written)
 }
 
 export function persistRuntimeManagedWorktreeSortOrder(args: {

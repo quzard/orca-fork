@@ -7,6 +7,7 @@ import {
 } from '../../../shared/worktree/id'
 import type { WorktreeMeta } from '../../../shared/worktree/meta-types'
 import type { Worktree } from '../../../shared/worktree/types'
+import { forkWorkspaceFields } from '../../../shared/fork-hooks/sidebar-group-membership'
 
 export function getFolderWorkspaceRootId(repo: Repo): string {
   return getRepoMainWorktreeId(repo)
@@ -64,8 +65,7 @@ export function mergeFolderWorkspace(repo: Repo, worktreeId: string, meta: Workt
     isPinned: meta.isPinned ?? false,
     sortOrder: meta.sortOrder ?? 0,
     ...(meta.manualOrder !== undefined ? { manualOrder: meta.manualOrder } : {}),
-    // fork: 分组写在 meta 里。漏掉时重启后的 detected 列表读不到，行掉回未分组；git 走 mergeWorktree 本来就带回。
-    ...(meta.sidebarGroupId !== undefined ? { sidebarGroupId: meta.sidebarGroupId } : {}),
+    ...forkWorkspaceFields(meta),
     lastActivityAt: meta.lastActivityAt ?? 0,
     ...(meta.createdAt !== undefined ? { createdAt: meta.createdAt } : {}),
     ...(meta.createdWithAgent !== undefined ? { createdWithAgent: meta.createdWithAgent } : {}),

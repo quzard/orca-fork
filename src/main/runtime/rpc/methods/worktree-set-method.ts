@@ -2,7 +2,6 @@ import { WorktreeSet } from '../../../../shared/rpc-contract/worktree-params'
 import { displayNameUpdatePinsLabel } from '../../../../shared/worktree/display-name-provenance'
 import { getWorkspaceStatusWarning } from '../../../../shared/workspace-status-warning'
 import { defineMethod } from '../core'
-import { sidebarGroupIdSetPatch } from './worktree-create-args'
 
 export const WORKTREE_SET_METHOD = defineMethod({
   name: 'worktree.set',
@@ -39,9 +38,10 @@ export const WORKTREE_SET_METHOD = defineMethod({
       isArchived: params.isArchived,
       isUnread: params.isUnread,
       isPinned: params.isPinned,
-      ...sidebarGroupIdSetPatch(params.sidebarGroupId),
       sortOrder: params.sortOrder,
       manualOrder: params.manualOrder,
+      sidebarGroupId: params.sidebarGroupId,
+      clearFields: params.clearFields,
       lastActivityAt: params.lastActivityAt,
       createdAt: params.createdAt,
       sparseDirectories: params.sparseDirectories,
@@ -61,8 +61,7 @@ export const WORKTREE_SET_METHOD = defineMethod({
               parentWorktree: params.parentWorktree,
               noParent: params.noParent === true
             }
-          : undefined,
-      clearFields: params.clearFields
+          : undefined
     })
     const warning = getWorkspaceStatusWarning(
       params.workspaceStatus,

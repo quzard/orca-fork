@@ -35,6 +35,7 @@ import {
 import { registerComposerSeed } from './sidebar/register-composer-seed'
 import { installForkLocaleOverlays } from './i18n/locale-overlay'
 import { registerForkWorktreeContextMenuLabels } from './sidebar/context-menu-labels'
+import { installCoveredTerminalCanvasStyle } from './terminal/covered-terminal-canvas'
 import { installManagedSshAddressPreview } from './terminal/html-preview-address'
 import { installSshRoutedHtmlPreviewRecovery } from './terminal/html-preview-reclaim'
 import { registerTerminalFileLinkStayWatch } from './terminal/file-link-stay-watch'
@@ -69,6 +70,7 @@ export function registerForkRendererModules(): void {
   registerTerminalPaneShownHook((info) => {
     consumeDeferredSshReconnectTui(info, resizePty)
   })
+  installCoveredTerminalCanvasStyle()
   registerComposerSeed()
   registerForkWorktreeContextMenuLabels()
   registerTerminalFileLinkStayWatch()

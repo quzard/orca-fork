@@ -181,6 +181,43 @@ GIT_AUTHOR_NAME="$GOOD_NAME" GIT_AUTHOR_EMAIL="$GOOD_EMAIL" \
   git merge -q --no-ff --no-edit up
 expect_pass "upstream commits are not checked"
 
+# GitHub 网页 / gh pr merge 的合并提交：作者 quzard、提交者 GitHub <noreply@github.com>、两个父提交，放行。
+new_repo github-merge
+good_commit "fork one"
+git checkout -q -b side
+good_commit "side"
+git checkout -q main
+good_commit "fork two"
+GIT_AUTHOR_NAME="$GOOD_NAME" GIT_AUTHOR_EMAIL="$GOOD_EMAIL" \
+  GIT_COMMITTER_NAME=GitHub GIT_COMMITTER_EMAIL=noreply@github.com \
+  git merge -q --no-ff --no-edit side
+expect_pass "GitHub merge committer on a quzard merge"
+# 同样的提交者，但不是合并提交：失败。
+commit_as "$GOOD_NAME" "$GOOD_EMAIL" "GitHub" "noreply@github.com" "GitHub non-merge"
+expect_fail "GitHub committer on a non-merge commit" "$(git rev-parse HEAD)"
+
+new_repo github-merge-bad-author
+good_commit "fork one"
+git checkout -q -b side
+good_commit "side"
+git checkout -q main
+good_commit "fork two"
+GIT_AUTHOR_NAME="Cursor Agent" GIT_AUTHOR_EMAIL=cursoragent@cursor.com \
+  GIT_COMMITTER_NAME=GitHub GIT_COMMITTER_EMAIL=noreply@github.com \
+  git merge -q --no-ff --no-edit side
+expect_fail "GitHub merge with a non-quzard author" "$(git rev-parse HEAD)"
+
+new_repo github-merge-other-noreply
+good_commit "fork one"
+git checkout -q -b side
+good_commit "side"
+git checkout -q main
+good_commit "fork two"
+GIT_AUTHOR_NAME="$GOOD_NAME" GIT_AUTHOR_EMAIL="$GOOD_EMAIL" \
+  GIT_COMMITTER_NAME=GitHub GIT_COMMITTER_EMAIL=web-flow@users.noreply.github.com \
+  git merge -q --no-ff --no-edit side
+expect_fail "other GitHub noreply committer" "$(git rev-parse HEAD)"
+
 new_repo missing-upstream
 good_commit "fork one"
 git update-ref -d refs/remotes/upstream/main

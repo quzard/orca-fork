@@ -3,6 +3,9 @@
 # Usage: check-commit-identity.sh [REF]   (default HEAD)
 # Checks each commit in `git rev-list REF ^upstream/main ^FLOOR`, merges included: author and
 # committer must both be exactly `quzard <30899719+quzard@users.noreply.github.com>`.
+# One exception: a merge commit (2+ parents) made on github.com or with `gh pr merge` has author
+# quzard but committer exactly `GitHub <noreply@github.com>`. Those pass; the author is still
+# checked exactly, and non-merge commits or any other committer still fail.
 # FLOOR is fixed in this script, not read from any file: a commit cannot move it to skip itself or
 # an earlier bad commit. Commits reachable from it are public on develop and were reviewed when
 # the check was added; 20 of them are by Cursor Agent <cursoragent@cursor.com> (2026-10-16/17) and
@@ -14,6 +17,7 @@ set -euo pipefail
 
 readonly EXPECTED_NAME="quzard"
 readonly EXPECTED_EMAIL="30899719+quzard@users.noreply.github.com"
+readonly GITHUB_MERGE_COMMITTER="GitHub <noreply@github.com>"
 readonly UPSTREAM_REF="refs/remotes/upstream/main"
 readonly FLOOR="8fd7c96acc934cb25e41b5da17f1743e88219bbe"
 
@@ -39,11 +43,16 @@ fi
 
 expected="${EXPECTED_NAME} <${EXPECTED_EMAIL}>"
 bad=()
-while IFS=$'\t' read -r sha author committer; do
-  if [[ "$author" != "$expected" || "$committer" != "$expected" ]]; then
-    bad+=("${sha} author: ${author} committer: ${committer}")
+while IFS=$'\t' read -r sha parents author committer; do
+  if [[ "$author" == "$expected" && "$committer" == "$expected" ]]; then
+    continue
   fi
-done < <(git log --no-mailmap --format=$'%H\t%an <%ae>\t%cn <%ce>' "$ref" "^${UPSTREAM_REF}" "^${FLOOR}" --)
+  # GitHub web / `gh pr merge` merge commit: author quzard, committer GitHub, 2+ parents.
+  if [[ "$author" == "$expected" && "$committer" == "$GITHUB_MERGE_COMMITTER" && "$parents" == *" "* ]]; then
+    continue
+  fi
+  bad+=("${sha} author: ${author} committer: ${committer}")
+done < <(git log --no-mailmap --format=$'%H\t%P\t%an <%ae>\t%cn <%ce>' "$ref" "^${UPSTREAM_REF}" "^${FLOOR}" --)
 
 if [[ ${#bad[@]} -gt 0 ]]; then
   echo "commit identity check: ${#bad[@]} commit(s) after ${FLOOR:0:10} not by ${expected}:" >&2

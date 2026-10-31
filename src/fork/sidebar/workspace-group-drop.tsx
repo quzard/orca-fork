@@ -238,7 +238,7 @@ export function registerWorkspaceGroupDropHandler(): void {
       return false
     }
     return tryCommitWorkspaceGroupDrop(args)
-  })
+  }, looseHostSectionKey)
 }
 
 function isDropArgs(args: WorkspaceGroupDropArgs): args is DropArgs {

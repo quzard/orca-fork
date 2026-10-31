@@ -27,6 +27,7 @@ export type WorkspaceGroupDropArgs = {
 }
 
 let groupDrop: ((args: WorkspaceGroupDropArgs) => boolean) | undefined
+let hostDropKey: ((hostId: string) => string) | undefined
 let directoryPrefix: ((label: string, path: string) => ReactNode) | undefined
 
 export function registerSidebarContextMenu(
@@ -123,9 +124,21 @@ export function hiddenWorktreeMatchesExtra(
 }
 
 export function registerWorkspaceGroupDrop(
-  commit: (args: WorkspaceGroupDropArgs) => boolean
+  commit: (args: WorkspaceGroupDropArgs) => boolean,
+  hostHeaderKey: (hostId: string) => string
 ): void {
   groupDrop = commit
+  hostDropKey = hostHeaderKey
+}
+
+/** A row's or header's drop-target key (its section key) while a group drop is registered. */
+export function workspaceDropGroupKey(sectionKey: string): string | undefined {
+  return groupDrop ? sectionKey : undefined
+}
+
+/** A host header is a drop into that host's ungrouped list. */
+export function hostHeaderDropGroupKey(hostId: string): string | undefined {
+  return hostDropKey?.(hostId)
 }
 
 /** A drop on another section's group (host-directory). True when the fork took the drop. */

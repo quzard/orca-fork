@@ -7,6 +7,7 @@ import type { HostHeaderRow } from '../../../../../../shared/sidebar-list/host-s
 import { HostSectionHeaderMenu } from '../../HostSectionHeaderMenu'
 import { stopRepoHeaderMenuEvent } from './header-event-guards'
 import { getHostHeaderDetail } from './host-header-detail'
+import { hostHeaderDropGroupKey } from '../../../../../../shared/fork-hooks/sidebar-chrome'
 
 function SectionMetricsBadge({ count }: { count: number }): React.JSX.Element {
   const totalLabel = translate(
@@ -70,7 +71,7 @@ export function HostSectionHeader({
         role="button"
         tabIndex={0}
         data-host-header-drag-id={row.hostId}
-        data-workspace-sidebar-group={`hd:${JSON.stringify([row.hostId, null])}`}
+        data-workspace-sidebar-group={hostHeaderDropGroupKey(row.hostId)}
         aria-expanded={!row.collapsed}
         className={cn(
           'group/host-header flex h-8 w-full cursor-pointer items-center gap-2 rounded-md border px-2 text-left transition-all',

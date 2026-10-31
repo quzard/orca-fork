@@ -21,6 +21,7 @@ import {
   type WorktreeGroupBy
 } from '../../../../../../shared/sidebar-list/row-types'
 import { hasProjectHeaderChrome } from '../../../../../../shared/fork-hooks/sidebar-group-mode'
+import { workspaceDropGroupKey } from '../../../../../../shared/fork-hooks/sidebar-chrome'
 import { PINNED_GROUP_KEY } from '../../../../../../shared/sidebar-list/group-keys'
 import { getWorkspaceStatusFromGroupKey } from '../../workspace-status'
 import { getVirtualRowTransform } from '../viewport/virtual-rows'
@@ -232,7 +233,7 @@ export function renderWorktreeSectionHeaderRow(args: {
               : undefined
           }
           data-project-group-header-drag-handle={isDraggableProjectGroupHeader ? '' : undefined}
-          data-workspace-sidebar-group={row.key}
+          data-workspace-sidebar-group={workspaceDropGroupKey(row.key)}
           data-workspace-status-drop-target={headerWorkspaceStatus ? '' : undefined}
           data-workspace-status={headerWorkspaceStatus ?? undefined}
           data-workspace-pin-drop-target={isPinnedHeader ? '' : undefined}

@@ -131,11 +131,8 @@ async function ensureParentFolder(details: ForkPostImportDetails): Promise<void>
 
 export async function applyForkPostImport(details: ForkPostImportDetails): Promise<void> {
   if (details.phase === 'registered') {
-    for (const importedPath of [
-      details.path,
-      details.worktreePath,
-      ...(details.projectPaths ?? [])
-    ]) {
+    const paths = [details.path, details.worktreePath, ...(details.projectPaths ?? [])]
+    for (const importedPath of new Set(paths)) {
       if (!importedPath) {
         continue
       }

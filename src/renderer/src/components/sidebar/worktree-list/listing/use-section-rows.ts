@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { shallow } from 'zustand/shallow'
 import { persistedUIValuesEqual } from '../../../../../../shared/persisted-ui-equality'
 import { useShallow } from 'zustand/react/shallow'
@@ -36,11 +36,8 @@ import {
   createSidebarHostLabelsSelector
 } from '../../sidebar-host-options'
 import { selectPendingWorktreeCreationKeys } from './pending-worktree-creation-keys'
-import {
-  getSidebarGroupModeLabelsVersion,
-  sidebarModeRetainsHostHeaders,
-  subscribeSidebarGroupModeLabels
-} from '../../../../../../shared/fork-hooks/sidebar-group-mode'
+import { sidebarModeRetainsHostHeaders } from '../../../../../../shared/fork-hooks/sidebar-group-mode'
+import { useSidebarGroupModeLabelsVersion } from '../../../../../../fork/sidebar/mode-labels'
 import { selectWorktreesByRepo } from '@/store/workspace-record-selectors'
 
 function createSidebarHostOptionsSelector() {
@@ -222,15 +219,10 @@ export function useSidebarSectionRows(args: SectionRowsArgs) {
         : effectiveCollapsedGroups,
     [effectiveCollapsedGroups, hostScopedGroups]
   )
-  // fork: 登记模式的标题随界面语言变化，语言切换时重新生成行，让标题重新绘制。未登记时版本号不变。
-  const labelsVersion = useSyncExternalStore(
-    subscribeSidebarGroupModeLabels,
-    getSidebarGroupModeLabelsVersion,
-    getSidebarGroupModeLabelsVersion
-  )
+  const labelsVersion = useSidebarGroupModeLabelsVersion()
   const rows: Row[] = useMemo(
     () => rowPlan.render(rowCollapsedGroups),
-    // oxlint-disable-next-line react-hooks/exhaustive-deps -- labelsVersion only forces a new row array.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- fork: a mode label's language change redraws rows.
     [rowPlan, rowCollapsedGroups, labelsVersion]
   )
   const orderedHostOptions = useMemo(
@@ -261,7 +253,6 @@ export function useSidebarSectionRows(args: SectionRowsArgs) {
       forceCollapseHosts: hostDragActive,
       // Why: projects/workspaces are the primary sidebar object; host sections are only an explicit host-filter view.
       preferProjectGrouping: true,
-      // fork: host-directory 即使只看见一个主机也保留主机标题。
       retainSingleHostHeader: retainHostHeaders
     })
     return hostScopedGroups

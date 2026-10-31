@@ -12,7 +12,7 @@ import {
 } from '../../../../shared/external-worktree-inbox'
 import { relativePathInsideRoot } from '../../../../shared/cross-platform-path'
 import {
-  hiddenWorktreeMatchesQuery,
+  hiddenWorktreeMatchesExtra,
   hiddenWorktreeSearchMinimum
 } from '../../../../shared/fork-hooks/sidebar-chrome'
 
@@ -39,7 +39,12 @@ export default function HiddenWorktreeRecoveryList({
   const hidden = getHiddenImportableExternalWorktrees(detected)
   const normalizedQuery = query.trim().toLowerCase()
   const filtered = normalizedQuery
-    ? hidden.filter((worktree) => hiddenWorktreeMatchesQuery(worktree, normalizedQuery))
+    ? hidden.filter(
+        (worktree) =>
+          worktree.displayName.toLowerCase().includes(normalizedQuery) ||
+          worktree.path.toLowerCase().includes(normalizedQuery) ||
+          hiddenWorktreeMatchesExtra(worktree, normalizedQuery)
+      )
     : hidden
   const discoveredCount = hidden.length + getVisibleNonOrcaWorktrees(detected).length
   const virtualizer = useVirtualizer({

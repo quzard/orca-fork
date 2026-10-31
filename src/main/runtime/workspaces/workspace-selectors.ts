@@ -24,7 +24,6 @@ import type { WorkspaceKey } from '../../../shared/folder-workspace-types'
 import type { Repo } from '../../../shared/repo-types'
 import type { RuntimeStore } from '../runtime-store-contract'
 import type { RuntimeWorkspaceCatalog } from './workspace-catalog'
-// 路径比较和元数据合并已从 worktree-logic 拆出。folder: 解析在 resolveWorkspaceSelector。
 import { areWorktreePathsEqual } from '../../git/worktree-path-comparison'
 import { resolveWorktreeMetaOwner } from '../../persistence/host-qualified-worktree-meta'
 import { resolveWorktreeHostRouting } from '../worktree-launch-host-repo'

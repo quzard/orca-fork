@@ -107,6 +107,11 @@ export function getDefaultRegisteredSidebarGroupBy(): PersistedUIState['groupBy'
   return 'repo'
 }
 
+/** Upstream's `groupBy === 'repo'` test for project-header chrome, extended to registered modes. */
+export function hasProjectHeaderChrome(groupBy: string): boolean {
+  return groupBy === 'repo' || isRegisteredSidebarGroupMode(groupBy)
+}
+
 export function sidebarModeRetainsHostHeaders(groupBy: string): boolean {
   return lookupSidebarGroupMode(groupBy)?.retainHostHeaders === true
 }
@@ -136,6 +141,23 @@ export function registeredReplacementForBuiltinGroupBy(
     return mode.id as PersistedUIState['groupBy']
   }
   return undefined
+}
+
+/**
+ * Persisted groupBy, before upstream's built-in checks: a saved Project value opens the registered
+ * mode that replaces it, and a registered id is kept. Undefined otherwise, and while unregistered.
+ */
+export function normalizeRegisteredGroupBy(
+  groupBy: unknown
+): PersistedUIState['groupBy'] | undefined {
+  if (typeof groupBy !== 'string') {
+    return undefined
+  }
+  return (
+    registeredReplacementForBuiltinGroupBy(groupBy) ??
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: only a registered mode id passes the check; the closed union cannot list it.
+    (isRegisteredSidebarGroupMode(groupBy) ? (groupBy as PersistedUIState['groupBy']) : undefined)
+  )
 }
 
 export function hydrateSidebarGroupBy(groupBy: string): PersistedUIState['groupBy'] {

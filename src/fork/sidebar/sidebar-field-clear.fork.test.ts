@@ -28,7 +28,6 @@ import {
   testState
 } from '../../main/persistence/persistence-test-harness'
 import { hostWorktreeTarget } from '../../shared/worktree/host-qualified-identity'
-import { assertSidebarFieldsApplied, SidebarFieldsNotAppliedError } from './sidebar-fields-applied'
 
 vi.mock('../../main/ssh/ssh-config-parser', () => ({
   loadUserSshConfig: vi.fn(),
@@ -205,9 +204,9 @@ describe('runtime worktree.set clear and echo', () => {
     )
     expect(result.sidebarGroupId).toBe('g1')
     expect(result.manualOrder).toBe(7)
-    expect(() =>
-      assertSidebarFieldsApplied({ sidebarGroupId: 'g1', manualOrder: 7 }, result)
-    ).not.toThrow()
+    expect(folderSidebarFieldsNotApplied({ sidebarGroupId: 'g1', manualOrder: 7 }, result)).toBe(
+      false
+    )
   })
 
   it('echoes an explicit null (ungroup)', async () => {
@@ -232,9 +231,9 @@ describe('runtime worktree.set clear and echo', () => {
       { sidebarGroupId: 'g1', manualOrder: 7 }
     )
     expect(Object.hasOwn(result, 'sidebarGroupId')).toBe(false)
-    expect(() =>
-      assertSidebarFieldsApplied({ sidebarGroupId: 'g1', manualOrder: 7 }, result)
-    ).toThrow(SidebarFieldsNotAppliedError)
+    expect(folderSidebarFieldsNotApplied({ sidebarGroupId: 'g1', manualOrder: 7 }, result)).toBe(
+      true
+    )
   })
 
   it('leaves a group this write did not touch on the shown row', async () => {

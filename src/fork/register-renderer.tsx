@@ -27,6 +27,8 @@ import { installHostDirectoryRowPlan } from './sidebar/install-row-plan'
 import { registerHostDirectorySortReader } from './sidebar/section-keys'
 import { registerSettingsProjectBulkSlot } from './sidebar/settings-project-bulk'
 import { registerSidebarMenuSlots } from './sidebar/sidebar-menu-slots'
+import { registerDirectoryPrefix } from './sidebar/directory-prefix'
+import { registerDeleteProjectGroupOptionCheckbox } from './sidebar/project-group-delete-option'
 import { registerWorkspaceChoice } from './sidebar/workspace-choice'
 import { registerWorkspaceGroupDropHandler } from './sidebar/workspace-group-drop'
 import { registerWorkspaceMenuGroups } from './sidebar/menu-groups'
@@ -49,6 +51,8 @@ export function registerForkRendererModules(): void {
   installHostDirectoryRowPlan()
   registerHostDirectorySortReader(() => useAppStore.getState().sortBy)
   registerSidebarMenuSlots()
+  registerDirectoryPrefix()
+  registerDeleteProjectGroupOptionCheckbox()
   registerArchivedWorkspaceSlot()
   registerWorkspaceChoice()
   registerSettingsProjectBulkSlot()

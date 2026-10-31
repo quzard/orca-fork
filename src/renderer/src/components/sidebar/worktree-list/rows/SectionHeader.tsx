@@ -20,7 +20,7 @@ import {
   type GroupHeaderRow,
   type WorktreeGroupBy
 } from '../../../../../../shared/sidebar-list/row-types'
-import { lookupSidebarGroupMode } from '../../../../../../shared/fork-hooks/sidebar-group-mode'
+import { hasProjectHeaderChrome } from '../../../../../../shared/fork-hooks/sidebar-group-mode'
 import { PINNED_GROUP_KEY } from '../../../../../../shared/sidebar-list/group-keys'
 import { getWorkspaceStatusFromGroupKey } from '../../workspace-status'
 import { getVirtualRowTransform } from '../viewport/virtual-rows'
@@ -94,10 +94,8 @@ export function renderWorktreeSectionHeaderRow(args: {
 }): React.JSX.Element {
   const { ctx, row, vItem, isActiveStickyHeader } = args
   const { headerDrag } = ctx
-  // fork: 已登记分组沿用项目标题的菜单和拖放，而不是 PR 标题。
-  const repoChrome = ctx.groupBy === 'repo' || lookupSidebarGroupMode(ctx.groupBy) !== undefined
-  const isRepoHeader = repoChrome && row.repo !== undefined
-  const isProjectGroupHeader = repoChrome && row.projectGroup !== undefined
+  const isRepoHeader = hasProjectHeaderChrome(ctx.groupBy) && row.repo !== undefined
+  const isProjectGroupHeader = hasProjectHeaderChrome(ctx.groupBy) && row.projectGroup !== undefined
   // Drag keys on the project's anchor and skips copies an earlier host section already drew.
   const headerRepo = isRepoHeader ? getHeaderDragRepo(row) : undefined
   const projectIdForHeader = headerRepo?.id
@@ -386,7 +384,7 @@ export function renderWorktreeSectionHeaderRow(args: {
               />
             ) : null}
 
-            {row.repo && repoChrome ? (
+            {row.repo && hasProjectHeaderChrome(ctx.groupBy) ? (
               <RepoHeaderProjectActionsMenu
                 repo={row.repo}
                 label={label}
@@ -395,7 +393,7 @@ export function renderWorktreeSectionHeaderRow(args: {
               />
             ) : null}
 
-            {row.repo && repoChrome ? (
+            {row.repo && hasProjectHeaderChrome(ctx.groupBy) ? (
               <RepoHeaderCreateWorkspaceButton
                 key={`${row.repo.executionHostId ?? 'local'}:${row.repo.connectionId ?? ''}`}
                 repo={row.repo}

@@ -1,6 +1,6 @@
 import type { Repo } from '../repo-types'
 import type { Worktree } from '../worktree/types'
-import { isRegisteredSidebarGroupMode } from '../fork-hooks/sidebar-group-mode'
+import { hasProjectHeaderChrome } from '../fork-hooks/sidebar-group-mode'
 import type { WorktreeGroupBy } from './row-types'
 
 export function getEmptyProjectPlaceholderRepoIds(args: {
@@ -10,7 +10,7 @@ export function getEmptyProjectPlaceholderRepoIds(args: {
   visibleWorktrees: readonly Worktree[]
   filterRepoIds: readonly string[]
 }): Set<string> {
-  if (args.groupBy !== 'repo' && !isRegisteredSidebarGroupMode(args.groupBy)) {
+  if (!hasProjectHeaderChrome(args.groupBy)) {
     return new Set()
   }
 

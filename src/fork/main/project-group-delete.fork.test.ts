@@ -236,6 +236,7 @@ describe('deleting a project group in main', () => {
     })
   })
 
+  // Loading and the group delete both leave a group-less folder workspace ungrouped (null).
   it('resolves an agent host from a group-less folder workspace itself', () => {
     const deps = (workspace: FolderWorkspace) => ({
       getRepo: () => undefined,
@@ -247,14 +248,26 @@ describe('deleting a project group in main', () => {
     expect(
       resolveAgentWorkspaceExecutionHostId(
         key,
-        deps(folderWorkspace({ id: 'kept', projectGroupId: 'gone', connectionId: 'ssh-prod' }))
+        deps(
+          folderWorkspace({
+            id: 'kept',
+            projectGroupId: 'gone',
+            connectionId: 'ssh-prod',
+            sidebarGroupId: null
+          })
+        )
       )
     ).toBe('ssh:ssh-prod')
     expect(
       resolveAgentWorkspaceExecutionHostId(
         key,
         deps(
-          folderWorkspace({ id: 'kept', projectGroupId: 'gone', executionHostId: 'runtime:env-1' })
+          folderWorkspace({
+            id: 'kept',
+            projectGroupId: 'gone',
+            executionHostId: 'runtime:env-1',
+            sidebarGroupId: null
+          })
         )
       )
     ).toBe('runtime:env-1')

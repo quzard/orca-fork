@@ -8,7 +8,7 @@ import type { ProjectGroup } from '../../shared/project-group-types'
 import { getRepoIdFromWorktreeId } from '../../shared/worktree/id'
 import { parseWorkspaceKey } from '../../shared/workspace-scope'
 import { isLocalHookConnectionId } from '../../shared/wsl-hook-relay-contract'
-import { folderWorkspacesMayOutliveTheirGroup } from '../../shared/fork-hooks/project-group-delete'
+import { standInGroupForGroupLessFolderWorkspace } from '../../shared/fork-hooks/project-group-delete'
 import type { AgentHookServer } from './server'
 
 type RestoredStatusSweepServer = Pick<
@@ -85,10 +85,7 @@ type AgentWorkspaceExecutionHostDeps = {
   getWorktreeMeta: (worktreeId: string) => { hostId?: string | null } | null | undefined
   getFolderWorkspace: (
     folderWorkspaceId: string
-  ) =>
-    | Pick<FolderWorkspace, 'projectGroupId' | 'connectionId' | 'executionHostId'>
-    | null
-    | undefined
+  ) => Pick<FolderWorkspace, 'projectGroupId' | 'connectionId'> | null | undefined
   getProjectGroups: () => readonly Pick<ProjectGroup, 'id' | 'connectionId' | 'executionHostId'>[]
 }
 
@@ -115,16 +112,9 @@ export function resolveAgentWorkspaceExecutionHostId(
   const scope = parseWorkspaceKey(workspaceId)
   if (scope?.type === 'folder') {
     const workspace = deps.getFolderWorkspace(scope.folderWorkspaceId)
-    // fork: a folder workspace kept when its group was deleted declares its own host.
     const group = workspace
       ? (deps.getProjectGroups().find((candidate) => candidate.id === workspace.projectGroupId) ??
-        (folderWorkspacesMayOutliveTheirGroup()
-          ? {
-              id: workspace.projectGroupId,
-              connectionId: null,
-              executionHostId: workspace.executionHostId ?? null
-            }
-          : undefined))
+        standInGroupForGroupLessFolderWorkspace(workspace))
       : undefined
     if (!workspace || !group) {
       return null

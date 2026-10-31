@@ -35,7 +35,7 @@ import { registerForkRendererModules } from '../register-renderer'
 import { getWorktreeDragGroups } from '../../renderer/src/components/sidebar/worktree-list/drag/groups'
 import { getWorktreeIdFromHostIdentity } from '../../shared/worktree/host-qualified-identity'
 import {
-  hiddenWorktreeMatchesQuery,
+  hiddenWorktreeMatchesExtra,
   hiddenWorktreeSearchMinimum
 } from '../../shared/fork-hooks/sidebar-chrome'
 
@@ -572,13 +572,13 @@ describe('hidden workspace search', () => {
   it('shows the search from the first archived workspace and matches the branch', () => {
     expect(hiddenWorktreeSearchMinimum()).toBe(1)
     expect(
-      hiddenWorktreeMatchesQuery(
+      hiddenWorktreeMatchesExtra(
         { displayName: 'main', path: '/srv/wt/project', branch: 'topic' },
         'topic'
       )
     ).toBe(true)
     expect(
-      hiddenWorktreeMatchesQuery(
+      hiddenWorktreeMatchesExtra(
         { displayName: 'other', path: '/srv/wt/other', branch: 'main' },
         'topic'
       )

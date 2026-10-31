@@ -27,6 +27,7 @@ export type WorkspaceGroupDropArgs = {
 }
 
 let groupDrop: ((args: WorkspaceGroupDropArgs) => boolean) | undefined
+let directoryPrefix: ((label: string, path: string) => ReactNode) | undefined
 
 export function registerSidebarContextMenu(
   render: (worktree: WorktreeMenuTarget) => ReactNode
@@ -113,18 +114,11 @@ export function hiddenWorktreeSearchMinimum(): number {
   return hiddenSearchMinimum
 }
 
-export function hiddenWorktreeMatchesQuery(
+/** A match beyond upstream's name and path test (the branch). Unregistered: never. */
+export function hiddenWorktreeMatchesExtra(
   worktree: { displayName: string; path: string; branch?: string },
   query: string
 ): boolean {
-  if (!query) {
-    return true
-  }
-  const name = worktree.displayName.toLocaleLowerCase()
-  const path = worktree.path.toLocaleLowerCase()
-  if (name.includes(query) || path.includes(query)) {
-    return true
-  }
   return hiddenQueryExtra?.(worktree, query) ?? false
 }
 
@@ -134,6 +128,32 @@ export function registerWorkspaceGroupDrop(
   groupDrop = commit
 }
 
-export function commitRegisteredWorkspaceGroupDrop(args: WorkspaceGroupDropArgs): boolean {
-  return groupDrop?.(args) ?? false
+/** A drop on another section's group (host-directory). True when the fork took the drop. */
+export function commitRegisteredWorkspaceGroupDrop(
+  pointer: { clientX: number; clientY: number },
+  drag: { sourceGroupKey: string; draggedIds: readonly string[] },
+  ctx: { worktreeDragGroups: readonly unknown[]; scrollRef: { current: unknown } }
+): boolean {
+  if (!groupDrop) {
+    return false
+  }
+  return groupDrop({
+    x: pointer.clientX,
+    y: pointer.clientY,
+    sourceGroupKey: drag.sourceGroupKey,
+    draggedIds: drag.draggedIds,
+    groups: ctx.worktreeDragGroups,
+    container: ctx.scrollRef.current
+  })
+}
+
+export function registerWorktreeDirectoryPrefix(
+  render: (label: string, path: string) => ReactNode
+): void {
+  directoryPrefix = render
+}
+
+/** The card's directory prefix before its title; only host-directory rows carry a label. */
+export function renderWorktreeDirectoryPrefix(label: string | undefined, path: string): ReactNode {
+  return label && directoryPrefix ? directoryPrefix(label, path) : null
 }

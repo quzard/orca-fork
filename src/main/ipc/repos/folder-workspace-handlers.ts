@@ -18,7 +18,7 @@ import {
   parseProjectGroupIpcArgs
 } from './repo-ipc-arg-schemas'
 import { visibleFolderWorkspaces } from '../../ssh/orcad-retained-source'
-import { decodeSidebarFieldClears } from '../../../shared/fork-hooks/sidebar-field-clear'
+import { applySidebarFieldClears } from '../../../shared/fork-hooks/sidebar-field-clear'
 import {
   isLocalWslMoveRow,
   shouldDropWslMoveProjectUpdate
@@ -112,10 +112,8 @@ export function registerFolderWorkspaceHandlers(
         })
         assertFolderWorkspacePathUsable(status)
       }
-      const updated = store.updateFolderWorkspace(
-        args.folderWorkspaceId,
-        decodeSidebarFieldClears(args.updates, args.clearFields)
-      )
+      applySidebarFieldClears(args.updates, args.clearFields)
+      const updated = store.updateFolderWorkspace(args.folderWorkspaceId, args.updates)
       if (updated) {
         notifyReposChanged(mainWindow)
       }

@@ -65,6 +65,11 @@ export function applyRegisteredDurableWorkspaceArchive<T extends DurableArchiveR
   return apply(rows)
 }
 
+/** One row that skips the listing merge (a placeholder), stamped the same way. */
+export function applyRegisteredDurableArchiveToRow<T extends DurableArchiveRow>(row: T): T {
+  return apply ? (apply([row])[0] ?? row) : row
+}
+
 export function releaseRegisteredDurableWorkspaceArchive(workspace: DurableArchiveWorkspace): void {
   release?.(workspace)
 }

@@ -9,11 +9,8 @@ import { SidebarGroupByToggle } from '../renderer/src/components/sidebar/Sidebar
 import { AiVaultHostStatus } from './ai-vault/panel-slots'
 
 const ROOT = resolve(__dirname, '../..')
-// Upstream files where the fork added a useSyncExternalStore call.
-const UPSTREAM_CALL_SITES = [
-  'src/renderer/src/components/sidebar/SidebarGroupByToggle.tsx',
-  'src/renderer/src/components/sidebar/worktree-list/listing/use-section-rows.ts'
-]
+// Upstream files where the fork added a useSyncExternalStore call (none: they call fork hooks).
+const UPSTREAM_CALL_SITES: string[] = []
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {

@@ -2,9 +2,7 @@
   "fork": {
     "aiVault": {
       "collapseAll": "折叠所有分组",
-      "hostCount": "{{count}} 台主机",
-      "otherHosts": "其他已配置主机",
-      "scanning": "正在扫描历史…"
+      "otherHosts": "其他已配置主机"
     },
     "sourceControl": {
       "compare": {

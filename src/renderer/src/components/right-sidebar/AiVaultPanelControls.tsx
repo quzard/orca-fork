@@ -8,10 +8,6 @@ import {
   PanelsTopLeft,
   Server
 } from 'lucide-react'
-import {
-  aiVaultGroupLabelsWrap,
-  readAiVaultGroupSessionCount
-} from '../../../../shared/fork-hooks/ai-vault'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -22,9 +18,6 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
@@ -41,7 +34,12 @@ import { agentLabel, type AiVaultSessionGroup } from './ai-vault-session-filters
 import { translate } from '@/i18n/i18n'
 import type { AiVaultHostScopeOption } from './ai-vault-host-scope'
 import { AiVaultSessionLimitMenu } from './AiVaultSessionLimitMenu'
-import { aiVaultOtherHostsLabel } from '../../../../fork/ai-vault/panel-slots'
+import {
+  ForkVaultGroupHeader,
+  forkOtherVaultHostsMenu,
+  forkPrimaryVaultHosts,
+  forkVaultGroupHeaders
+} from '../../../../fork/ai-vault/panel-controls'
 import type { AiVaultSessionLimit } from './ai-vault-session-limit'
 
 const VAULT_HEADER_CONTROL_CLASS = 'size-6 shrink-0'
@@ -64,16 +62,13 @@ export function VaultGroupHeader({
   collapsed: boolean
   onToggle: () => void
 }): React.JSX.Element {
-  const sessionCount = readAiVaultGroupSessionCount(group.key) ?? group.sessions.length
-  const wrapLabel = aiVaultGroupLabelsWrap()
+  if (forkVaultGroupHeaders()) {
+    return <ForkVaultGroupHeader group={group} collapsed={collapsed} onToggle={onToggle} />
+  }
   return (
     <button
       type="button"
-      className={
-        wrapLabel
-          ? 'flex min-h-8 w-full items-center gap-2 border-y border-sidebar-border bg-sidebar-accent/60 px-3 py-1.5 text-left text-xs font-semibold text-foreground transition-colors hover:bg-sidebar-accent'
-          : 'flex h-8 w-full items-center gap-2 border-y border-sidebar-border bg-sidebar-accent/60 px-3 text-left text-xs font-semibold text-foreground transition-colors hover:bg-sidebar-accent'
-      }
+      className="flex h-8 w-full items-center gap-2 border-y border-sidebar-border bg-sidebar-accent/60 px-3 text-left text-xs font-semibold text-foreground transition-colors hover:bg-sidebar-accent"
       onClick={onToggle}
       aria-expanded={!collapsed}
     >
@@ -83,13 +78,9 @@ export function VaultGroupHeader({
           !collapsed && 'rotate-90'
         )}
       />
-      {wrapLabel ? (
-        <span className="min-w-0 flex-1 break-all whitespace-normal">{group.label}</span>
-      ) : (
-        <span className="min-w-0 flex-1 truncate">{group.label}</span>
-      )}
+      <span className="min-w-0 flex-1 truncate">{group.label}</span>
       <span className="rounded-md border border-sidebar-border bg-background px-2 py-0.5 text-[11px] font-semibold tabular-nums leading-none text-foreground shadow-xs">
-        {sessionCount}
+        {group.sessions.length}
       </span>
     </button>
   )
@@ -183,8 +174,6 @@ export function VaultHostScopeMenu({
 }): React.JSX.Element {
   const selectedOption = hostOptions.find((option) => option.id === executionHostScope)
   const label = selectedOption?.label ?? getExecutionHostLabel(executionHostScope)
-  const primary = hostOptions.filter((option) => !option.secondary)
-  const secondary = hostOptions.filter((option) => option.secondary)
 
   return (
     <DropdownMenu
@@ -219,32 +208,13 @@ export function VaultHostScopeMenu({
           value={executionHostScope}
           onValueChange={(value) => onExecutionHostScopeChange(value as ExecutionHostScope)}
         >
-          {primary.map((option) => (
+          {forkPrimaryVaultHosts(hostOptions).map((option) => (
             <DropdownMenuRadioItem key={option.id} value={option.id}>
               {option.label}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
-        {secondary.length > 0 ? (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>{aiVaultOtherHostsLabel()}</DropdownMenuSubTrigger>
-              <DropdownMenuSubContent>
-                <DropdownMenuRadioGroup
-                  value={executionHostScope}
-                  onValueChange={(value) => onExecutionHostScopeChange(value as ExecutionHostScope)}
-                >
-                  {secondary.map((option) => (
-                    <DropdownMenuRadioItem key={option.id} value={option.id}>
-                      {option.label}
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-          </>
-        ) : null}
+        {forkOtherVaultHostsMenu(hostOptions, executionHostScope, onExecutionHostScopeChange)}
       </DropdownMenuContent>
     </DropdownMenu>
   )

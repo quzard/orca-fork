@@ -17,8 +17,6 @@ import type { AiVaultSessionResumeTargetState } from './ai-vault-session-resume'
 export type AiVaultHostScopeOption = {
   id: ExecutionHostScope
   label: string
-  /** Set when a registered menu folds this host under "other configured hosts". */
-  secondary?: boolean
 }
 
 export function useAiVaultExecutionHostScope(args: {
@@ -123,11 +121,10 @@ export function resolveAiVaultHostScopeDefaults(
       : null
   // Unknown workspace ownership must widen to all hosts, not falsely report empty local history (#13713).
   const workspaceHostUnresolved = activeWorktreeId !== null && activeExecutionHostId === null
-  const registeredDefault = readAiVaultDefaultHostScope()
   return {
     activeExecutionHostScope,
     defaultExecutionHostScope:
-      registeredDefault ??
+      readAiVaultDefaultHostScope() ??
       activeExecutionHostScope ??
       (workspaceHostUnresolved ? ALL_EXECUTION_HOSTS_SCOPE : LOCAL_EXECUTION_HOST_ID)
   }

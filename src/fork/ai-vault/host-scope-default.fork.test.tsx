@@ -1,13 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import {
-  ALL_EXECUTION_HOSTS_SCOPE,
-  LOCAL_EXECUTION_HOST_ID
-} from '../../../../shared/execution-host'
+import { ALL_EXECUTION_HOSTS_SCOPE, LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
 import {
   registerAiVaultDefaultHostScope,
   resetAiVaultForkHooksForTests
-} from '../../../../shared/fork-hooks/ai-vault'
-import { resolveAiVaultHostScopeDefaults } from './ai-vault-host-scope'
+} from '../../shared/fork-hooks/ai-vault'
+import { resolveAiVaultHostScopeDefaults } from '../../renderer/src/components/right-sidebar/ai-vault-host-scope'
 
 afterEach(() => {
   resetAiVaultForkHooksForTests()

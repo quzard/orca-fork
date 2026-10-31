@@ -17,8 +17,11 @@ ${coveredXterm(' canvas')} { visibility: hidden; pointer-events: none; }`
 
 const STYLE_ATTRIBUTE = 'data-fork-covered-terminal-canvas'
 
-export function installCoveredTerminalCanvasStyle(doc: Document = document): void {
-  if (doc.head.querySelector(`style[${STYLE_ATTRIBUTE}]`)) {
+/** No document (renderer modules registered under node, as some tests do) means nothing to style. */
+export function installCoveredTerminalCanvasStyle(
+  doc: Document | undefined = globalThis.document
+): void {
+  if (!doc || doc.head.querySelector(`style[${STYLE_ATTRIBUTE}]`)) {
     return
   }
   const style = doc.createElement('style')

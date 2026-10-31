@@ -2,7 +2,7 @@
 
 本 fork 不改技能安装来源，不改 `skills/`、`skill-guides/`、`skill-stubs/`，也不在应用升级时自动刷新已安装技能。
 
-安装命令与上游同一个仓库：`https://github.com/stablyai/orca`。ref 是上游基线提交，不是本次 fork 构建提交。桌面登记和打包后的 CLI 读同一个文件 `src/cli/skills-source-commit.ts`；它放在 `src/cli` 下，因为 `out/cli/**` 会解包，而 `out/fork` 不会。更新仍由用户从上游的更新对话框发起，主进程 `SkillUpdateRunner` 执行同一条 `skills add`。没有版本戳，也没有启动时自动更新。
+安装命令与上游同一个仓库：`https://github.com/stablyai/orca`。ref 是上游基线提交，不是本次 fork 构建提交：fork 的提交不在上游仓库，`npx skills add` 会报 Failed to clone repository。上游只有渲染进程拼 `npx skills add`（`src/renderer/src/lib/agent-feature-install-commands.ts`，读构建常量 `ORCA_BUILD_COMMIT`），安装和更新是同一条命令（`add` 会重新拷贝），由用户从上游的界面发起。fork 在 `electron.vite.config.ts` 的渲染进程 define 里多一行 `...forkRendererDefines()`，把这个常量换成 `src/fork/skills-source-commit.ts` 记录的上游基线提交；每次同步后由 `node fork/scripts/sync-skills-source-commit.mjs` 重写。上游 CLI 拷贝内置技能文件，不按提交克隆，不需要 pin。没有版本戳，也没有启动时自动更新。
 
 ## 为什么不再改 SSH 技能说明
 

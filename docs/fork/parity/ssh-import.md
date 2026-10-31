@@ -6,13 +6,9 @@ Paths below are generic. Each item is the behavior a registered build must show.
 
 - [ ] SSH browse and managed-server browse list `link-dir` -> `real-dir` as a directory, `dangling` as a file, an empty directory as empty, and fail on a directory that cannot be read. `src/fork/directory-browse.fork.test.ts` runs upstream's code for this.
 
-## F022 Symlinked Cursor sessions
+## F022 Symlinked Cursor sessions (removed; upstream covers it)
 
-- [ ] Scope, depth, and project matching read `cwdAliases` from upstream. The fork does not realpath a session cwd.
-- [ ] Worktree attribution still reads `cwdAliases` and prefers the workspace that leaves the shortest remainder.
-- [ ] With no aliases, worktree matching uses `cwd` only, same as upstream.
-- [ ] When both `/home/user` and `/home/user/link` own a session via an alias, `/home/user/link` wins.
-- [ ] `cwdAliases` survives list-result validation.
+- [ ] Worktree attribution ranks `cwdAliases` by the shortest remainder in upstream's own matcher (#35052, `matchAiVaultSessionCwdCandidates`); `src/shared/ai-vault-session-worktree.ts` is upstream's.
 
 ## F010 TUI redraw after SSH reconnect
 
@@ -24,7 +20,7 @@ Paths below are generic. Each item is the behavior a registered build must show.
 
 ## F021 Open an SSH workspace in Cursor (upstream #33877)
 
-Upstream [stablyai/orca#33877](https://github.com/stablyai/orca/pull/33877) covers this. The fork no longer builds a `cursor://` URL or adds an Open in row.
+Upstream [stablyai/orca#33877](https://github.com/stablyai/orca/pull/33877) covers this. The fork does not change the Open in path.
 
 - [ ] A direct SSH workspace enables Cursor, VS Code, and Zed. Cursor launches `cursor --new-window --remote ssh-remote+<alias> <path>`. VS Code uses `--remote ssh-remote+…`. Zed uses an `ssh://` URL.
 - [ ] Cursor appears in Open in only after it is configured, same as Zed.
@@ -41,10 +37,8 @@ Open in for a server reached over SSH is upstream #33877. The remaining fork beh
 
 ## F041 Plain-directory terminal lifecycle
 
-- [ ] `folder:<id>` resolves to the same worktree shape terminal create uses.
-- [ ] A selector that is not a folder returns null and the upstream matcher continues.
-- [ ] A missing folder throws `selector_not_found`.
-- [ ] Exact stop refreshes liveness with that folder included, because folder workspaces are not in the resolved-worktree map.
+- [ ] `folder:<id>` resolves through upstream's `resolveFolderWorkspaceSelector`; the fork has no resolver of its own.
+- [ ] Exact stop (sleeping one pane) refreshes liveness with that folder workspace included, because folder workspaces are not in the resolved-worktree map. `worktree-terminal-stop-targets.ts` appends it with one call (`appendMissingTargetWorktree`).
 
 ## F003 Selected worktrees on bulk import
 
@@ -63,6 +57,7 @@ Open in for a server reached over SSH is upstream #33877. The remaining fork beh
 
 ## F006 Computer-use authorization card
 
-- [ ] The Mac authorization window shows a draggable app card (height 42, full width) instead of a static icon, with the hint to drag it into System Settings.
-- [ ] `acceptsFirstMouse` is true and `hitTest` returns the card, so the drag starts on the icon or the title and from an inactive window.
-- [ ] Linux checks the Swift source only. Dragging into System Settings is Mac-only.
+- [ ] With `--fork-drag-card`, the Mac authorization window shows a draggable app card (height 42, full width) instead of the static icon, in the same place while checking, missing and ready, with the hint to drag it into System Settings.
+- [ ] The card is a subclass of upstream's `DraggableAppTile` (`ForkPermissionCard.swift`): `acceptsFirstMouse` is true and `hitTest` returns the card, so the drag starts on the icon or the title and from an inactive window. It drags only while a permission is missing.
+- [ ] Without the argument the window and the drag assistant's card are upstream's.
+- [ ] Linux checks the argument and the `main.swift` wiring only. Dragging into System Settings is Mac-only.

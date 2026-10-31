@@ -8,9 +8,10 @@ The unattended jobs are documented in [DAILY.md](./DAILY.md). GitHub Actions on 
 
 ```bash
 git config rerere.enabled true
+git config merge.ours.driver true
 ```
 
-`rerere` remembers hook conflict resolutions on a machine that keeps its `.git` directory. `.gitattributes` matches upstream and needs no merge driver: generated files merge as text and are regenerated after the merge (below).
+`rerere` remembers hook conflict resolutions on a machine that keeps its `.git` directory. `.gitattributes` adds one fork line at the end: `src/shared/rpc-contract/rpc-params-catalog.generated.ts merge=ours`. Both sides add RPC methods to that generated file, so a text merge would conflict; with `git config merge.ours.driver true` the merge keeps the fork's copy, and `daily-sync.sh` then runs `pnpm generate:rpc-params-catalog` and commits the result. Run the same command after a manual merge. Every other generated file only changes upstream and merges as text.
 
 ## Merge
 

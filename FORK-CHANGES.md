@@ -29,6 +29,7 @@
 - fork 测试只放在 `src/fork/**/*.fork.test.ts(x)`，不往上游测试文件里加用例或 mock。
 - 上游覆盖了某个 fork 行为时，删掉 fork 代码，用上游的，并在本文件里标成「已移除」。
 - 类型断言要有逐行的 `SAFETY:` 说明（AGENTS.md）。不留死代码。
+- 生成文件 `src/shared/rpc-contract/rpc-params-catalog.generated.ts` 两边都会加方法。`.gitattributes` 末尾一行给它 `merge=ours`（要 `git config merge.ours.driver true`），合并留 fork 一侧、不冲突；`daily-sync.sh` 随后跑 `pnpm generate:rpc-params-catalog` 并提交。手动合并后也要跑这条命令。
 
 ## F002 macOS 本地安装
 

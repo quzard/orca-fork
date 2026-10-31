@@ -191,6 +191,8 @@ fi
 
 ensure_upstream
 git config rerere.enabled true
+# .gitattributes 让 RPC 目录按 merge=ours 留 fork 一侧，合并后在下面重新生成。
+git config merge.ours.driver true
 
 git fetch --no-tags origin refs/heads/develop:refs/remotes/origin/develop
 git fetch --no-tags upstream main
@@ -240,6 +242,13 @@ docs(fork): regenerate the audit table
 
 EOF
 )"
+  PUSH_ATTEMPT=1
+fi
+# RPC 目录是生成文件，fork 和上游都会加方法。合并时留 fork 一侧（不会冲突），这里按合并后的源码重新生成。
+run_check "rpc catalog regenerate" pnpm run generate:rpc-params-catalog
+if ! git diff --quiet -- src/shared/rpc-contract/rpc-params-catalog.generated.ts; then
+  git add -- src/shared/rpc-contract/rpc-params-catalog.generated.ts
+  HUSKY=0 git commit -m "fix(fork): regenerate the RPC params catalog"
   PUSH_ATTEMPT=1
 fi
 run_check "lint" pnpm exec oxlint

@@ -124,6 +124,7 @@ REASONS = {
     'config/scripts/build-mac-local.mjs': 'F002：命令行多出的参数作为 --mac 的 electron-builder 目标（dmg:arm64 zip:arm64）',
     'native/computer-use-macos/Sources/OrcaComputerUseMacOS/main.swift': 'F006：DraggableAppTile 不再 private（fork 子类）、一行 install、带参数时保持窗口显示',
     'package.json': 'fork 版本号 1.4.228',
+    '.gitattributes': '末尾一行：RPC 目录 merge=ours，合并不冲突；daily-sync 合并后重新生成并提交',
 }
 
 # Files a rework put back to upstream or deleted. Each must not differ from the base.
@@ -150,7 +151,6 @@ HISTORY = {
     'config/scripts/packaged-orcad-browser.cjs': ('revert-to-upstream', 'F036 同上'),
     'src/renderer/src/components/right-sidebar/local-port-section.tsx': ('revert-to-upstream', 'F021/F043 的 Forward 不再穿过分区传参'),
     'src/main/updater-fork-background.ts': ('delete', 'UPD 接线移到 src/fork/main/updater-background-wiring.ts'),
-    '.gitattributes': ('revert-to-upstream', 'merge=ours 对 fork 不改的文件无效，对 RPC 目录会留下旧内容'),
     'src/cli/skills-source-commit.ts': ('delete', 'SKL pin 移到 src/fork/skills-source-commit.ts'),
     'src/fork/ssh/ssh-status-labels.tsx': ('delete', '没有调用方；SSH 状态名用上游 settings.ssh.status.*'),
     'src/fork/main/orcad-serve-bind.ts': ('delete', 'orcad-entry 恢复上游两行'),

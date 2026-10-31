@@ -24,7 +24,7 @@ Checks, in order, each reported by name when it fails:
 2. `install`: `pnpm install --frozen-lockfile`.
 3. `audit table`: `python3 fork/scripts/generate-audit.py`. When `docs/fork/AUDIT.md` changed, the job commits `docs(fork): regenerate the audit table`, so a moved upstream base or a stale table from a PR is fixed here.
 4. `lint`: `pnpm exec oxlint`.
-5. `pnpm run verify:rpc-params-catalog`, `verify:bundled-skill-guides`, `verify:skill-bundle-manifest`, `verify:localization-runtime-catalog`.
+5. `pnpm run generate:rpc-params-catalog` (committed when it changes; the merge keeps the fork's copy through `merge=ours`), then `pnpm run verify:rpc-params-catalog`, `verify:bundled-skill-guides`, `verify:skill-bundle-manifest`, `verify:localization-runtime-catalog`.
 6. `fork tests`: `node config/scripts/run-vitest.mjs run --config config/vitest.config.ts --maxWorkers=2 src/fork src/shared/fork-hooks`, which include the audit-table and daily-sync tests.
 7. `typecheck`: `pnpm tc`.
 8. The host Linux orcad slot: `pnpm build:orcad-prebuilds`, `--require-slots <slot>`, `--smoke`; `pnpm install --frozen-lockfile --dir mobile`; `pnpm build:mobile-web`; `node config/scripts/build-orcad-template.mjs --targets <slot>`, and a check that the manifest lists it. The host slot must be a Linux one. Set `ORCA_SYNC_DOCKER_SLOTS=1` to also run `fork/scripts/build-orcad-linux-prebuilds.sh` and stage `linux-x64-glibc,linux-arm64-glibc`. The home Mac package still builds those slots.

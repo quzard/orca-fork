@@ -1,8 +1,6 @@
 import { setTimeout as delay } from 'node:timers/promises'
 import { OrcaRuntimeWithSleepResolvedWorktreeTerminals } from './worktree-terminal-sleep'
 import { setsEqual } from '../../runtime-worktree-binding-index'
-// fork: 文件夹工作区不在 resolved map 里，精确停止要把选择器结果并进去。上游已改用 worktreeIdsEqual。
-import { includeTargetResolvedWorktree } from '../../runtime-worktree-path-identity'
 import type { RuntimeLeafRecord } from '../../runtime-terminal-state-records'
 import { worktreeIdsEqual } from '../../../../shared/worktree/id'
 import { worktreePtyBelongsToHost, type WorktreePtyHostFence } from '../../worktree-pty-host-fence'
@@ -10,6 +8,7 @@ import { ORCA_LAYOUT_OWNER_IS_MAIN } from '../../../../shared/layout-owner-switc
 import { mainHoldsTerminal } from '../surface/main-pane-verdict'
 import type { ResolvedWorktree } from '../../runtime-worktree-path-identity'
 import { PTY_CONTROLLER_LIST_TIMEOUT_MS } from '../../orca-runtime-postlude'
+import { appendMissingTargetWorktree } from '../../../../fork/main/folder-stop-target'
 
 // Overlapping inventories can invalidate post-stop checks; retry within a fresh list budget before calling confirmed exits unverifiable.
 const POST_STOP_LIVENESS_RETRY_MS = PTY_CONTROLLER_LIST_TIMEOUT_MS
@@ -38,11 +37,8 @@ export abstract class OrcaRuntimeWithStopExactTerminalsForWorktree extends OrcaR
     if (expected.size !== 1) {
       throw new Error('terminal_exact_stop_requires_single_pty')
     }
-    // fork: folder workspaces are missing from the resolved map, so exact stop includes the selector result.
-    const resolvedWorktrees = includeTargetResolvedWorktree(
-      [...(await this.getResolvedWorktreeMap()).values()],
-      worktree
-    )
+    const resolvedWorktrees = [...(await this.getResolvedWorktreeMap()).values()]
+    appendMissingTargetWorktree(resolvedWorktrees, worktree)
     const refreshedPtyLiveness =
       await this.refreshPtyWorktreeRecordsFromController(resolvedWorktrees)
     if (!refreshedPtyLiveness) {

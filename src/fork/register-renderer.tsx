@@ -40,6 +40,7 @@ import { installManagedSshAddressPreview } from './terminal/html-preview-address
 import { installSshRoutedHtmlPreviewRecovery } from './terminal/html-preview-reclaim'
 import { registerTerminalFileLinkStayWatch } from './terminal/file-link-stay-watch'
 import { registerWorkspaceRepositorySourceControl } from './source-control/register'
+import { registerForkModules } from './register'
 
 /** Renderer hooks. Kept out of the node program so it can read the app store. */
 export function registerForkRendererModules(): void {
@@ -82,4 +83,10 @@ export function registerForkRendererModules(): void {
   enableWorkspacePortForward()
   registerAiVaultRendererModules()
   registerWorkspaceRepositorySourceControl()
+}
+
+/** Renderer entry (src/renderer/src/main.tsx): grouping modes first, then the render slots. */
+export function registerForkRenderer(): void {
+  registerForkModules()
+  registerForkRendererModules()
 }

@@ -5,7 +5,7 @@ import { runProcessSync } from '@orca/process-host'
 import { windowsPowerShellPath } from '@orca/process-host/windows-system-binary'
 import { diag } from '../browser-cookie-import-diagnostics'
 import {
-  allChromiumBrowsers,
+  CHROMIUM_BROWSERS,
   browserRootPath,
   type DetectedBrowser
 } from './browser-cookie-detection-types'
@@ -35,7 +35,7 @@ export function getEncryptionKey(
     return getMacEncryptionKey(keychainService, keychainAccount)
   }
   if (process.platform === 'linux') {
-    const application = allChromiumBrowsers().find(
+    const application = CHROMIUM_BROWSERS.find(
       (b) => b.family === browser?.family
     )?.linuxKeyringApplication
     return getLinuxEncryptionKey(keychainService, keychainAccount, application)
@@ -115,7 +115,7 @@ export function getLinuxEncryptionKey(
 }
 
 export function getWindowsEncryptionKey(browser: DetectedBrowser): EncryptionKeyResult | null {
-  const browserDef = allChromiumBrowsers().find((b) => b.family === browser.family)
+  const browserDef = CHROMIUM_BROWSERS.find((b) => b.family === browser.family)
   if (!browserDef) {
     return null
   }

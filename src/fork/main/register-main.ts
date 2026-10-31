@@ -18,6 +18,7 @@ import { openManagedDisownedHostFile } from './disowned-host-file-open'
 import { readConnectedSshHtmlPreview } from './ssh-html-preview-read'
 import { keepFolderWorkspacesOnGroupDelete } from './project-group-delete'
 import { registerEgoLiteCookieBrowser } from '../ego-lite-cookie-browser'
+import { registerEgoLiteCookieDetection } from './ego-lite-cookie-detection'
 
 // registerForkMainModules 可能进两次。撤销监听只挂一次，避免同一条授权被忘掉两遍。
 let htmlPreviewRevokeWatched = false
@@ -28,6 +29,7 @@ export function registerForkMainModules(): void {
   registerForkBuild()
   // orcad 不走 registerForkModules。远端导入在这台机器上发现浏览器，所以这里也登记。
   registerEgoLiteCookieBrowser()
+  registerEgoLiteCookieDetection()
   installAiVaultForkServicePolicy()
   registerAiVaultServiceHeap(() => aiVaultServiceHeapMiB())
   registerDeferBrowserSessionProxy(true)

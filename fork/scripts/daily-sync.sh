@@ -231,6 +231,17 @@ fi
 
 run_check "company-info" bash fork/scripts/verify/check-no-internal-refs.sh
 run_check "install" pnpm install --frozen-lockfile
+# 新的上游基点（pin）改变审计表；PR 带进来的旧表也在这里修好。生成器需要 node_modules 里的 oxfmt。
+run_check "audit table" python3 fork/scripts/generate-audit.py
+if ! git diff --quiet -- docs/fork/AUDIT.md; then
+  git add -- docs/fork/AUDIT.md
+  HUSKY=0 git commit -m "$(cat <<'EOF'
+docs(fork): regenerate the audit table
+
+EOF
+)"
+  PUSH_ATTEMPT=1
+fi
 run_check "lint" pnpm exec oxlint
 run_check "rpc catalog" pnpm run verify:rpc-params-catalog
 run_check "skill guides" pnpm run verify:bundled-skill-guides

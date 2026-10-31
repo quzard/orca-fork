@@ -223,6 +223,17 @@ git ls-remote origin 'refs/heads/sync/*' | awk '{print $2}' | sort | tr '\n' ' '
     expect(pushGithub.indexOf('check-commit-identity.sh')).toBeLessThan(
       pushGithub.indexOf('push_args=(push)')
     )
+    // A stale audit table or a failing fork test never reaches develop through either path.
+    expect(pushGithub.indexOf('generate-audit.py --check')).toBeLessThan(
+      pushGithub.indexOf('push_args=(push)')
+    )
+    expect(pushGithub.indexOf('src/fork src/shared/fork-hooks')).toBeLessThan(
+      pushGithub.indexOf('push_args=(push)')
+    )
+    const sync = readFileSync(resolve('fork/scripts/daily-sync.sh'), 'utf8')
+    expect(sync.indexOf('python3 fork/scripts/generate-audit.py')).toBeLessThan(
+      sync.indexOf('run_check "fork tests"')
+    )
     expect(pushGithub.indexOf('bash fork/scripts/verify/fetch-upstream-main.sh')).toBeLessThan(
       pushGithub.indexOf('bash "$identity_check"')
     )
@@ -232,7 +243,6 @@ git ls-remote origin 'refs/heads/sync/*' | awk '{print $2}' | sort | tr '\n' ' '
     )
     const fetchMain = readFileSync(resolve('fork/scripts/verify/fetch-upstream-main.sh'), 'utf8')
     expect(fetchMain).toContain('refs/heads/main:refs/remotes/upstream/main')
-    const sync = readFileSync(resolve('fork/scripts/daily-sync.sh'), 'utf8')
     const upstreamUrl = /git remote add upstream (\S+)/.exec(sync)?.[1]
     expect(upstreamUrl).toBeTruthy()
     expect(fetchMain).toContain(`readonly UPSTREAM_URL="${upstreamUrl}"`)

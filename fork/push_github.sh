@@ -2,8 +2,9 @@
 # Fast-forward a checkout, then push that branch to a GitHub remote.
 # Run on the checkout host, or from another machine which ssh's there.
 # --dry-run prints the push and does not update the remote.
-# Before pushing it fetches upstream main and runs fork/scripts/verify/check-commit-identity.sh on
-# the branch.
+# Before pushing it checks docs/fork/AUDIT.md against the generator, runs the fork tests, fetches
+# upstream main and runs fork/scripts/verify/check-commit-identity.sh on the branch. The checkout
+# needs node_modules (pnpm install) for the tests.
 # Example:
 #   PUSH_GITHUB_HOST=build-host \
 #   PUSH_GITHUB_REPO=/srv/wt/project \
@@ -83,6 +84,17 @@ echo "github:${github_sha:-<missing>}"
 if [[ -n "$github_sha" && "$local_sha" == "$github_sha" ]]; then
   echo "GitHub ${BRANCH} 已是 ${local_sha}，跳过 push"
   exit 0
+fi
+
+# 推送前：审计表和 fork 测试（含审计表测试）必须通过，旧的审计表不能进 develop。
+if ! python3 fork/scripts/generate-audit.py --check; then
+  echo "docs/fork/AUDIT.md 已过期：运行 python3 fork/scripts/generate-audit.py 并提交，不推送" >&2
+  exit 1
+fi
+if ! ORCA_BACKGROUND_LAUNCH=1 node config/scripts/run-vitest.mjs run --config config/vitest.config.ts \
+  --maxWorkers=2 src/fork src/shared/fork-hooks; then
+  echo "fork 测试失败，不推送" >&2
+  exit 1
 fi
 
 # 推送前：upstream/main 和身份下限（脚本里写死的 8fd7c96acc）之后的每个提交（含合并提交）作者和提交者都必须是 quzard 的 noreply 身份。

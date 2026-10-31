@@ -23,7 +23,14 @@ import {
   toggleAllSettingsProjects,
   toggleSettingsProject
 } from './settings-project-bulk'
-import { HOST_DIRECTORY_GROUP_BY, hostDirectorySectionKey } from './section-keys'
+import {
+  HOST_DIRECTORY_GROUP_BY,
+  hostDirectorySectionKey,
+  registerHostDirectorySortReader
+} from './section-keys'
+import { planSidebarRows } from '../../shared/sidebar-list/sidebar-row-plan'
+import { createSidebarPRGroupReader } from '../../renderer/src/components/sidebar/worktree-list/grouping/pr-group-key'
+import { cloneDefaultWorkspaceStatuses } from '../../shared/workspace-statuses'
 import { registerForkRendererModules } from '../register-renderer'
 import { getWorktreeDragGroups } from '../../renderer/src/components/sidebar/worktree-list/drag/groups'
 import { getWorktreeIdFromHostIdentity } from '../../shared/worktree/host-qualified-identity'
@@ -120,33 +127,29 @@ function hostDirectoryRows(args: {
   sortBy?: 'name' | 'smart' | 'recent' | 'manual' | 'repo'
 }) {
   const repoMap = new Map(args.repos.map((entry) => [entry.id, entry]))
-  return buildRows(
+  // The registered plan reads the sidebar sort from the store; tests pin it ('recent' is its default).
+  registerHostDirectorySortReader(() => args.sortBy ?? 'recent')
+  return planSidebarRows({
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: host-directory is a registered mode id, not one of the built-in literals.
-    HOST_DIRECTORY_GROUP_BY as WorktreeGroupBy,
-    args.worktrees,
+    groupBy: HOST_DIRECTORY_GROUP_BY as WorktreeGroupBy,
+    worktrees: args.worktrees,
     repoMap,
-    null,
-    new Set(),
-    undefined,
-    undefined,
-    undefined,
-    {},
-    new Map(args.worktrees.map((entry) => [entry.id, entry])),
-    false,
-    undefined,
-    args.groups ?? [],
-    new Set(args.placeholders ?? []),
-    new Map(),
-    new Map(),
-    args.pending ?? [],
-    undefined,
-    args.folders ?? [],
-    undefined,
-    'local',
-    'single-location',
-    [],
-    args.sortBy
-  )
+    prGroupOf: createSidebarPRGroupReader(repoMap, null),
+    workspaceStatuses: cloneDefaultWorkspaceStatuses(),
+    projectOrderBy: 'manual',
+    lineageById: {},
+    worktreeMap: new Map(args.worktrees.map((entry) => [entry.id, entry])),
+    nestLineage: false,
+    projectGroups: args.groups ?? [],
+    placeholderRepoIds: new Set(args.placeholders ?? []),
+    importedWorktreesByRepo: new Map(),
+    newExternalWorktreesInboxByRepo: new Map(),
+    pendingCreations: args.pending ?? [],
+    folderWorkspaces: args.folders ?? [],
+    defaultHostId: 'local',
+    pinnedDisplayPolicy: 'single-location',
+    filterRepoIds: []
+  }).render(new Set())
 }
 
 describe('host-directory sidebar rows', () => {
@@ -365,6 +368,21 @@ describe('host-directory sidebar rows', () => {
     })
     expect(rows.some((row) => row.type === 'header' && row.key === 'pinned')).toBe(true)
     expect(rows.some((row) => row.type === 'header' && row.repo?.id === 'empty')).toBe(true)
+  })
+
+  it('lists both pinned copies of a same-id workspace on two hosts, once each', () => {
+    const rows = hostDirectoryRows({
+      repos: [repo('web', '/srv/wt/web', 'web', DEVBOX)],
+      worktrees: [
+        workspace('wt-web', 'web', '/srv/wt/web', 'main', DEVBOX, { isPinned: true }),
+        workspace('wt-web', 'web', '/srv/wt/web', 'main', MINI, { isPinned: true })
+      ]
+    })
+    const pinned = rows.flatMap((row) =>
+      row.type === 'item' && row.sectionKey === 'pinned' ? [row] : []
+    )
+    expect(pinned.map((row) => row.worktree.hostId).sort()).toEqual([DEVBOX, MINI].sort())
+    expect(new Set(pinned.map((row) => row.rowKey)).size).toBe(2)
   })
 
   it('still emits repo headers for the built-in project mode', () => {

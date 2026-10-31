@@ -2,7 +2,9 @@
 import { toast } from 'sonner'
 import { getWorktreeExecutionHostId, normalizeExecutionHostId } from '../../shared/execution-host'
 import type { ExecutionHostId } from '../../shared/execution-host'
-import { folderWorkspaceKey } from '../../shared/workspace-scope'
+import { folderWorkspaceToWorktree } from '../../shared/folder-workspace-worktree'
+import { getWorktreeHostIdentity } from '../../shared/worktree/host-qualified-identity'
+import { findRepoForHost } from '../../renderer/src/store/slices/repo-host-identity'
 import {
   registerWorkspaceGroupDrop,
   type WorkspaceGroupDropArgs
@@ -132,6 +134,7 @@ function looseTargetOfSource(
   )
 }
 
+/** `key` is a host identity, so a same-id workspace on another host never answers for this one. */
 function workspaceBelongsToGroup(
   state: {
     worktreesByRepo: Record<string, Worktree[]>
@@ -139,17 +142,17 @@ function workspaceBelongsToGroup(
     folderWorkspaces: readonly FolderWorkspace[]
     projectGroups: readonly ProjectGroup[]
   },
-  id: string,
+  key: string,
   hostId: ExecutionHostId,
   groupId: string | null
 ): boolean {
   const groupsById = new Map(state.projectGroups.map((group) => [group.id, group]))
   const worktree = Object.values(state.worktreesByRepo)
     .flat()
-    .find((entry) => entry.id === id)
+    .find((entry) => getWorktreeHostIdentity(entry) === key)
   if (worktree && !worktree.isArchived) {
-    const repo = state.repos.find((entry) => entry.id === worktree.repoId)
-    if (getWorktreeExecutionHostId(worktree, repo, hostId) !== hostId) {
+    const repo = findRepoForHost(state.repos, worktree.repoId, { hostId: worktree.hostId })
+    if (getWorktreeExecutionHostId(worktree, repo ?? undefined, hostId) !== hostId) {
       return false
     }
     return (
@@ -163,7 +166,7 @@ function workspaceBelongsToGroup(
     )
   }
   const folder = state.folderWorkspaces.find(
-    (entry) => entry.id === id || folderWorkspaceKey(entry.id) === id
+    (entry) => getWorktreeHostIdentity(folderWorkspaceToWorktree(entry)) === key
   )
   if (!folder || folder.isArchived) {
     return false
@@ -210,8 +213,8 @@ function writeGroupDrop(
     // the neighbours). Any other sort orders the moved rows itself.
     const order =
       state.sortBy === 'manual'
-        ? buildGroupDropOrder(state, groups, target, draggedIds, dropIndex, (id) =>
-            workspaceBelongsToGroup(state, id, hostId, target.groupId)
+        ? buildGroupDropOrder(state, groups, target, draggedIds, dropIndex, (key) =>
+            workspaceBelongsToGroup(state, key, hostId, target.groupId)
           )
         : new Map<string, { manualOrder: number }>()
     const items = planGroupDropItems(state, hostId, target, draggedIds, order)

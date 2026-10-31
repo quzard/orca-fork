@@ -5,6 +5,7 @@ import type { ProjectGroup } from '../../shared/project-group-types'
 import type { Repo } from '../../shared/repo-types'
 import type { Worktree } from '../../shared/worktree/types'
 import { folderWorkspaceKey } from '../../shared/workspace-scope'
+import { findRepoForHost } from '../../renderer/src/store/slices/repo-host-identity'
 import { folderWorkspaceHostId, projectGroupHostId } from './membership'
 import { EMPTY_PROJECT_GROUP_PREFIX, looseHostSectionKey } from './section-keys'
 import { isSidebarFieldsNotAppliedError, sidebarFieldsErrorCode } from './sidebar-fields-applied'
@@ -113,8 +114,10 @@ export function planGroupDropItems(
       continue
     }
     const worktree = state.getKnownWorktreeById(id, hostId)
-    const repo = worktree ? state.repos.find((entry) => entry.id === worktree.repoId) : undefined
-    if (!worktree || getWorktreeExecutionHostId(worktree, repo, hostId) !== hostId) {
+    const repo = worktree
+      ? findRepoForHost(state.repos, worktree.repoId, { hostId: worktree.hostId })
+      : null
+    if (!worktree || getWorktreeExecutionHostId(worktree, repo ?? undefined, hostId) !== hostId) {
       return { error: workspaceGroupLabels.hostMismatch }
     }
     items.push({

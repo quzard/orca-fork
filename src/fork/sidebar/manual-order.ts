@@ -6,6 +6,7 @@
 import type { FolderWorkspace } from '../../shared/folder-workspace-types'
 import { folderWorkspaceToWorktree } from '../../shared/folder-workspace-worktree'
 import { compareWorktreeSortLabel } from '../../shared/sidebar-list/smart-sort'
+import { getWorktreeHostIdentity } from '../../shared/worktree/host-qualified-identity'
 import type { Worktree } from '../../shared/worktree/types'
 
 /** The key manual sort orders by, higher first. */
@@ -17,7 +18,10 @@ export function compareManualRows(a: Worktree, b: Worktree): number {
   return manualOrderKey(b) - manualOrderKey(a) || compareWorktreeSortLabel(a, b)
 }
 
-/** Every unarchived row (folders as their worktree form) in manual order, each id once. */
+/**
+ * Every unarchived row (folders as their worktree form) in manual order, each host identity once:
+ * a same-id workspace on another host is its own row.
+ */
 export function manualOrderedRows(
   worktrees: readonly Worktree[],
   folderWorkspaces: readonly FolderWorkspace[]
@@ -29,10 +33,11 @@ export function manualOrderedRows(
   rows.sort(compareManualRows)
   const seen = new Set<string>()
   return rows.filter((row) => {
-    if (seen.has(row.id)) {
+    const key = getWorktreeHostIdentity(row)
+    if (seen.has(key)) {
       return false
     }
-    seen.add(row.id)
+    seen.add(key)
     return true
   })
 }

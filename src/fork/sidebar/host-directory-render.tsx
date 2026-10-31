@@ -163,6 +163,7 @@ function appendMemberRows(
 ): void {
   // A lineage child is drawn right under its parent (indented), never at its own sorted place, or
   // it would sit indented under an unrelated row. The plan lists each parent's subtree in order.
+  // Keyed by host identity: the pinned section can hold same-id workspaces of two hosts.
   const subtreeById = new Map<string, WorktreeOccurrence<Worktree>[]>()
   let currentRoot: WorktreeOccurrence<Worktree>[] | undefined
   for (const occurrence of getExpandedWorktreeOccurrences(
@@ -173,7 +174,7 @@ function appendMemberRows(
       currentRoot.push(occurrence)
     } else {
       currentRoot = [occurrence]
-      subtreeById.set(occurrence.row.id, currentRoot)
+      subtreeById.set(getWorktreeHostIdentity(occurrence.row), currentRoot)
     }
   }
   const groupsById = groupsByIdOf(args)
@@ -216,7 +217,7 @@ function appendMemberRows(
       })
       continue
     }
-    for (const occurrence of subtreeById.get(member.worktree.id) ?? []) {
+    for (const occurrence of subtreeById.get(getWorktreeHostIdentity(member.worktree)) ?? []) {
       pushItemRow(rows, context, occurrence)
     }
   }

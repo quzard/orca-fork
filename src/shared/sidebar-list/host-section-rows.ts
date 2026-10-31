@@ -58,10 +58,10 @@ function getRowHostId(row: Row, defaultHostId: ExecutionHostId): ExecutionHostId
     case 'folder-workspace':
       return getFolderWorkspaceHostId(row.folderWorkspace, row.projectGroup, defaultHostId)
     case 'header':
-      return (
-        forkHeaderHostId(row) ??
-        (row.repo ? getRepoExecutionHostIdOrDefault(row.repo, defaultHostId) : null)
-      )
+      if (forkHeaderHostId(row)) {
+        return forkHeaderHostId(row)
+      }
+      return row.repo ? getRepoExecutionHostIdOrDefault(row.repo, defaultHostId) : null
   }
 }
 
@@ -123,7 +123,6 @@ export function addHostSectionRows(args: {
   forceCollapseHosts?: boolean
   // Projects remain primary in the default view; explicit host filters retain operational host headers.
   preferProjectGrouping?: boolean
-  // fork: host-directory keeps a host title even when one host is visible.
   retainSingleHostHeader?: boolean
 }): HostSectionRow[] {
   const visibleHostIds =
@@ -137,14 +136,10 @@ export function addHostSectionRows(args: {
   ) {
     return [...args.rows]
   }
-  if (
-    !args.retainSingleHostHeader &&
-    visibleHostIds &&
-    visibleHostIds.length <= 1
-  ) {
+  if (visibleHostIds && visibleHostIds.length <= 1 && !args.retainSingleHostHeader) {
     return localizeRowsToHost(args.rows, visibleHostIds[0])
   }
-  if (!args.retainSingleHostHeader && args.hostOptions.length <= 1) {
+  if (args.hostOptions.length <= 1 && !args.retainSingleHostHeader) {
     return localizeRowsToHost(args.rows, args.hostOptions[0]?.id)
   }
 
@@ -255,7 +250,6 @@ export function addHostSectionRows(args: {
   }
 
   // Show host headers only for mixed hosts; registered empty hosts remain in the scope picker.
-  // fork: 登记的单主机视图仍要标题时，retainSingleHostHeader 为真。
   if (rowsByHostId.size <= 1 && !args.retainSingleHostHeader) {
     return localizeRowsToHost(args.rows, rowsByHostId.keys().next().value)
   }

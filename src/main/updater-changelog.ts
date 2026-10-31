@@ -30,7 +30,6 @@ export async function fetchChangelog(
   incomingVersion: string,
   localVersion: string
 ): Promise<ChangelogData | null> {
-  // fork: 不请求上游站点。
   if (isForkBuild()) {
     return null
   }

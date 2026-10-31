@@ -101,10 +101,8 @@ docs/**
 !docs/agents-md-refs/**
 !docs/agent-skill-sharing-implementation-checklist.md
 !docs/mobile-terminal-shortcut-bar.md
-# Fork isolation docs (HOOKS, SYNC, VERIFY) are tracked with the fork branch.
 !docs/fork/
 !docs/fork/**
-# Local identifier list for fork/scripts/verify/check-no-internal-refs.sh.
 /fork/scripts/verify/internal-ref-patterns.local
 
 .stably/*

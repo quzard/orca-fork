@@ -6,6 +6,7 @@ import type { Repo } from '../../shared/repo-types'
 import type { WorktreeLineage } from '../../shared/worktree/lineage-types'
 import type { Worktree } from '../../shared/worktree/types'
 import type { Row } from '../../shared/sidebar-list/row-types'
+import { getWorktreeHostIdentity } from '../../shared/worktree/host-qualified-identity'
 import { getWorktreeDragGroups } from '../../renderer/src/components/sidebar/worktree-list/drag/groups'
 import { buildHostDirectoryRowPlan } from './host-directory-rows'
 import { buildGroupDropOrder } from './group-drop-order'
@@ -115,8 +116,8 @@ export function dropAndRedraw(
     [id],
     dropIndex,
     (candidate) => {
-      const row = input.rows.find((entry) => entry.id === candidate)
-      return candidate !== id && (row?.sidebarGroupId ?? null) === groupId
+      const row = input.rows.find((entry) => getWorktreeHostIdentity(entry) === candidate)
+      return row !== undefined && row.id !== id && (row.sidebarGroupId ?? null) === groupId
     }
   )
   const next = input.rows.map((row) => {

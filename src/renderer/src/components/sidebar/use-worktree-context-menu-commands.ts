@@ -19,9 +19,6 @@ import {
   preserveDeleteSiblingPosition
 } from './worktree-context-menu-policy'
 
-// 转出标签函数，右键菜单模型才能把这一行 import 并进已有 import，留在行数上限内。
-export { forkMenuLabel } from '../../../../shared/fork-hooks/worktree-context-menu-labels'
-
 export function useWorktreeContextMenuCommands(args: {
   activeContextWorktrees: readonly Worktree[]
   batchDeleteWorktrees: readonly Worktree[]

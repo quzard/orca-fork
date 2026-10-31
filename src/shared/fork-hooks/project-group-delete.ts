@@ -1,5 +1,6 @@
 // fork: 删除项目群组对话框的附加选项。未注册时不渲染，删除参数保持原值。
 
+import type { ReactNode } from 'react'
 import type { FolderWorkspace } from '../folder-workspace-types'
 import type { PersistedState } from '../persisted-state-types'
 import type { ProjectGroup } from '../project-group-types'
@@ -14,6 +15,7 @@ export type DeleteProjectGroupDialogOption = {
 
 let option: DeleteProjectGroupDialogOption | undefined
 let optionChecked = false
+let renderOption: ((disabled: boolean) => ReactNode) | undefined
 
 export function registerDeleteProjectGroupDialogOption(next: DeleteProjectGroupDialogOption): void {
   option = next
@@ -26,6 +28,17 @@ export function getDeleteProjectGroupDialogOption(): DeleteProjectGroupDialogOpt
 
 export function setDeleteProjectGroupDialogOptionChecked(checked: boolean): void {
   optionChecked = checked
+}
+
+export function registerDeleteProjectGroupOptionRenderer(
+  render: (disabled: boolean) => ReactNode
+): void {
+  renderOption = render
+}
+
+/** The option's checkbox in the delete dialog; mounted with the dialog content. */
+export function renderDeleteProjectGroupOption(disabled: boolean): ReactNode {
+  return option && renderOption ? renderOption(disabled) : null
 }
 
 export function resolveDeleteProjectGroupRemoveContainedProjects(
@@ -89,15 +102,15 @@ export function folderWorkspacesMayOutliveTheirGroup(): boolean {
  * still hides its workspaces.
  */
 export function standInGroupForGroupLessFolderWorkspace(
-  workspace: FolderWorkspace
+  workspace: Pick<FolderWorkspace, 'projectGroupId'> & Partial<FolderWorkspace>
 ): ProjectGroup | null {
   if (!folderWorkspacesMayOutliveTheirGroup() || workspace.sidebarGroupId !== null) {
     return null
   }
   return {
     id: workspace.projectGroupId,
-    name: workspace.name,
-    parentPath: workspace.folderPath,
+    name: workspace.name ?? '',
+    parentPath: workspace.folderPath ?? null,
     connectionId: workspace.connectionId ?? null,
     executionHostId: workspace.executionHostId ?? null,
     parentGroupId: null,

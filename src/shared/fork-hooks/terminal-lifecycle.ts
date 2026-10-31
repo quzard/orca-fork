@@ -1,14 +1,4 @@
-// fork: 终端选择器解析与重连 fit 回调。解析器返回 null 时继续走上游匹配。
-
-/** 主进程运行时实例。登记方在回调里收窄到自己要用的方法。 */
-export type TerminalWorkspaceHost = {
-  readonly forkTerminalHost?: true
-}
-
-export type TerminalWorkspaceResolver = (
-  selector: string,
-  runtime: TerminalWorkspaceHost
-) => unknown
+// fork (F010): SSH reconnect repaint. Unregistered, every call below leaves upstream behavior.
 
 export type TerminalReconnectFitInfo = {
   ptyId: string
@@ -26,9 +16,24 @@ export type TerminalPaneShownInfo = {
   rows: number
 }
 
+type PaneTerminal = {
+  pane: { terminal: { cols: number; rows: number } }
+  transport: { getPtyId(): string | null }
+}
+
+type ReattachFitSession = PaneTerminal & { deps: { isVisibleRef: { current: boolean } } }
+
+type ReattachFitContext = {
+  isCurrentReattachPayload(): boolean
+  revealFollowsTerminalPark: boolean
+  prefetchedParkModelSnapshot: unknown
+}
+
+// Optional: the renderer's session bag assigns it dynamically (installPtyInputForward runs first).
+type DesktopResizeSession = PaneTerminal & { shouldSuppressDesktopPtyResize?: () => boolean }
+
 const tuiRepaintPtyIds = new Set<string>()
 
-let workspaceResolver: TerminalWorkspaceResolver | undefined
 let reconnectFitHook: ((info: TerminalReconnectFitInfo) => void) | undefined
 let paneShownHook: ((info: TerminalPaneShownInfo) => void) | undefined
 
@@ -45,28 +50,54 @@ export function setForkTuiRepaintActive(ptyId: string, active: boolean): void {
   tuiRepaintPtyIds.delete(ptyId)
 }
 
-export function registerTerminalWorkspaceResolver(next: TerminalWorkspaceResolver): void {
-  workspaceResolver = next
-}
-
-export function getTerminalWorkspaceResolver(): TerminalWorkspaceResolver | undefined {
-  return workspaceResolver
-}
-
 export function registerTerminalReconnectFitHook(
   next: (info: TerminalReconnectFitInfo) => void
 ): void {
   reconnectFitHook = next
 }
 
-export function notifyTerminalReconnectFit(info: TerminalReconnectFitInfo): void {
-  reconnectFitHook?.(info)
-}
-
 export function registerTerminalPaneShownHook(next: (info: TerminalPaneShownInfo) => void): void {
   paneShownHook = next
 }
 
-export function notifyTerminalPaneShown(info: TerminalPaneShownInfo): void {
-  paneShownHook?.(info)
+/** After a reattach fit settles; the caller already awaited `completion`. */
+export function notifyTerminalReconnectFit(
+  session: ReattachFitSession,
+  ctx: ReattachFitContext,
+  ptyId: string,
+  completion: Promise<boolean>
+): void {
+  const hook = reconnectFitHook
+  if (!hook) {
+    return
+  }
+  void completion.then((completed) => {
+    if (!ctx.isCurrentReattachPayload()) {
+      return
+    }
+    hook({
+      ptyId,
+      cols: session.pane.terminal.cols,
+      rows: session.pane.terminal.rows,
+      restoredFromModel: ctx.revealFollowsTerminalPark && ctx.prefetchedParkModelSnapshot != null,
+      visible: completed && session.deps.isVisibleRef.current
+    })
+  })
+}
+
+/** Visible resume. A pulse skipped while the pane was hidden runs on this first show. */
+export function notifyTerminalPaneShown(session: PaneTerminal): void {
+  const ptyId = session.transport.getPtyId()
+  if (paneShownHook && ptyId) {
+    paneShownHook({ ptyId, cols: session.pane.terminal.cols, rows: session.pane.terminal.rows })
+  }
+}
+
+/** The fit after a one-column pulse must not push the old size back before the pulse restores it. */
+export function holdDesktopResizeDuringTuiRepaint(session: DesktopResizeSession): void {
+  const suppress = session.shouldSuppressDesktopPtyResize
+  session.shouldSuppressDesktopPtyResize = () => {
+    const ptyId = session.transport.getPtyId()
+    return Boolean(suppress?.()) || (ptyId !== null && tuiRepaintPtyIds.has(ptyId))
+  }
 }

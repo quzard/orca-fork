@@ -49,14 +49,7 @@ export function* searchMessageRows(
   messages: Iterable<TranscriptMessage>
 ): Generator<TranscriptMessage> {
   for (const message of messages) {
-    if (message.role === 'tool') {
-      // fork: 登记为 chunk 时按原文切块；未登记时仍用上游的长度上限和截断标记。
-      if (readAiVaultToolIndexPolicy() === 'chunk') {
-        for (const text of textChunks(message.text)) {
-          yield { ...message, text }
-        }
-        continue
-      }
+    if (message.role === 'tool' && readAiVaultToolIndexPolicy() !== 'chunk') {
       const text = sliceAtCodeUnitLimit(message.text, TOOL_ROW_CHARS)
       yield {
         ...message,

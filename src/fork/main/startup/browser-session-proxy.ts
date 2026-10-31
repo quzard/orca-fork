@@ -3,23 +3,17 @@ import { shouldDeferBrowserSessionProxy } from '../../../shared/fork-hooks/start
 const BROWSER_PROXY_FAILURE = '[proxy] Failed to apply network proxy settings to browser sessions'
 
 /**
- * Starts the startup proxy write for browser partitions. Registered builds return without waiting
- * so the first window is not held. That keeps upstream's guarantee: `apply` runs synchronously up
- * to each partition's queued write, which marks the partition pending, and every partition request
- * waits on that readiness (BrowserCertificateRequestGuard), so nothing goes out before the proxy
- * and a failed write cancels requests. Unregistered builds still wait, as upstream does.
+ * What startup awaits for the browser partitions' proxy write. Unregistered it is the write itself,
+ * as upstream. Registered it resolves at once so the first window is not held. That keeps upstream's
+ * guarantee: the write was started synchronously up to each partition's queued apply, which marks
+ * the partition pending, and every partition request waits on that readiness
+ * (BrowserCertificateRequestGuard), so nothing goes out before the proxy and a failed write cancels
+ * requests. The failure is logged here because upstream's catch no longer sees it.
  */
-export async function applyStartupBrowserSessionProxies(
-  apply: () => Promise<unknown>
-): Promise<void> {
-  const pending = apply().then(
-    () => undefined,
-    () => {
-      console.warn(BROWSER_PROXY_FAILURE)
-    }
-  )
-  if (shouldDeferBrowserSessionProxy()) {
-    return
+export function deferStartupProxyWait(write: Promise<unknown>): Promise<unknown> {
+  if (!shouldDeferBrowserSessionProxy()) {
+    return write
   }
-  await pending
+  write.catch(() => console.warn(BROWSER_PROXY_FAILURE))
+  return Promise.resolve()
 }

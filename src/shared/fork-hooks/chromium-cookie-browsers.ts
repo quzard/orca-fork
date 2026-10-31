@@ -1,26 +1,25 @@
-// fork: 额外的 Chromium cookie 来源。未登记时发现、选配置和提示名单都只认上游浏览器。
+// fork (F049): extra browsers in the cookie import hint. Unregistered, the hint is upstream's list.
 
-import type { BrowserSessionProfileSource } from '../browser-workspace-types'
-
-export type ForkChromiumCookieBrowser = {
-  family: BrowserSessionProfileSource['browserFamily']
+export type ForkCookieImportSource = {
   label: string
-  keychainService: string
-  keychainAccount: string
-  macRoot?: string
-  winRoot?: string
-  linuxRoot?: string
+  mac: boolean
+  win: boolean
+  linux: boolean
 }
 
-let extraBrowsers: readonly ForkChromiumCookieBrowser[] = []
+let extraSources: readonly ForkCookieImportSource[] = []
 
-/** 整表替换。桌面、渲染进程和 orcad 各自登记同一份，后一次不会叠出重复项。 */
-export function registerForkChromiumCookieBrowsers(
-  browsers: readonly ForkChromiumCookieBrowser[]
-): void {
-  extraBrowsers = browsers
+/** Whole-list replace, so the desktop, renderer and orcad registering again adds no duplicates. */
+export function registerForkCookieImportSources(sources: readonly ForkCookieImportSource[]): void {
+  extraSources = sources
 }
 
-export function forkChromiumCookieBrowsers(): readonly ForkChromiumCookieBrowser[] {
-  return extraBrowsers
+export function forkCookieImportSourceLabels(
+  platform: 'darwin' | 'win32' | 'linux',
+  listed: readonly string[]
+): string[] {
+  const key = platform === 'darwin' ? 'mac' : platform === 'win32' ? 'win' : 'linux'
+  return extraSources
+    .filter((source) => source[key] && !listed.includes(source.label))
+    .map((source) => source.label)
 }

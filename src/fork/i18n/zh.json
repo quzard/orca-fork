@@ -2,15 +2,15 @@
   "fork": {
     "aiVault": {
       "collapseAll": "折叠所有分组",
-      "hostCount": "{{count}} 台主机",
-      "otherHosts": "其他已配置主机",
-      "scanning": "正在扫描历史…"
+      "otherHosts": "其他已配置主机"
     },
     "sourceControl": {
       "compare": {
         "change": "使用",
         "clear": "清除",
-        "placeholder": "origin/main"
+        "label": "比较目标",
+        "placeholder": "origin/main",
+        "saveFailed": "保存比较目标失败：{{error}}"
       },
       "empty": "这个工作区里没有 git 仓库。",
       "group": {
@@ -19,6 +19,7 @@
         "unstaged": "未暂存",
         "untracked": "未跟踪"
       },
+      "listError": "列出仓库失败：{{error}}",
       "loading": "正在查找仓库…",
       "noChanges": "没有仓库有改动。",
       "onlyChanged": "只显示有改动的",
@@ -26,15 +27,18 @@
       "repo": {
         "aheadBehind": "领先 {{ahead}}，落后 {{behind}}",
         "changeCount": "{{count}} 项改动",
+        "compareUnavailable": "无法比较分支：{{reason}}",
         "noCompareTarget": "未设置比较目标",
         "other": "其他",
         "otherCount": "{{count}} 个未初始化",
+        "readError": "读取状态失败：{{error}}",
         "root": "当前工作区",
         "uninitialized": "未初始化的子模块"
       },
       "scope": {
         "current": "当前仓库",
-        "remoteHost": "这台电脑不能读取 SSH 主机上的嵌套仓库。请用那台主机上的 Orca。",
+        "remoteHost": "这台 SSH 主机还没有由 Orca 服务端接管。重新连接后才能查看工作区仓库。",
+        "unreachable": "连不上这台主机，暂时查不了工作区仓库。",
         "updateHost": "请先更新这台主机，才能查看嵌套仓库",
         "workspace": "工作区仓库"
       },
@@ -59,14 +63,6 @@
       "hostTooOldForGroups": "请先更新此主机上的 Orca，才能在分组之间移动工作区。",
       "restoreWorkspace": "恢复",
       "searchWorkspaces": "搜索工作区",
-      "contextMenu": {
-        "sleep": "休眠",
-        "sleepOne": "休眠 {{count}} 个工作区",
-        "sleepMany": "休眠 {{count}} 个工作区",
-        "deleteSelected": "删除所选",
-        "deleteOne": "删除 {{count}} 个工作区",
-        "deleteMany": "删除 {{count}} 个工作区"
-      },
       "hostMode": "主机",
       "hostModeDescription": "先按执行主机、再按目录给工作区分组。",
       "ungroupOnly": "仅取消分组",
@@ -75,8 +71,6 @@
     "workspaceDelete": {
       "alsoDeleteFolder": "同时删除文件夹",
       "keepFolderHint": "不勾选则保留磁盘上的文件夹。",
-      "keepFolderOne": "仅从 Orca 移除，不会删除磁盘上的工作区文件夹。",
-      "keepFolderMany": "仅从 Orca 移除，不会删除磁盘上的工作区文件夹。",
       "keepFolderSingle": "从 Orca 移除 <target/>。不会删除磁盘上的工作区文件夹。",
       "keepFolderBatch": "从 Orca 移除 <target>{{count}} 个工作区</target>。不会删除磁盘上的工作区文件夹。",
       "keepFolderWithChild": "从 Orca 移除 <target/> 和 <descendants>1 个子工作区</descendants>。不会删除磁盘上的工作区文件夹。",
@@ -93,15 +87,6 @@
       "removed": "已从 Orca 移除工作区",
       "undo": "撤销"
     }
-  },
-  "sshConnectionStatus": {
-    "authFailed": "认证失败",
-    "connected": "已连接",
-    "connecting": "正在连接…",
-    "deployingRelay": "正在部署中继…",
-    "disconnected": "已断开连接",
-    "reconnecting": "正在重新连接…",
-    "reconnectionFailed": "重新连接失败"
   },
   "workspaceImport": {
     "parentFolderFailed": "仓库已导入；父文件夹未能设置完成"

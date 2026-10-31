@@ -12,7 +12,7 @@ import type { HostDirectoryRenderArgs } from './host-directory-render-args'
 import type { OrderedWorkspace } from './workspace-order'
 
 export function workspaceHost(worktree: Worktree, args: HostDirectoryRenderArgs): ExecutionHostId {
-  return getWorktreeExecutionHostId(worktree, args.repoMap.get(worktree.repoId), args.defaultHostId)
+  return getWorktreeExecutionHostId(worktree, args.repoOf(worktree), args.defaultHostId)
 }
 
 export function collectHostIds(args: HostDirectoryRenderArgs): ExecutionHostId[] {
@@ -60,7 +60,7 @@ export function reposOnHost(args: HostDirectoryRenderArgs, hostId: ExecutionHost
       if (seen.has(worktree.repoId) || workspaceHost(worktree, args) !== hostId) {
         continue
       }
-      const repo = args.repoMap.get(worktree.repoId)
+      const repo = args.repoOf(worktree)
       if (!repo) {
         continue
       }
@@ -79,7 +79,7 @@ export function worktreeMembers(args: HostDirectoryRenderArgs, key: string): Ord
   return section.items.map((worktree) => ({
     kind: 'worktree' as const,
     worktree,
-    repo: args.repoMap.get(worktree.repoId)
+    repo: args.repoOf(worktree)
   }))
 }
 

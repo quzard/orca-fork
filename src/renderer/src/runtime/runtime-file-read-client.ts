@@ -20,6 +20,7 @@ import { chatScratchFileAddress } from './runtime-chat-scratch-file-address'
 import { readRemoteRangePreview } from './runtime-file-range-preview'
 import { isAgentSessionAttachmentStorePath } from '../../../shared/agent-session-attachments'
 import type { LocalFileAccess } from '../../../shared/local-file-access'
+import { readHostDocumentResource } from '../../../shared/fork-hooks/host-file-doc-preview'
 import {
   isHostFileOutsideWorkspaces,
   readHostFilePreview,
@@ -164,6 +165,10 @@ export async function readRuntimeFilePreview(
         worktreeId,
         absolutePath: filePath
       })
+    }
+    const hostResource = readHostDocumentResource(runtimeTarget, worktreeId, filePath, access)
+    if (hostResource) {
+      return hostResource
     }
     if (hasRemoteRuntimeOwner(context)) {
       throw new Error('Remote file is outside the owning runtime worktree')

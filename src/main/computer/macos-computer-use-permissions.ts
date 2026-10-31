@@ -174,10 +174,8 @@ async function openComputerUsePermissionsAsync(
       nextStep
     }
   }
-  const helperArgs = [
-    ...(permissionId ? ['--permission', permissionId] : ['--permissions']),
-    ...computerUsePermissionHelperArgs()
-  ]
+  const helperArgs = permissionId ? ['--permission', permissionId] : ['--permissions']
+  helperArgs.push(...computerUsePermissionHelperArgs())
   const launch = requestSetupHelperLaunch({ seq, helperAppPath, helperArgs })
 
   return {

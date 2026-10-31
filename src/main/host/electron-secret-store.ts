@@ -1,6 +1,5 @@
 import { safeStorage } from 'electron'
 import { guardedSafeStorage, safeStorageWithheldReason } from './safe-storage-availability'
-import { createDesktopSecretStore } from '../../shared/fork-hooks/desktop-secret-store'
 import type { SecretStore } from '../../shared/secret-store'
 
 export class ElectronSecretStore implements SecretStore {
@@ -56,11 +55,6 @@ function readLinuxBackend(): string | null {
   } catch {
     return null
   }
-}
-
-// fork: 未登记文件密钥时仍构造 ElectronSecretStore。
-export function createInstalledDesktopSecretStore(): SecretStore {
-  return createDesktopSecretStore(() => new ElectronSecretStore())
 }
 
 function describeLinuxBackendGap(): string | null {

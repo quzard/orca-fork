@@ -7,7 +7,6 @@ import {
 } from '../../../../shared/worktree/removal'
 import type { RemoveWorktreeOptions } from '@/store/slices/worktree-removal-options'
 import type { RendererRemoveWorktreeResult } from '@/store/slices/renderer-remove-worktree-result'
-import { releaseRegisteredDurableWorkspaceArchive } from '../../../../shared/fork-hooks/workspace-durable-archive'
 import { showWorkspaceListChangedToast } from './stale-workspace-list-toast'
 import type { ConfirmedUnsavedDiscards } from '@/store/slices/worktrees/teardown/removed-workspace-unsaved-files'
 
@@ -51,17 +50,6 @@ export function runDialogForceDelete(args: {
           }
         )
         return
-      }
-      if (forceTarget.path) {
-        releaseRegisteredDurableWorkspaceArchive({
-          worktree: {
-            id: forceTarget.id,
-            path: forceTarget.path,
-            repoId: forceTarget.repoId,
-            ...(forceTarget.hostId ? { hostId: forceTarget.hostId } : {}),
-            ...(forceTarget.identity ? { identity: forceTarget.identity } : {})
-          }
-        })
       }
       onDeleted?.([toWorktreeRemovalTarget(forceTarget)])
     })

@@ -9,7 +9,8 @@ import {
 import {
   registerDurableWorkspaceArchive,
   registerDurableWorkspaceArchiveRelease,
-  registerDurableWorkspaceMetaReactivate
+  registerImportedWorktreeReactivate,
+  registerRemovedWorkspaceArchiveRelease
 } from '../shared/fork-hooks/workspace-durable-archive'
 import { registerForkRendererModules as registerAiVaultRendererModules } from './ai-vault/register-renderer'
 import { enableWorkspacePortForward } from './ports/workspace-port-forward-flag'
@@ -18,11 +19,16 @@ import {
   releaseDurableArchiveForWorkspace,
   stampWorkspaceArchive
 } from './sidebar/durable-workspace-archive'
-import { reactivateArchivedWorktreeMeta } from './sidebar/reused-path-worktree-meta'
+import {
+  reactivateImportedWorktrees,
+  releaseRemovedWorkspaceArchive
+} from './sidebar/workspace-archive-release'
 import { installHostDirectoryRowPlan } from './sidebar/install-row-plan'
 import { registerHostDirectorySortReader } from './sidebar/section-keys'
 import { registerSettingsProjectBulkSlot } from './sidebar/settings-project-bulk'
 import { registerSidebarMenuSlots } from './sidebar/sidebar-menu-slots'
+import { registerDirectoryPrefix } from './sidebar/directory-prefix'
+import { registerDeleteProjectGroupOptionCheckbox } from './sidebar/project-group-delete-option'
 import { registerWorkspaceChoice } from './sidebar/workspace-choice'
 import { registerWorkspaceGroupDropHandler } from './sidebar/workspace-group-drop'
 import { registerWorkspaceMenuGroups } from './sidebar/menu-groups'
@@ -34,11 +40,11 @@ import {
 } from './terminal/reconnect-tui-pulse'
 import { registerComposerSeed } from './sidebar/register-composer-seed'
 import { installForkLocaleOverlays } from './i18n/locale-overlay'
-import { registerForkWorktreeContextMenuLabels } from './sidebar/context-menu-labels'
-import { installManagedSshAddressPreview } from './terminal/html-preview-address'
-import { installSshRoutedHtmlPreviewRecovery } from './terminal/html-preview-reclaim'
-import { registerTerminalFileLinkStayWatch } from './terminal/file-link-stay-watch'
+import { installCoveredTerminalCanvasStyle } from './terminal/covered-terminal-canvas'
 import { registerWorkspaceRepositorySourceControl } from './source-control/register'
+import { registerHostFileDocPreviews } from './terminal/host-file-doc-preview'
+import { registerKeptHostFileViewHooks } from './terminal/kept-host-file-view'
+import { registerForkModules } from './register'
 
 /** Renderer hooks. Kept out of the node program so it can read the app store. */
 export function registerForkRendererModules(): void {
@@ -46,6 +52,8 @@ export function registerForkRendererModules(): void {
   installHostDirectoryRowPlan()
   registerHostDirectorySortReader(() => useAppStore.getState().sortBy)
   registerSidebarMenuSlots()
+  registerDirectoryPrefix()
+  registerDeleteProjectGroupOptionCheckbox()
   registerArchivedWorkspaceSlot()
   registerWorkspaceChoice()
   registerSettingsProjectBulkSlot()
@@ -55,7 +63,8 @@ export function registerForkRendererModules(): void {
   registerForkWorkspaceFolderDelete()
   registerDurableWorkspaceArchive(stampWorkspaceArchive)
   registerDurableWorkspaceArchiveRelease(releaseDurableArchiveForWorkspace)
-  registerDurableWorkspaceMetaReactivate(reactivateArchivedWorktreeMeta)
+  registerRemovedWorkspaceArchiveRelease(releaseRemovedWorkspaceArchive)
+  registerImportedWorktreeReactivate(reactivateImportedWorktrees)
   registerHiddenWorktreeSearch({
     minimum: 1,
     matches: (worktree, query) => (worktree.branch ?? '').toLocaleLowerCase().includes(query)
@@ -69,15 +78,20 @@ export function registerForkRendererModules(): void {
   registerTerminalPaneShownHook((info) => {
     consumeDeferredSshReconnectTui(info, resizePty)
   })
+  installCoveredTerminalCanvasStyle()
   registerComposerSeed()
-  registerForkWorktreeContextMenuLabels()
-  registerTerminalFileLinkStayWatch()
-  installManagedSshAddressPreview()
-  installSshRoutedHtmlPreviewRecovery()
+  registerHostFileDocPreviews()
+  registerKeptHostFileViewHooks()
   registerPostImportHook((details) =>
     import('./import/apply-post-import').then((module) => module.applyForkPostImport(details))
   )
   enableWorkspacePortForward()
   registerAiVaultRendererModules()
   registerWorkspaceRepositorySourceControl()
+}
+
+/** Renderer entry (src/renderer/src/main.tsx): grouping modes first, then the render slots. */
+export function registerForkRenderer(): void {
+  registerForkModules()
+  registerForkRendererModules()
 }

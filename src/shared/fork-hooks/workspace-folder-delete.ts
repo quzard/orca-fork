@@ -1,90 +1,43 @@
-// fork: 删除工作区时是否连目录一起删。未登记时没有复选框，确认仍走上游的 git worktree remove。
+// fork: 删除工作区默认只从 Orca 移除（F048）。未登记时对话框没有勾选，跳过确认仍走上游的硬删除。
 
-import type { Repo } from '../repo-types'
-import { isFolderRepo } from '../repo-kind'
-import type { ExecutionHostId } from '../execution-host'
+import type { Worktree } from '../worktree/types'
+import type { WorktreeRemovalTarget } from '../worktree/removal'
 
-export type WorkspaceRecordIdentity = {
-  id: string
-  instanceId?: string
-  hostId?: ExecutionHostId
-}
+type SkipConfirmDelete = <T extends Worktree>(
+  targets: readonly T[],
+  onDeleted?: (deleted: WorktreeRemovalTarget[]) => void
+) => readonly T[]
 
-export type WorkspaceLineageKeptNotice = {
-  title: string
-  body: string
-}
+let skipConfirmDelete: SkipConfirmDelete | undefined
 
-// 返回 null：这次不接管，调用方继续硬删除（文件夹工作区本来就不删目录）。
-// 返回数组：已按“只移出 Orca”处理。空数组表示都失败了，调用方不要再硬删除。
-type RemoveRecords = (
-  identities: readonly WorkspaceRecordIdentity[]
-) => Promise<readonly WorkspaceRecordIdentity[] | null>
-
-type Registration = {
-  keepFolderSuffix: (gitWorktreeCount: number) => string
-  lineageKeptNotice: (childCount: number) => WorkspaceLineageKeptNotice
-  removeRecords: RemoveRecords
-}
-
-let registration: Registration | undefined
-
-export function registerWorkspaceFolderDelete(next: Registration | undefined): void {
-  registration = next
+export function registerWorkspaceFolderDelete(next: SkipConfirmDelete | undefined): void {
+  skipConfirmDelete = next
 }
 
 export function workspaceFolderDeleteRegistered(): boolean {
-  return registration !== undefined
+  return skipConfirmDelete !== undefined
 }
 
-/** 这次确认里，上游会从 git 和磁盘删掉的工作区个数。文件夹工作区不算。 */
-export function gitWorktreesInDelete(
-  repos: readonly Pick<Repo, 'id' | 'kind'>[],
-  worktrees: readonly { repoId: string }[]
-): number {
-  const folderRepoIds = new Set<string>()
-  for (const repo of repos) {
-    if (isFolderRepo(repo)) {
-      folderRepoIds.add(repo.id)
-    }
-  }
-  let folders = 0
-  for (const worktree of worktrees) {
-    if (folderRepoIds.has(worktree.repoId)) {
-      folders += 1
-    }
-  }
-  return worktrees.length - folders
+/**
+ * A delete that skipped its confirmation: the targets upstream still hard-deletes. Registered, git
+ * workspaces are only removed from Orca (archived, reported through `onDeleted`) and folder
+ * workspaces come back, since their delete already keeps the folder. Unregistered: every target.
+ */
+export function skipConfirmHardDeletes<T extends Worktree>(
+  targets: readonly T[],
+  onDeleted?: (deleted: WorktreeRemovalTarget[]) => void
+): readonly T[] {
+  return skipConfirmDelete ? skipConfirmDelete(targets, onDeleted) : targets
 }
 
-export function workspaceFolderDeleteOffered(gitWorktreeCount: number): boolean {
-  return registration !== undefined && gitWorktreeCount > 0
-}
-
-export function workspaceFolderDeleteSuffix(
-  upstream: string,
-  gitWorktreeCount: number,
-  deleteFolder: boolean
-): string {
-  if (!registration || deleteFolder || gitWorktreeCount <= 0) {
-    return upstream
-  }
-  return registration.keepFolderSuffix(gitWorktreeCount)
-}
-
-export function workspaceLineageKeptNotice(childCount: number): WorkspaceLineageKeptNotice | null {
-  if (!registration || childCount <= 0) {
-    return null
-  }
-  return registration.lineageKeptNotice(childCount)
-}
-
-export function takeWorkspaceRecordRemoval(
-  identities: readonly WorkspaceRecordIdentity[],
-  deleteFolder: boolean
-): Promise<readonly WorkspaceRecordIdentity[] | null> {
-  if (!registration || deleteFolder) {
-    return Promise.resolve(null)
-  }
-  return registration.removeRecords(identities)
+/**
+ * One text of the lineage notice: `kept` (the keep-folder wording) when the dialog keeps folders,
+ * else the caller's own translation. Exposed as `.t` so the translation call keeps its key.
+ * Not named `translate`: the key extractor would read a `translate(...args)` call here as keys.
+ */
+export function keptLineageText<A extends unknown[]>(
+  ownText: (...args: A) => string,
+  kept: string | undefined
+): { t: (...args: A) => string } {
+  return { t: (...args) => kept ?? ownText(...args) }
 }

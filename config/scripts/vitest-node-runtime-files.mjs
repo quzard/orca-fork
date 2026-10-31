@@ -33,10 +33,6 @@ const NODE_RUNTIME_INCLUDE = [
   'src/renderer/src/components/terminal-pane/pty-input-write-queue.test.ts',
   'src/renderer/src/lib/react-commit-cascade-observer.test.ts',
   'src/renderer/src/lib/react-commit-cascade-telemetry.test.ts',
-  // Fork: worktree.set clear runs against the real SQLite runtime store.
-  'src/fork/sidebar/sidebar-field-clear.fork.test.ts',
-  // Fork: the group-delete test imports persistence-test-harness, which loads SQLite.
-  'src/fork/main/project-group-delete.fork.test.ts',
   // Asserts payloads are collected; Bun's GC scans the stack conservatively and may keep one alive.
   'src/shared/ws-inbound-message-queue.test.ts',
   'src/renderer/src/lib/ai-vault-tab-title-sync-inputs.test.ts',
@@ -210,7 +206,6 @@ const NODE_RUNTIME_INCLUDE = [
   // Real fs.watch file bindings; Bun's watcher is not the one Electron runs.
   'src/main/ipc/rebinding-file-watch.test.ts',
   'src/main/ipc/parcel-watcher-shallow-file-subscription.test.ts',
-  'src/main/ipc/runtime-environments/runtime-environment-transport-routing-tailscale-hint.test.ts',
   'src/renderer/src/components/emulator-pane/emulator-device-frame-visibility.test.tsx',
   'src/main/claude/claude-agent-sdk-contract-pins.test.ts',
   'config/scripts/profile-state-worker-smoke.test.mjs',

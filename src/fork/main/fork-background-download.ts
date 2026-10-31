@@ -2,7 +2,7 @@
 // macOS 上 electron-updater 的 update-downloaded 早于 Squirrel 暂存完成。暂存完成前只记作「暂存中」：
 // 不弹重启卡片；暂存失败时交还上游的错误状态，用户可以重新检查。
 
-import { forkReleaseFeedDecision } from '../../shared/fork-hooks/update-feed'
+import { isForkBuild } from '../../shared/fork-hooks/update-feed'
 import type { UpdateStatus } from '../../shared/update-status-types'
 
 export const FORK_BACKGROUND_DOWNLOAD_FAILURE_LOG =
@@ -15,13 +15,6 @@ export const FORK_STAGING_FAILURE_LOG =
   '[updater] macOS could not stage the downloaded update; check for updates to retry'
 
 export type ForkUpdatePhase = UpdateStatus['state']
-
-export type ForkAutoInstallOnQuitInput = {
-  forkReady: boolean
-  interactive: boolean
-  linuxNonRootImplicitQuit: boolean
-  platform: NodeJS.Platform
-}
 
 type ForkOffer = 'passthrough' | 'download' | 'restart' | 'keep' | 'staging'
 
@@ -74,7 +67,7 @@ function pendingStagingVersion(): string | null {
 }
 
 function isForkGithubUpdateReady(): boolean {
-  return forkReleaseFeedDecision().kind === 'ready'
+  return isForkBuild()
 }
 
 export function forkStagedUpdateVersion(): string | null {
@@ -98,15 +91,16 @@ export function failForkStaging(): boolean {
   return true
 }
 
-/** 上游仍只在 Linux 非 root 包上退出即装。fork 源的交互会话在 Mac/Windows 上也退出即装。 */
-export function forkAutoInstallOnQuit(input: ForkAutoInstallOnQuitInput): boolean {
-  if (!input.interactive) {
-    return false
-  }
-  if (input.forkReady && input.platform !== 'linux') {
-    return true
-  }
-  return input.linuxNonRootImplicitQuit
+/**
+ * Added to upstream's install-on-quit, which covers only interactive Linux non-root packages:
+ * an interactive fork-feed session installs on quit on macOS and Windows too. Headless serve
+ * still hands off to its supervisor.
+ */
+export function forkInstallsOnQuit(
+  installMode: string,
+  platform: NodeJS.Platform = process.platform
+): boolean {
+  return installMode === 'interactive' && isForkGithubUpdateReady() && platform !== 'linux'
 }
 
 export function shouldHoldForkUpdateCheck(input: {

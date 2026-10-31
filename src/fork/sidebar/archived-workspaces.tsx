@@ -1,13 +1,16 @@
 // Archived Orca workspaces inside the visibility dialog. Restore clears isArchived.
 import React, { useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import { forkTranslate } from '../i18n/fork-translate'
 import { Button } from '../../renderer/src/components/ui/button'
 import { Input } from '../../renderer/src/components/ui/input'
 import { getWorktreeExecutionHostId, normalizeExecutionHostId } from '../../shared/execution-host'
 import type { Repo } from '../../shared/repo-types'
 import { useAppStore } from '../../renderer/src/store'
+import { findRepoForHost } from '../../renderer/src/store/slices/repo-host-identity'
 import { registerVisibilityArchivedSlot } from '../../shared/fork-hooks/sidebar-chrome'
 import { forgetWorkspaceArchive } from './durable-workspace-archive'
+import { hostDirectoryDefaultHostId } from './section-keys'
 
 function ArchivedWorkspaceList({
   repo,
@@ -17,18 +20,27 @@ function ArchivedWorkspaceList({
   hostId?: string
 }): React.JSX.Element | null {
   const worktreesByRepo = useAppStore((state) => state.worktreesByRepo)
+  const repos = useAppStore((state) => state.repos)
   const updateWorktreeMeta = useAppStore((state) => state.updateWorktreeMeta)
   const [query, setQuery] = useState('')
-  const archived = useMemo(() => {
-    const owner =
-      normalizeExecutionHostId(hostId) ?? getWorktreeExecutionHostId({ hostId: undefined }, repo)
-    return Object.values(worktreesByRepo)
-      .flat()
-      .filter(
-        (worktree) =>
-          worktree.isArchived && getWorktreeExecutionHostId(worktree, repo, owner) === owner
-      )
-  }, [hostId, repo, worktreesByRepo])
+  // Rows and projects without a host belong to the sidebar's default host, as the list draws them.
+  const defaultHostId = hostDirectoryDefaultHostId()
+  const owner =
+    normalizeExecutionHostId(hostId) ??
+    getWorktreeExecutionHostId({ hostId: undefined }, repo, defaultHostId)
+  const archived = useMemo(
+    () =>
+      Object.values(worktreesByRepo)
+        .flat()
+        .filter((worktree) => {
+          if (!worktree.isArchived) {
+            return false
+          }
+          const own = findRepoForHost(repos, worktree.repoId, { hostId: worktree.hostId })
+          return getWorktreeExecutionHostId(worktree, own ?? undefined, defaultHostId) === owner
+        }),
+    [defaultHostId, owner, repos, worktreesByRepo]
+  )
   const needle = query.trim().toLocaleLowerCase()
   const visible = needle
     ? archived.filter((worktree) =>
@@ -68,8 +80,12 @@ function ArchivedWorkspaceList({
                 void updateWorktreeMeta(
                   worktree.id,
                   { isArchived: false },
-                  { executionHostId: worktree.hostId }
-                )
+                  { executionHostId: owner }
+                ).then((result) => {
+                  if (!result.ok) {
+                    toast.error(result.error)
+                  }
+                })
               }}
             >
               {forkTranslate('fork.sidebar.restoreWorkspace', 'Restore')}

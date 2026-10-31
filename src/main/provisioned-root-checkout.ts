@@ -13,7 +13,7 @@ import {
   resolveWorktreeCreateDisplayNameMeta,
   resolveWorktreeCreateDisplayNameRequest
 } from './ipc/worktree-display-name'
-import { withoutReusedWorktreeArchive } from '../shared/worktree/reused-path-archive'
+import { reusedPathUnarchiveMeta } from '../shared/fork-hooks/reused-path-unarchive'
 
 export type ProvisionedRootRequest = Pick<
   CreateWorktreeArgs,
@@ -121,8 +121,9 @@ export function buildProvisionedRootMeta(
     displayNameRequest.kind,
     { requestedName: args.name, sanitizedName: args.name }
   )
-  return withoutReusedWorktreeArchive({
+  return {
     instanceId: randomUUID(),
+    ...reusedPathUnarchiveMeta(),
     ...(store.getProjectHostSetups
       ? getProjectHostSetupWorktreeMeta(store.getProjectHostSetups(), repo)
       : {}),
@@ -168,5 +169,5 @@ export function buildProvisionedRootMeta(
     ...(args.linkedTaskSourceContext !== undefined
       ? { linkedTaskSourceContext: args.linkedTaskSourceContext }
       : {})
-  })
+  }
 }

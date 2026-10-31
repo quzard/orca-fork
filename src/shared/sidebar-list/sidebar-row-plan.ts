@@ -1,4 +1,3 @@
-import type { WorkspaceSortBy } from '../workspace-view/workspace-row-sort'
 import { takeRegisteredSidebarRowPlan } from '../fork-hooks/sidebar-group-mode'
 import type { FolderWorkspace } from '../folder-workspace-types'
 import type { ProjectGroup } from '../project-group-types'
@@ -81,8 +80,6 @@ export type SidebarRowPlanInputs = {
   defaultHostId: ExecutionHostId
   pinnedDisplayPolicy: PinnedWorktreeDisplayPolicy
   filterRepoIds: readonly string[]
-  /** fork: 已登记模式可读；内置分桶忽略。 */
-  workspaceSortBy?: WorkspaceSortBy
 }
 
 /** Plans the sidebar's sections once; `render` emits rows for a collapse state. */

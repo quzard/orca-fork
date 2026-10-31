@@ -14,12 +14,11 @@ import { makeTerminalTab } from '../../main/persistence/persistence-session-fixt
 import { manifest } from '../../main/persistence/migrating-orcad-catalog/persistence-orcad-migration-catalog-fixture'
 import { collectOrcadMigrationSourceCatalog } from '../../main/persistence/migrating-orcad-catalog/orcad-source-catalog'
 import { resolveAgentWorkspaceExecutionHostId } from '../../main/agent-hooks/restored-status-dead-terminal-sweep'
-import { getDefaultPersistedState } from '../../shared/constants'
+import { getDefaultPersistedState, getDefaultWorkspaceSession } from '../../shared/constants'
 import type { FolderWorkspace } from '../../shared/folder-workspace-types'
 import type { PersistedState } from '../../shared/persisted-state-types'
 import type { ProjectGroup } from '../../shared/project-group-types'
 import { getRenderableFolderWorkspaces } from '../../shared/sidebar-list/folder-workspace-lanes'
-import { getDefaultWorkspaceSession } from '../../shared/constants'
 import { folderWorkspaceKey } from '../../shared/workspace-scope'
 import { registerKeepFolderWorkspacesOnGroupDeleteInMain } from '../../shared/fork-hooks/project-group-delete'
 import { keepFolderWorkspacesOnGroupDelete } from './project-group-delete'
@@ -236,6 +235,7 @@ describe('deleting a project group in main', () => {
     })
   })
 
+  // Loading and the group delete both leave a group-less folder workspace ungrouped (null).
   it('resolves an agent host from a group-less folder workspace itself', () => {
     const deps = (workspace: FolderWorkspace) => ({
       getRepo: () => undefined,
@@ -247,14 +247,26 @@ describe('deleting a project group in main', () => {
     expect(
       resolveAgentWorkspaceExecutionHostId(
         key,
-        deps(folderWorkspace({ id: 'kept', projectGroupId: 'gone', connectionId: 'ssh-prod' }))
+        deps(
+          folderWorkspace({
+            id: 'kept',
+            projectGroupId: 'gone',
+            connectionId: 'ssh-prod',
+            sidebarGroupId: null
+          })
+        )
       )
     ).toBe('ssh:ssh-prod')
     expect(
       resolveAgentWorkspaceExecutionHostId(
         key,
         deps(
-          folderWorkspace({ id: 'kept', projectGroupId: 'gone', executionHostId: 'runtime:env-1' })
+          folderWorkspace({
+            id: 'kept',
+            projectGroupId: 'gone',
+            executionHostId: 'runtime:env-1',
+            sidebarGroupId: null
+          })
         )
       )
     ).toBe('runtime:env-1')

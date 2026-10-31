@@ -7,7 +7,7 @@ import type { Worktree } from '../../../../../../shared/worktree/types'
 import { getWorktreeHostIdentity } from '../../../../../../shared/worktree/host-qualified-identity'
 import { isActiveSidebarWorkspace } from '../../../../../../shared/sidebar-list/active-workspace'
 import WorktreeCard, { type ActiveSurfaceVariant } from '../../WorktreeCard'
-import { lookupSidebarGroupMode } from '../../../../../../shared/fork-hooks/sidebar-group-mode'
+import { hasProjectHeaderChrome } from '../../../../../../shared/fork-hooks/sidebar-group-mode'
 import { PINNED_GROUP_KEY } from '../../../../../../shared/sidebar-list/group-keys'
 import type { WorktreeGroupBy } from '../../../../../../shared/sidebar-list/row-types'
 import {
@@ -199,10 +199,7 @@ export function renderWorktreeItemRow(
         onContextMenuSelect={ctx.onContextMenuSelect}
         onCardDragStart={ctx.onCardDragStart}
         onCardDragEnd={ctx.onCardDragEnd}
-        hideRepoBadge={
-          (ctx.groupBy === 'repo' || lookupSidebarGroupMode(ctx.groupBy) !== undefined) &&
-          !itemRow.showProjectName
-        }
+        hideRepoBadge={hasProjectHeaderChrome(ctx.groupBy) && !itemRow.showProjectName}
         directoryLabel={itemRow.directoryLabel}
         // Why: pinned worktrees mix repos; cross-repo children opt into the existing project-name badge.
         hostContextLabel={itemRow.hostContextLabel}

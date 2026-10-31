@@ -34,6 +34,30 @@ function groupLabel(area: GitStatusEntry['area']): string {
   return forkTranslate('fork.sourceControl.group.untracked', 'Untracked')
 }
 
+// 标签按根工作区打开，路径都要换成根相对路径。嵌套仓库的冲突按普通 diff 只读打开：
+// 上游的冲突流程按根仓库跟踪，下一次根状态里没有这条就会把标签清掉。
+function rootEntry(repositoryPath: string, entry: GitStatusEntry): GitStatusEntry {
+  if (!repositoryPath) {
+    return entry
+  }
+  return {
+    ...entry,
+    path: rootRelative(repositoryPath, entry.path),
+    ...(entry.oldPath ? { oldPath: rootRelative(repositoryPath, entry.oldPath) } : {}),
+    conflictKind: undefined,
+    conflictStatus: undefined,
+    conflictStatusSource: undefined
+  }
+}
+
+function MutedLine({ children }: { children: string }): React.JSX.Element {
+  return (
+    <p className="truncate px-3 text-xs text-muted-foreground" title={children}>
+      {children}
+    </p>
+  )
+}
+
 export function WorkspaceRepoSection({
   repository,
   status,
@@ -47,7 +71,7 @@ export function WorkspaceRepoSection({
   compare: GitBranchCompareResult | undefined
   worktreeId: string
   worktreePath: string
-  onCommitTarget: (repositoryPath: string, branch: string, ref: string | null) => void
+  onCommitTarget: (repositoryPath: string, branch: string, ref: string | null) => Promise<void>
 }): React.JSX.Element {
   // null 表示还没手动点过：有改动就展开，没改动就收起。点过之后不再跟着改动集合自动收起或展开。
   const [choice, setChoice] = useState<'open' | 'closed' | null>(null)
@@ -71,23 +95,32 @@ export function WorkspaceRepoSection({
           behind: summary.commitsBehind
         })
       : null
-  const changeCount =
-    status && !status.uninitialized
-      ? forkTranslate('fork.sourceControl.repo.changeCount', '{{count}} changed', {
-          count: status.entries.length
-        })
+  // 比较已经结束但给不出结果（基线不存在、没有共同祖先、出错）：说清楚原因，不只是不显示领先落后。
+  const compareProblem =
+    summary && summary.status !== 'ready' && summary.status !== 'loading'
+      ? forkTranslate(
+          'fork.sourceControl.repo.compareUnavailable',
+          'Branch compare unavailable: {{reason}}',
+          { reason: summary.errorMessage ?? summary.status }
+        )
       : null
+  const changeCount = status
+    ? forkTranslate('fork.sourceControl.repo.changeCount', '{{count}} changed', {
+        count: status.entries.length
+      })
+    : null
   const areas = (['staged', 'unstaged', 'untracked'] as const).map((area) => ({
     area,
     entries: (status?.entries ?? []).filter((entry) => entry.area === area)
   }))
   const branchEntries = summary?.status === 'ready' ? (compare?.entries ?? []) : []
-  // 上游删了 workspace-file-open。未提交走现在的打开入口，分支 diff 走 store；路径仍加上仓库相对前缀。
   const openUncommitted = (entry: GitStatusEntry): void => {
-    openUncommittedEntry(useAppStore.getState(), worktreeId, worktreePath, {
-      ...entry,
-      path: rootRelative(repository.repositoryPath, entry.path)
-    })
+    openUncommittedEntry(
+      useAppStore.getState(),
+      worktreeId,
+      worktreePath,
+      rootEntry(repository.repositoryPath, entry)
+    )
   }
   const openBranch = (entry: GitBranchChangeEntry): void => {
     if (
@@ -153,16 +186,23 @@ export function WorkspaceRepoSection({
       </div>
       {open ? (
         <div className="pb-1">
-          {status?.uninitialized ? (
-            <p className="px-3 text-xs text-muted-foreground">
-              {forkTranslate('fork.sourceControl.repo.uninitialized', 'Uninitialized submodule')}
-            </p>
+          {status?.readError ? (
+            <MutedLine>
+              {forkTranslate(
+                'fork.sourceControl.repo.readError',
+                "Couldn't read status: {{error}}",
+                {
+                  error: status.readError
+                }
+              )}
+            </MutedLine>
           ) : null}
-          {!status?.uninitialized && status && !status.compareTarget.ref ? (
-            <p className="px-3 text-xs text-muted-foreground">
+          {status && !status.compareTarget.ref ? (
+            <MutedLine>
               {forkTranslate('fork.sourceControl.repo.noCompareTarget', 'No compare target')}
-            </p>
+            </MutedLine>
           ) : null}
+          {compareProblem ? <MutedLine>{compareProblem}</MutedLine> : null}
           {areas.map((group) =>
             group.entries.length === 0 ? null : (
               <div key={group.area}>
@@ -203,7 +243,7 @@ export function WorkspaceRepoSection({
               ))}
             </div>
           ) : null}
-          {branch && !status?.uninitialized ? (
+          {branch ? (
             <CompareTargetPicker
               current={status?.compareTarget.ref ?? null}
               onCommit={(ref) => onCommitTarget(repository.repositoryPath, branch, ref)}

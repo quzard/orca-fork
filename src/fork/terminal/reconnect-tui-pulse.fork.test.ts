@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
+  holdDesktopResizeDuringTuiRepaint,
   isForkTuiRepaintActive,
-  setForkTuiRepaintActive
+  notifyTerminalPaneShown,
+  notifyTerminalReconnectFit,
+  registerTerminalPaneShownHook,
+  registerTerminalReconnectFitHook,
+  setForkTuiRepaintActive,
+  type TerminalPaneShownInfo,
+  type TerminalReconnectFitInfo
 } from '../../shared/fork-hooks/terminal-lifecycle'
-import {
-  holdResizeForTuiPulse,
-  pulseSshReconnectTui,
-  consumeDeferredSshReconnectTui
-} from './reconnect-tui-pulse'
+import { pulseSshReconnectTui, consumeDeferredSshReconnectTui } from './reconnect-tui-pulse'
 
 describe('pulseSshReconnectTui', () => {
   it('shrinks an ssh pty by one column, then restores the captured size', () => {
@@ -127,18 +130,70 @@ describe('pulseSshReconnectTui', () => {
   })
 })
 
-describe('holdResizeForTuiPulse', () => {
-  it('suppresses a fitted resize only while that pty is pulsing', () => {
+describe('upstream hook sites', () => {
+  const pane = (cols: number, ptyId: string | null = 'ssh:builder@@pty-6') => ({
+    pane: { terminal: { cols, rows: 24 } },
+    transport: { getPtyId: () => ptyId },
+    deps: { isVisibleRef: { current: true } }
+  })
+
+  it('holds the desktop resize of a pulsing pty and otherwise keeps the upstream check', () => {
     let fitted = false
-    const getPtyId = (): string | null => 'ssh:builder@@pty-3'
-    let shouldSuppressDesktopPtyResize = (): boolean => fitted
-    shouldSuppressDesktopPtyResize = holdResizeForTuiPulse(getPtyId, shouldSuppressDesktopPtyResize)
-    expect(shouldSuppressDesktopPtyResize()).toBe(false)
+    const session = {
+      ...pane(80, 'ssh:builder@@pty-3'),
+      shouldSuppressDesktopPtyResize: () => fitted
+    }
+    holdDesktopResizeDuringTuiRepaint(session)
+    expect(session.shouldSuppressDesktopPtyResize()).toBe(false)
     setForkTuiRepaintActive('ssh:builder@@pty-3', true)
-    expect(shouldSuppressDesktopPtyResize()).toBe(true)
+    expect(session.shouldSuppressDesktopPtyResize()).toBe(true)
     setForkTuiRepaintActive('ssh:builder@@pty-3', false)
-    expect(shouldSuppressDesktopPtyResize()).toBe(false)
     fitted = true
-    expect(shouldSuppressDesktopPtyResize()).toBe(true)
+    expect(session.shouldSuppressDesktopPtyResize()).toBe(true)
+  })
+
+  it('reports a settled reattach fit with the grid, park restore and visibility', async () => {
+    const seen: TerminalReconnectFitInfo[] = []
+    registerTerminalReconnectFitHook((info) => seen.push(info))
+    const session = pane(120)
+    const ctx = {
+      isCurrentReattachPayload: () => true,
+      revealFollowsTerminalPark: true,
+      prefetchedParkModelSnapshot: null
+    }
+    notifyTerminalReconnectFit(session, ctx, 'ssh:builder@@pty-6', Promise.resolve(true))
+    notifyTerminalReconnectFit(session, ctx, 'ssh:builder@@pty-6', Promise.resolve(false))
+    notifyTerminalReconnectFit(
+      session,
+      { ...ctx, prefetchedParkModelSnapshot: {} },
+      'ssh:builder@@pty-6',
+      Promise.resolve(true)
+    )
+    notifyTerminalReconnectFit(
+      session,
+      { ...ctx, isCurrentReattachPayload: () => false },
+      'ssh:builder@@pty-6',
+      Promise.resolve(true)
+    )
+    await Promise.resolve()
+    expect(seen).toEqual([
+      { ptyId: 'ssh:builder@@pty-6', cols: 120, rows: 24, restoredFromModel: false, visible: true },
+      {
+        ptyId: 'ssh:builder@@pty-6',
+        cols: 120,
+        rows: 24,
+        restoredFromModel: false,
+        visible: false
+      },
+      { ptyId: 'ssh:builder@@pty-6', cols: 120, rows: 24, restoredFromModel: true, visible: true }
+    ])
+  })
+
+  it('reports a visible resume only for a pane with a pty', () => {
+    const seen: TerminalPaneShownInfo[] = []
+    registerTerminalPaneShownHook((info) => seen.push(info))
+    notifyTerminalPaneShown(pane(90))
+    notifyTerminalPaneShown(pane(90, null))
+    expect(seen).toEqual([{ ptyId: 'ssh:builder@@pty-6', cols: 90, rows: 24 }])
   })
 })

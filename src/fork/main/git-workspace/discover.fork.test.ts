@@ -63,6 +63,7 @@ describe('workspace repository discovery', () => {
     return ws
   }
 
+  // Real git builds several repositories here; process spawns are slow on Windows runners.
   it('lists a first-level worktree and does not walk into a child repository', async () => {
     const ws = await layout()
     const found = await discoverWorkspaceRepositories(ws)
@@ -92,19 +93,29 @@ describe('workspace repository discovery', () => {
     expect(found.timedOut).toBe(false)
   }, 120_000)
 
-  it('keeps the root when the count cap is one and does not cache a timed-out scan', async () => {
+  // Real git builds several repositories here; process spawns are slow on Windows runners.
+  it('keeps the root when the count cap is one and lists again after a timed-out scan', async () => {
     const ws = await layout()
     const capped = await discoverWorkspaceRepositories(ws, { maxRepos: 1, refresh: true })
     expect(capped.truncated).toBe(true)
     expect(capped.repositories.map((repository) => repository.repositoryPath)).toEqual([''])
 
     let now = Date.now()
-    vi.spyOn(Date, 'now').mockImplementation(() => {
+    const clock = vi.spyOn(Date, 'now').mockImplementation(() => {
       now += 20_000
       return now
     })
     const timed = await discoverWorkspaceRepositories(ws, { refresh: true, timeoutMs: 15_000 })
     expect(timed.timedOut).toBe(true)
+    clock.mockImplementation(() => now)
+    // 状态、diff 只查成员：截断的结果在一分钟内照用，不必每个仓库再扫一遍。
+    await expect(
+      discoverWorkspaceRepositories(ws, {
+        timeoutMs: 15_000,
+        maxAgeMs: 60_000,
+        acceptPartial: true
+      })
+    ).resolves.toBe(timed)
     vi.restoreAllMocks()
     initRepo(join(ws, 'late'))
     const rescanned = await discoverWorkspaceRepositories(ws)

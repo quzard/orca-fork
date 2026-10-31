@@ -12,11 +12,7 @@ import {
 } from '../../../persistence/worktree-sort-order-write'
 import { readBranchRenameFailureOutputForDisplay } from '../../../agent-hooks/branch-rename-failure-output'
 import { normalizeLinkedWorkItemFields } from '../ipc-context-schemas'
-import {
-  decodeSidebarFieldClears,
-  parseClearableSidebarFields,
-  type ClearableSidebarField
-} from '../../../../shared/fork-hooks/sidebar-field-clear'
+import { applySidebarFieldClearsFromIpcArgs } from '../../../../shared/fork-hooks/sidebar-field-clear'
 import { isRemovedFolderWorkspaceInstance } from '../../../folder-workspace-meta-presence'
 import { resolveWorktreeMetaOwner } from '../../../persistence/host-qualified-worktree-meta'
 import { hostWorktreeTarget } from '../../../../shared/worktree/host-qualified-identity'
@@ -38,7 +34,6 @@ export function registerWorktreeMetadataHandlers(context: WorktreeIpcContext): v
         worktreeId: string
         executionHostId?: string
         updates: Partial<WorktreeMeta>
-        clearFields?: ClearableSidebarField[]
       }
     ) => {
       const executionHostId =
@@ -69,10 +64,8 @@ export function registerWorktreeMetadataHandlers(context: WorktreeIpcContext): v
               firstAgentMessageRenameError: null
             }
           : validatedUpdates
-      const sanitizedUpdates = decodeSidebarFieldClears(
-        stripOrcaProvenanceMetaUpdates(updates),
-        parseClearableSidebarFields(args.clearFields)
-      )
+      const sanitizedUpdates = stripOrcaProvenanceMetaUpdates(updates)
+      applySidebarFieldClearsFromIpcArgs(sanitizedUpdates, args)
       // Late terminal activity must not resurrect a removed folder instance (#22712).
       if (isRemovedFolderWorkspaceInstance(store, args.worktreeId, executionHostId)) {
         return null

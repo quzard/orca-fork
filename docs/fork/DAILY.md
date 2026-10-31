@@ -6,19 +6,30 @@ GitHub Actions on this fork stay disabled. Neither job calls `workflow_dispatch`
 
 ## Cloud agent: merge and checks
 
-Run on a fresh Linux checkout with Node 24 and pnpm 12.14.0. No git identity setup is needed: the script sets `GIT_AUTHOR_*` / `GIT_COMMITTER_*` to `quzard <30899719+quzard@users.noreply.github.com>` for its own merge, pin and conflict commits.
+Run on a fresh Linux checkout with Node 24 and pnpm 12.14.0. No git identity setup is needed: the script sets `GIT_AUTHOR_*` / `GIT_COMMITTER_*` to `quzard <30899719+quzard@users.noreply.github.com>` for its own merge, pin, audit-table and conflict commits.
 
 ```bash
 bash fork/scripts/daily-sync.sh
 ```
 
-The script fetches `upstream` (`https://github.com/stablyai/orca.git`) and `origin/develop`, checks out `origin/develop`, and merges `upstream/main` into it with `git merge --no-ff` (message `Merge upstream main through <sha> (<n> commits)`). It then points the local `fork/base-upstream` ref at `upstream/main` and runs `node fork/scripts/sync-skills-source-commit.mjs`. That local ref is what the pin script reads first. The job does not push `fork/base-upstream`.
+The script stops unless `origin` is `quzard/orca-fork`. It fetches `upstream` (`https://github.com/stablyai/orca.git`, added when missing) and `origin/develop`, turns on `rerere`, checks out `origin/develop`, and merges `upstream/main` into it with `git merge --no-ff` (message `Merge upstream main through <sha> (<n> commits)`). It then points the local `fork/base-upstream` ref at `upstream/main` and runs `node fork/scripts/sync-skills-source-commit.mjs`; when `src/fork/skills-source-commit.ts` changed it commits `fix(fork): pin skill installs to the upstream base`, and any other change the pin script leaves fails the run. That local ref is what the pin script reads first. The job does not push `fork/base-upstream`.
 
 If the localization runtime catalog verify (`pnpm run verify:localization-runtime-catalog`) fails after a merge, run `pnpm sync:localization-runtime-catalog` manually, review the regenerated `src/renderer/src/i18n/en-runtime-required.json`, and commit it on the attempt branch.
 
-On a clean merge and green checks it pushes `develop` with a plain, non-force push. The push is a fast-forward; if someone else moved `develop` in the meantime, GitHub rejects it and nothing is overwritten. The push updates that branch ref only. It does not push tags or any other branch. Exit code is 0. The summary lines are `daily-sync: OK`, `upstream:`, and `develop:`.
+On a clean merge and green checks it pushes `develop` with a plain, non-force push. The push is a fast-forward; if someone else moved `develop` in the meantime, GitHub rejects it and nothing is overwritten. The push updates that branch ref only. It does not push tags or any other branch. Exit code is 0. The summary lines are `daily-sync: OK`, `upstream:`, and `develop:`. When nothing changed, `develop:` says `unchanged` and nothing is pushed.
 
-Checks, in order: `check-no-internal-refs.sh`, `pnpm install --frozen-lockfile`, `pnpm exec oxlint`, the RPC / skill-guide / skill-manifest / localization-runtime catalog verifies, fork Vitest plus `src/shared/fork-hooks/update-feed.test.ts`, `pnpm tc`, then the host Linux orcad prebuild, smoke, `pnpm install --frozen-lockfile --dir mobile`, `pnpm build:mobile-web`, and `build-orcad-template.mjs` for that host slot. Set `ORCA_SYNC_DOCKER_SLOTS=1` to also run `fork/scripts/build-orcad-linux-prebuilds.sh` and stage `linux-x64-glibc,linux-arm64-glibc`. The home Mac package still builds those slots.
+Checks, in order, each reported by name when it fails:
+
+1. `company-info`: `fork/scripts/verify/check-no-internal-refs.sh`, which ends with the commit identity check on `HEAD`.
+2. `install`: `pnpm install --frozen-lockfile`.
+3. `audit table`: `python3 fork/scripts/generate-audit.py`. When `docs/fork/AUDIT.md` changed, the job commits `docs(fork): regenerate the audit table`, so a moved upstream base or a stale table from a PR is fixed here.
+4. `lint`: `pnpm exec oxlint`.
+5. `pnpm run generate:rpc-params-catalog` (committed when it changes; the merge keeps the fork's copy through `merge=ours`), then `pnpm run verify:rpc-params-catalog`, `verify:bundled-skill-guides`, `verify:skill-bundle-manifest`, `verify:localization-runtime-catalog`.
+6. `fork tests`: `node config/scripts/run-vitest.mjs run --config config/vitest.config.ts --maxWorkers=2 src/fork src/shared/fork-hooks`, which include the audit-table and daily-sync tests.
+7. `typecheck`: `pnpm tc`.
+8. The host Linux orcad slot: `pnpm build:orcad-prebuilds`, `--require-slots <slot>`, `--smoke`; `pnpm install --frozen-lockfile --dir mobile`; `pnpm build:mobile-web`; `node config/scripts/build-orcad-template.mjs --targets <slot>`, and a check that the manifest lists it. The host slot must be a Linux one. Set `ORCA_SYNC_DOCKER_SLOTS=1` to also run `fork/scripts/build-orcad-linux-prebuilds.sh` and stage `linux-x64-glibc,linux-arm64-glibc`. The home Mac package still builds those slots.
+
+The job does not run the full `pnpm lint` (upstream's ratchet checks, `check:max-lines-ratchet` among them) or the full `pnpm test`. Run `pnpm lint` by hand after a merge that touched the hook files: on the fork it is expected to fail only where upstream `main` itself fails (see [SYNC.md](./SYNC.md) for the fork block in `config/max-lines-baseline.txt`).
 
 On a merge conflict, or when a check fails after new commits exist, the script does not update `origin/develop`. It pushes the attempt to `sync/upstream-YYYYMMDD` (`ORCA_SYNC_TZ`, default UTC) with a plain push; if that branch already exists, it uses `-2`, `-3`, … instead, so an earlier manual resolution is never overwritten. An existing `sync/upstream-YYYYMMDD[-n]` branch that already holds the same attempt is reused and not pushed again. That is the same commit, or a branch whose commits from `origin/develop` match this attempt one for one: same count, same tree at each step, and the same upstream merge parent. A re-run after a conflict or a failed check makes new merge and pin commit SHAs, and still matches. A branch with any extra commit on top, such as a manual fix, never matches, even when its tree is unchanged, so the next run uses a new `-n`. A rejected `develop` push (someone moved it during the run) is reported the same way and parks the merge on an attempt branch. A conflict commit is a two-parent merge commit (`develop` and the upstream sha) whose tree contains every conflict marker. Exit code is non-zero. The summary names the reason, the untouched `develop` sha, and the attempt branch. Resolve that branch and open a PR against `develop`; merge it with a merge commit or fast-forward, never with rebase or squash, so the upstream parent is kept.
 

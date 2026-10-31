@@ -9,7 +9,6 @@ import {
   type RenderableFolderWorkspace
 } from './folder-workspace-lanes'
 import { PR_GROUP_ORDER, getPRLaneKey } from './group-keys'
-import { lookupSidebarGroupMode } from '../fork-hooks/sidebar-group-mode'
 import type { OrderedGroupEntry, WorktreeGroupEntry } from './worktree-group-entry'
 import { buildProjectSections, type ProjectGroupingIndex } from '../project-section-grouping'
 import { orderProjectSections } from '../project-section-order'
@@ -53,13 +52,6 @@ export function buildOrderedGroups(args: {
     projectOrderBy,
     folderWorkspaces = []
   } = args
-
-  // fork: 已登记的分组模式替换整段分桶。内置 id 不会登记，这里不会命中。
-  const forkGroupMode = lookupSidebarGroupMode(groupBy)
-  if (forkGroupMode?.buildOrderedGroups) {
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: a registered mode returns OrderedGroupEntry[]; built-in groupBy ids are refused by the registry.
-    return forkGroupMode.buildOrderedGroups(args) as OrderedGroupEntry[]
-  }
 
   if (groupBy === 'repo') {
     // Shared with paired-phone Project sections.

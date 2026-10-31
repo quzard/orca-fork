@@ -2,15 +2,15 @@
   "fork": {
     "aiVault": {
       "collapseAll": "Collapse all groups",
-      "hostCount": "{{count}} hosts",
-      "otherHosts": "Other configured hosts",
-      "scanning": "Scanning history…"
+      "otherHosts": "Other configured hosts"
     },
     "sourceControl": {
       "compare": {
         "change": "Use",
         "clear": "Clear",
-        "placeholder": "origin/main"
+        "label": "Compare target",
+        "placeholder": "origin/main",
+        "saveFailed": "Couldn't save the compare target: {{error}}"
       },
       "empty": "No git repositories in this workspace.",
       "group": {
@@ -19,6 +19,7 @@
         "unstaged": "Unstaged",
         "untracked": "Untracked"
       },
+      "listError": "Couldn't list repositories: {{error}}",
       "loading": "Looking for repositories…",
       "noChanges": "No repositories with changes.",
       "onlyChanged": "Only show changed",
@@ -26,15 +27,18 @@
       "repo": {
         "aheadBehind": "{{ahead}} ahead, {{behind}} behind",
         "changeCount": "{{count}} changed",
+        "compareUnavailable": "Branch compare unavailable: {{reason}}",
         "noCompareTarget": "No compare target",
         "other": "Other",
         "otherCount": "{{count}} uninitialized",
+        "readError": "Couldn't read status: {{error}}",
         "root": "This workspace",
         "uninitialized": "Uninitialized submodule"
       },
       "scope": {
         "current": "Current repo",
-        "remoteHost": "This computer can't read nested repositories on an SSH host. Use that host's Orca.",
+        "remoteHost": "This SSH host isn't served by Orca's server yet. Reconnect it to see workspace repos.",
+        "unreachable": "Can't reach the host to check workspace repos.",
         "updateHost": "Update the host to compare nested repositories",
         "workspace": "Workspace repos"
       },
@@ -59,14 +63,6 @@
       "hostTooOldForGroups": "Update Orca on this host to move workspaces between groups.",
       "restoreWorkspace": "Restore",
       "searchWorkspaces": "Search workspaces",
-      "contextMenu": {
-        "sleep": "Sleep",
-        "sleepOne": "Sleep {{count}} Workspace",
-        "sleepMany": "Sleep {{count}} Workspaces",
-        "deleteSelected": "Delete Selected",
-        "deleteOne": "Delete {{count}} Workspace",
-        "deleteMany": "Delete {{count}} Workspaces"
-      },
       "hostMode": "Host",
       "hostModeDescription": "Group workspaces by execution host, then by directory.",
       "ungroupOnly": "Ungroup only",
@@ -75,8 +71,6 @@
     "workspaceDelete": {
       "alsoDeleteFolder": "Also delete folder",
       "keepFolderHint": "Leave this off to keep the folder on disk.",
-      "keepFolderOne": "from Orca. The workspace folder on disk will not be deleted.",
-      "keepFolderMany": "from Orca. Workspace folders on disk will not be deleted.",
       "keepFolderSingle": "Remove <target/> from Orca. The workspace folder on disk will not be deleted.",
       "keepFolderBatch": "Remove <target>{{count}} workspaces</target> from Orca. Workspace folders on disk will not be deleted.",
       "keepFolderWithChild": "Remove <target/> and <descendants>1 child workspace</descendants> from Orca. Workspace folders on disk will not be deleted.",
@@ -93,15 +87,6 @@
       "removed": "Workspace removed from Orca",
       "undo": "Undo"
     }
-  },
-  "sshConnectionStatus": {
-    "authFailed": "Auth failed",
-    "connected": "Connected",
-    "connecting": "Connecting…",
-    "deployingRelay": "Deploying relay…",
-    "disconnected": "Disconnected",
-    "reconnecting": "Reconnecting…",
-    "reconnectionFailed": "Reconnection failed"
   },
   "workspaceImport": {
     "parentFolderFailed": "Repositories imported; parent folder setup could not be completed"

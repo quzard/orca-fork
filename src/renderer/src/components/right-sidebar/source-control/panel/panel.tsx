@@ -35,7 +35,6 @@ export function SourceControlPanel() {
       currentWorktreeId={activeWorktree.id}
       model={model}
       worktreePath={worktreePath}
-    />,
-    model
+    />
   )
 }

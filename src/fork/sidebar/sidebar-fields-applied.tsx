@@ -4,10 +4,9 @@ import { forkTranslate } from '../i18n/fork-translate'
 import { hasRuntimeRpcErrorCode } from '../../shared/runtime-rpc-error-code'
 import {
   folderSidebarFieldsNotApplied,
-  sidebarFieldsToClear
+  sidebarFieldsToClear,
+  type SidebarFields
 } from '../../shared/fork-hooks/sidebar-field-clear'
-
-type SidebarFields = { sidebarGroupId?: string | null; manualOrder?: number }
 
 export function sidebarFieldsNotAppliedMessage(): string {
   return forkTranslate(

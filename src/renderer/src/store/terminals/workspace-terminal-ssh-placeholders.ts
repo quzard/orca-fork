@@ -10,7 +10,7 @@ import {
   parseExecutionHostId,
   toSshExecutionHostId
 } from '../../../../shared/execution-host'
-import { applyRegisteredDurableWorkspaceArchive } from '../../../../shared/fork-hooks/workspace-durable-archive'
+import { applyRegisteredDurableArchiveToRow } from '../../../../shared/fork-hooks/workspace-durable-archive'
 
 type PlaceholderOwner = Pick<Worktree, 'hostId' | 'runtimeOwnerEnvironmentId'>
 
@@ -80,9 +80,8 @@ export function addHydratedSshWorktreePlaceholders(
     if (worktreesByRepo === sourceWorktreesByRepo) {
       worktreesByRepo = { ...sourceWorktreesByRepo }
     }
-    // fork: 水合占位不经过列表合并，软删除记录要在这里打上，否则刷新后行又出现。
-    const [stamped] = applyRegisteredDurableWorkspaceArchive([placeholder])
-    worktreesByRepo[repoId] = [...(worktreesByRepo[repoId] ?? []), stamped ?? placeholder]
+    const stamped = applyRegisteredDurableArchiveToRow(placeholder)
+    worktreesByRepo[repoId] = [...(worktreesByRepo[repoId] ?? []), stamped]
   }
   return worktreesByRepo
 }

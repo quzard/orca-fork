@@ -6,8 +6,8 @@ import {
   parseExecutionHostId,
   type ExecutionHostId
 } from '../../../../shared/execution-host'
-import { applyRegisteredDurableWorkspaceArchive } from '../../../../shared/fork-hooks/workspace-durable-archive'
 import { repoRowOwnerStamp } from './workspace-terminal-ssh-placeholders'
+import { applyRegisteredDurableArchiveToRow } from '../../../../shared/fork-hooks/workspace-durable-archive'
 import { parseWorkspaceKey } from '../../../../shared/workspace-scope'
 import { splitWorktreeIdForFilesystem } from '../../../../shared/worktree/id'
 
@@ -101,9 +101,8 @@ export function buildRuntimeSessionPlaceholders({
     }
     nextWorktreesByRepo =
       nextWorktreesByRepo === worktreesByRepo ? { ...worktreesByRepo } : nextWorktreesByRepo
-    // fork: 运行时占位不经过列表合并，软删除记录要在这里打上。
-    const [stamped] = applyRegisteredDurableWorkspaceArchive([placeholder])
-    nextWorktreesByRepo[parsed.repoId] = [...current, stamped ?? placeholder]
+    const stamped = applyRegisteredDurableArchiveToRow(placeholder)
+    nextWorktreesByRepo[parsed.repoId] = [...current, stamped]
   }
   return { repos: nextRepos, worktreesByRepo: nextWorktreesByRepo }
 }

@@ -34,14 +34,16 @@ export type DurableArchiveWorkspace =
 
 type ApplyDurableArchive = <T extends DurableArchiveRow>(rows: readonly T[]) => T[]
 type ReleaseDurableArchive = (workspace: DurableArchiveWorkspace) => void
-type ReactivateArchivedMeta = (target: {
-  worktreeId: string
-  executionHostId?: ExecutionHostId
-}) => void | Promise<void>
+type ReleaseRemovedWorkspace = (worktreeId: string, hostId: ExecutionHostId | undefined) => void
+type ReactivateImportedWorktrees = (
+  projectId: string,
+  worktreePaths: readonly string[]
+) => Promise<boolean>
 
 let apply: ApplyDurableArchive | undefined
 let release: ReleaseDurableArchive | undefined
-let reactivate: ReactivateArchivedMeta | undefined
+let releaseRemoved: ReleaseRemovedWorkspace | undefined
+let reactivateImported: ReactivateImportedWorktrees | undefined
 
 export function registerDurableWorkspaceArchive(next: ApplyDurableArchive | undefined): void {
   apply = next
@@ -63,20 +65,42 @@ export function applyRegisteredDurableWorkspaceArchive<T extends DurableArchiveR
   return apply(rows)
 }
 
+/** One row that skips the listing merge (a placeholder), stamped the same way. */
+export function applyRegisteredDurableArchiveToRow<T extends DurableArchiveRow>(row: T): T {
+  return apply ? (apply([row])[0] ?? row) : row
+}
+
 export function releaseRegisteredDurableWorkspaceArchive(workspace: DurableArchiveWorkspace): void {
   release?.(workspace)
 }
 
-export function registerDurableWorkspaceMetaReactivate(
-  next: ReactivateArchivedMeta | undefined
+export function registerRemovedWorkspaceArchiveRelease(
+  next: ReleaseRemovedWorkspace | undefined
 ): void {
-  reactivate = next
+  releaseRemoved = next
 }
 
-// 未登记时不写元数据。导入在重新扫描之前 await，避免旧的 isArchived 再标上。
-export async function reactivateRegisteredArchivedWorktreeMeta(target: {
-  worktreeId: string
-  executionHostId?: ExecutionHostId
-}): Promise<void> {
-  await reactivate?.(target)
+/** A removal the host confirmed (the row is still in the store): its hide record is moot. */
+export function releaseRegisteredRemovedWorkspaceArchive(
+  worktreeId: string,
+  hostId: ExecutionHostId | undefined
+): void {
+  releaseRemoved?.(worktreeId, hostId)
+}
+
+export function registerImportedWorktreeReactivate(
+  next: ReactivateImportedWorktrees | undefined
+): void {
+  reactivateImported = next
+}
+
+/**
+ * Before an import rescans: clears the paths' archived meta and hide records. False when a write
+ * failed, so the caller can treat the import as failed. Unregistered, true and nothing is written.
+ */
+export async function reactivateRegisteredImportedWorktrees(
+  projectId: string,
+  worktreePaths: readonly string[]
+): Promise<boolean> {
+  return reactivateImported ? reactivateImported(projectId, worktreePaths) : true
 }

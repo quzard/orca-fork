@@ -12,8 +12,6 @@ describe('composerSeedForOpen', () => {
         initialProjectGroupId: 'grp-api',
         hasWorkspaceTarget: false,
         hasWorkspaceStatus: false,
-        explicitHostId: null,
-        explicitGroupId: null,
         groupHostId: DEVBOX,
         activeHostId: LOCAL_EXECUTION_HOST_ID,
         activeGroupId: null
@@ -27,8 +25,6 @@ describe('composerSeedForOpen', () => {
         telemetrySource: 'sidebar',
         hasWorkspaceTarget: false,
         hasWorkspaceStatus: false,
-        explicitHostId: null,
-        explicitGroupId: null,
         groupHostId: null,
         activeHostId: DEVBOX,
         activeGroupId: 'grp-web'
@@ -40,8 +36,6 @@ describe('composerSeedForOpen', () => {
     const blank = {
       hasWorkspaceTarget: false,
       hasWorkspaceStatus: true,
-      explicitHostId: null,
-      explicitGroupId: null,
       groupHostId: null,
       activeHostId: DEVBOX,
       activeGroupId: 'grp-web',
@@ -51,20 +45,5 @@ describe('composerSeedForOpen', () => {
     expect(
       composerSeedForOpen({ ...blank, hasWorkspaceStatus: false, initialRepoId: 'repo-1' })
     ).toBeNull()
-  })
-
-  it('prefers an explicit host and group over the active workspace', () => {
-    expect(
-      composerSeedForOpen({
-        telemetrySource: 'sidebar',
-        hasWorkspaceTarget: false,
-        hasWorkspaceStatus: false,
-        explicitHostId: DEVBOX,
-        explicitGroupId: 'grp-api',
-        groupHostId: null,
-        activeHostId: LOCAL_EXECUTION_HOST_ID,
-        activeGroupId: 'grp-web'
-      })
-    ).toEqual({ hostId: DEVBOX, sidebarGroupId: 'grp-api' })
   })
 })

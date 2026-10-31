@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { folderLabel } from '../../shared/ai-vault-session-filters'
-import { getLocalExecutionHostLabel, LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
 import {
-  registerAiVaultCollapseNewGroups,
-  requestAiVaultCollapseAll,
-  resetAiVaultForkHooksForTests,
-  setAiVaultCollapseAllHandler,
-  shouldCollapseNewAiVaultGroups
-} from '../../shared/fork-hooks/ai-vault'
+  getLocalExecutionHostLabel,
+  LOCAL_EXECUTION_HOST_ID,
+  toRuntimeExecutionHostId,
+  type ExecutionHostId
+} from '../../shared/execution-host'
+import { resetAiVaultForkHooksForTests } from '../../shared/fork-hooks/ai-vault'
 import {
   hostHeaderKey,
   partitionAiVaultGroupsByHost,
+  readAiVaultHostSessionCount,
   registerAiVaultListPresentation,
   visibleAiVaultGroups
 } from './list-presentation'
@@ -19,68 +19,72 @@ afterEach(() => {
   resetAiVaultForkHooksForTests()
 })
 
+type ListGroup = {
+  key: string
+  label: string | null
+  sessions: { executionHostId: ExecutionHostId }[]
+}
+
+const linuxBox = toRuntimeExecutionHostId('0b9d2c4e-runtime-env')
+
 describe('history list presentation', () => {
-  it('keeps the full directory and splits one folder across hosts', () => {
+  it('keeps the full directory and splits one folder across hosts under host rows', () => {
     registerAiVaultListPresentation()
     expect(folderLabel('/srv/wt/project/app')).toBe('/srv/wt/project/app')
 
-    const groups = partitionAiVaultGroupsByHost([
-      {
-        key: 'folder:/srv/wt/project/app',
-        label: '/srv/wt/project/app',
-        sessions: [{ executionHostId: LOCAL_EXECUTION_HOST_ID }, { executionHostId: 'ssh:build-1' }]
-      }
-    ])
-
+    const groups = partitionAiVaultGroupsByHost(
+      [
+        {
+          key: 'folder:/srv/wt/project/app',
+          label: '/srv/wt/project/app',
+          sessions: [
+            { executionHostId: LOCAL_EXECUTION_HOST_ID },
+            { executionHostId: linuxBox },
+            { executionHostId: linuxBox }
+          ]
+        }
+      ],
+      (hostId) => (hostId === linuxBox ? 'build-linux' : getLocalExecutionHostLabel())
+    )
     expect(groups.map((group) => group.label)).toEqual([
       getLocalExecutionHostLabel(),
       '/srv/wt/project/app',
-      'build-1',
+      'build-linux',
       '/srv/wt/project/app'
     ])
-    const hidden = visibleAiVaultGroups(groups, new Set([hostHeaderKey('ssh:build-1')]))
-    expect(hidden.groups.map((group) => group.label)).toEqual([
+
+    const visible = visibleAiVaultGroups(groups, new Set([hostHeaderKey(linuxBox)]))
+    expect(visible.map((group) => group.label)).toEqual([
       getLocalExecutionHostLabel(),
       '/srv/wt/project/app',
-      'build-1'
+      'build-linux'
     ])
-    expect(hidden.hostHeaderCounts.get(hostHeaderKey('ssh:build-1'))).toBe(1)
+    // Host rows list no rows of their own but still show how many sessions they hold.
+    expect(visible.map((group) => group.sessions.length)).toEqual([0, 1, 0])
+    expect(visible.map(readAiVaultHostSessionCount)).toEqual([1, undefined, 2])
   })
 
-  it('leaves a search hit list flat and omits the host row for one host', () => {
-    const search = partitionAiVaultGroupsByHost([
+  it('leaves search hits flat and omits the host row for one host', () => {
+    const search: ListGroup[] = [
       {
         key: 'search-results',
         label: null,
-        sessions: [{ executionHostId: LOCAL_EXECUTION_HOST_ID }, { executionHostId: 'ssh:build-1' }]
+        sessions: [{ executionHostId: LOCAL_EXECUTION_HOST_ID }, { executionHostId: linuxBox }]
       }
-    ])
-    expect(search).toEqual([
-      {
-        key: 'search-results',
-        label: null,
-        sessions: [{ executionHostId: LOCAL_EXECUTION_HOST_ID }, { executionHostId: 'ssh:build-1' }]
-      }
-    ])
+    ]
+    expect(partitionAiVaultGroupsByHost(search)).toBe(search)
 
+    // One host has no host row, but its directory keys carry the host like they do under one.
     const single = partitionAiVaultGroupsByHost([
       {
         key: 'folder:/srv/wt/project/app',
         label: '/srv/wt/project/app',
-        sessions: [{ executionHostId: LOCAL_EXECUTION_HOST_ID }]
+        sessions: [{ executionHostId: linuxBox }]
       }
     ])
-    expect(single.map((group) => group.label)).toEqual(['/srv/wt/project/app'])
-  })
-
-  it('collapses new groups and can collapse them all', () => {
-    registerAiVaultCollapseNewGroups(true)
-    expect(shouldCollapseNewAiVaultGroups()).toBe(true)
-
-    const collapsed: string[] = []
-    setAiVaultCollapseAllHandler(() => collapsed.push('all'))
-    requestAiVaultCollapseAll()
-    expect(collapsed).toEqual(['all'])
+    expect(single.map((group) => [group.key, group.label])).toEqual([
+      [`${linuxBox}::folder:/srv/wt/project/app`, '/srv/wt/project/app']
+    ])
   })
 
   it('keeps the short folder label until presentation is registered', () => {

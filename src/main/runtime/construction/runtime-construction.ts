@@ -9,7 +9,6 @@ import type { OrcaRuntimeWithStopRequestedPtyIds as ServiceState } from './runti
 import type { OrcaRuntimeWithPreservedBranchCleanup as HostServices } from './runtime-host-services'
 import type { RuntimeFileCommandSurface } from '../runtime-file-command-surface'
 import type { RuntimeGitCommandSurface } from '../runtime-git-command-surface'
-import type { RuntimeGitCommandHost } from '../runtime-git-command-target'
 import type { RuntimeRepositoryCommandSurface } from '../runtime-repository-command-surface'
 import type { RuntimeReviewCommandSurface } from '../runtime-review-command-surface'
 import type { RuntimeServiceCommandSurface } from '../runtime-service-command-surface'
@@ -20,6 +19,7 @@ import type { ProjectExecutionRuntimeResolution } from '../../../shared/project-
 import { OrcaRuntimeWithLinearCommands } from '../integrations/linear/linear-commands'
 
 import type { RuntimeStore } from '../runtime-store-contract'
+import { installGitHubProjectAccounts } from '../../github/github-project-account'
 import type { WorkspaceSleepPlatform } from '../workspaces/workspace-sleep-platform'
 import type { StatsCollector } from '../../stats/collector'
 
@@ -28,7 +28,6 @@ import type { PrepareClaudeAuth } from '../../ipc/pty/host-env/types'
 import type { AgentStatusIpcPayload } from '../../../shared/agent-status-types'
 
 import { installRuntimeFileCommandSurface } from '../runtime-file-command-surface'
-import { bindForkGitTargetResolver } from '../../../fork/main/git-workspace/bind-target'
 import { installRuntimeGitCommandSurface } from '../runtime-git-command-surface'
 import { installRuntimeRepositoryCommandSurface } from '../runtime-repository-command-surface'
 import { installRuntimeReviewCommandSurface } from '../runtime-review-command-surface'
@@ -92,7 +91,7 @@ export abstract class OrcaRuntimeWithStateFields extends OrcaRuntimeWithLinearCo
   declare protected readonly skillCommands: ServiceState['skillCommands']
 
   abstract showManagedWorktree(
-    worktreeSelector: string
+    ...args: Parameters<ListManagedWorktrees['showManagedWorktree']>
   ): ReturnType<ListManagedWorktrees['showManagedWorktree']>
   abstract resolveProjectRuntimeForWorktree(
     worktreeId: string | null | undefined
@@ -120,6 +119,7 @@ export abstract class OrcaRuntimeWithStateFields extends OrcaRuntimeWithLinearCo
   ) {
     super()
     this.store = store
+    installGitHubProjectAccounts(store, () => this.resolvedWorktrees.peek()?.worktrees ?? [])
     this.legacyStructuredSessionTabIds = Object.freeze(
       collectSavedStructuredAgentSessionIds(
         store?.getWorkspaceSession?.(LOCAL_EXECUTION_HOST_ID) ?? null
@@ -132,10 +132,6 @@ export abstract class OrcaRuntimeWithStateFields extends OrcaRuntimeWithLinearCo
     // Host start: drop what a crashed run's staged saves left in the staging folder.
     this.fileCommands.stagedFileSaves.sweepOrphans()
     installRuntimeGitCommandSurface(this, this.gitCommands)
-    bindForkGitTargetResolver((selector) =>
-      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: resolveRuntimeGitTarget 声明在更下层的子类上，这一层的类型看不见；构造时 this 已是完整运行时。
-      (this as unknown as RuntimeGitCommandHost).resolveRuntimeGitTarget(selector)
-    )
     installRuntimeRepositoryCommandSurface(this, {
       projectHostSetups: this.projectHostSetups,
       projectGroups: this.projectGroups,
@@ -211,7 +207,7 @@ export abstract class OrcaRuntimeWithStateFields extends OrcaRuntimeWithLinearCo
     )
     this.automation = new RuntimeAutomationController(store, {
       showRepo: (selector) => this.showRepo(selector),
-      showManagedWorktree: (selector) => this.showManagedWorktree(selector)
+      showManagedWorktree: (selector, hostId) => this.showManagedWorktree(selector, hostId)
     })
     const persistedClientTabSelections = store?.getMobileClientTabSelections?.()
     if (persistedClientTabSelections) {

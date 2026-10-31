@@ -106,8 +106,8 @@ describe('host-directory menu actions', () => {
     worktree: worktree(extra),
     repo,
     projectGroups: groups,
-    onMove: vi.fn(),
-    onRemove: vi.fn()
+    handleMoveProjectToGroup: vi.fn(),
+    handleRemoveProjectFromGroup: vi.fn()
   })
 
   it('hides "Remove from group" for an explicitly ungrouped workspace', () => {
@@ -121,7 +121,7 @@ describe('host-directory menu actions', () => {
     const menu = hostDirectoryMenuGroups(input, move)
     menu.onMove('g-dev')
     expect(move).toHaveBeenCalledWith('w1', DEVBOX, 'g-dev')
-    expect(input.onMove).not.toHaveBeenCalled()
+    expect(input.handleMoveProjectToGroup).not.toHaveBeenCalled()
   })
 
   it('removes the workspace from its effective group and ignores a move to that group', () => {
@@ -143,8 +143,8 @@ describe('unregistered menu groups hook', () => {
       worktree: worktree({ sidebarGroupId: null }),
       repo,
       projectGroups: groups,
-      onMove,
-      onRemove
+      handleMoveProjectToGroup: onMove,
+      handleRemoveProjectFromGroup: onRemove
     })
     expect(menu).toEqual({ groups, currentGroupId: 'g-dev', onMove, onRemove })
   })

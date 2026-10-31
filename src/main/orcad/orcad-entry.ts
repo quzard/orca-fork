@@ -1,3 +1,4 @@
+/* oxlint-disable max-lines -- fork: hook call only */
 // Compose the Node-host runtime; paired desktop pages work even without a local browser engine.
 import process from 'node:process'
 import { getAppEnvironment } from '../../shared/app-environment'
@@ -5,7 +6,7 @@ import { resolveOrcadInstallRoot, resolveUserDataPath } from './orcad-app-paths'
 import { prepareOrcadCliLauncher } from './orcad-cli-launcher'
 import { installOrcadHostAdapters, runOrcadQuitHandlers } from './orcad-host-adapters'
 import { prepareOrcadSecretStoreAndMigrate } from './orcad-secret-store-startup'
-import { describeOrcadBindExposure } from './orcad-bind-address'
+import { describeOrcadBindExposure, resolveOrcadBindHost } from './orcad-bind-address'
 import {
   flushOrcadProfileStoreForShutdown,
   installOrcadShutdownSignals,
@@ -17,6 +18,7 @@ import { ORCAD_USAGE, parseArgs, resolveOrcadWebClientRoot } from './orcad-comma
 import type { OrcadRuntimeCleanup } from './orcad-runtime-lifetime'
 import { installOrcadStopRequestListeners } from './orcad-stop-request-listener'
 import { prepareOrcadManagedStop } from './orcad-managed-stop-admission'
+import { bindOrcadStopTerminalAdmission } from './orcad-stop-terminal-admission'
 import type { OrcadHandle, OrcadOptions } from './orcad-start-contract'
 import { beginOrcadIdleExit, bindOrcadIdleShutdown } from './orcad-managed-idle-exit-host'
 import { orcadAutomationsKeepHostBusy, startOrcadAutomations } from './orcad-automations'
@@ -28,7 +30,7 @@ import { installOrcadProcessErrorGuards } from './orcad-process-error-guards'
 import { orcadWsPortOptions } from './orcad-ws-port-policy'
 import { createOrcadStartupTiming } from './orcad-startup-timing'
 import { ORCA_LAYOUT_OWNER_IS_MAIN } from '../../shared/layout-owner-switch'
-import { installForkOrcadHost, resolveOrcadServeBind } from '../../fork/main/register-main'
+import { installForkOrcadHost } from '../../fork/main/register-main'
 import { restoreOrcadTerminalAuthority } from './orcad-restored-terminal-authority'
 import { installOrcadFeatureReadiness } from '../runtime/rpc/orcad-feature-readiness'
 
@@ -38,8 +40,8 @@ let closeOrcadObservability = (): Promise<void> => Promise.resolve()
 
 /** Resolve after transport readiness publishes the desktop-compatible serve payload. */
 export async function startOrcad(options: OrcadOptions = {}): Promise<OrcadHandle> {
-  // fork: scan policy and folder terminals run in orcad, not only Electron.
-  installForkOrcadHost(installOrcadHostAdapters)
+  installForkOrcadHost()
+  installOrcadHostAdapters()
   // Inherited terminal identity must not fence orcad’s CLI children to the launching desktop.
   stampRuntimeSourceEnv(process.env, null)
   const userDataPath = resolveUserDataPath()
@@ -296,7 +298,8 @@ async function startOrcadRuntime(
     console.error('[orcad-migration] installing pending shell history failed:', error)
   })
 
-  const bindHost = resolveOrcadServeBind(options.bind, runtime.terminalUpdateAdmission)
+  const bindHost = resolveOrcadBindHost(options.bind)
+  bindOrcadStopTerminalAdmission(runtime.terminalUpdateAdmission)
   const rpc = new OrcaRuntimeRpcServer({
     runtime,
     userDataPath: runtimeUserDataPath,

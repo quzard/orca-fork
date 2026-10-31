@@ -18,8 +18,8 @@ import {
   toRuntimeWorktreeRelativePath,
   type DocPreviewGrant
 } from './doc-preview-grant-registry'
-import { readForkTerminalHtmlPreview } from '../../fork/main/terminal-html-preview-bytes'
 import { getRuntimeEnvironmentRegistryRoot } from '../ipc/runtime-environments/runtime-environment-registry-root'
+import { readHostDocPreview } from '../../shared/fork-hooks/host-file-doc-preview'
 
 const DOC_PREVIEW_READ_TIMEOUT_MS = 15_000
 // Why: under files.readDocPreviewChunk's 512 KiB cap, and a multiple of 3 so its base64 has no padding.
@@ -231,10 +231,6 @@ export async function readDocPreviewFile(
     }
   }
   const contentType = docPreviewContentType(relativePath)
-  const forkPreview = await readForkTerminalHtmlPreview(grant, absolutePath, contentType)
-  if (forkPreview) {
-    return forkPreview
-  }
   try {
     if (grant.owner.kind === 'ssh') {
       return notFoundOutcome(SSH_HOST_NOT_SERVED_MESSAGE)
@@ -259,7 +255,7 @@ export async function readDocPreviewFile(
       .filter((root): root is string => root !== null)
     if (!worktreeRelativePath || !entryRelativePath) {
       // Runtime file reads cannot address documents outside the worktree.
-      return notFoundOutcome()
+      return readHostDocPreview(grant.id, absolutePath, contentType) ?? notFoundOutcome()
     }
     const params: RuntimeDocPreviewReadParams = {
       worktree: runtimeOwner.worktreeSelector,

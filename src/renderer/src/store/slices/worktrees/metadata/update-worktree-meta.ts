@@ -29,7 +29,8 @@ import {
   getHostedReviewPushTargetLookup,
   resolveGitHubReviewPushTarget
 } from './hosted-review-push-target'
-import { persistWorktreeMeta, sidebarFieldsWriteFailure } from './worktree-meta-persist'
+import { persistWorktreeMeta } from './worktree-meta-persist'
+import { sidebarFieldsWriteFailure } from '../../../../../../fork/sidebar/sidebar-fields-applied'
 import { buildWorktreeMetaStateUpdate } from './worktree-meta-state-update'
 import { withPendingSidebarRowWrites } from '@/lib/sidebar-pending-layer'
 import { isRuntimeSelectorNotFoundError } from '../listing/runtime-worktree-rpc-errors'

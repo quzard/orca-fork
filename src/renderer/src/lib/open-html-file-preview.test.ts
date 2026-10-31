@@ -9,8 +9,7 @@ const mocks = vi.hoisted(() => ({
 }))
 vi.mock('@/store', () => ({ useAppStore: { getState: () => mocks.state } }))
 vi.mock('./workspace-doc-address-input', () => ({
-  resolveWorkspaceDocAddressTarget: mocks.resolve,
-  commitWorkspaceDocAddressPreview: vi.fn()
+  resolveWorkspaceDocAddressTarget: mocks.resolve
 }))
 vi.mock('./file-preview', () => ({ openFileInBrowserTab: mocks.open }))
 vi.mock('./workspace-surface-reveal', () => ({ selectWorkspaceSurface: mocks.select }))

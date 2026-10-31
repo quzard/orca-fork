@@ -190,8 +190,8 @@ if [[ -n "$(git status --porcelain)" ]]; then
 fi
 
 ensure_upstream
-# 新鲜云端机器没有这份本地配置时，生成文件的 merge=ours 不会生效。
 git config rerere.enabled true
+# .gitattributes 让 RPC 目录按 merge=ours 留 fork 一侧，合并后在下面重新生成。
 git config merge.ours.driver true
 
 git fetch --no-tags origin refs/heads/develop:refs/remotes/origin/develop
@@ -218,8 +218,8 @@ fi
 # 不推送 fork/base-upstream。
 git branch -f fork/base-upstream "$UPSTREAM_SHA"
 node fork/scripts/sync-skills-source-commit.mjs
-if ! git diff --quiet -- src/cli/skills-source-commit.ts; then
-  git add -- src/cli/skills-source-commit.ts
+if ! git diff --quiet -- src/fork/skills-source-commit.ts; then
+  git add -- src/fork/skills-source-commit.ts
   HUSKY=0 git commit -m "$(cat <<'EOF'
 fix(fork): pin skill installs to the upstream base
 
@@ -233,6 +233,24 @@ fi
 
 run_check "company-info" bash fork/scripts/verify/check-no-internal-refs.sh
 run_check "install" pnpm install --frozen-lockfile
+# 新的上游基点（pin）改变审计表；PR 带进来的旧表也在这里修好。生成器需要 node_modules 里的 oxfmt。
+run_check "audit table" python3 fork/scripts/generate-audit.py
+if ! git diff --quiet -- docs/fork/AUDIT.md; then
+  git add -- docs/fork/AUDIT.md
+  HUSKY=0 git commit -m "$(cat <<'EOF'
+docs(fork): regenerate the audit table
+
+EOF
+)"
+  PUSH_ATTEMPT=1
+fi
+# RPC 目录是生成文件，fork 和上游都会加方法。合并时留 fork 一侧（不会冲突），这里按合并后的源码重新生成。
+run_check "rpc catalog regenerate" pnpm run generate:rpc-params-catalog
+if ! git diff --quiet -- src/shared/rpc-contract/rpc-params-catalog.generated.ts; then
+  git add -- src/shared/rpc-contract/rpc-params-catalog.generated.ts
+  HUSKY=0 git commit -m "fix(fork): regenerate the RPC params catalog"
+  PUSH_ATTEMPT=1
+fi
 run_check "lint" pnpm exec oxlint
 run_check "rpc catalog" pnpm run verify:rpc-params-catalog
 run_check "skill guides" pnpm run verify:bundled-skill-guides

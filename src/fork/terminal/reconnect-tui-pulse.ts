@@ -1,7 +1,6 @@
 import { parseAppSshPtyId } from '../../shared/ssh-pty-id'
 import { isRemoteRuntimePtyId } from '../../shared/remote-runtime/remote-runtime-pty-id'
 import {
-  isForkTuiRepaintActive,
   setForkTuiRepaintActive,
   type TerminalReconnectFitInfo
 } from '../../shared/fork-hooks/terminal-lifecycle'
@@ -12,21 +11,6 @@ const pulseTokens = new Map<string, object>()
 const deferredPtyIds = new Set<string>()
 
 export type TuiRepaintResize = (ptyId: string, cols: number, rows: number) => void
-
-/**
- * The reattach fit asks for the original size immediately after the pulse
- * shrinks one column. Keep that fit quiet until the pulse restores the size.
- * With no active pulse this is the original check.
- */
-export function holdResizeForTuiPulse(
-  getPtyId: () => string | null,
-  suppressFittedResize: () => boolean
-): () => boolean {
-  return () => {
-    const ptyId = getPtyId()
-    return suppressFittedResize() || Boolean(ptyId && isForkTuiRepaintActive(ptyId))
-  }
-}
 
 /** SSH reconnects ignore a same-size SIGWINCH. A one-column shrink forces the TUI to redraw. */
 export function pulseSshReconnectTui(

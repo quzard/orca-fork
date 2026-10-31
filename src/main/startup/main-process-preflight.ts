@@ -59,7 +59,8 @@ import { setAppEnvironment } from '../../shared/app-environment'
 import { ElectronAppEnvironment } from '../host/electron-app-environment'
 import { installMainProcessTreeKillGate } from '../own-chromium-tree-kill-guard'
 import { setSecretStore } from '../../shared/secret-store'
-import { createInstalledDesktopSecretStore } from '../host/electron-secret-store'
+import { ElectronSecretStore } from '../host/electron-secret-store'
+import { registeredDesktopSecretStore } from '../../shared/fork-hooks/desktop-secret-store'
 import { selectLinuxKeyringBackend } from './select-linux-keyring-backend'
 import { setPtyHostBindings } from '../ipc/pty/pty-host-bindings'
 import { electronRuntimeDesktopSurface } from '../host/electron-runtime-desktop-surface'
@@ -266,7 +267,7 @@ function initializeMainProcessPreflight(options: MainProcessPreflightOptions): b
   )
   // Select Linux os_crypt before credential reads/config initialization; install lazy secret access before Store without triggering pre-ready Keychain resolution.
   selectLinuxKeyringBackend()
-  setSecretStore(createInstalledDesktopSecretStore())
+  setSecretStore(registeredDesktopSecretStore() ?? new ElectronSecretStore())
   // Bind PTY IPC/power at process scope: headless serve has no window yet and must not register no-op handlers.
   setPtyHostBindings({ ipc: ipcMain, power: powerMonitor })
   // Node hosts omit desktop surfaces and route notifications to paired clients instead.

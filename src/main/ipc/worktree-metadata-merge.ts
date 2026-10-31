@@ -5,6 +5,7 @@ import { DEFAULT_WORKSPACE_STATUS_ID } from '../../shared/workspace-statuses'
 import { getLinkedWorkItemMetadata } from './worktree-linked-work-item-metadata'
 import { normalizeWorkspaceCreatorProvenance } from '../../shared/workspace-creator-provenance'
 import { createWorktreeIdentity } from '../../shared/worktree/identity'
+import { forkWorkspaceFields } from '../../shared/fork-hooks/sidebar-group-membership'
 
 export function mergeWorktree(
   repoId: string,
@@ -76,7 +77,7 @@ export function mergeWorktree(
     isPinned: meta?.isPinned ?? false,
     sortOrder: meta?.sortOrder ?? 0,
     ...(meta?.manualOrder !== undefined ? { manualOrder: meta.manualOrder } : {}),
-    ...(meta?.sidebarGroupId !== undefined ? { sidebarGroupId: meta.sidebarGroupId } : {}),
+    ...forkWorkspaceFields(meta),
     lastActivityAt: meta?.lastActivityAt ?? 0,
     ...(meta?.smartTier !== undefined ? { smartTier: meta.smartTier, smartAt: meta.smartAt } : {}),
     ...(meta?.lastTerminalUseAt !== undefined ? { lastTerminalUseAt: meta.lastTerminalUseAt } : {}),

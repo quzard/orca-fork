@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { toast } from 'sonner'
 import { useAppStore } from '@/store'
 import { useAllWorktrees, useProjectHostSetupProjection, useRepos } from '@/store/selectors'
@@ -18,7 +19,6 @@ import { revealAiVaultSessionPath } from './ai-vault-session-path-actions'
 import { useAiVaultOriginalPaneActions } from './ai-vault-original-pane-actions'
 import { translate } from '@/i18n/i18n'
 import { AiVaultPanelHeader } from './AiVaultPanelHeader'
-import { ForkAiVaultSlot } from './fork-ai-vault-slot'
 import {
   aiVaultResultCountLabel,
   AiVaultSessionListBar,
@@ -42,18 +42,16 @@ import { useAiVaultPanelSessionResume } from './use-ai-vault-panel-session-resum
 import { AiVaultScanProgressStrip } from './AiVaultScanProgressStrip'
 import { useAiVaultScanProgress } from './ai-vault-scan-progress-store'
 import { aiVaultLocalScanKey } from '../../../../shared/ai-vault-local-scan-key'
-import {
-  useAiVaultResumeTargetState,
-  useForkAiVaultGroups,
-  useForkVaultHostMenu,
-  useSearchHostLabels
-} from '../../../../fork/ai-vault/use-list-presentation'
 import { useAiVaultPanelWorkspace } from './use-ai-vault-panel-workspace'
+import { useAiVaultPanelQuery } from './use-ai-vault-panel-query'
+import { useForkAiVaultGroups, useForkVaultHostMenu } from '../../../../fork/ai-vault/panel-hooks'
 import {
   aiVaultPanelKeyboardRootProps,
   type AiVaultSessionListKeyboard
 } from './use-ai-vault-session-keyboard-navigation'
 import { useAiVaultPanelHandle, type AiVaultPanelProps } from './ai-vault-panel-handle'
+import { aiVaultSearchHitHostLabels } from './ai-vault-search-hit-hosts'
+import { selectFolderWorkspaces, selectWorktreesByRepo } from '@/store/workspace-record-selectors'
 import { formatClipboardFilePath } from '@/lib/clipboard-file-path'
 
 export default function AiVaultPanel({
@@ -73,11 +71,19 @@ export default function AiVaultPanel({
   const repos = useRepos()
   const allWorktrees = useAllWorktrees()
   const projectHostSetupProjection = useProjectHostSetupProjection()
-  const resumeTargetState = useAiVaultResumeTargetState()
+  const resumeTargetState = useAppStore(
+    useShallow((state) => ({
+      projects: state.projects,
+      settings: state.settings,
+      folderWorkspaces: selectFolderWorkspaces(state),
+      projectGroups: state.projectGroups,
+      repos: state.repos,
+      worktreesByRepo: selectWorktreesByRepo(state)
+    }))
+  )
   const settings = useAppStore((s) => s.settings)
   const agentCmdOverrides = settings?.agentCmdOverrides
   const paneActions = useAiVaultOriginalPaneActions()
-  const [query, setQuery] = useState(initialQuery)
   const [focusSearchRequestId, setFocusSearchRequestId] = useState(0)
   const listKeyboardRef = useRef<AiVaultSessionListKeyboard>(null)
   const keyboardRows = onSessionOpened !== undefined
@@ -119,12 +125,17 @@ export default function AiVaultPanel({
     [activeRepo, activeWorktree, allWorktrees, projectHostSetupProjection, repos]
   )
   const activeProjectKey = projectScopeContext.activeProjectKey
-  const { scope, handleScopeChange, collapsedGroups, toggleGroup, setCollapsedGroups } =
+  const { scope, preferredScope, handleScopeChange, collapsedGroups, toggleGroup } =
     useAiVaultPanelScope({
       activeProjectKey,
       activeWorktreePath,
       local: workspace !== undefined
     })
+  const [query, setQuery] = useAiVaultPanelQuery(initialQuery, {
+    preferredScope,
+    activeWorktreeId,
+    activeProjectKey
+  })
   const projectLabelByKey = projectScopeContext.projectLabelByKey
   // Sent to the scanner so scoped views surface sessions older than the global cap.
   const scopePaths = useMemo(
@@ -162,12 +173,7 @@ export default function AiVaultPanel({
     [history, search.sessions]
   )
   const sessions = searching ? searchSessions : history
-  const menuHostOptions = useForkVaultHostMenu(
-    hostScopeOptions,
-    sessions,
-    activeWorktree,
-    activeRepo
-  )
+  const hostMenu = useForkVaultHostMenu(hostScopeOptions, history, executionHostScope, workspace)
   const requestedScanKey = aiVaultLocalScanKey({
     scopePaths,
     includeAntigravityIdeSessions: true,
@@ -225,13 +231,11 @@ export default function AiVaultPanel({
     projectLabelByKey,
     hideEmptySessions
   })
-  const forkList = useForkAiVaultGroups(groups, collapsedGroups, setCollapsedGroups, {
-    loading: searching ? search.loading : loading,
-    sessionCount: sessions.length,
-    // 侧栏这份折叠集合在卸载后还在。见过的分组也要留住，重开时才不会把用户展开过的再收起。
-    rememberSeenGroups: workspace === undefined
-  })
-  const searchHitHostLabels = useSearchHostLabels(searching, filteredSessions, hostScopeOptions)
+  const forkList = useForkAiVaultGroups(groups, collapsedGroups, hostMenu, headerAction, workspace)
+  const searchHitHostLabels = useMemo(
+    () => (searching ? aiVaultSearchHitHostLabels(filteredSessions, hostScopeOptions) : null),
+    [filteredSessions, hostScopeOptions, searching]
+  )
 
   const copyText = useCallback(async (text: string, label: string): Promise<void> => {
     await window.api.ui.writeClipboardText(text)
@@ -268,14 +272,14 @@ export default function AiVaultPanel({
         activeProjectKey={activeProjectKey}
         scope={scope}
         executionHostScope={executionHostScope}
-        hostScopeOptions={menuHostOptions}
+        hostScopeOptions={hostMenu}
         agents={agents}
         group={group}
         hideEmptySessions={hideEmptySessions}
         sessionLimit={sessionLimit}
         adjustmentCount={viewAdjustmentCount}
         focusSearchRequestId={focusSearchRequestId}
-        headerAction={headerAction}
+        headerAction={forkList.headerAction}
         onSearchKeyDown={
           keyboardRows ? (event) => listKeyboardRef.current?.handleKeyDown(event) : undefined
         }
@@ -290,7 +294,6 @@ export default function AiVaultPanel({
         onReset={resetViewOptions}
         onRefresh={() => (searching ? search.retry() : void refresh({ force: true }))}
       />
-      <ForkAiVaultSlot id="below-header" />
 
       {stripProgress ? <AiVaultScanProgressStrip {...stripProgress} /> : null}
 
@@ -389,7 +392,6 @@ export default function AiVaultPanel({
           />
         )}
       </AiVaultPanelSearch>
-      <ForkAiVaultSlot id="list-footer" />
       {launchActions.continuationRequest && (
         <AgentSessionContinuationDialog
           open

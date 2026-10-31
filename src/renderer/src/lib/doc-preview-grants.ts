@@ -4,7 +4,7 @@ import { getConnectionIdForFileFromState } from '@/lib/connection-owner-resoluti
 import { runtimeEnvironmentIdOrLocalUnlessTwin } from '@/lib/worktree-runtime-owner'
 import { toRuntimeWorktreeSelector } from '@/runtime/runtime-worktree-selector'
 import { chatScratchFileAddress } from '@/runtime/runtime-chat-scratch-file-address'
-import { lookupTerminalHtmlPreview } from '../../../shared/fork-hooks/terminal-html-preview'
+import { hostFileDocLocation } from '../../../shared/fork-hooks/host-file-doc-preview'
 import type { AppState } from '@/store/types'
 
 /** `location` is what the grant was minted for, so its readers and its share key stay on that host. */
@@ -25,11 +25,6 @@ export function buildDocPreviewGrantRequest(
   worktreeId: string,
   filePath: string
 ): DocPreviewGrantLocation | null {
-  // fork: 终端点开的远程 HTML 已经记下读取方式。没有记录时仍按下面的工作区规则。
-  const remembered = lookupTerminalHtmlPreview(worktreeId, filePath)
-  if (remembered) {
-    return remembered
-  }
   const worktreeRoot = state.getKnownWorktreeById(worktreeId)?.path ?? null
   const worktreeRelativePath = getRelativePathInsideRoot(filePath, worktreeRoot)
   const root = dirname(filePath)
@@ -55,7 +50,7 @@ export function buildDocPreviewGrantRequest(
         }
       : chatScratchFileAddress(filePath)
   if (!environmentId || !base) {
-    return null
+    return hostFileDocLocation(environmentId, worktreeId, worktreeRoot, filePath)
   }
   return {
     owner: {

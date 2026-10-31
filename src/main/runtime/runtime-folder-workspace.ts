@@ -7,6 +7,7 @@ import {
   getRepoMainWorktreeId
 } from '../../shared/worktree/id'
 import { normalizeWorkspaceCreatorProvenance } from '../../shared/workspace-creator-provenance'
+import { forkWorkspaceFields } from '../../shared/fork-hooks/sidebar-group-membership'
 
 export function getRuntimeFolderWorkspaceRootId(repo: Repo): string {
   return getRepoMainWorktreeId(repo)
@@ -65,8 +66,7 @@ export function mergeRuntimeFolderWorkspace(
     isPinned: meta.isPinned ?? false,
     sortOrder: meta.sortOrder ?? 0,
     ...(meta.manualOrder !== undefined ? { manualOrder: meta.manualOrder } : {}),
-    // fork: 与 detected 列表同一字段。漏掉时 worktree.set 的回复也不带分组，客户端会当成旧主机。
-    ...(meta.sidebarGroupId !== undefined ? { sidebarGroupId: meta.sidebarGroupId } : {}),
+    ...forkWorkspaceFields(meta),
     lastActivityAt: meta.lastActivityAt ?? 0,
     ...(meta.createdAt !== undefined ? { createdAt: meta.createdAt } : {}),
     ...(meta.createdWithAgent !== undefined ? { createdWithAgent: meta.createdWithAgent } : {}),

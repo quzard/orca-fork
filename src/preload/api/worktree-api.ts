@@ -129,7 +129,6 @@ export type WorktreeApi = {
     worktreeId: string
     executionHostId?: ExecutionHostId
     updates: Partial<WorktreeMeta>
-    /** fork: fields to remove (see sidebar-field-clear). */
     clearFields?: ClearableSidebarField[]
   }) => Promise<Worktree | null>
   listLineage: () => Promise<{
@@ -192,7 +191,6 @@ export type FolderWorkspacesApi = {
         | 'diffComments'
       >
     >
-    /** fork: fields to remove (see sidebar-field-clear). */
     clearFields?: ClearableSidebarField[]
   }) => Promise<FolderWorkspace | null>
   delete: (args: { folderWorkspaceId: string }) => Promise<boolean>

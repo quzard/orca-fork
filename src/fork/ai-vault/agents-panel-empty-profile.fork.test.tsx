@@ -3,7 +3,7 @@
 // presentation registered. A fork slot once selected a new array on every store read, and
 // zustand's useSyncExternalStore re-rendered without end (React #185, "Maximum update depth
 // exceeded"); every fork store read in the panel must stay stable.
-import { cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import { Component, type ReactNode } from 'react'
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest'
 import { useAppStore } from '@/store'
@@ -65,13 +65,15 @@ afterEach(() => {
 it('opens the Agents panel of an empty profile without an update loop', async () => {
   const { default: AiVaultPanel } =
     await import('../../renderer/src/components/right-sidebar/AiVaultPanel')
-  render(
-    <Boundary>
-      <AiVaultPanel />
-    </Boundary>
-  )
-  await new Promise((resolve) => setTimeout(resolve, 20))
+  // act flushes the mount's effects and the store and status reads they start.
+  await act(async () => {
+    render(
+      <Boundary>
+        <AiVaultPanel />
+      </Boundary>
+    )
+  })
   expect(caught).toBeUndefined()
-  // The fork's header slot rendered, so the check above covered the fork's panel code.
+  // The fork's collapse-all button rendered, so the check above covered the fork's panel code.
   expect(screen.getByRole('button', { name: 'Collapse all groups' })).toBeTruthy()
 })

@@ -16,25 +16,7 @@ import {
 import { parentFolderImportRequested } from './parent-folder-request'
 import { mergeSelectedWorktreeInbox } from './selected-worktree-paths'
 import { releaseDurableArchiveAtPath } from '../sidebar/durable-workspace-archive'
-import { reactivateArchivedWorktreeMeta } from '../sidebar/reused-path-worktree-meta'
-
-async function releaseImportedWorktree(args: {
-  id: string
-  path: string
-  repoId: string
-  hostId?: ExecutionHostId
-}): Promise<void> {
-  try {
-    await reactivateArchivedWorktreeMeta({
-      worktreeId: args.id,
-      executionHostId: args.hostId
-    })
-  } catch (error) {
-    console.error('Failed to clear archived workspace metadata:', error)
-    return
-  }
-  releaseDurableArchiveAtPath(args)
-}
+import { releaseImportedWorktree } from '../sidebar/workspace-archive-release'
 
 async function keepSelectedWorktrees(details: ForkPostImportDetails): Promise<void> {
   const projects = details.importedProjects ?? []
@@ -149,11 +131,8 @@ async function ensureParentFolder(details: ForkPostImportDetails): Promise<void>
 
 export async function applyForkPostImport(details: ForkPostImportDetails): Promise<void> {
   if (details.phase === 'registered') {
-    for (const importedPath of [
-      details.path,
-      details.worktreePath,
-      ...(details.projectPaths ?? [])
-    ]) {
+    const paths = [details.path, details.worktreePath, ...(details.projectPaths ?? [])]
+    for (const importedPath of new Set(paths)) {
       if (!importedPath) {
         continue
       }

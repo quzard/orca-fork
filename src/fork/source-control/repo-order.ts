@@ -2,6 +2,7 @@ import type { GitBranchCompareResult } from '../../shared/git-diff-compare-types
 import type { WorkspaceRepositoryRecord, WorkspaceRepositoryStatus } from '../git-workspace/types'
 
 // 有未提交文件，或比较目标上领先，才算有改动。只落后不算，标题栏仍会显示落后。
+// 状态读失败的也算：空列表证明不了干净，让它排前面、展开显示错误，只看有改动时也留着。
 export function repositoryHasChanges(
   status: WorkspaceRepositoryStatus | undefined,
   compare: GitBranchCompareResult | undefined
@@ -9,7 +10,7 @@ export function repositoryHasChanges(
   if (!status || status.uninitialized) {
     return false
   }
-  if (status.entries.length > 0) {
+  if (status.entries.length > 0 || status.readError) {
     return true
   }
   const summary = compare?.summary

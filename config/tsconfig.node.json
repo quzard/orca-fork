@@ -17,7 +17,6 @@
     "./scripts/vitest-module-cache-resolution-key.ts",
     "../src/main/**/*",
     "../src/fork/**/*.ts",
-    "../src/cli/skills-source-commit.ts",
     "../src/cli/runtime/transport.ts",
     "../src/cli/runtime/envelope-schema.ts",
     "../src/cli/runtime/types.ts",

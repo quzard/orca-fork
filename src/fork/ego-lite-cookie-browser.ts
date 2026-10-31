@@ -2,10 +2,11 @@
 // 配置目录和钥匙串来自已核对的安装，不猜 Linux（官方还在路线图上）。
 
 import { BROWSER_FAMILY_LABELS } from '../shared/constants'
-import { registerForkChromiumCookieBrowsers } from '../shared/fork-hooks/chromium-cookie-browsers'
+import { registerForkCookieImportSources } from '../shared/fork-hooks/chromium-cookie-browsers'
 
-/** 持久化在会话来源里的 family。界面名字见 BROWSER_FAMILY_LABELS。 */
+/** 持久化在会话来源里的 family。 */
 export const EGO_LITE_BROWSER_FAMILY = 'ego-lite' as const
+export const EGO_LITE_LABEL = 'Ego Lite'
 
 /**
  * macOS 登录钥匙串里的通用密码。
@@ -24,15 +25,9 @@ export const EGO_LITE_MAC_PROFILE_ROOT = 'Citro Labs/ego lite'
  */
 export const EGO_LITE_WINDOWS_PROFILE_ROOT = 'Citro Labs/ego lite/User Data'
 
+/** Main process and renderer: the settings row label and the import hint. Detection is in main. */
 export function registerEgoLiteCookieBrowser(): void {
-  registerForkChromiumCookieBrowsers([
-    {
-      family: EGO_LITE_BROWSER_FAMILY,
-      label: BROWSER_FAMILY_LABELS[EGO_LITE_BROWSER_FAMILY],
-      keychainService: EGO_LITE_KEYCHAIN_SERVICE,
-      keychainAccount: EGO_LITE_KEYCHAIN_ACCOUNT,
-      macRoot: EGO_LITE_MAC_PROFILE_ROOT,
-      winRoot: EGO_LITE_WINDOWS_PROFILE_ROOT
-    }
-  ])
+  // ??= keeps upstream's label if upstream ever ships this family itself.
+  BROWSER_FAMILY_LABELS[EGO_LITE_BROWSER_FAMILY] ??= EGO_LITE_LABEL
+  registerForkCookieImportSources([{ label: EGO_LITE_LABEL, mac: true, win: true, linux: false }])
 }

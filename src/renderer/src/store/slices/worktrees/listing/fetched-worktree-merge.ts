@@ -206,9 +206,10 @@ export function mergeFetchedWorktrees(
       hasBranchScopedReviewContext: hasBranchScopedHostedReviewContext,
       updateWorktreeGitIdentity: s.updateWorktreeGitIdentity
     })
-    // fork: soft-remove stays archived across a rescan, even when meta was never written.
-    const worktrees = applyRegisteredDurableWorkspaceArchive(
-      sanitizeHostedReviewLinksForBranchClears(incoming, s.worktreesByRepo[args.repoId])
+    incoming = applyRegisteredDurableWorkspaceArchive(incoming)
+    const worktrees = sanitizeHostedReviewLinksForBranchClears(
+      incoming,
+      s.worktreesByRepo[args.repoId]
     )
     const currentForHost = (s.worktreesByRepo[args.repoId] ?? []).filter((worktree) =>
       worktreeMatchesHost(worktree, args.hostId, matchOptions)

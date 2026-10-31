@@ -15,6 +15,7 @@ import {
   enqueueGroupDrop,
   planGroupDropItems,
   resolveGroupDropTarget,
+  type Fields,
   type GroupDropState,
   type GroupDropWriter
 } from './workspace-group-drop-plan'
@@ -282,9 +283,9 @@ describe('multi-row group drop', () => {
   it('fails the drop and puts the row back when an older host drops the group', async () => {
     // The older host applies manualOrder but strips sidebarGroupId and clearFields.
     const message = sidebarFieldsNotAppliedMessage()
-    const calls: { id: string; fields: object }[] = []
+    const calls: { id: string; fields: Fields }[] = []
     const api: GroupDropWriter = {
-      updateWorktreeMeta: vi.fn(async (id: string, fields: object) => {
+      updateWorktreeMeta: vi.fn(async (id: string, fields: Fields) => {
         calls.push({ id, fields })
         return { ok: false as const, error: message, code: SIDEBAR_FIELDS_NOT_APPLIED_CODE }
       }),
@@ -302,10 +303,10 @@ describe('multi-row group drop', () => {
   })
 
   it('puts the row back when the typed error is thrown instead of returned', async () => {
-    const calls: { id: string; fields: object }[] = []
+    const calls: { id: string; fields: Fields }[] = []
     let first = true
     const api: GroupDropWriter = {
-      updateWorktreeMeta: vi.fn(async (id: string, fields: object) => {
+      updateWorktreeMeta: vi.fn(async (id: string, fields: Fields) => {
         calls.push({ id, fields })
         if (first) {
           first = false
@@ -341,11 +342,11 @@ describe('multi-row group drop', () => {
     const blob: Record<string, unknown> = {}
     let inFlight = 0
     let maxInFlight = 0
-    const write = async (id: string, fields: object): Promise<void> => {
+    const write = async (id: string, fields: Fields): Promise<void> => {
       inFlight++
       maxInFlight = Math.max(maxInFlight, inFlight)
       const snapshot = { ...blob }
-      await new Promise((resolve) => setTimeout(resolve, id.length % 3))
+      await new Promise((resolve) => setTimeout(resolve, 0))
       Object.keys(blob).forEach((key) => delete blob[key])
       Object.assign(blob, snapshot, { [id]: fields })
       inFlight--

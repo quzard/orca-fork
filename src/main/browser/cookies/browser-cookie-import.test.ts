@@ -686,7 +686,6 @@ describe('detectInstalledBrowsers', () => {
       'safari',
       'comet',
       'helium',
-      'ego-lite',
       'vivaldi'
     ]
     for (const browser of browsers) {

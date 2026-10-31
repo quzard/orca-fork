@@ -114,10 +114,11 @@ export class AgentStateRulesLiveUpdater {
   async start(): Promise<void> {
     this.stop()
     const settings = this.deps.readSettings()
-    // fork: 规则文件挂在上游 Releases 上，fork 构建只用内置规则和用户自己的覆盖文件。
-    const live =
-      !isForkBuild() && this.deps.isPackaged && settings.agentStateRulesLiveUpdates !== false
+    const live = this.deps.isPackaged && settings.agentStateRulesLiveUpdates !== false
     const run = { channel: live ? agentStateRulesChannelForAppVersion(this.deps.appVersion) : null }
+    if (isForkBuild()) {
+      run.channel = null
+    }
     this.run = run
     const overridePath = settings.agentStateRulesPath
     const [override, cached] = await Promise.all([

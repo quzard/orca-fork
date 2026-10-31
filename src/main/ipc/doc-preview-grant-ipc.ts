@@ -15,10 +15,6 @@ import {
   type DocPreviewOwner
 } from '../browser/doc-preview-grant-registry'
 import { isTrustedBrowserRenderer } from './browser-renderer-trust'
-import {
-  forgetTerminalHtmlPreviewServe,
-  noteTerminalHtmlPreviewServe
-} from '../../shared/fork-hooks/terminal-html-preview'
 
 export type DocPreviewGrantRequest = {
   owner: DocPreviewOwner
@@ -30,24 +26,11 @@ export type DocPreviewGrantRequest = {
   entryRelativePath: string
   /** Browser page the reader is opening the document in; main registers the guest under it. */
   browserPageId: string
-  terminalArtifactGrantId?: string
-  terminalArtifactAbsolutePath?: string
-  sshPreview?: boolean
 }
 
 export type DocPreviewGrantResult = { grantId: string; url: string }
 
-function isOptionalString(value: unknown): boolean {
-  return value === undefined || typeof value === 'string'
-}
-
 function isValidGrantRequest(request: DocPreviewGrantRequest): boolean {
-  const artifactGrantId: unknown = request.terminalArtifactGrantId
-  const artifactPath: unknown = request.terminalArtifactAbsolutePath
-  // 渲染进程传来的字段运行时不一定是字符串。不是字符串就不铸授权。
-  if (!isOptionalString(artifactGrantId) || !isOptionalString(artifactPath)) {
-    return false
-  }
   if (!request.requestBase.trim() || !request.root.trim() || !request.entryRelativePath.trim()) {
     return false
   }
@@ -87,7 +70,6 @@ export function registerDocPreviewGrantHandlers(): void {
         entryRelativePath: request.entryRelativePath,
         browserPageId: request.browserPageId
       })
-      noteTerminalHtmlPreviewServe(grant.id, request)
       return {
         grantId: grant.id,
         url: buildDocPreviewUrl(grant.id, grant.entryRelativePath)
@@ -95,13 +77,9 @@ export function registerDocPreviewGrantHandlers(): void {
     }
   )
 
-  ipcMain.handle(DOC_PREVIEW_REVOKE_GRANT_CHANNEL, (event, grantId: string): boolean => {
-    if (!isTrustedBrowserRenderer(event.sender)) {
-      return false
-    }
-    forgetTerminalHtmlPreviewServe(grantId)
-    return revokeDocPreviewGrant(grantId)
-  })
+  ipcMain.handle(DOC_PREVIEW_REVOKE_GRANT_CHANNEL, (event, grantId: string): boolean =>
+    isTrustedBrowserRenderer(event.sender) ? revokeDocPreviewGrant(grantId) : false
+  )
 
   ipcMain.handle(
     DOC_PREVIEW_AUTHORIZE_DIRECTORY_CHANNEL,

@@ -3,7 +3,6 @@ import type { WorktreeOccurrencePlan } from '../worktree-occurrence-plan'
 import type { WorkspaceStatusDefinition, Worktree } from '../worktree/types'
 import type { ExecutionHostId } from '../execution-host'
 import { getWorkspaceStatusFromGroupKey } from '../workspace-statuses'
-import { lookupSidebarGroupMode } from '../fork-hooks/sidebar-group-mode'
 import type { PRGroupKey } from './group-keys'
 import type { NoticeHostContext } from './host-labels'
 import {
@@ -23,34 +22,14 @@ import {
   buildPendingCreationRow
 } from './row-builders'
 import type {
-  GroupHeaderRow,
   ImportedWorktreesCardCandidate,
   NewExternalWorktreesInboxCandidate,
   PendingCreationRef,
+  GroupHeaderRow,
   RepoOfWorktree,
   Row,
   WorktreeGroupBy
 } from './row-types'
-
-// fork: 自定义分组用 section 自己的 label，避免被画成 PR 标题。
-function registeredGroupHeader(
-  key: string,
-  group: WorktreeGroupEntry,
-  folderPairs: NonNullable<WorktreeGroupEntry['folderWorkspaces']>,
-  repoOf: RepoOfWorktree,
-  defaultHostId: ExecutionHostId
-): GroupHeaderRow {
-  return {
-    type: 'header',
-    key,
-    label: group.label,
-    count: group.items.length + folderPairs.length,
-    icon: { kind: 'project' },
-    hostWorktreeCounts: getLaneHostWorktreeCounts(group.items, folderPairs, repoOf, defaultHostId),
-    hostWorktreeIds: getLaneHostWorktreeIds(group.items, folderPairs, repoOf, defaultHostId),
-    worktreeIds: group.items.map((worktree) => worktree.id)
-  }
-}
 
 /** Everything section emission reads that stays fixed for one planSidebarRows call. */
 export type SectionAppendContext = {
@@ -121,15 +100,12 @@ export function appendOrderedGroups(
     mixedWorktreeHostContextLabels,
     occurrencePlan
   } = ctx
-  // fork: 内置 groupBy 查不到模式，标题分支与原来一致。
-  const forkGroupMode = lookupSidebarGroupMode(groupBy)
   for (const [key, group] of groupsToAppend) {
     const isCollapsed = collapsedGroups.has(key)
     const repo = group.repo
     const folderPairs = group.folderWorkspaces ?? []
-    const header = forkGroupMode
-      ? registeredGroupHeader(key, group, folderPairs, repoOf, defaultHostId)
-      : groupBy === 'repo'
+    const header =
+      groupBy === 'repo'
         ? {
             type: 'header' as const,
             key,

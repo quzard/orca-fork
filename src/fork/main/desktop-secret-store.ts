@@ -1,5 +1,7 @@
+import { app } from 'electron'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { guardedSafeStorage } from '../../main/host/safe-storage-availability'
 import { usesIsolatedProfile } from '../../shared/electron-isolated-profile-switches'
 import type { SecretStore } from '../../shared/secret-store'
 import { LOCAL_SECRET_STORAGE, MacosFileSecretStore } from './macos-file-secret-store'
@@ -16,23 +18,29 @@ export function macosFileSecretDirectory(home = homedir()): string {
   return join(home, LOCAL_SECRET_STORAGE.root, LOCAL_SECRET_STORAGE.directory)
 }
 
-type ElectronWithPackagedFlag = { app: { isPackaged: boolean } }
-type ElectronSecretStoreModule = { ElectronSecretStore: new () => SecretStore }
+/**
+ * Plugin secrets and account sessions call guardedSafeStorage directly, not the desktop store.
+ * `satisfies` fails the typecheck if upstream adds a method this would leave on the keychain.
+ */
+export function routeGuardedSafeStorage(store: SecretStore): void {
+  Object.assign(guardedSafeStorage, {
+    isEncryptionAvailable: () => store.isEncryptionAvailable(),
+    encryptString: (plainText: string) => store.encryptString(plainText),
+    decryptString: (cipher: Buffer) => store.decryptString(cipher)
+  } satisfies typeof guardedSafeStorage)
+}
 
-export function createForkDesktopSecretStore(): SecretStore {
-  // Loaded only when the main process installs the store. The renderer never calls this.
-  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: Electron's main export exposes `app.isPackaged` here.
-  const electron = require('electron') as ElectronWithPackagedFlag
-  if (
-    usesPackagedMacosFileSecretStore({
-      platform: process.platform,
-      packaged: electron.app.isPackaged,
-      isolated: usesIsolatedProfile()
-    })
-  ) {
-    return new MacosFileSecretStore(macosFileSecretDirectory())
+/** Runs in preflight. Null keeps upstream's keychain-backed store (dev, isolated profiles). */
+export function createPackagedMacosSecretStore(): SecretStore | null {
+  const gate = {
+    platform: process.platform,
+    packaged: app.isPackaged,
+    isolated: usesIsolatedProfile()
   }
-  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: same module the desktop fallback constructs; called after that module finished evaluating.
-  const host = require('../../main/host/electron-secret-store') as ElectronSecretStoreModule
-  return new host.ElectronSecretStore()
+  if (!usesPackagedMacosFileSecretStore(gate)) {
+    return null
+  }
+  const store = new MacosFileSecretStore(macosFileSecretDirectory())
+  routeGuardedSafeStorage(store)
+  return store
 }

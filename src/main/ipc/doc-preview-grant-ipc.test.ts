@@ -115,23 +115,6 @@ describe('document preview grant handlers', () => {
     expect(getDocPreviewGrant(result.grantId)).toBeNull()
   })
 
-  it('rejects a terminal artifact id or path that is not a string', () => {
-    expect(() =>
-      mint({
-        ...REQUEST,
-        terminalArtifactGrantId: 1 as never,
-        terminalArtifactAbsolutePath: '/tmp/x.html'
-      })
-    ).toThrow(/Invalid/)
-    expect(() =>
-      mint({
-        ...REQUEST,
-        terminalArtifactGrantId: 'g-1',
-        terminalArtifactAbsolutePath: 1 as never
-      })
-    ).toThrow(/Invalid/)
-  })
-
   it('rejects a request that names no root, entry document or page', () => {
     expect(() => mint({ ...REQUEST, root: '  ' })).toThrow(/Invalid/)
     expect(() => mint({ ...REQUEST, entryRelativePath: '' })).toThrow(/Invalid/)

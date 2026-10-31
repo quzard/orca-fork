@@ -89,7 +89,6 @@ export function SidebarHeaderActions({
   return (
     <div className="flex shrink-0 items-center gap-1" data-sidebar-header-actions="">
       {renderSidebarHeaderExtra()}
-      {/* Activity portals its own options into this slot; retain Add project to avoid shifting other controls. */}
       <div ref={activityOptionsTarget} className="flex size-6 shrink-0 items-center">
         {agentsViewActive ? null : (
           <SidebarWorkspaceOptionsMenu

@@ -50,14 +50,14 @@ vi.mock('../../main/updater-changelog', () => ({
 vi.mock('../../main/updater-lifecycle-diagnostics', () => ({
   recordUpdaterLifecycle: vi.fn()
 }))
-import { registerForkUpdateFeed } from '../../shared/fork-hooks/update-feed'
+import { registerForkBuild } from '../../shared/fork-hooks/update-feed'
 import {
   FORK_BACKGROUND_CHECK_FAILURE_LOG,
   FORK_BACKGROUND_DOWNLOAD_FAILURE_LOG,
   FORK_STAGING_FAILURE_LOG,
   armForkBackgroundDownload,
   consumeForkBackgroundDownloadFailure,
-  forkAutoInstallOnQuit,
+  forkInstallsOnQuit,
   forkStagedUpdateVersion,
   forkStagingUpdateVersion,
   failForkStaging,
@@ -78,11 +78,11 @@ function usePlatform(platform: NodeJS.Platform): void {
 }
 
 function useReadyFeed(): void {
-  registerForkUpdateFeed()
+  registerForkBuild()
 }
 
 afterEach(() => {
-  registerForkUpdateFeed(false)
+  registerForkBuild(false)
   resetForkBackgroundDownloadState()
   usePlatform(hostPlatform)
   nativeAutoUpdater.removeAllListeners()
@@ -90,82 +90,14 @@ afterEach(() => {
 })
 
 describe('fork background download decisions', () => {
-  it('leaves install-on-quit unchanged without a fork feed', () => {
-    expect(
-      forkAutoInstallOnQuit({
-        forkReady: false,
-        interactive: true,
-        linuxNonRootImplicitQuit: false,
-        platform: 'darwin'
-      })
-    ).toBe(false)
-    expect(
-      forkAutoInstallOnQuit({
-        forkReady: false,
-        interactive: true,
-        linuxNonRootImplicitQuit: true,
-        platform: 'linux'
-      })
-    ).toBe(true)
-    expect(
-      forkAutoInstallOnQuit({
-        forkReady: false,
-        interactive: true,
-        linuxNonRootImplicitQuit: false,
-        platform: 'linux'
-      })
-    ).toBe(false)
-    expect(
-      forkAutoInstallOnQuit({
-        forkReady: false,
-        interactive: false,
-        linuxNonRootImplicitQuit: true,
-        platform: 'linux'
-      })
-    ).toBe(false)
-  })
-
-  it('installs on quit for an interactive fork-feed session, except supervised and Linux packages', () => {
-    expect(
-      forkAutoInstallOnQuit({
-        forkReady: true,
-        interactive: true,
-        linuxNonRootImplicitQuit: false,
-        platform: 'darwin'
-      })
-    ).toBe(true)
-    expect(
-      forkAutoInstallOnQuit({
-        forkReady: true,
-        interactive: true,
-        linuxNonRootImplicitQuit: false,
-        platform: 'win32'
-      })
-    ).toBe(true)
-    expect(
-      forkAutoInstallOnQuit({
-        forkReady: true,
-        interactive: false,
-        linuxNonRootImplicitQuit: false,
-        platform: 'darwin'
-      })
-    ).toBe(false)
-    expect(
-      forkAutoInstallOnQuit({
-        forkReady: true,
-        interactive: true,
-        linuxNonRootImplicitQuit: false,
-        platform: 'linux'
-      })
-    ).toBe(false)
-    expect(
-      forkAutoInstallOnQuit({
-        forkReady: true,
-        interactive: true,
-        linuxNonRootImplicitQuit: true,
-        platform: 'linux'
-      })
-    ).toBe(true)
+  // updater-setup ORs this onto upstream's interactive-Linux-non-root rule.
+  it('adds install-on-quit only for an interactive fork session off Linux', () => {
+    expect(forkInstallsOnQuit('interactive', 'darwin')).toBe(false)
+    useReadyFeed()
+    expect(forkInstallsOnQuit('interactive', 'darwin')).toBe(true)
+    expect(forkInstallsOnQuit('interactive', 'win32')).toBe(true)
+    expect(forkInstallsOnQuit('interactive', 'linux')).toBe(false)
+    expect(forkInstallsOnQuit('supervised-headless-serve', 'darwin')).toBe(false)
   })
 
   it('downloads a new version once, then does not prompt again for that same version', () => {
@@ -257,7 +189,7 @@ describe('fork background download decisions', () => {
     ).toBe('download')
   })
 
-  it('does not change update offers when no fork feed is registered', () => {
+  it('does not change update offers when the build is not a fork build', () => {
     expect(
       planForkFoundUpdate({
         localOrPinned: false,
@@ -684,8 +616,8 @@ describe('fork updater handler wiring', () => {
     warn.mockRestore()
   })
 
-  it('keeps the manual offer when no fork feed is registered', async () => {
-    registerForkUpdateFeed(false)
+  it('keeps the manual offer when the build is not a fork build', async () => {
+    registerForkBuild(false)
     resetForkBackgroundDownloadState()
     let status: UpdateStatus = { state: 'checking' }
     const sendStatus = vi.fn()

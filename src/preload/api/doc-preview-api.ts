@@ -17,11 +17,6 @@ export type DocPreviewGrantRequest = {
   root: string
   entryRelativePath: string
   browserPageId: string
-  /** 托管主机上、工作区外的只读授权。预览只读这一份绝对路径。 */
-  terminalArtifactGrantId?: string
-  terminalArtifactAbsolutePath?: string
-  /** 直连 SSH、工作区外的 HTML。桌面按连接去读，不走一般的 ssh 文档预览。 */
-  sshPreview?: boolean
 }
 
 export type DocPreviewApi = {

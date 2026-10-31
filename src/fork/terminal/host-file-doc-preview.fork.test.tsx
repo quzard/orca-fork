@@ -1,0 +1,122 @@
+// F046: a server document outside the clicked workspace is previewable, its grant is rooted at its
+// own folder, and images it names are read from the host through grants.
+import { describe, expect, it, vi } from 'vitest'
+import { getWorkspaceFilePreviewPlan } from '@/lib/file-preview'
+import { buildDocPreviewGrantRequest } from '@/lib/doc-preview-grants'
+import { readRuntimeFilePreview } from '@/runtime/runtime-file-read-client'
+import {
+  fsReadFile,
+  installRuntimeFileClientEnvironment,
+  runtimeEnvironmentCall
+} from '@/runtime/runtime-file-client-test-harness'
+import { hostFileDocFolder } from '../../shared/fork-hooks/host-file-doc-preview'
+import { registerHostFileDocPreviews } from './host-file-doc-preview'
+
+vi.mock('@/store', () => ({ useAppStore: { getState: () => ({}) } }))
+vi.mock('@/lib/connection-owner-resolution', () => ({
+  getConnectionIdForFileFromState: () => null
+}))
+vi.mock('@/lib/worktree-runtime-owner', () => ({
+  runtimeEnvironmentIdOrLocalUnlessTwin: () => 'env-1'
+}))
+
+installRuntimeFileClientEnvironment()
+
+const WORKTREE = '/srv/app'
+const PAGES = '/home/me/.answer-me-with-html/pages'
+const REPORT = `${PAGES}/report.html`
+const NOTES = '/home/me/notes/plan.md'
+const IMAGE = '/home/me/notes/img/chart.png'
+const state = {
+  repos: [{ id: 'repo-1', connectionId: null }],
+  worktreesByRepo: { 'repo-1': [{ id: 'wt-1', repoId: 'repo-1' }] },
+  folderWorkspaces: [],
+  getKnownWorktreeById: () => ({ id: 'wt-1', path: WORKTREE })
+} as never
+
+const imageContext = {
+  target: { kind: 'environment' as const, environmentId: 'env-1' },
+  worktreeId: 'wt-1',
+  worktreePath: WORKTREE
+}
+const imageAccess = { kind: 'document-resource' as const, documentPath: NOTES }
+const preview = { content: 'iVBO', isBinary: true, isImage: true, mimeType: 'image/png' }
+
+function serveImageThroughGrant(): void {
+  const meta = { runtimeId: 'remote-runtime' }
+  runtimeEnvironmentCall.mockImplementation((args: { method: string }) =>
+    Promise.resolve(
+      args.method === 'files.resolveTerminalPath'
+        ? {
+            id: 'resolve',
+            ok: true,
+            result: {
+              exists: true,
+              openTarget: { kind: 'absolute-file', absolutePath: IMAGE, grantId: 'g-img' }
+            },
+            _meta: meta
+          }
+        : args.method === 'files.readTerminalArtifact'
+          ? { id: 'read', ok: false, error: { code: 'runtime_error', message: 'binary_file' } }
+          : { id: 'preview', ok: true, result: preview, _meta: meta }
+    )
+  )
+}
+
+describe('before the fork registers', () => {
+  it('keeps upstream: refused plan, no grant, no outside image read', async () => {
+    expect(getWorkspaceFilePreviewPlan(state, 'wt-1', REPORT)).toMatchObject({
+      status: 'unsupported',
+      reason: 'outside-worktree'
+    })
+    expect(buildDocPreviewGrantRequest(state, 'wt-1', REPORT)).toBeNull()
+    await expect(readRuntimeFilePreview(imageContext, IMAGE, imageAccess)).rejects.toThrow(
+      'Remote file is outside the owning runtime worktree'
+    )
+    expect(runtimeEnvironmentCall).not.toHaveBeenCalled()
+  })
+})
+
+describe('a server document outside the clicked workspace', () => {
+  it('plans a doc preview whose grant is rooted at the document folder', () => {
+    registerHostFileDocPreviews()
+
+    expect(getWorkspaceFilePreviewPlan(state, 'wt-1', REPORT)).toEqual({ status: 'doc-preview' })
+    const location = buildDocPreviewGrantRequest(state, 'wt-1', REPORT)
+    // The folder-access prompt names this folder, not the clicked workspace root.
+    expect(hostFileDocFolder(location)).toBe(PAGES)
+    expect(location).toEqual({
+      owner: {
+        kind: 'runtime',
+        environmentId: 'env-1',
+        worktreeSelector: 'id:wt-1',
+        worktreeRoot: WORKTREE
+      },
+      requestBase: PAGES,
+      root: PAGES,
+      entryRelativePath: 'report.html'
+    })
+  })
+
+  it('still serves a workspace document through upstream files.readDocPreview', () => {
+    registerHostFileDocPreviews()
+
+    const location = buildDocPreviewGrantRequest(state, 'wt-1', `${WORKTREE}/docs/a.html`)
+    expect(location).toMatchObject({ requestBase: WORKTREE, entryRelativePath: 'docs/a.html' })
+    expect(hostFileDocFolder(location)).toBeNull()
+  })
+
+  it('reads an image a Markdown file outside the workspace names through a host grant', async () => {
+    registerHostFileDocPreviews()
+    serveImageThroughGrant()
+
+    await expect(readRuntimeFilePreview(imageContext, IMAGE, imageAccess)).resolves.toEqual(preview)
+    expect(runtimeEnvironmentCall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: 'files.readTerminalArtifactPreview',
+        params: { worktree: 'id:wt-1', grantId: 'g-img', absolutePath: IMAGE }
+      })
+    )
+    expect(fsReadFile).not.toHaveBeenCalled()
+  })
+})

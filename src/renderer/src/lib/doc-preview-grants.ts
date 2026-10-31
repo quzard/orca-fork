@@ -4,6 +4,7 @@ import { getConnectionIdForFileFromState } from '@/lib/connection-owner-resoluti
 import { runtimeEnvironmentIdOrLocalUnlessTwin } from '@/lib/worktree-runtime-owner'
 import { toRuntimeWorktreeSelector } from '@/runtime/runtime-worktree-selector'
 import { chatScratchFileAddress } from '@/runtime/runtime-chat-scratch-file-address'
+import { hostFileDocLocation } from '../../../shared/fork-hooks/host-file-doc-preview'
 import type { AppState } from '@/store/types'
 
 /** `location` is what the grant was minted for, so its readers and its share key stay on that host. */
@@ -49,7 +50,7 @@ export function buildDocPreviewGrantRequest(
         }
       : chatScratchFileAddress(filePath)
   if (!environmentId || !base) {
-    return null
+    return hostFileDocLocation(environmentId, worktreeId, worktreeRoot, root, entryRelativePath)
   }
   return {
     owner: {

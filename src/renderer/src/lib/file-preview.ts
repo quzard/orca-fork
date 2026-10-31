@@ -22,6 +22,7 @@ import { findSiblingGroupId } from '@/store/slices/tabs'
 import type { CreateBrowserTabOptions } from '@/store/slices/browser/browser-slice-contract'
 import { ORCA_BROWSER_BLANK_URL } from '../../../shared/constants'
 import { chatScratchFileAddress } from '@/runtime/runtime-chat-scratch-file-address'
+import { previewsHostFiles } from '../../../shared/fork-hooks/host-file-doc-preview'
 import { selectFolderWorkspaces, selectWorktreesByRepo } from '@/store/workspace-record-selectors'
 import { findWorkspaceShowingDoc } from './file-preview-page-conversion'
 
@@ -93,7 +94,7 @@ export function getWorkspaceFilePreviewPlan(
     const worktreeRoot = state.getKnownWorktreeById(worktreeId)?.path ?? null
     const outsideWorktree = worktreeRoot && !getRelativePathInsideRoot(filePath, worktreeRoot)
     // Paired files.read is bounded to worktrees/chat scratch roots; explain out-of-root paths before they become preview 404s.
-    if (outsideWorktree && !chatScratchFileAddress(filePath)) {
+    if (outsideWorktree && !chatScratchFileAddress(filePath) && !previewsHostFiles()) {
       return {
         status: 'unsupported',
         message: pairedOutsideWorktreeMessage(),

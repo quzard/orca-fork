@@ -15,6 +15,7 @@ import {
 } from '../../../../shared/runtime-file-contracts'
 import { HostFileRefusal, hostAbsentRefusal } from './host-file-refusal'
 import { hostSavesGrantedFiles } from '@/runtime/runtime-terminal-artifact-grant'
+import { keepHostFileInClickedWorkspace } from '../../../../shared/fork-hooks/kept-host-file-view'
 
 export type HostWorkspaceFile = {
   kind: 'host'
@@ -145,6 +146,10 @@ export async function resolveHostWorkspaceFile(
   const worktreePath = workspaceRootOf(resolved.absolutePath, relativePath)
   if (worktreePath === null) {
     throw new HostFileRefusal(`The host answered an unexpected path for ${absolutePath}`)
+  }
+  const kept = await keepHostFileInClickedWorkspace(context, resolved)
+  if (kept) {
+    return kept
   }
   return {
     kind: 'host',

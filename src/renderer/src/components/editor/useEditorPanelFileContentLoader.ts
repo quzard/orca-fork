@@ -1,3 +1,4 @@
+/* oxlint-disable max-lines -- fork: hook call only */
 import { useCallback } from 'react'
 import { translate } from '@/i18n/i18n'
 import { readEditorPanelFileContent } from './editor-panel-file-reads'
@@ -31,6 +32,7 @@ import { findRestoredEditorWorkspaceRuntimeOwner } from './restored-editor-works
 import { editorTabFileAccess, isClientLocalReadOnlyTab } from '@/lib/local-file-access'
 import { isFloatingWorkspaceId } from '../../../../shared/floating-workspace-worktree'
 import { grantRestoredHostFile } from './restored-host-file-grant'
+import { isKeptHostFileView } from '../../../../shared/fork-hooks/kept-host-file-view'
 import { captureRuntimeEnvironmentRequestRevision } from '@/runtime/runtime-environment-revision'
 import { chatScratchFileAddress } from '@/runtime/runtime-chat-scratch-file-address'
 import type { RuntimeFileReadArgs } from '@/runtime/runtime-file-client-types'
@@ -181,7 +183,7 @@ export function useEditorPanelFileContentLoader({
             const route = isFloatingWorkspaceId(worktreeId)
               ? null
               : findWorkspaceFileRoute(currentState, executionHostId, filePath)
-            if (route && route.worktreeId !== worktreeId) {
+            if (route && route.worktreeId !== worktreeId && !isKeptHostFileView(restoredOpenFile)) {
               await reownRestoredFile(route, runtimeEnvironmentId ?? null)
               return
             }

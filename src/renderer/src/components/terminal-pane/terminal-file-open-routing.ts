@@ -30,6 +30,7 @@ import { isFloatingWorkspaceId } from '../../../../shared/floating-workspace-wor
 import { captureEditorOpenLinkIntent } from '@/store/slices/editor/tabs/editor-open-target-group'
 import { reserveDetectedFilePathOpenTurn } from './terminal-file-open-turn'
 import { openTerminalHtmlFileInBrowser } from './terminal-file-link-browser-open'
+import { previewsHostFiles } from '../../../../shared/fork-hooks/host-file-doc-preview'
 export { isHtmlFilePath } from './local-html-file-destinations'
 import { refuseOpenInGroupRequest } from './terminal-file-open-in-group-toast'
 import { isExplicitEditorScopeKept, openLinkedFileInEditor } from './terminal-file-link-editor-open'
@@ -236,7 +237,7 @@ export function openDetectedFilePath(
     }
 
     // Route local HTML to Orca browser, including system-browser opens OS could not launch.
-    if (isHtmlFilePath(mappedFilePath) && hostGrant === null) {
+    if (isHtmlFilePath(mappedFilePath) && (hostGrant === null || previewsHostFiles())) {
       if (deps.openInSourceGroup) {
         refuseExplicitNonEditorRoute()
         return

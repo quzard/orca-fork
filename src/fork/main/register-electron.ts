@@ -9,6 +9,8 @@ import { MacosFileSecretStore } from './macos-file-secret-store'
 import { registerForkUpdateFeed } from '../../shared/fork-hooks/update-feed'
 import { registerComputerUsePermissionHelperArgs } from '../../shared/fork-hooks/computer-use-permission'
 import { FORK_PERMISSION_DRAG_CARD_ARG } from '../computer-use/permission-card'
+import { registerHostFileDocPreviewRead } from '../../shared/fork-hooks/host-file-doc-preview'
+import { readGrantedHostDocPreview } from './host-file-doc-preview-read'
 
 /** Desktop main process, before preflight. Not called from orcad. */
 export function registerForkElectronModules(): void {
@@ -22,4 +24,6 @@ export function registerForkElectronModules(): void {
   registerForkUpdateFeed()
   // F006：权限窗口显示可拖拽的应用卡片，只在还缺权限时出现。
   registerComputerUsePermissionHelperArgs([FORK_PERMISSION_DRAG_CARD_ARG])
+  // F046：工作区外的服务器文档在桌面预览，逐个文件经主机授权读取。
+  registerHostFileDocPreviewRead(readGrantedHostDocPreview)
 }

@@ -26,7 +26,7 @@ import {
 import { LocalPortSection } from './local-port-section'
 import { LocalPortDetailsDialog } from './local-port-details-dialog'
 import { SshForwardedPortsSection } from './ssh-forwarded-ports-section'
-import { useWorkspacePortForward } from '../../../../fork/ports/workspace-port-forward'
+import { ForkPortForward } from '../../../../fork/ports/workspace-port-forward'
 
 export function LocalWorkspacePortsPanel({
   isVisible,
@@ -53,10 +53,6 @@ export function LocalWorkspacePortsPanel({
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
     other: true,
     external: true
-  })
-  const portForward = useWorkspacePortForward({
-    sshForwardTargetId,
-    activeWorktreeId: activeWorktree?.id
   })
 
   const scanKey = runtimeTarget ? `${workspacePortRuntimeTargetKey(runtimeTarget)}:all` : null
@@ -272,7 +268,6 @@ export function LocalWorkspacePortsPanel({
             onStopPort={(port) => void handleStopPort(port)}
             onShowDetails={setDetailsPort}
             onOpenInBrowser={handleOpenPortInBrowser}
-            onForward={portForward.onForward}
           />
           <LocalPortSection
             id="other"
@@ -286,7 +281,6 @@ export function LocalWorkspacePortsPanel({
             onStopPort={(port) => void handleStopPort(port)}
             onShowDetails={setDetailsPort}
             onOpenInBrowser={handleOpenPortInBrowser}
-            onForward={portForward.onForward}
           />
           <LocalPortSection
             id="external"
@@ -297,7 +291,6 @@ export function LocalWorkspacePortsPanel({
             onStopPort={(port) => void handleStopPort(port)}
             onShowDetails={setDetailsPort}
             onOpenInBrowser={handleOpenPortInBrowser}
-            onForward={portForward.onForward}
           />
         </>
       )}
@@ -319,7 +312,7 @@ export function LocalWorkspacePortsPanel({
         )}
 
       <LocalPortDetailsDialog port={detailsPort} onClose={() => setDetailsPort(null)} />
-      {portForward.dialog}
+      <ForkPortForward.Dialog targetId={sshForwardTargetId} />
     </div>
   )
 }

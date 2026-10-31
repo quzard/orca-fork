@@ -29,7 +29,8 @@ type ReattachFitContext = {
   prefetchedParkModelSnapshot: unknown
 }
 
-type DesktopResizeSession = PaneTerminal & { shouldSuppressDesktopPtyResize: () => boolean }
+// Optional: the renderer's session bag assigns it dynamically (installPtyInputForward runs first).
+type DesktopResizeSession = PaneTerminal & { shouldSuppressDesktopPtyResize?: () => boolean }
 
 const tuiRepaintPtyIds = new Set<string>()
 
@@ -97,6 +98,6 @@ export function holdDesktopResizeDuringTuiRepaint(session: DesktopResizeSession)
   const suppress = session.shouldSuppressDesktopPtyResize
   session.shouldSuppressDesktopPtyResize = () => {
     const ptyId = session.transport.getPtyId()
-    return suppress() || (ptyId !== null && tuiRepaintPtyIds.has(ptyId))
+    return Boolean(suppress?.()) || (ptyId !== null && tuiRepaintPtyIds.has(ptyId))
   }
 }

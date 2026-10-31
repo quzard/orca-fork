@@ -18,7 +18,6 @@ import {
   toRuntimeWorktreeRelativePath,
   type DocPreviewGrant
 } from './doc-preview-grant-registry'
-import { readForkTerminalHtmlPreview } from '../../fork/main/terminal-html-preview-bytes'
 import { getRuntimeEnvironmentRegistryRoot } from '../ipc/runtime-environments/runtime-environment-registry-root'
 
 const DOC_PREVIEW_READ_TIMEOUT_MS = 15_000
@@ -231,10 +230,6 @@ export async function readDocPreviewFile(
     }
   }
   const contentType = docPreviewContentType(relativePath)
-  const forkPreview = await readForkTerminalHtmlPreview(grant, absolutePath, contentType)
-  if (forkPreview) {
-    return forkPreview
-  }
   try {
     if (grant.owner.kind === 'ssh') {
       return notFoundOutcome(SSH_HOST_NOT_SERVED_MESSAGE)

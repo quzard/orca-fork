@@ -8,17 +8,8 @@ import { getGitRepoRoot } from '../../main/git/repo-detection'
 import { registerImportedWorktreePath } from '../../shared/fork-hooks/imported-worktree-path'
 import { registerForkBuild } from '../../shared/fork-hooks/update-feed'
 import { registerKeepFolderWorkspacesOnGroupDeleteInMain } from '../../shared/fork-hooks/project-group-delete'
-import {
-  forgetTerminalHtmlPreviewServe,
-  registerSshHtmlPreviewRead
-} from '../../shared/fork-hooks/terminal-html-preview'
-import { onDocPreviewGrantRevoked } from '../../main/browser/doc-preview-grant-registry'
-import { readConnectedSshHtmlPreview } from './ssh-html-preview-read'
 import { keepFolderWorkspacesOnGroupDelete } from './project-group-delete'
 import { registerEgoLiteCookieBrowser } from '../ego-lite-cookie-browser'
-
-// registerForkMainModules 可能进两次。撤销监听只挂一次，避免同一条授权被忘掉两遍。
-let htmlPreviewRevokeWatched = false
 
 /** Desktop and orcad. The renderer must not import this file. */
 export function registerForkMainModules(): void {
@@ -31,12 +22,6 @@ export function registerForkMainModules(): void {
   registerDeferBrowserSessionProxy(true)
   registerImportedWorktreePath(getGitRepoRoot)
   registerKeepFolderWorkspacesOnGroupDeleteInMain(keepFolderWorkspacesOnGroupDelete)
-  // 直连 SSH 的 HTML 预览在桌面读文件。orcad 没有这条连接时读取函数返回 null。
-  registerSshHtmlPreviewRead(readConnectedSshHtmlPreview)
-  if (!htmlPreviewRevokeWatched) {
-    htmlPreviewRevokeWatched = true
-    onDocPreviewGrantRevoked((grant) => forgetTerminalHtmlPreviewServe(grant.id))
-  }
 }
 
 /**

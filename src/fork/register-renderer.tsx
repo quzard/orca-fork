@@ -35,9 +35,6 @@ import {
 import { registerComposerSeed } from './sidebar/register-composer-seed'
 import { installForkLocaleOverlays } from './i18n/locale-overlay'
 import { registerForkWorktreeContextMenuLabels } from './sidebar/context-menu-labels'
-import { installManagedSshAddressPreview } from './terminal/html-preview-address'
-import { installSshRoutedHtmlPreviewRecovery } from './terminal/html-preview-reclaim'
-import { registerTerminalFileLinkStayWatch } from './terminal/file-link-stay-watch'
 import { registerWorkspaceRepositorySourceControl } from './source-control/register'
 
 /** Renderer hooks. Kept out of the node program so it can read the app store. */
@@ -71,9 +68,6 @@ export function registerForkRendererModules(): void {
   })
   registerComposerSeed()
   registerForkWorktreeContextMenuLabels()
-  registerTerminalFileLinkStayWatch()
-  installManagedSshAddressPreview()
-  installSshRoutedHtmlPreviewRecovery()
   registerPostImportHook((details) =>
     import('./import/apply-post-import').then((module) => module.applyForkPostImport(details))
   )

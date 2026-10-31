@@ -2,29 +2,32 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { CONTEXT_MENU_LABEL_KEYS } from '../sidebar/context-menu-label-keys'
-import { SSH_STATUS_KEYS } from '../ssh/ssh-status-keys'
 import en from './en.json'
 import zh from './zh.json'
 
 type Catalog = Record<string, unknown>
 
+// SAFETY: both locale files are JSON objects keyed by string.
 const upstreamEn = JSON.parse(
   readFileSync('src/renderer/src/i18n/locales/en.json', 'utf8')
 ) as Catalog
+// SAFETY: as above.
 const upstreamZh = JSON.parse(
   readFileSync('src/renderer/src/i18n/locales/zh.json', 'utf8')
 ) as Catalog
 
 // Every key fork code builds at runtime comes from one of these typed const lists.
 const KEY_LISTS: Record<string, Readonly<Record<string, string>>> = {
-  CONTEXT_MENU_LABEL_KEYS,
-  SSH_STATUS_KEYS
+  CONTEXT_MENU_LABEL_KEYS
 }
 
 function lookup(catalog: unknown, key: string): unknown {
-  return key
-    .split('.')
-    .reduce<unknown>((node, part) => (node as Catalog | undefined)?.[part], catalog)
+  return (
+    key
+      .split('.')
+      // SAFETY: a missing segment yields undefined, which the optional chain carries through.
+      .reduce<unknown>((node, part) => (node as Catalog | undefined)?.[part], catalog)
+  )
 }
 
 function sourceFiles(dir: string): string[] {
@@ -91,7 +94,8 @@ describe('fork translation keys', () => {
   it('upstream files translate no fork key, so upstream en.json needs none', () => {
     const leafKeys = (value: unknown, prefix = ''): string[] =>
       typeof value === 'object' && value !== null
-        ? Object.entries(value as Catalog).flatMap(([key, child]) =>
+        ? // SAFETY: the typeof/null check above narrows to a JSON object.
+          Object.entries(value as Catalog).flatMap(([key, child]) =>
             leafKeys(child, prefix ? `${prefix}.${key}` : key)
           )
         : [prefix]

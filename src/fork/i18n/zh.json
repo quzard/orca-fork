@@ -94,15 +94,6 @@
       "undo": "撤销"
     }
   },
-  "sshConnectionStatus": {
-    "authFailed": "认证失败",
-    "connected": "已连接",
-    "connecting": "正在连接…",
-    "deployingRelay": "正在部署中继…",
-    "disconnected": "已断开连接",
-    "reconnecting": "正在重新连接…",
-    "reconnectionFailed": "重新连接失败"
-  },
   "workspaceImport": {
     "parentFolderFailed": "仓库已导入；父文件夹未能设置完成"
   }

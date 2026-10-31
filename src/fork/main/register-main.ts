@@ -2,10 +2,8 @@
 
 import { registerAiVaultServiceHeap } from '../../shared/fork-hooks/ai-vault'
 import { registerDeferBrowserSessionProxy } from '../../shared/fork-hooks/startup'
-import { registerTerminalWorkspaceResolver } from '../../shared/fork-hooks/terminal-lifecycle'
 import { aiVaultServiceHeapMiB } from './ai-vault/heap'
 import { installAiVaultForkServicePolicy } from './ai-vault/service-policy'
-import { resolveFolderTerminalWorkspace } from '../terminal/folder-workspace-resolver'
 import { getGitRepoRoot } from '../../main/git/repo-detection'
 import { registerImportedWorktreePath } from '../../shared/fork-hooks/imported-worktree-path'
 import { registerForkBuild } from '../../shared/fork-hooks/update-feed'
@@ -33,7 +31,6 @@ export function registerForkMainModules(): void {
   installAiVaultForkServicePolicy()
   registerAiVaultServiceHeap(() => aiVaultServiceHeapMiB())
   registerDeferBrowserSessionProxy(true)
-  registerTerminalWorkspaceResolver(resolveFolderTerminalWorkspace)
   registerImportedWorktreePath(getGitRepoRoot)
   registerKeepFolderWorkspacesOnGroupDeleteInMain(keepFolderWorkspacesOnGroupDelete)
   // 直连 SSH 的 HTML 预览在桌面读文件。orcad 没有这条连接时读取函数返回 null。

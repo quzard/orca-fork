@@ -1,14 +1,4 @@
-// fork: 终端选择器解析与重连 fit 回调。解析器返回 null 时继续走上游匹配。
-
-/** 主进程运行时实例。登记方在回调里收窄到自己要用的方法。 */
-export type TerminalWorkspaceHost = {
-  readonly forkTerminalHost?: true
-}
-
-export type TerminalWorkspaceResolver = (
-  selector: string,
-  runtime: TerminalWorkspaceHost
-) => unknown
+// fork: SSH 重连后的 fit 回调。
 
 export type TerminalReconnectFitInfo = {
   ptyId: string
@@ -28,7 +18,6 @@ export type TerminalPaneShownInfo = {
 
 const tuiRepaintPtyIds = new Set<string>()
 
-let workspaceResolver: TerminalWorkspaceResolver | undefined
 let reconnectFitHook: ((info: TerminalReconnectFitInfo) => void) | undefined
 let paneShownHook: ((info: TerminalPaneShownInfo) => void) | undefined
 
@@ -43,14 +32,6 @@ export function setForkTuiRepaintActive(ptyId: string, active: boolean): void {
     return
   }
   tuiRepaintPtyIds.delete(ptyId)
-}
-
-export function registerTerminalWorkspaceResolver(next: TerminalWorkspaceResolver): void {
-  workspaceResolver = next
-}
-
-export function getTerminalWorkspaceResolver(): TerminalWorkspaceResolver | undefined {
-  return workspaceResolver
 }
 
 export function registerTerminalReconnectFitHook(

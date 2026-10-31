@@ -11,7 +11,11 @@
     "../src/fork/**/*.tsx",
     "../src/cli/skills-source-commit.ts"
   ],
-  "exclude": ["../src/fork/main/**", "../src/fork/**/*.fork.test.ts"],
+  "exclude": [
+    "../src/renderer/src/components/terminal-pane/pty-agent-pane-launch.test.ts",
+    "../src/fork/main/**",
+    "../src/fork/**/*.fork.test.ts"
+  ],
   "compilerOptions": {
     "composite": true,
     "jsx": "react-jsx",

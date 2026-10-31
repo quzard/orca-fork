@@ -42,7 +42,7 @@ export abstract class UpdaterBuildSelection extends UpdaterMenuChecks {
         import('../local-builds/local-build-switch'),
         import('../local-builds/local-build-feed-server')
       ])
-      const candidate = await chooseLocalBuild(this.mainWindowRef)
+      const candidate = await chooseLocalBuild(this.getMainWindow)
       if (!candidate) {
         return
       }

@@ -152,6 +152,7 @@ describe('mergeRuntimeFolderWorkspace', () => {
     expect('hostId' in merged).toBe(false)
     expect('projectHostSetupId' in merged).toBe(false)
     expect('manualOrder' in merged).toBe(false)
+    expect('sidebarGroupId' in merged).toBe(false)
     expect('createdAt' in merged).toBe(false)
     expect('createdWithAgent' in merged).toBe(false)
     expect('automationProvenance' in merged).toBe(false)
@@ -168,6 +169,7 @@ describe('mergeRuntimeFolderWorkspace', () => {
         hostId: 'local',
         projectHostSetupId: 'setup-1',
         manualOrder: 3,
+        sidebarGroupId: 'g1',
         createdAt: 42,
         priorWorktreeIds: ['old-id']
       })
@@ -177,6 +179,7 @@ describe('mergeRuntimeFolderWorkspace', () => {
     expect(merged.hostId).toBe('local')
     expect(merged.projectHostSetupId).toBe('setup-1')
     expect(merged.manualOrder).toBe(3)
+    expect(merged.sidebarGroupId).toBe('g1')
     expect(merged.createdAt).toBe(42)
     expect(merged.priorWorktreeIds).toEqual(['old-id'])
   })

@@ -90,6 +90,10 @@ export function folderWorkspaceToWorktree(folderWorkspace: FolderWorkspace): Wor
     isPinned: folderWorkspace.isPinned,
     sortOrder: folderWorkspace.sortOrder,
     manualOrder: folderWorkspace.manualOrder,
+    // fork: null 是明确取消分组，必须留在对象上；没设置则不要写成 undefined。
+    ...(folderWorkspace.sidebarGroupId !== undefined
+      ? { sidebarGroupId: folderWorkspace.sidebarGroupId }
+      : {}),
     lastActivityAt: folderWorkspace.lastActivityAt,
     ...(folderWorkspace.smartTier !== undefined
       ? { smartTier: folderWorkspace.smartTier, smartAt: folderWorkspace.smartAt }

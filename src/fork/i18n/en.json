@@ -84,15 +84,6 @@
       "undo": "Undo"
     }
   },
-  "sshConnectionStatus": {
-    "authFailed": "Auth failed",
-    "connected": "Connected",
-    "connecting": "Connecting…",
-    "deployingRelay": "Deploying relay…",
-    "disconnected": "Disconnected",
-    "reconnecting": "Reconnecting…",
-    "reconnectionFailed": "Reconnection failed"
-  },
   "workspaceImport": {
     "parentFolderFailed": "Repositories imported; parent folder setup could not be completed"
   }

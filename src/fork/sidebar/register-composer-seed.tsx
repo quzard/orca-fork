@@ -1,22 +1,37 @@
 // Reads the open composer and remembers the host and sidebar group for the create.
 import { useAppStore } from '@/store'
-import { getAllWorktreesFromState } from '@/store/selectors'
-import {
-  getRepoExecutionHostId,
-  getWorktreeExecutionHostId,
-  LOCAL_EXECUTION_HOST_ID,
-  parseExecutionHostId
-} from '../../shared/execution-host'
+import { getWorktreeOnHostFromState } from '@/store/selectors'
+import { findRepoForHost } from '@/store/slices/repo-host-identity'
+import { getWorktreeExecutionHostId, type ExecutionHostId } from '../../shared/execution-host'
 import {
   composerSeedForOpen,
   registerComposerSeedReader,
   registerCreatedSidebarGroupAssigner
 } from '../../shared/fork-hooks/workspace-composer-seed'
 import { projectGroupHostId, resolveSidebarGroupId } from './membership'
+import { hostDirectoryDefaultHostId } from './section-keys'
 
 function stringField(data: Record<string, unknown>, key: string): string | undefined {
   const value = data[key]
   return typeof value === 'string' && value.length > 0 ? value : undefined
+}
+
+/** True when the group lives on another host than the created workspace: the write would not show. */
+function createdOnOtherHost(
+  state: ReturnType<typeof useAppStore.getState>,
+  worktreeId: string,
+  sidebarGroupId: string,
+  hostId: ExecutionHostId | undefined
+): boolean {
+  const defaultHostId = hostDirectoryDefaultHostId()
+  const group = state.projectGroups.find((entry) => entry.id === sidebarGroupId)
+  const created = getWorktreeOnHostFromState(state, worktreeId, hostId)
+  if (!group || !created) {
+    return false
+  }
+  const repo = findRepoForHost(state.repos, created.repoId, { hostId: created.hostId })
+  const createdHostId = getWorktreeExecutionHostId(created, repo ?? undefined, defaultHostId)
+  return projectGroupHostId(group, defaultHostId) !== createdHostId
 }
 
 export function registerComposerSeed(): void {
@@ -26,22 +41,24 @@ export function registerComposerSeed(): void {
       return null
     }
     const data = state.modalData
-    const explicitHost = parseExecutionHostId(stringField(data, 'initialExecutionHostId') ?? '')
+    // The sidebar's default host, as the host-directory rows place rows and groups without one.
+    const defaultHostId = hostDirectoryDefaultHostId()
     const groupId = stringField(data, 'initialProjectGroupId')
     const group = groupId ? state.projectGroups.find((entry) => entry.id === groupId) : undefined
-    const active = getAllWorktreesFromState(state).find(
-      (worktree) => worktree.id === state.activeWorktreeId
-    )
-    const activeRepo = active
-      ? state.repos.find(
-          (repo) =>
-            repo.id === active.repoId &&
-            getRepoExecutionHostId(repo) === getWorktreeExecutionHostId(active, undefined)
+    // Same-id workspaces can live on two hosts: the active one is the active host's copy.
+    const active = state.activeWorktreeId
+      ? getWorktreeOnHostFromState(
+          state,
+          state.activeWorktreeId,
+          state.activeWorkspaceExecutionHostId ?? undefined
         )
       : undefined
+    const activeRepo = active
+      ? (findRepoForHost(state.repos, active.repoId, { hostId: active.hostId }) ?? undefined)
+      : undefined
     const activeHostId = active
-      ? getWorktreeExecutionHostId(active, activeRepo)
-      : (state.activeWorkspaceExecutionHostId ?? LOCAL_EXECUTION_HOST_ID)
+      ? getWorktreeExecutionHostId(active, activeRepo, defaultHostId)
+      : (state.activeWorkspaceExecutionHostId ?? defaultHostId)
     const groupsById = new Map(state.projectGroups.map((entry) => [entry.id, entry]))
     const activeGroupId = active
       ? resolveSidebarGroupId({
@@ -49,7 +66,7 @@ export function registerComposerSeed(): void {
           inheritedGroupId: activeRepo?.projectGroupId,
           groupsById,
           hostId: activeHostId,
-          defaultHostId: LOCAL_EXECUTION_HOST_ID
+          defaultHostId
         })
       : null
     return composerSeedForOpen({
@@ -58,20 +75,21 @@ export function registerComposerSeed(): void {
       initialProjectGroupId: groupId,
       hasWorkspaceTarget: data.initialWorkspaceTarget != null,
       hasWorkspaceStatus: data.initialWorkspaceStatus != null,
-      explicitHostId: explicitHost?.id ?? null,
-      explicitGroupId: stringField(data, 'targetSidebarGroupId') ?? null,
-      groupHostId: group ? projectGroupHostId(group, LOCAL_EXECUTION_HOST_ID) : null,
+      groupHostId: group ? projectGroupHostId(group, defaultHostId) : null,
       activeHostId,
       activeGroupId
     })
   })
   registerCreatedSidebarGroupAssigner(async (worktreeId, sidebarGroupId, hostId) => {
-    await useAppStore
-      .getState()
-      .updateWorktreeMeta(
-        worktreeId,
-        { sidebarGroupId },
-        hostId ? { executionHostId: hostId } : undefined
-      )
+    const state = useAppStore.getState()
+    // The composer may have switched to a project on another host after it opened from the group.
+    if (createdOnOtherHost(state, worktreeId, sidebarGroupId, hostId)) {
+      return
+    }
+    await state.updateWorktreeMeta(
+      worktreeId,
+      { sidebarGroupId },
+      hostId ? { executionHostId: hostId } : undefined
+    )
   })
 }

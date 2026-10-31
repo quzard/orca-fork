@@ -1,7 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { SSH_STATUS_KEYS } from '../ssh/ssh-status-keys'
 import en from './en.json'
 import zh from './zh.json'
 
@@ -14,10 +13,8 @@ const upstreamZh = JSON.parse(
   readFileSync('src/renderer/src/i18n/locales/zh.json', 'utf8')
 ) as Catalog
 
-// Every key fork code builds at runtime comes from one of these typed const lists.
-const KEY_LISTS: Record<string, Readonly<Record<string, string>>> = {
-  SSH_STATUS_KEYS
-}
+// Every key fork code builds at runtime comes from one of these typed const lists (none today).
+const KEY_LISTS: Record<string, Readonly<Record<string, string>>> = {}
 
 function lookup(catalog: unknown, key: string): unknown {
   return key
@@ -74,7 +71,6 @@ describe('fork translation keys', () => {
 
   it('every resolved key has English and Chinese', () => {
     const keys = [...new Set(resolvedKeys())]
-    expect(keys).toEqual(expect.arrayContaining(Object.values(SSH_STATUS_KEYS)))
     expect(keys.filter((key) => !has([en, upstreamEn], key))).toEqual([])
     expect(keys.filter((key) => !has([zh, upstreamZh], key))).toEqual([])
   })

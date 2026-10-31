@@ -1,5 +1,5 @@
-import { notifyTerminalReconnectFit } from '../../../../../shared/fork-hooks/terminal-lifecycle'
 import { isRemoteRuntimePtyId } from '../../../../../shared/remote-runtime/remote-runtime-pty-id'
+import { notifyTerminalReconnectFit } from '../../../../../shared/fork-hooks/terminal-lifecycle'
 import { safeFitAndThen } from '@/lib/pane-manager/pane-tree-ops'
 import { getFitOverrideForPty } from '@/lib/pane-manager/mobile-fit-overrides'
 
@@ -56,17 +56,8 @@ export async function fitReattachedPaneToGrid(
   session.pendingReattachFit = fit
   try {
     // Verify applied size in the continuation reached by both immediate and reveal-deferred fits.
-    const completed = await fit.completion
-    // fork: 重连 fit 完成回调。未登记时函数体为空。模型已还原或面板仍隐藏时不脉冲。
-    if (ctx.isCurrentReattachPayload()) {
-      notifyTerminalReconnectFit({
-        ptyId: reattachPtyId,
-        cols: session.pane.terminal.cols,
-        rows: session.pane.terminal.rows,
-        restoredFromModel: ctx.revealFollowsTerminalPark && ctx.prefetchedParkModelSnapshot != null,
-        visible: completed && session.deps.isVisibleRef.current
-      })
-    }
+    await fit.completion
+    notifyTerminalReconnectFit(session, ctx, reattachPtyId, fit.completion)
   } finally {
     if (session.pendingReattachFit === fit) {
       session.pendingReattachFit = null

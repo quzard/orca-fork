@@ -11,10 +11,7 @@ import { QUIT_AND_INSTALL_DELAY_MS } from './updater-state'
 import { UpdaterRemoteStatus } from './updater-remote-status'
 import { prepareThisProcessShipItStaging } from './shipit-leftover-recovery'
 import {
-  armForkBackgroundDownload,
   consumeForkBackgroundDownloadFailure,
-  disarmForkBackgroundDownload,
-  forkBackgroundDownloadFollowUp,
   isForkBackgroundDownloadArmed
 } from '../../fork/main/fork-background-download'
 
@@ -145,22 +142,6 @@ export abstract class UpdaterDownloadInstall extends UpdaterRemoteStatus {
       })
     } else {
       startDownload()
-    }
-  }
-
-  /** fork 源后台下载：先标成可下载再走 downloadUpdate，失败时不把请求错误写进日志。 */
-  protected downloadForkBackgroundUpdate(version: string): void {
-    this.availableVersion = version
-    this.currentStatus = { state: 'available', version, changelog: null }
-    armForkBackgroundDownload(version)
-    this.downloadUpdate()
-    const followUp = forkBackgroundDownloadFollowUp(this.currentStatus)
-    if (followUp === 'started') {
-      return
-    }
-    disarmForkBackgroundDownload()
-    if (followUp === 'show-offer') {
-      this.sendStatus(this.currentStatus)
     }
   }
 

@@ -4,34 +4,6 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 describe('fork daily sync split', () => {
-  it('points fork release checks at the anonymous quzard/orca-fork feed only', () => {
-    const setup = readFileSync(resolve('src/main/updater/updater-setup.ts'), 'utf8')
-    const pin = readFileSync(resolve('src/main/updater/updater-release-feed.ts'), 'utf8')
-    const schedule = readFileSync(resolve('src/main/updater/updater-scheduling.ts'), 'utf8')
-    const menu = readFileSync(resolve('src/main/updater/updater-menu-checks.ts'), 'utf8')
-    const download = readFileSync(resolve('src/main/updater/updater-download-install.ts'), 'utf8')
-    const feed = readFileSync(resolve('src/shared/fork-hooks/update-feed.ts'), 'utf8')
-    expect(setup).toContain('isForkBuild()')
-    expect(pin).toContain('forkReleaseFeedDecision()')
-    expect(pin.indexOf('forkReleaseFeedDecision()')).toBeLessThan(
-      pin.indexOf('fetchNewerReleaseTagsWithReadiness(')
-    )
-    expect(pin).not.toMatch(/private-github|PrivateGithub|token/i)
-    expect(schedule).toContain("kind === 'skip'")
-    expect(menu).toContain('FORK_UPSTREAM_RELEASE_BLOCKED')
-    expect(download).not.toContain('forkBuiltinUpdateNotifyOnly')
-    const builds = readFileSync(resolve('src/main/updater-release-builds.ts'), 'utf8')
-    expect(builds.indexOf("from './updater-fallback'")).toBeLessThan(
-      builds.indexOf("from './updater-release-api-token'")
-    )
-    const selection = readFileSync(resolve('src/main/updater/updater-build-selection.ts'), 'utf8')
-    expect(selection.indexOf("from '../updater-fallback'")).toBeLessThan(
-      selection.indexOf('profileStateBuildCompatibilityError')
-    )
-    expect(feed).toContain('private: false')
-    expect(feed).not.toMatch(/token:|process\.env|safeStorage/)
-  })
-
   it('merges upstream into develop, pushes develop without force, and parks failures on a sync branch', () => {
     const script = readFileSync(resolve('fork/scripts/daily-sync.sh'), 'utf8')
     expect(script).toContain('git checkout -B develop origin/develop')

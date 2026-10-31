@@ -1,7 +1,7 @@
 import { app, powerMonitor } from 'electron'
 import type { BrowserWindow } from 'electron'
-import { forkReleaseFeedDecision, isForkBuild } from '../../shared/fork-hooks/update-feed'
-import { forkAutoInstallOnQuit } from '../../fork/main/fork-background-download'
+import { isForkBuild } from '../../shared/fork-hooks/update-feed'
+import { forkInstallsOnQuit } from '../../fork/main/fork-background-download'
 import type { ReleaseBuild, ReleaseChannel } from '../../shared/release-channel'
 import type { ReleaseBuildListOptions } from '../updater-release-build-cache'
 import type {
@@ -20,7 +20,7 @@ import { registerAutoUpdaterHandlers } from '../updater-events'
 import { getServeUpdateHandoffFailure } from '../serve-update-handoff'
 import { recordUpdaterLifecycle } from '../updater-lifecycle-diagnostics'
 import { AUTO_UPDATE_CHECK_INTERVAL_MS } from './updater-state'
-import { UpdaterDownloadInstall } from './updater-download-install'
+import { ForkBackgroundUpdates } from '../../fork/main/updater-background-class'
 import { configureMacShipItScheduling } from './macos-shipit-scheduling'
 import { handleElectronUpdaterProxyLogin } from './electron-updater-proxy-session'
 import type { PreQuitCleanupFailureMode, UpdateInstallMode } from './updater-state'
@@ -39,7 +39,7 @@ export type UpdaterSetupOptions = {
   onBeforeQuitFailure?: PreQuitCleanupFailureMode
 }
 
-export class UpdaterSetup extends UpdaterDownloadInstall {
+export class UpdaterSetup extends ForkBackgroundUpdates {
   checkForUpdates(): void {
     this.checkForUpdatesInBackground()
   }
@@ -151,19 +151,15 @@ export class UpdaterSetup extends UpdaterDownloadInstall {
       autoUpdater.disableDifferentialDownload = false
     }
     // Implicit quit install requires interactive mode and an explicit non-root/AppImage marker; serve requires handoff.
-    autoUpdater.autoInstallOnAppQuit = forkAutoInstallOnQuit({
-      forkReady: forkReleaseFeedDecision().kind === 'ready',
-      interactive: this.updateInstallMode === 'interactive',
-      linuxNonRootImplicitQuit: getLinuxPackageType() === 'non-root',
-      platform: process.platform
-    })
+    autoUpdater.autoInstallOnAppQuit =
+      this.updateInstallMode === 'interactive' && getLinuxPackageType() === 'non-root'
+    autoUpdater.autoInstallOnAppQuit ||= forkInstallsOnQuit(this.updateInstallMode)
     // MacUpdater ignores quitAndInstall arguments; only the surviving CLI supervisor may relaunch serve.
     autoUpdater.autoRunAppAfterInstall = this.updateInstallMode === 'interactive'
     // Keep native updater diagnostics visible through local logging.
     autoUpdater.logger = createUpdaterDiagnosticLogger() as never
 
     // Security: never re-add a verifyUpdateCodeSignature override — a no-op disables electron-updater's built-in Authenticode check and accepts any installer.
-    // fork: fork 构建不要先钉上游地址。
     if (this.activeUpdateSource === 'release' && !isForkBuild()) {
       autoUpdater.setFeedURL({
         provider: 'generic',

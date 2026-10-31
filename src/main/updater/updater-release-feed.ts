@@ -1,5 +1,5 @@
 import { app } from 'electron'
-import { forkReleaseFeedDecision, isForkBuild } from '../../shared/fork-hooks/update-feed'
+import { pinForkUpdateFeed } from '../../fork/main/updater-background-wiring'
 import {
   fetchLatestStableReleaseTag,
   fetchNewerReleaseTagsWithReadiness,
@@ -117,16 +117,8 @@ export abstract class UpdaterReleaseFeed extends UpdaterInstallExecution {
   ): Promise<'ready' | 'not-available'> {
     const attemptId = this.activeUpdateCheckAttemptId
     const autoUpdater = this.getAutoUpdater()
-    // fork: 不拉上游 atom，只钉 quzard/orca-fork 的匿名公开 provider（不带令牌）。差分用 electron-updater 自带的。
-    const forkFeed = forkReleaseFeedDecision()
-    if (forkFeed.kind === 'ready') {
-      autoUpdater.allowPrerelease = true
-      autoUpdater.setFeedURL(forkFeed.feed)
+    if (pinForkUpdateFeed(autoUpdater)) {
       return 'ready'
-    }
-    // fork: fork 构建不要落到上游 latest/download。
-    if (forkFeed.kind === 'skip' || isForkBuild()) {
-      return 'not-available'
     }
     // Pin the concrete tag because latest/download can move between check and download; stable checks exclude prereleases.
     const currentVersion = app.getVersion()

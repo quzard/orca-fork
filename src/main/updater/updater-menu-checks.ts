@@ -1,11 +1,7 @@
 import { app } from 'electron'
-import {
-  FORK_UPSTREAM_RELEASE_BLOCKED,
-  forkReleaseFeedDecision
-} from '../../shared/fork-hooks/update-feed'
-import type { ReleaseChannel } from '../../shared/release-channel'
-import type { UpdateCheckOptions } from '../../shared/update-status-types'
 import { isMacInstallRequested } from '../updater-mac-install'
+import type { UpdateCheckOptions } from '../../shared/update-status-types'
+import type { ReleaseChannel } from '../../shared/release-channel'
 import { UpdaterScheduling } from './updater-scheduling'
 
 export abstract class UpdaterMenuChecks extends UpdaterScheduling {
@@ -27,16 +23,6 @@ export abstract class UpdaterMenuChecks extends UpdaterScheduling {
     }
     if (options?.targetTag && options.channel) {
       void this.checkForPinnedBuild(options.channel, options.targetTag)
-      return
-    }
-    // fork: fork 构建没登记更新源时说明原因，不进入上游检查。登记了就继续，pin 会改到 quzard/orca-fork。
-    if (forkReleaseFeedDecision().kind === 'skip') {
-      this.sendStatus({
-        state: 'error',
-        message: FORK_UPSTREAM_RELEASE_BLOCKED,
-        retryable: false,
-        userInitiated: true
-      })
       return
     }
     if (this.localBuildSelectionInProgress || this.pinnedBuildSelectionInProgress) {

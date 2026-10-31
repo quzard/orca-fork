@@ -37,12 +37,11 @@ function feedUrls(): string[] {
   return autoUpdaterMock.setFeedURL.mock.calls.map((call: unknown[]) => JSON.stringify(call[0]))
 }
 
-async function loadForkUpdater(withFeed: boolean) {
+async function loadForkUpdater() {
   const updater = await loadUpdaterModule()
   // resetUpdaterMocks 会 resetModules，钩子要从同一份模块图里登记。
   const hook = await import('../shared/fork-hooks/update-feed')
   hook.registerForkBuild()
-  hook.registerForkUpdateFeed(withFeed)
   return updater
 }
 
@@ -54,7 +53,7 @@ describe('fork desktop updater never pins a stablyai release feed', () => {
   it('setup and a menu check pin only the anonymous quzard/orca-fork feed', async () => {
     appMock.getVersion.mockReturnValue('1.4.228-local.1792251680994.aaaaaaaaaaaa')
     autoUpdaterMock.checkForUpdates.mockResolvedValue(undefined)
-    const { setupAutoUpdater, checkForUpdatesFromMenu } = await loadForkUpdater(true)
+    const { setupAutoUpdater, checkForUpdatesFromMenu } = await loadForkUpdater()
 
     setupAutoUpdater(
       {
@@ -81,27 +80,5 @@ describe('fork desktop updater never pins a stablyai release feed', () => {
     expect(feedUrls().join('\n')).not.toMatch(/token/i)
     expect(fetchNewerReleaseTagsMock).not.toHaveBeenCalled()
     expect(fetchChangelogMock.mock.calls.length).toBeLessThanOrEqual(1)
-  })
-
-  it('a fork build without the desktop feed never checks and never pins upstream', async () => {
-    appMock.getVersion.mockReturnValue('1.4.228-local.1792251680994.aaaaaaaaaaaa')
-    autoUpdaterMock.checkForUpdates.mockResolvedValue(undefined)
-    const { setupAutoUpdater, checkForUpdatesFromMenu } = await loadForkUpdater(false)
-
-    setupAutoUpdater(
-      {
-        isDestroyed: () => false,
-        webContents: { send: vi.fn(), isDestroyed: () => false }
-      } as never,
-      {
-        getLastUpdateCheckAt: () => 0
-      }
-    )
-    checkForUpdatesFromMenu()
-    await new Promise((resolve) => setTimeout(resolve, 20))
-
-    expect(feedUrls()).toEqual([])
-    expect(autoUpdaterMock.checkForUpdates).not.toHaveBeenCalled()
-    expect(fetchNewerReleaseTagsMock).not.toHaveBeenCalled()
   })
 })

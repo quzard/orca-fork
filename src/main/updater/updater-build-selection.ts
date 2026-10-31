@@ -1,5 +1,4 @@
 import { app } from 'electron'
-import { FORK_UPSTREAM_RELEASE_BLOCKED, isForkBuild } from '../../shared/fork-hooks/update-feed'
 import {
   getVersionChannel,
   hasDedicatedReleaseRepo,
@@ -92,16 +91,6 @@ export abstract class UpdaterBuildSelection extends UpdaterMenuChecks {
   protected async checkForPinnedBuild(channel: ReleaseChannel, tag: string): Promise<void> {
     if (!app.isPackaged) {
       this.sendStatus({ state: 'not-available', userInitiated: true })
-      return
-    }
-    // fork: 指定版本会拼上游下载地址并交给 checkForUpdates。这里直接停。
-    if (isForkBuild()) {
-      this.sendStatus({
-        state: 'error',
-        message: FORK_UPSTREAM_RELEASE_BLOCKED,
-        retryable: false,
-        userInitiated: true
-      })
       return
     }
     // Enforce platform artifact availability in main; renderer-disabled options do not protect IPC.

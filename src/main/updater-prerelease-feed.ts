@@ -1,6 +1,6 @@
 import { net } from 'electron'
 import { parse } from 'yaml'
-import { forkGuardedReleaseDownloadUrl, isForkBuild } from '../shared/fork-hooks/update-feed'
+import { isForkBuild } from '../shared/fork-hooks/update-feed'
 import { compareVersions, isPrereleaseVersion, isValidVersion } from './updater-fallback'
 
 const ATOM_FEED_URL = 'https://github.com/stablyai/orca/releases.atom'
@@ -12,8 +12,7 @@ const MAX_MANIFEST_PROBE_CANDIDATES = 6
 const TAG_HREF_RE = /href="https:\/\/github\.com\/stablyai\/orca\/releases\/tag\/([^"]+)"/g
 
 export function getReleaseDownloadUrl(tag: string): string {
-  // fork: 兜底。fork 构建的检查在前面就停了，走到这里说明有新的上游路径漏了门。
-  return forkGuardedReleaseDownloadUrl(`${RELEASES_DOWNLOAD_BASE}/${encodeURIComponent(tag)}`)
+  return `${RELEASES_DOWNLOAD_BASE}/${encodeURIComponent(tag)}`
 }
 
 function getPlatformManifestName(): string {
@@ -272,7 +271,6 @@ export async function fetchNewerReleaseTagsWithReadiness(
   maxTags: number,
   options: FetchNewerReleaseTagOptions = {}
 ): Promise<FetchNewerReleaseTagsResult> {
-  // fork: 已登记时不读上游 atom，也不探测上游产物。
   if (isForkBuild()) {
     return { tags: [], state: 'no-newer' }
   }

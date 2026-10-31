@@ -6,9 +6,10 @@ import {
 } from '../../shared/execution-host'
 
 type VaultHostMenuOption = { id: string; label: string }
+export type VaultHostMenu = readonly VaultHostMenuOption[]
 
 // The folded hosts of a main-menu list, keyed by that list, so the menu needs no extra prop.
-const otherHostsByMenu = new WeakMap<object, readonly VaultHostMenuOption[]>()
+const otherHostsByMenu = new WeakMap<VaultHostMenu, VaultHostMenu>()
 
 export function splitVaultHostMenu<T extends VaultHostMenuOption>(
   options: readonly T[],
@@ -44,6 +45,6 @@ export function splitVaultHostMenu<T extends VaultHostMenuOption>(
   return main
 }
 
-export function otherVaultHosts(menu: object): readonly VaultHostMenuOption[] {
+export function otherVaultHosts(menu: VaultHostMenu): VaultHostMenu {
   return otherHostsByMenu.get(menu) ?? []
 }

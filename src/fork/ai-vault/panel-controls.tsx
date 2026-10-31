@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils'
 import { normalizeExecutionHostScope, type ExecutionHostScope } from '../../shared/execution-host'
 import type { AiVaultSessionGroup } from '../../shared/ai-vault-session-filters'
 import { forkTranslate } from '../i18n/fork-translate'
-import { otherVaultHosts } from './host-menu'
+import { otherVaultHosts, type VaultHostMenu } from './host-menu'
 import { aiVaultHostRowsRegistered, readAiVaultHostSessionCount } from './list-presentation'
 
 export function AiVaultCollapseAllButton({ onClick }: { onClick: () => void }): React.JSX.Element {
@@ -68,7 +68,7 @@ export function ForkVaultGroupHeader({
 
 /** The hosts the panel's menu list leaves out, in a submenu. Null when there are none. */
 export function forkOtherVaultHostsMenu(
-  menu: readonly object[],
+  menu: VaultHostMenu,
   scope: ExecutionHostScope,
   onChange: (scope: ExecutionHostScope) => void
 ): React.JSX.Element | null {

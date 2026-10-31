@@ -11,6 +11,7 @@ import {
   type RuntimeGitCommandHost,
   type RuntimeGitTarget
 } from '../../../main/runtime/runtime-git-command-target'
+import type { RpcContext } from '../../../main/runtime/rpc/core'
 import { REPOSITORY_UNINITIALIZED } from '../../git-workspace/constants'
 import type {
   WorkspaceRepositoryList,
@@ -26,9 +27,11 @@ import {
 import { locateWorkspaceRepository } from './guard'
 import { listedNestedRepositoryRoots, omitNestedRepositoryEntries } from './root-status-entries'
 
-// RPC 上下文里用到的几项。runtime 是承载这个工作区的运行时（桌面本机或主机上的 orcad）。
+type GitTargetResolver = Pick<RuntimeGitCommandHost, 'resolveRuntimeGitTarget'>
+
+// RPC 上下文里用到的几项。runtime 是承载这个工作区的运行时（桌面本机或主机上的 orcad），测试只给解析函数。
 export type WorkspaceRpcCaller = {
-  runtime: object
+  runtime: RpcContext['runtime'] | GitTargetResolver
   clientKind?: 'mobile' | 'runtime'
   requestId?: string
   signal?: AbortSignal
@@ -41,16 +44,20 @@ function contentBudget(caller: WorkspaceRpcCaller): number | undefined {
     : undefined
 }
 
-type GitTargetResolver = Pick<RuntimeGitCommandHost, 'resolveRuntimeGitTarget'>
-
 // resolveRuntimeGitTarget 在运行时的子类上是 protected，RPC 处理函数只拿得到 runtime 本身。
-function resolvesGitTargets(runtime: object): runtime is GitTargetResolver {
+function resolvesGitTargets(runtime: unknown): runtime is GitTargetResolver {
   return (
-    'resolveRuntimeGitTarget' in runtime && typeof runtime.resolveRuntimeGitTarget === 'function'
+    typeof runtime === 'object' &&
+    runtime !== null &&
+    'resolveRuntimeGitTarget' in runtime &&
+    typeof runtime.resolveRuntimeGitTarget === 'function'
   )
 }
 
-async function workspaceTarget(runtime: object, worktree: string): Promise<RuntimeGitTarget> {
+async function workspaceTarget(
+  runtime: WorkspaceRpcCaller['runtime'],
+  worktree: string
+): Promise<RuntimeGitTarget> {
   if (!resolvesGitTargets(runtime)) {
     throw new Error('runtime_git_target_unavailable')
   }

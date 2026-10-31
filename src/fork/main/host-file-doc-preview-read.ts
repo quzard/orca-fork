@@ -1,6 +1,7 @@
 // F046: a doc preview whose document lies outside its runtime worktree, read file by file through
 // host grants: files.resolveTerminalPath mints each, files.readTerminalArtifactPreview reads it.
 import type { HostFileDocPreviewOutcome } from '../../shared/fork-hooks/host-file-doc-preview'
+import type { RpcSendParams } from '../../shared/rpc-contract/rpc-send-params'
 import { callRuntimeEnvironment } from '../../main/ipc/runtime-environments/runtime-environment-transport-routing'
 import { getRuntimeEnvironmentRegistryRoot } from '../../main/ipc/runtime-environments/runtime-environment-registry-root'
 import {
@@ -31,8 +32,13 @@ function notFound(message = 'Not found'): HostFileDocPreviewOutcome {
 }
 
 type HostOwner = { environmentId: string; worktreeSelector: string }
+type HostFileMethod = 'files.resolveTerminalPath' | 'files.readTerminalArtifactPreview'
 
-async function callHost(owner: HostOwner, method: string, params: object): Promise<unknown> {
+async function callHost<Method extends HostFileMethod>(
+  owner: HostOwner,
+  method: Method,
+  params: Omit<RpcSendParams<Method>, 'worktree'>
+): Promise<unknown> {
   const response = await callRuntimeEnvironment(
     getRuntimeEnvironmentRegistryRoot(),
     owner.environmentId,

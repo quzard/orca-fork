@@ -42,16 +42,7 @@ function browserStorage(): Pick<Storage, 'getItem' | 'setItem'> | null {
   }
 }
 
-function fieldsOf(value: object): Record<string, unknown> {
-  const fields: Record<string, unknown> = {}
-  for (const [key, entry] of Object.entries(value)) {
-    fields[key] = entry
-  }
-  return fields
-}
-
-function textField(fields: Record<string, unknown>, key: string): string | undefined {
-  const entry = fields[key]
+function textField(entry: unknown): string | undefined {
   return typeof entry === 'string' && entry.length > 0 ? entry : undefined
 }
 
@@ -59,19 +50,21 @@ function readRecord(value: unknown): WorkspaceArchiveRecord | null {
   if (typeof value !== 'object' || value === null) {
     return null
   }
-  const fields = fieldsOf(value)
-  const id = textField(fields, 'id')
-  const repoId = textField(fields, 'repoId')
+  const fields: Partial<Record<keyof WorkspaceArchiveRecord, unknown>> = value
+  const id = textField(fields.id)
+  const repoId = textField(fields.repoId)
   if (!id || !repoId) {
     return null
   }
+  const hostId = textField(fields.hostId)
+  const identityKey = textField(fields.identityKey)
   return {
     id,
-    path: textField(fields, 'path') ?? '',
+    path: textField(fields.path) ?? '',
     repoId,
     pathOnly: fields.pathOnly === true,
-    ...(textField(fields, 'hostId') ? { hostId: textField(fields, 'hostId') } : {}),
-    ...(textField(fields, 'identityKey') ? { identityKey: textField(fields, 'identityKey') } : {})
+    ...(hostId ? { hostId } : {}),
+    ...(identityKey ? { identityKey } : {})
   }
 }
 

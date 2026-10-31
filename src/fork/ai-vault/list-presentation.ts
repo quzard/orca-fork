@@ -13,6 +13,7 @@ type HostGroup<Session extends HostSession> = {
   key: string
   label: string | null
   sessions: Session[]
+  [HOST_SESSION_COUNT]?: number
 }
 
 /**
@@ -110,9 +111,8 @@ export function visibleAiVaultGroups<Session extends HostSession>(
 }
 
 /** The count a host row shows; undefined for every other group. */
-export function readAiVaultHostSessionCount(group: object): number | undefined {
-  const count: unknown = Reflect.get(group, HOST_SESSION_COUNT)
-  return typeof count === 'number' ? count : undefined
+export function readAiVaultHostSessionCount(group: HostGroup<HostSession>): number | undefined {
+  return group[HOST_SESSION_COUNT]
 }
 
 function labeledKeys<Session extends HostSession>(groups: readonly HostGroup<Session>[]): string[] {

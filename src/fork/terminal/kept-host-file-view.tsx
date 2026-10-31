@@ -1,4 +1,4 @@
-// F046: a paired host's file that another workspace holds stays in the clicked workspace, read-only.
+// F046: a host file another workspace holds stays in the clicked workspace, read-only.
 // .tsx because it imports renderer aliases; the node project only includes src/fork/**/*.ts.
 import {
   acquireTerminalArtifactGrant,

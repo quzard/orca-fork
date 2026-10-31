@@ -255,7 +255,7 @@ export async function readDocPreviewFile(
       .filter((root): root is string => root !== null)
     if (!worktreeRelativePath || !entryRelativePath) {
       // Runtime file reads cannot address documents outside the worktree.
-      return (await readHostDocPreview(grant.id, absolutePath, contentType)) ?? notFoundOutcome()
+      return readHostDocPreview(grant.id, absolutePath, contentType) ?? notFoundOutcome()
     }
     const params: RuntimeDocPreviewReadParams = {
       worktree: runtimeOwner.worktreeSelector,

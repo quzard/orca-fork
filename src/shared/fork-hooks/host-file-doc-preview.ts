@@ -42,7 +42,7 @@ type HostFileDocPreviewReader = (
   grantId: string,
   absolutePath: string,
   contentType: string
-) => Promise<HostFileDocPreviewOutcome | null>
+) => Promise<HostFileDocPreviewOutcome>
 
 let renderer: HostFileDocPreviewRenderer | null = null
 let reader: HostFileDocPreviewReader | null = null
@@ -75,7 +75,7 @@ export function hostFileDocLocation(
   return renderer.location({ environmentId, worktreeId, worktreeRoot, root, entryRelativePath })
 }
 
-/** An image a document outside the workspace names; null keeps upstream's outside-worktree error. */
+/** An image a document outside the workspace names; null keeps upstream's error. */
 export function readHostDocumentResource(
   target: RuntimeClientTarget,
   worktreeId: string | null | undefined,
@@ -95,11 +95,11 @@ export function hostFileDocFolder(
   return renderer && location ? renderer.folder(location) : null
 }
 
-/** Main process: null leaves the grant to upstream's reader. */
+/** Main process, where upstream's reader gives up outside the worktree; null keeps its 404. */
 export function readHostDocPreview(
   grantId: string,
   absolutePath: string,
   contentType: string
-): Promise<HostFileDocPreviewOutcome | null> {
-  return reader ? reader(grantId, absolutePath, contentType) : Promise.resolve(null)
+): Promise<HostFileDocPreviewOutcome> | null {
+  return reader ? reader(grantId, absolutePath, contentType) : null
 }

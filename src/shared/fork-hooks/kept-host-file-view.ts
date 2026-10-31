@@ -38,12 +38,12 @@ export function registerKeptHostFileViews(next: KeptHostFileViews): void {
   views = next
 }
 
-/** The host named another workspace; a grant keeps the file in the clicked one. */
+/** Another workspace holds the path: a grant keeps it in the clicked one. Null unregistered. */
 export function keepHostFileInClickedWorkspace(
   source: KeptHostFileSource,
   resolved: RuntimeTerminalPathResolution
-): Promise<KeptHostFile | null> {
-  return views ? views.keep(source, resolved) : Promise.resolve(null)
+): Promise<KeptHostFile | null> | null {
+  return views ? views.keep(source, resolved) : null
 }
 
 /** A kept view must not be re-owned into the workspace that holds its path. */

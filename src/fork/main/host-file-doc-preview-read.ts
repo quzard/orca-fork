@@ -1,5 +1,5 @@
 // F046: a doc preview whose document lies outside its runtime worktree, read file by file through
-// the host's grants: files.resolveTerminalPath mints one, files.readTerminalArtifactPreview reads it.
+// host grants: files.resolveTerminalPath mints each, files.readTerminalArtifactPreview reads it.
 import type { HostFileDocPreviewOutcome } from '../../shared/fork-hooks/host-file-doc-preview'
 import { callRuntimeEnvironment } from '../../main/ipc/runtime-environments/runtime-environment-transport-routing'
 import { getRuntimeEnvironmentRegistryRoot } from '../../main/ipc/runtime-environments/runtime-environment-registry-root'
@@ -93,20 +93,20 @@ function toOutcome(preview: unknown, contentType: string): HostFileDocPreviewOut
     : UNSUPPORTED
 }
 
-/** Null for every grant upstream's reader can serve: its document sits inside the worktree. */
+/** Called only where upstream's reader gives up; a document inside the worktree stays its 404. */
 export async function readGrantedHostDocPreview(
   grantId: string,
   absolutePath: string,
   contentType: string
-): Promise<HostFileDocPreviewOutcome | null> {
+): Promise<HostFileDocPreviewOutcome> {
   const grant = getDocPreviewGrant(grantId)
   if (!grant || grant.owner.kind !== 'runtime') {
-    return null
+    return notFound()
   }
   const owner = grant.owner
   const entry = resolveDocPreviewAuthorityPaths(grant).entryPath
   if (!entry || toRuntimeWorktreeRelativePath(owner.worktreeRoot, entry) !== null) {
-    return null
+    return notFound()
   }
   const resolutions = new Map<string, Promise<unknown>>()
   const resolve = (path: string): Promise<unknown> => {

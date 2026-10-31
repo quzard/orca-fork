@@ -2,7 +2,7 @@
 
 由 `python3 fork/scripts/generate-audit.py` 生成（`--check` 只比对）。主表是和上游基点（`src/fork/skills-source-commit.ts` 记录的提交）不同的每个文件，一个不多一个不少；末尾另列已恢复成上游或已删除的文件，它们必须和基点相同。`src/fork/audit-table.fork.test.ts` 检查表和仓库一致。
 
-共 465 行：delete 4，keep 443，revert-to-upstream 18。上游文件（不含 fork 目录）里的 fork 改动 2276 行，涉及 174 个文件。
+共 470 行：delete 5，keep 443，revert-to-upstream 22。上游文件（不含 fork 目录）里的 fork 改动 2259 行，涉及 173 个文件。
 
 | 文件                                                                                    | 功能                     | 决定 | 原因                                                                                                                                              |
 | --------------------------------------------------------------------------------------- | ------------------------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -99,6 +99,7 @@
 | `src/fork/main/disowned-host-file-open.ts`                                              | F046 终端文件链接        | keep | fork 自有文件                                                                                                                                     |
 | `src/fork/main/ego-lite-cookie-detection.ts`                                            | F049 Cookie 导入         | keep | fork 自有文件                                                                                                                                     |
 | `src/fork/main/electron-updater-staging.fork.test.ts`                                   | UPD 应用内更新           | keep | fork 自有文件（测试）                                                                                                                             |
+| `src/fork/main/folder-stop-target.ts`                                                   | SB 侧栏/工作区           | keep | fork 自有文件                                                                                                                                     |
 | `src/fork/main/fork-background-download.fork.test.ts`                                   | INFRA 登记/工程/文档     | keep | fork 自有文件（测试）                                                                                                                             |
 | `src/fork/main/fork-background-download.ts`                                             | INFRA 登记/工程/文档     | keep | fork 自有文件                                                                                                                                     |
 | `src/fork/main/fork-update-adapter.ts`                                                  | INFRA 登记/工程/文档     | keep | fork 自有文件                                                                                                                                     |
@@ -264,7 +265,7 @@
 | `src/main/browser/doc-preview-file-reader.test.ts`                                      | F046 终端文件链接        | keep | 上游文件，fork 改动 76 行                                                                                                                         |
 | `src/main/browser/doc-preview-file-reader.ts`                                           | F046 终端文件链接        | keep | 上游文件，fork 改动 5 行                                                                                                                          |
 | `src/main/computer/macos-computer-use-permissions.ts`                                   | F006 权限窗口            | keep | 上游文件，fork 改动 2 行                                                                                                                          |
-| `src/main/index.ts`                                                                     | INFRA 登记/工程/文档     | keep | 上游文件，fork 改动 8 行                                                                                                                          |
+| `src/main/index.ts`                                                                     | INFRA 登记/工程/文档     | keep | 上游文件，fork 改动 2 行                                                                                                                          |
 | `src/main/ipc/doc-preview-grant-ipc.test.ts`                                            | F046 终端文件链接        | keep | 上游文件，fork 改动 17 行                                                                                                                         |
 | `src/main/ipc/doc-preview-grant-ipc.ts`                                                 | F046 终端文件链接        | keep | 上游文件，fork 改动 28 行                                                                                                                         |
 | `src/main/ipc/repos/folder-workspace-handlers.ts`                                       | SB 侧栏/工作区           | keep | 上游文件，fork 改动 6 行                                                                                                                          |
@@ -300,11 +301,10 @@
 | `src/main/runtime/terminal/artifacts/file-grants.ts`                                    | F046 终端文件链接        | keep | 上游文件，fork 改动 12 行                                                                                                                         |
 | `src/main/runtime/terminal/artifacts/local-artifact-read.ts`                            | F046 终端文件链接        | keep | 上游文件，fork 改动 11 行                                                                                                                         |
 | `src/main/runtime/terminal/artifacts/terminal-artifacts.ts`                             | F046 终端文件链接        | keep | 上游文件，fork 改动 64 行                                                                                                                         |
-| `src/main/runtime/terminal/stop/worktree-terminal-stop-targets.ts`                      | SB 侧栏/工作区           | keep | 上游文件，fork 改动 8 行                                                                                                                          |
+| `src/main/runtime/terminal/stop/worktree-terminal-stop-targets.ts`                      | SB 侧栏/工作区           | keep | 上游文件，fork 改动 2 行                                                                                                                          |
 | `src/main/runtime/terminal/terminal-file-path.ts`                                       | F046 终端文件链接        | keep | 上游文件，fork 改动 4 行                                                                                                                          |
 | `src/main/runtime/terminal/terminal-path-resolver.ts`                                   | F046 终端文件链接        | keep | 上游文件，fork 改动 90 行                                                                                                                         |
 | `src/main/runtime/workspaces/workspace-metadata.ts`                                     | SB 侧栏/工作区           | keep | 上游文件，fork 改动 2 行                                                                                                                          |
-| `src/main/runtime/workspaces/workspace-selectors.ts`                                    | SB 侧栏/工作区           | keep | 上游文件，fork 改动 1 行                                                                                                                          |
 | `src/main/startup/main-process-preflight.ts`                                            | F038 密钥存储            | keep | 上游文件，fork 改动 3 行。F038：setSecretStore 先问登记的文件密钥库，没有才 new ElectronSecretStore；未登记时与上游一致                           |
 | `src/main/startup/main-process-ready-foundation.ts`                                     | AIV 历史会话             | keep | 上游文件，fork 改动 11 行                                                                                                                         |
 | `src/main/updater-changelog.ts`                                                         | UPD 应用内更新           | keep | 上游文件，fork 改动 4 行                                                                                                                          |
@@ -383,7 +383,7 @@
 | `src/renderer/src/lib/startup-ui-hydration.ts`                                          | INFRA 登记/工程/文档     | keep | 上游文件，fork 改动 6 行                                                                                                                          |
 | `src/renderer/src/lib/workspace-doc-address-input.ts`                                   | F046 终端文件链接        | keep | 上游文件，fork 改动 26 行                                                                                                                         |
 | `src/renderer/src/lib/worktree-creation-completion.ts`                                  | SB 侧栏/工作区           | keep | 上游文件，fork 改动 7 行                                                                                                                          |
-| `src/renderer/src/main.tsx`                                                             | INFRA 登记/工程/文档     | keep | 上游文件，fork 改动 6 行                                                                                                                          |
+| `src/renderer/src/main.tsx`                                                             | INFRA 登记/工程/文档     | keep | 上游文件，fork 改动 2 行                                                                                                                          |
 | `src/renderer/src/store/folder-workspaces/folder-workspace-mutations.ts`                | SB 侧栏/工作区           | keep | 上游文件，fork 改动 13 行                                                                                                                         |
 | `src/renderer/src/store/project-groups/project-group-removal-state.ts`                  | SB 侧栏/项目组           | keep | 上游文件，fork 改动 3 行                                                                                                                          |
 | `src/renderer/src/store/repos/repo-add-actions.ts`                                      | INFRA 登记/工程/文档     | keep | 上游文件，fork 改动 12 行                                                                                                                         |
@@ -455,6 +455,8 @@
 | 文件                                                                                 | 功能                 | 决定               | 原因                                                             |
 | ------------------------------------------------------------------------------------ | -------------------- | ------------------ | ---------------------------------------------------------------- |
 | `.gitattributes`                                                                     | INFRA 登记/工程/文档 | revert-to-upstream | merge=ours 对 fork 不改的文件无效，对 RPC 目录会留下旧内容       |
+| `config/scripts/compact-packaged-orcad-ripgrep.cjs`                                  | F036 orcad 模板      | revert-to-upstream | F036 在上游校验函数的默认参数里收窄目标                          |
+| `config/scripts/packaged-orcad-browser.cjs`                                          | F036 orcad 模板      | revert-to-upstream | F036 同上                                                        |
 | `config/scripts/vitest-node-runtime-files.mjs`                                       | INFRA 登记/工程/文档 | revert-to-upstream | SQLite 扫描已经找到两个 fork 测试                                |
 | `fork/scripts/release-personal-orca.mjs`                                             | INFRA 登记/工程/文档 | delete             | Mac 上从未使用                                                   |
 | `src/cli/skills-source-commit.ts`                                                    | SKL 技能 pin         | delete             | SKL pin 移到 src/fork/skills-source-commit.ts                    |
@@ -466,11 +468,14 @@
 | `src/main/host/electron-secret-store.ts`                                             | F038 密钥存储        | revert-to-upstream | F038 只在 preflight 一行选择密钥库                               |
 | `src/main/host/safe-storage-availability.ts`                                         | F038 密钥存储        | revert-to-upstream | F038 登记时把 guardedSafeStorage 路由到文件密钥库                |
 | `src/main/remote-ssh-editor-launch.ts`                                               | SSH 状态             | revert-to-upstream | 上游 #33877 用 CLI 打开 SSH 上的 Cursor/VS Code/Zed              |
+| `src/main/runtime/workspaces/workspace-selectors.ts`                                 | SB 侧栏/工作区       | revert-to-upstream | 只多了一行注释                                                   |
+| `src/main/updater-fork-background.ts`                                                | UPD 应用内更新       | delete             | UPD 接线移到 src/fork/main/updater-background-wiring.ts          |
 | `src/main/updater/updater-build-selection.ts`                                        | UPD 应用内更新       | revert-to-upstream | UPD resolveTargetBuild 已拒绝上游 tag                            |
 | `src/main/updater/updater-menu-checks.ts`                                            | UPD 应用内更新       | revert-to-upstream | UPD 的 skip 状态在运行更新器的进程里不会出现                     |
 | `src/main/updater/updater-scheduling.ts`                                             | UPD 应用内更新       | revert-to-upstream | UPD 同上                                                         |
 | `src/renderer/src/assets/terminal.css`                                               | INFRA 登记/工程/文档 | revert-to-upstream | F050 的规则由 fork 注入                                          |
 | `src/renderer/src/components/native-chat/StructuredAgentSessionPaneOverlayLayer.tsx` | INFRA 登记/工程/文档 | revert-to-upstream | F050 智能体会话盖层分支从未生效，已删除                          |
+| `src/renderer/src/components/right-sidebar/local-port-section.tsx`                   | F021/F043 端口转发   | revert-to-upstream | F021/F043 的 Forward 不再穿过分区传参                            |
 | `src/renderer/src/components/sidebar/WorktreeOpenInMenu.tsx`                         | SB 侧栏              | revert-to-upstream | 上游 #33877 覆盖 Open in 的远端启用                              |
 | `src/renderer/src/components/tab-group/RetainedPaneHost.tsx`                         | INFRA 登记/工程/文档 | revert-to-upstream | F050 不再需要分栏组属性                                          |
 | `src/renderer/src/components/terminal-pane/use-covered-terminal-focus-handoff.ts`    | F050 聊天盖层画布    | revert-to-upstream | F050 改成 src/fork/terminal/covered-terminal-canvas.tsx 的样式表 |

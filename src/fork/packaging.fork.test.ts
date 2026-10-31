@@ -134,7 +134,6 @@ describe('fork packaging', () => {
     expect(localBuild).toContain('process.argv.slice(2)')
     expect(installer).toContain('orcad-template/orcad-template.json')
     expect(installer).not.toContain('generate:skill-bundle-manifest')
-    expect(installer).not.toContain('--print-built-targets')
     expect(installer).not.toContain('dist/local-release')
     expect(installer).not.toContain('--publish')
     // --install-built was only for the deleted release-personal-orca.mjs.

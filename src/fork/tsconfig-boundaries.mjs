@@ -1,9 +1,8 @@
-#!/usr/bin/env node
 // A fork file must only reach files its TypeScript projects include, otherwise `pnpm tc` fails
-// with TS6307 on a Mac while vitest stays green. Convention: fork code that imports the renderer is
-// .tsx (the node project includes only src/fork/**/*.ts); main-process-only code lives under
+// with TS6307 while vitest stays green. Convention: fork code that imports the renderer is .tsx
+// (the node project includes only src/fork/**/*.ts); main-process-only code lives under
 // src/fork/main/, and *.fork.test.ts are node tests, both excluded from the web projects.
-// Runs before `pnpm typecheck` and in src/fork/tsconfig-boundaries.fork.test.ts.
+// src/fork/tsconfig-boundaries.fork.test.ts runs it with the fork tests, ahead of tsc.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 
@@ -114,17 +113,4 @@ export function readForkProjects() {
     readProject('tsconfig.web.json', 'web'),
     readProject('tsconfig.tc.web.json', 'tc.web')
   ]
-}
-
-if (process.argv[1] && resolve(process.argv[1]) === import.meta.filename) {
-  const failures = readForkProjects().flatMap((project) =>
-    violations(project).map((entry) => `${project.name}: ${entry}`)
-  )
-  if (failures.length > 0) {
-    console.error('Fork files import outside their TypeScript project (TS6307 under pnpm tc):')
-    for (const failure of failures) {
-      console.error(`  ${failure}`)
-    }
-    process.exit(1)
-  }
 }

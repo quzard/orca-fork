@@ -57,7 +57,7 @@ done
 # Fork files outside those directories, of any type: every file added since the upstream base the
 # skill pin records. --no-renames: a fork file copied or renamed from an upstream file still counts
 # as added. Without that commit (a shallow clone), fall back to the fork test names.
-upstream_base="$(sed -n "s/.*FORK_SKILLS_SOURCE_COMMIT = '\([0-9a-f]\{40\}\)'.*/\1/p" src/cli/skills-source-commit.ts 2>/dev/null | head -n 1)"
+upstream_base="$(sed -n "s/.*FORK_SKILLS_SOURCE_COMMIT = '\([0-9a-f]\{40\}\)'.*/\1/p" src/fork/skills-source-commit.ts 2>/dev/null | head -n 1)"
 list_fork_files() {
   if [[ -n "$upstream_base" ]] && git cat-file -e "${upstream_base}^{commit}" 2>/dev/null; then
     git diff -z --name-only --no-renames --diff-filter=A "$upstream_base" --

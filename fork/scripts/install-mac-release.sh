@@ -81,26 +81,12 @@ readonly BUILT_APP="$OUTPUT_DIR/mac-arm64/$APP_NAME"
 assert_packaged_artifacts() {
   local resources="$BUILT_APP/Contents/Resources"
   local template="$resources/orcad-template/orcad-template.json"
-  local pin="$resources/app.asar.unpacked/out/cli/skills-source-commit.js"
   if [[ ! -f "$template" ]]; then
     echo "打包结果缺少 orcad-template：$template" >&2
     exit 1
   fi
-  node --input-type=commonjs -e '
-    const { readFileSync } = require("node:fs")
-    const manifest = JSON.parse(readFileSync(process.argv[1], "utf8"))
-    const names = manifest.targets ?? {}
-    const required = ["linux-x64-glibc", "linux-arm64-glibc", "linux-x64-glibc217", "darwin-arm64"]
-    const missing = required.filter((name) => !Object.hasOwn(names, name))
-    if (missing.length > 0) {
-      console.error(`打包的 orcad-template 缺少目标：${missing.join(", ")}`)
-      process.exit(1)
-    }
-  ' "$template"
-  if [[ ! -f "$pin" ]]; then
-    echo "打包结果缺少技能 pin：$pin" >&2
-    exit 1
-  fi
+  ORCA_TEMPLATE_MANIFEST="$template" node -e \
+    "require('./src/fork/packaging.cjs').assertLocalTemplateTargets(process.env.ORCA_TEMPLATE_MANIFEST)"
   # Same check electron-builder afterPack runs. The host slice can execute it.
   ORCA_PACKAGED_RESOURCES="$resources" node --input-type=commonjs -e '
     const { verifySkillsCliRuntime } = require("./config/scripts/verify-skills-cli-runtime.cjs")
@@ -151,6 +137,8 @@ FAST="$FAST" bash fork/scripts/build-orcad-linux-prebuilds.sh
 # Leave it out of this list so the packager does not count the compat target twice.
 TEMPLATE_TARGETS='darwin-arm64,linux-x64-glibc,linux-arm64-glibc'
 node config/scripts/build-orcad-template.mjs --targets "$TEMPLATE_TARGETS"
+# Fail before electron-builder if a slot (glibc 2.17 included) did not make it into the template.
+node -e "require('./src/fork/packaging.cjs').assertLocalTemplateTargets('out/orcad-template/orcad-template.json')"
 export ORCA_ORCAD_TEMPLATE_TARGETS="$TEMPLATE_TARGETS"
 export ORCA_REQUIRE_ORCAD_TEMPLATE=1
 

@@ -13,7 +13,8 @@ import { createProcessHostDevRebuildPlugin } from './config/build-plugins/proces
 import { createViteCacheRetentionPlugin } from './config/build-plugins/vite-cache-retention'
 import { MAIN_BUILD_ENTRY_POINTS } from './config/build-plugins/main-build-entry-points'
 import { createPlainNodeEntryGuardPlugin } from './config/build-plugins/plain-node-entry-guard'
-import { createSandboxedPreloadRuntimeInlinePlugin } from './config/build-plugins/sandboxed-preload-runtime'
+import { createSandboxedPreloadRuntimeInlinePlugin } from './src/fork/main/sandboxed-preload-runtime'
+import { forkRendererDefines } from './src/fork/skills-source-commit'
 import { createDevServeConfig } from './config/build-plugins/dev-serve-config'
 import { resolveBuildSourceCommit } from './config/scripts/build-source-commit.mjs'
 
@@ -235,7 +236,6 @@ export const electronViteConfig: UserConfig = {
           createDarkBuildMarkerPlugin(),
           createBrowserExtensionWorkerShimPlugin(),
           createMainLocaleSubsetPlugin(),
-          // 沙箱 preload 不能 require Rolldown 抽出去的 runtime chunk。
           createSandboxedPreloadRuntimeInlinePlugin()
         ]
       }
@@ -273,6 +273,7 @@ export const electronViteConfig: UserConfig = {
     cacheDir: resolve('.cache/vite/renderer'),
     define: {
       ORCA_BUILD_COMMIT: ORCA_BUILD_COMMIT_LITERAL,
+      ...forkRendererDefines(),
       ...DARK_BUILD_DEFINES
     },
     resolve: {

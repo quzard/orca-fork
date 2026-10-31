@@ -1,3 +1,4 @@
+// fork: build plugin (electron.vite.config.ts), node-only like the rest of src/fork/main.
 import type { OutputBundle, Plugin } from 'rolldown'
 
 /** 沙箱 webview 的 preload。它们和主进程打在同一次 Rolldown 里，不能再 require 共享 chunk。 */

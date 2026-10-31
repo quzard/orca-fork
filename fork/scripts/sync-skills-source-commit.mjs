@@ -5,9 +5,9 @@ import { pathToFileURL } from 'node:url'
 
 const FULL_COMMIT = /^[0-9a-f]{40}$/
 const root = join(import.meta.dirname, '..', '..')
-// The one pin. It lives under src/cli because `out/cli/**` unpacks it and production CLI code must
-// not import src/fork; the desktop registration imports this same file.
-const pinPath = join(root, 'src/cli/skills-source-commit.ts')
+// The one pin. electron.vite.config.ts feeds it to the renderer, the only place that builds
+// `npx skills add` commands; the audit and the internal-ref scan read it as the upstream base.
+const pinPath = join(root, 'src/fork/skills-source-commit.ts')
 
 export function readCheckedInSkillsSourceCommit(source = readFileSync(pinPath, 'utf8')) {
   const match = source.match(/FORK_SKILLS_SOURCE_COMMIT = '([0-9a-f]{40})'/)
@@ -56,16 +56,14 @@ export function resolveForkSkillsSourceCommit(buildCommit, options = {}) {
 }
 
 export function renderSkillsSourceCommitModule(sha) {
-  return `// fork: skills clone this upstream commit. fork/scripts/sync-skills-source-commit.mjs rewrites it.
-import { registerSkillSourceCommit } from '../shared/fork-hooks/skill-source-commit'
-
+  return `// fork: skill installs clone this upstream commit; a fork build's own commit is not on
+// stablyai/orca. fork/scripts/sync-skills-source-commit.mjs rewrites it after each sync.
 export const FORK_SKILLS_SOURCE_COMMIT = '${sha}'
 
-export function registerForkSkillSource(): void {
-  registerSkillSourceCommit(FORK_SKILLS_SOURCE_COMMIT)
+/** Upstream's renderer reads ORCA_BUILD_COMMIT only to pin skill installs, so it gets the base. */
+export function forkRendererDefines(): Record<string, string> {
+  return { ORCA_BUILD_COMMIT: JSON.stringify(FORK_SKILLS_SOURCE_COMMIT) }
 }
-
-registerForkSkillSource()
 `
 }
 

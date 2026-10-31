@@ -8,8 +8,7 @@
     "../src/preload/api/**/*",
     "../src/shared/**/*",
     "../src/fork/**/*.ts",
-    "../src/fork/**/*.tsx",
-    "../src/cli/skills-source-commit.ts"
+    "../src/fork/**/*.tsx"
   ],
   "exclude": [
     "../src/renderer/src/components/terminal-pane/pty-agent-pane-launch.test.ts",

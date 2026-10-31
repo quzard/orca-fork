@@ -190,9 +190,7 @@ if [[ -n "$(git status --porcelain)" ]]; then
 fi
 
 ensure_upstream
-# 新鲜云端机器没有这份本地配置时，生成文件的 merge=ours 不会生效。
 git config rerere.enabled true
-git config merge.ours.driver true
 
 git fetch --no-tags origin refs/heads/develop:refs/remotes/origin/develop
 git fetch --no-tags upstream main
@@ -218,8 +216,8 @@ fi
 # 不推送 fork/base-upstream。
 git branch -f fork/base-upstream "$UPSTREAM_SHA"
 node fork/scripts/sync-skills-source-commit.mjs
-if ! git diff --quiet -- src/cli/skills-source-commit.ts; then
-  git add -- src/cli/skills-source-commit.ts
+if ! git diff --quiet -- src/fork/skills-source-commit.ts; then
+  git add -- src/fork/skills-source-commit.ts
   HUSKY=0 git commit -m "$(cat <<'EOF'
 fix(fork): pin skill installs to the upstream base
 

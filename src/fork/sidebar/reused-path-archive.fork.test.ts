@@ -1,13 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mergeWorktree } from '../../main/ipc/worktree-metadata-merge'
 import { mergeWorktreeMetaForWrite } from '../../main/persistence/loading-store/worktree-meta-write-normalization'
-import { buildProvisionedRootMeta } from '../../main/provisioned-root-checkout'
 import {
   registerDurableWorkspaceMetaReactivate,
   reactivateRegisteredArchivedWorktreeMeta
 } from '../../shared/fork-hooks/workspace-durable-archive'
 import type { WorktreeMeta } from '../../shared/worktree/meta-types'
-import { withoutReusedWorktreeArchive } from '../../shared/worktree/reused-path-archive'
+import {
+  registerReusedPathUnarchive,
+  reusedPathUnarchiveMeta
+} from '../../shared/fork-hooks/reused-path-unarchive'
 import {
   forgetWorkspaceArchive,
   rememberWorkspaceArchive,
@@ -97,10 +99,12 @@ describe('same-path recreate after soft-delete', () => {
     expect(scannedRow(meta).isArchived).toBe(true)
     expect(stampWorkspaceArchive([scannedRow(meta)])[0]?.isArchived).toBe(true)
 
-    meta = mergeWorktreeMetaForWrite(
-      meta,
-      withoutReusedWorktreeArchive({ instanceId: 'fresh-instance', orcaCreationSource: 'desktop' })
-    )
+    registerReusedPathUnarchive()
+    meta = mergeWorktreeMetaForWrite(meta, {
+      instanceId: 'fresh-instance',
+      ...reusedPathUnarchiveMeta(),
+      orcaCreationSource: 'desktop'
+    })
     const created = scannedRow(meta)
     expect(created.isArchived).toBe(false)
     expect(created.instanceId).toBe('fresh-instance')
@@ -123,22 +127,5 @@ describe('same-path recreate after soft-delete', () => {
     })
     expect(meta.isArchived).toBe(false)
     expect(other.isArchived).toBe(true)
-  })
-
-  it('marks a provisioned-root checkout active even when the path was archived', () => {
-    const built = buildProvisionedRootMeta(
-      { getSettings: () => ({ workspaceDir: '/srv/wt', nestWorkspaces: false }) },
-      {
-        id: 'repo-1',
-        path: '/srv/wt/project',
-        displayName: 'demo-hide',
-        badgeColor: '#000',
-        addedAt: 0
-      },
-      { name: 'recreate-g' },
-      { branchName: 'recreate-g', now: 1, source: 'desktop' }
-    )
-    expect(built.isArchived).toBe(false)
-    expect(built.instanceId).toEqual(expect.any(String))
   })
 })

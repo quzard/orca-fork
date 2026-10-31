@@ -64,6 +64,8 @@ export function mergeFolderWorkspace(repo: Repo, worktreeId: string, meta: Workt
     isPinned: meta.isPinned ?? false,
     sortOrder: meta.sortOrder ?? 0,
     ...(meta.manualOrder !== undefined ? { manualOrder: meta.manualOrder } : {}),
+    // fork: 分组写在 meta 里。漏掉时重启后的 detected 列表读不到，行掉回未分组；git 走 mergeWorktree 本来就带回。
+    ...(meta.sidebarGroupId !== undefined ? { sidebarGroupId: meta.sidebarGroupId } : {}),
     lastActivityAt: meta.lastActivityAt ?? 0,
     ...(meta.createdAt !== undefined ? { createdAt: meta.createdAt } : {}),
     ...(meta.createdWithAgent !== undefined ? { createdWithAgent: meta.createdWithAgent } : {}),

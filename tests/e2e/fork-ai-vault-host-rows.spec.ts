@@ -39,6 +39,7 @@ function claudeTranscript(sessionId: string, cwd: string, prompt: string): strin
 
 test('the history panel names the managed host row by its saved SSH name', async (// oxlint-disable-next-line no-empty-pattern -- Owns its app launch through a restart session.
 {}, testInfo) => {
+  // Why: the first connect deploys orcad into an emulated x86_64 container, which takes minutes.
   test.setTimeout(10 * 60_000)
   const stamp = String(Date.now())
   const serverPrompt = `Server history ${stamp}`

@@ -84,6 +84,7 @@ async function openHostHiddenWorkspaces(page: Page, hostId: string): Promise<Loc
 
 test('host headers and directory groups for this Mac and a managed host; delete keeps the folder', async (// oxlint-disable-next-line no-empty-pattern -- Owns its app launch through a restart session.
 {}, testInfo) => {
+  // Why: the first connect deploys orcad into an emulated x86_64 container, which takes minutes.
   test.setTimeout(10 * 60_000)
   const localRoot = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'orca-fork-sidebar-')))
   const projects = path.join(localRoot, 'projects')

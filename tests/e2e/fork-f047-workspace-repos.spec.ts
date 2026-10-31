@@ -15,6 +15,7 @@ test.skip(process.platform === 'win32', 'The Docker SSH host uses POSIX tooling'
 
 test('workspace repos on a managed host list the root and a worktree-add checkout', async (// oxlint-disable-next-line no-empty-pattern -- Owns its app launch through a restart session.
 {}, testInfo) => {
+  // Why: the first connect deploys orcad into an emulated x86_64 container, which takes minutes.
   test.setTimeout(10 * 60_000)
   const appPath = '/root/wt/app'
   await withManagedHost(testInfo, async (fixture) => {

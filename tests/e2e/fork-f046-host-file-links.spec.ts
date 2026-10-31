@@ -34,6 +34,7 @@ const CHECKERBOARD_PNG =
 
 test('host terminal links to files outside the workspace stay in the clicked workspace', async (// oxlint-disable-next-line no-empty-pattern -- Owns its app launch through a restart session.
 {}, testInfo) => {
+  // Why: the first connect deploys orcad into an emulated x86_64 container, which takes minutes.
   test.setTimeout(10 * 60_000)
   const stamp = String(Date.now())
   const appPath = '/root/wt/app'

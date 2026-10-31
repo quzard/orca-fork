@@ -6,6 +6,11 @@ import { expect } from './helpers/orca-app'
 import { selectTerminalTab, waitForPane } from './helpers/orcad-managed-workspace'
 import { openTerminalWorkspaceRootLink } from './helpers/terminal-workspace-root-link'
 
+declare global {
+  // Main-process record of stubbed shell opens, read back by readDesktopOpens.
+  var __forkDesktopOpens: string[] | undefined
+}
+
 /** Writes to ORCA_E2E_FORK_SHOTS_DIR when set (for a person to look at), else the test's output dir. */
 export async function forkShot(page: Page, testInfo: TestInfo, name: string): Promise<void> {
   const directory = process.env.ORCA_E2E_FORK_SHOTS_DIR
@@ -26,7 +31,7 @@ export async function switchUiToEnglish(page: Page): Promise<void> {
 export async function recordDesktopOpens(app: ElectronApplication): Promise<void> {
   await app.evaluate(({ shell }) => {
     const opened: string[] = []
-    Reflect.set(globalThis, '__forkDesktopOpens', opened)
+    globalThis.__forkDesktopOpens = opened
     shell.openExternal = async (url: string) => {
       opened.push(url)
     }
@@ -39,8 +44,7 @@ export async function recordDesktopOpens(app: ElectronApplication): Promise<void
 
 export function readDesktopOpens(app: ElectronApplication): Promise<string[]> {
   return app.evaluate(() => {
-    const opened: unknown = Reflect.get(globalThis, '__forkDesktopOpens')
-    return Array.isArray(opened) ? opened.map(String) : []
+    return [...(globalThis.__forkDesktopOpens ?? [])]
   })
 }
 

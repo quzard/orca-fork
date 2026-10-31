@@ -57,7 +57,8 @@ function hostOrder<Session extends HostSession>(
 
 /**
  * Search stays one unlabeled group so hit order is unchanged. One host keeps directory titles only.
- * Several hosts get a collapsible host row followed by that host's directory groups.
+ * Several hosts get a collapsible host row followed by that host's directory groups. Directory keys
+ * always carry the host, so a directory keeps its state when a second host appears or one is picked.
  */
 export function partitionAiVaultGroupsByHost<Session extends HostSession>(
   groups: readonly HostGroup<Session>[],
@@ -67,9 +68,6 @@ export function partitionAiVaultGroupsByHost<Session extends HostSession>(
     return groups
   }
   const hosts = hostOrder(groups)
-  if (hosts.length <= 1) {
-    return groups
-  }
   const partitioned: HostGroup<Session>[] = []
   for (const host of hosts) {
     const directories: HostGroup<Session>[] = []
@@ -78,6 +76,9 @@ export function partitionAiVaultGroupsByHost<Session extends HostSession>(
       if (sessions.length > 0) {
         directories.push({ key: `${host}::${group.key}`, label: group.label, sessions })
       }
+    }
+    if (hosts.length === 1) {
+      return directories
     }
     partitioned.push({
       key: hostHeaderKey(host),
@@ -177,6 +178,9 @@ export function collapseAllAiVaultGroups<Session extends HostSession>(
   held: ReadonlySet<string>
 ): AiVaultGroupInversions {
   const listed = labeledKeys(groups)
+  if (listed.length === 0) {
+    return inversions
+  }
   const next = new Map(inversions)
   for (const key of listed) {
     next.delete(key)

@@ -74,14 +74,17 @@ describe('history list presentation', () => {
     ]
     expect(partitionAiVaultGroupsByHost(search)).toBe(search)
 
-    const single = [
+    // One host has no host row, but its directory keys carry the host like they do under one.
+    const single = partitionAiVaultGroupsByHost([
       {
         key: 'folder:/srv/wt/project/app',
         label: '/srv/wt/project/app',
         sessions: [{ executionHostId: linuxBox }]
       }
-    ]
-    expect(partitionAiVaultGroupsByHost(single)).toBe(single)
+    ])
+    expect(single.map((group) => [group.key, group.label])).toEqual([
+      [`${linuxBox}::folder:/srv/wt/project/app`, '/srv/wt/project/app']
+    ])
   })
 
   it('keeps the short folder label until presentation is registered', () => {

@@ -232,9 +232,12 @@ it('keeps hosts with sessions, the connected server and All hosts in the menu, a
 it('keeps a server that listed sessions in the main menu after picking another host', async () => {
   renderPanel()
   const user = userEvent.setup()
+  await user.click(screen.getByRole('button', { name: /build-linux/ }))
+  await user.click(screen.getByRole('button', { name: /\/home\/tom\/src\/app/ }))
   const { menu } = await openHostMenu(user, 'All hosts')
   await user.click(within(menu).getByRole('menuitemradio', { name: 'build-linux' }))
-  expect(groupHeaders()).toEqual(['/home/tom/src/app (2) closed', '/srv/tools (1) closed'])
+  // The server alone has no host row; the directory opened under it stays open.
+  expect(groupHeaders()).toEqual(['/home/tom/src/app (2) open', '/srv/tools (1) closed'])
 
   const { primary } = await openHostMenu(user, 'build-linux')
   expect(primary).toContain('gpu-linux')

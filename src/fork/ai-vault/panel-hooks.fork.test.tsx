@@ -6,11 +6,18 @@ import { StrictMode, useState } from 'react'
 import { act, cleanup, render, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AiVaultSession } from '../../shared/ai-vault-types'
-import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
+import {
+  ALL_EXECUTION_HOSTS_SCOPE,
+  LOCAL_EXECUTION_HOST_ID,
+  toRuntimeExecutionHostId
+} from '../../shared/execution-host'
+import type { AiVaultHostScopeOption } from '../../renderer/src/components/right-sidebar/ai-vault-host-scope'
 import type { AiVaultSessionListGroup } from '../../renderer/src/components/right-sidebar/ai-vault-session-filters'
+import type * as HostMenu from './host-menu'
 import type * as PanelHooks from './panel-hooks'
 
 let hooks: typeof PanelHooks
+let hostMenu: typeof HostMenu
 
 const SIDEBAR = undefined
 const DIALOG = { worktreeId: 'wt-1' }
@@ -27,17 +34,24 @@ function useList(props: {
   workspace: unknown
   held?: ReadonlySet<string>
 }) {
-  const [held, setHeld] = useState<ReadonlySet<string>>(() => new Set(props.held))
+  const [held, setHeld] = useState<ReadonlySet<string>>(
+    () => new Set([...(props.held ?? [])].map(listed))
+  )
   const list = hooks.useForkAiVaultGroups(props.groups, held, [], null, props.workspace)
   const toggle = (key: string): void =>
     setHeld((current) => {
       const next = new Set(current)
-      if (!next.delete(key)) {
-        next.add(key)
+      if (!next.delete(listed(key))) {
+        next.add(listed(key))
       }
       return next
     })
-  return { list, toggle, collapsed: (key: string) => list.collapsedGroups.has(key) }
+  return { list, toggle, collapsed: (key: string) => list.collapsedGroups.has(listed(key)) }
+}
+
+// The key the list shows for group `key`: directory keys carry their host.
+function listed(key: string): string {
+  return `${LOCAL_EXECUTION_HOST_ID}::${key}`
 }
 
 function collapseAll(headerAction: React.ReactNode): void {
@@ -50,6 +64,7 @@ beforeEach(async () => {
   // A fresh module, so the sidebar's remembered groups start empty in every test.
   vi.resetModules()
   hooks = await import('./panel-hooks')
+  hostMenu = await import('./host-menu')
   const { registerAiVaultListPresentation } = await import('./list-presentation')
   registerAiVaultListPresentation()
 })
@@ -210,4 +225,28 @@ it('changes nothing until the presentation is registered', async () => {
   expect(result.current.groups).toBe(groups)
   expect(result.current.collapsedGroups).toBe(held)
   expect(result.current.headerAction).toBe(action)
+})
+
+describe('useForkVaultHostMenu', () => {
+  it('moves a host another panel listed into the main menu of a mounted panel', () => {
+    const gpu = toRuntimeExecutionHostId('env-gpu')
+    const options: AiVaultHostScopeOption[] = [
+      { id: LOCAL_EXECUTION_HOST_ID, label: 'Local Mac' },
+      { id: gpu, label: 'gpu-linux' },
+      { id: ALL_EXECUTION_HOSTS_SCOPE, label: 'All hosts' }
+    ]
+    const sidebarHistory: { executionHostId: string }[] = []
+    const dialogHistory = [{ executionHostId: gpu }]
+    const sidebar = renderHook(() =>
+      hooks.useForkVaultHostMenu(options, sidebarHistory, ALL_EXECUTION_HOSTS_SCOPE, undefined)
+    )
+    const folded = () => hostMenu.otherVaultHosts(sidebar.result.current).map((host) => host.label)
+    expect(folded()).toEqual(['gpu-linux'])
+
+    renderHook(() =>
+      hooks.useForkVaultHostMenu(options, dialogHistory, ALL_EXECUTION_HOSTS_SCOPE, DIALOG)
+    )
+    expect(folded()).toEqual([])
+    expect(sidebar.result.current.map((host) => host.label)).toContain('gpu-linux')
+  })
 })

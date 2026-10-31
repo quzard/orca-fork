@@ -35,8 +35,8 @@ import {
 } from './list-presentation'
 import { AiVaultCollapseAllButton } from './panel-controls'
 
-function createInversionStore() {
-  let snapshot: AiVaultGroupInversions = new Map()
+function createSnapshotStore<T>(initial: T) {
+  let snapshot = initial
   const listeners = new Set<() => void>()
   return {
     getSnapshot: () => snapshot,
@@ -44,7 +44,7 @@ function createInversionStore() {
       listeners.add(listener)
       return () => listeners.delete(listener)
     },
-    set: (next: AiVaultGroupInversions) => {
+    set: (next: T) => {
       if (next === snapshot) {
         return
       }
@@ -56,10 +56,23 @@ function createInversionStore() {
   }
 }
 
+function createInversionStore() {
+  return createSnapshotStore<AiVaultGroupInversions>(new Map())
+}
+
 // Like upstream's collapsed set: the sidebar panel's survives remounts, each dialog panel has its own.
 const sidebarInversions = createInversionStore()
-// Hosts that listed sessions in this renderer, so picking one host keeps the others in the main menu.
-const hostsWithHistory = new Set<string>()
+// Hosts that listed sessions in any panel of this renderer, so picking one host keeps the others in
+// the main menu.
+const hostsWithHistory = createSnapshotStore<ReadonlySet<string>>(new Set())
+
+function rememberHostsWithHistory(sessions: readonly { executionHostId: string }[]): void {
+  const known = hostsWithHistory.getSnapshot()
+  const added = sessions.map((session) => session.executionHostId).filter((id) => !known.has(id))
+  if (added.length > 0) {
+    hostsWithHistory.set(new Set([...known, ...added]))
+  }
+}
 
 /**
  * Host rows, collapse-new and collapse-all over upstream's list groups. Upstream's collapsed set and
@@ -119,8 +132,8 @@ export function useForkAiVaultGroups(
     collapsedGroups: presentedCollapsed,
     headerAction: (
       <>
-        {headerAction}
         <AiVaultCollapseAllButton onClick={collapseAll} />
+        {headerAction}
       </>
     )
   }
@@ -155,9 +168,14 @@ export function useForkVaultHostMenu<T extends AiVaultHostScopeOption>(
   const connectedKey = useAppStore((s) =>
     enabled ? connectedRuntimeHostKey(s.runtimeStatusByEnvironmentId) : ''
   )
+  const knownHosts = useSyncExternalStore(
+    hostsWithHistory.subscribe,
+    hostsWithHistory.getSnapshot,
+    hostsWithHistory.getSnapshot
+  )
   useEffect(() => {
-    for (const session of enabled ? history : []) {
-      hostsWithHistory.add(session.executionHostId)
+    if (enabled) {
+      rememberHostsWithHistory(history)
     }
   }, [enabled, history])
   const activeHostId = worktree ? getWorktreeExecutionHostId(worktree, repo ?? undefined) : null
@@ -165,7 +183,7 @@ export function useForkVaultHostMenu<T extends AiVaultHostScopeOption>(
     if (!enabled) {
       return options
     }
-    const historyHostIds = new Set(hostsWithHistory)
+    const historyHostIds = new Set(knownHosts)
     for (const session of history) {
       historyHostIds.add(session.executionHostId)
     }
@@ -175,5 +193,5 @@ export function useForkVaultHostMenu<T extends AiVaultHostScopeOption>(
       connectedHostIds: new Set(connectedKey ? connectedKey.split('\n') : []),
       selected
     })
-  }, [activeHostId, connectedKey, enabled, history, options, selected])
+  }, [activeHostId, connectedKey, enabled, history, knownHosts, options, selected])
 }

@@ -108,8 +108,8 @@ export default function WorktreeContextMenuView({ model }: { model: WorktreeCont
     worktree,
     repo,
     projectGroups,
-    onMove: handleMoveProjectToGroup,
-    onRemove: handleRemoveProjectFromGroup
+    handleMoveProjectToGroup,
+    handleRemoveProjectFromGroup
   })
   return (
     <div

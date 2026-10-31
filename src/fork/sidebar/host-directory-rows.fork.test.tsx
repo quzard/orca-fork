@@ -386,7 +386,9 @@ describe('host-directory sidebar rows', () => {
       ]
     })
     const sectionOf = (id: string) =>
-      rows.find((row) => row.type === 'item' && row.worktree.id === id)?.sectionKey
+      rows.flatMap((row) =>
+        row.type === 'item' && row.worktree.id === id ? [row.sectionKey] : []
+      )[0]
     expect(sectionOf('wt-dev')).toBe(hostDirectorySectionKey(DEVBOX, 'g-dev'))
     expect(sectionOf('wt-mini')).toBe(hostDirectorySectionKey(MINI, 'g-mini'))
   })

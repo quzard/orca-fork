@@ -173,7 +173,7 @@ export default function AiVaultPanel({
     [history, search.sessions]
   )
   const sessions = searching ? searchSessions : history
-  const hostMenu = useForkVaultHostMenu(hostScopeOptions, history, activeWorktree, activeRepo)
+  const hostMenu = useForkVaultHostMenu(hostScopeOptions, history, executionHostScope, workspace)
   const requestedScanKey = aiVaultLocalScanKey({
     scopePaths,
     includeAntigravityIdeSessions: true,

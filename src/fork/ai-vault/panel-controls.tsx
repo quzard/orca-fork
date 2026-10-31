@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils'
 import { normalizeExecutionHostScope, type ExecutionHostScope } from '../../shared/execution-host'
 import type { AiVaultSessionGroup } from '../../shared/ai-vault-session-filters'
 import { forkTranslate } from '../i18n/fork-translate'
-import { isSecondaryVaultHost } from './host-menu'
+import { otherVaultHosts } from './host-menu'
 import { aiVaultHostRowsRegistered, readAiVaultHostSessionCount } from './list-presentation'
 
 export function AiVaultCollapseAllButton({ onClick }: { onClick: () => void }): React.JSX.Element {
@@ -66,19 +66,13 @@ export function ForkVaultGroupHeader({
   )
 }
 
-export function forkPrimaryVaultHosts<T extends object>(options: readonly T[]): readonly T[] {
-  return options.some(isSecondaryVaultHost)
-    ? options.filter((option) => !isSecondaryVaultHost(option))
-    : options
-}
-
-/** The hosts {@link forkPrimaryVaultHosts} leaves out, in a submenu. Null when there are none. */
+/** The hosts the panel's menu list leaves out, in a submenu. Null when there are none. */
 export function forkOtherVaultHostsMenu(
-  options: readonly { id: string; label: string }[],
+  menu: readonly object[],
   scope: ExecutionHostScope,
   onChange: (scope: ExecutionHostScope) => void
 ): React.JSX.Element | null {
-  const others = options.filter(isSecondaryVaultHost)
+  const others = otherVaultHosts(menu)
   if (others.length === 0) {
     return null
   }

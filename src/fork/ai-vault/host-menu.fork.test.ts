@@ -4,30 +4,44 @@ import {
   LOCAL_EXECUTION_HOST_ID,
   toRuntimeExecutionHostId
 } from '../../shared/execution-host'
-import { markSecondaryVaultHosts } from './host-menu'
+import { otherVaultHosts, splitVaultHostMenu } from './host-menu'
 
-describe('markSecondaryVaultHosts', () => {
-  it('folds idle hosts and keeps all, local, active, connected and hosts with sessions', () => {
-    const [withSessions, active, connected, idle] = ['a', 'b', 'c', 'd'].map((id) =>
-      toRuntimeExecutionHostId(`env-${id}`)
-    )
-    const marked = markSecondaryVaultHosts(
-      [
-        { id: ALL_EXECUTION_HOSTS_SCOPE, label: 'All hosts' },
-        { id: LOCAL_EXECUTION_HOST_ID, label: 'Local Mac' },
-        { id: withSessions, label: 'with sessions' },
-        { id: active, label: 'active' },
-        { id: connected, label: 'connected' },
-        { id: idle, label: 'idle' }
-      ],
-      {
-        historyHostIds: new Set([withSessions]),
-        activeHostId: active,
-        connectedHostIds: new Set([connected])
-      }
-    )
-    expect(marked.filter((option) => option.secondary).map((option) => option.label)).toEqual([
-      'idle'
+const [withSessions, active, connected, idle, picked] = ['a', 'b', 'c', 'd', 'e'].map((id) =>
+  toRuntimeExecutionHostId(`env-${id}`)
+)
+const options = [
+  { id: ALL_EXECUTION_HOSTS_SCOPE, label: 'All hosts' },
+  { id: LOCAL_EXECUTION_HOST_ID, label: 'Local Mac' },
+  { id: withSessions, label: 'with sessions' },
+  { id: active, label: 'active' },
+  { id: connected, label: 'connected' },
+  { id: idle, label: 'idle' },
+  { id: picked, label: 'picked' }
+]
+const context = {
+  historyHostIds: new Set([withSessions]),
+  activeHostId: active,
+  connectedHostIds: new Set([connected])
+}
+
+describe('splitVaultHostMenu', () => {
+  it('folds idle hosts and keeps all, local, active, connected, selected and hosts with sessions', () => {
+    const menu = splitVaultHostMenu(options, { ...context, selected: picked })
+    expect(menu.map((option) => option.label)).toEqual([
+      'All hosts',
+      'Local Mac',
+      'with sessions',
+      'active',
+      'connected',
+      'picked'
     ])
+    expect(otherVaultHosts(menu).map((option) => option.label)).toEqual(['idle'])
+  })
+
+  it('returns the list itself when nothing folds', () => {
+    const busy = options.slice(0, 5)
+    const menu = splitVaultHostMenu(busy, { ...context, selected: 'all' })
+    expect(menu).toBe(busy)
+    expect(otherVaultHosts(menu)).toEqual([])
   })
 })

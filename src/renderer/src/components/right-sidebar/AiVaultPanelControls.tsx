@@ -37,7 +37,6 @@ import { AiVaultSessionLimitMenu } from './AiVaultSessionLimitMenu'
 import {
   ForkVaultGroupHeader,
   forkOtherVaultHostsMenu,
-  forkPrimaryVaultHosts,
   forkVaultGroupHeaders
 } from '../../../../fork/ai-vault/panel-controls'
 import type { AiVaultSessionLimit } from './ai-vault-session-limit'
@@ -208,7 +207,7 @@ export function VaultHostScopeMenu({
           value={executionHostScope}
           onValueChange={(value) => onExecutionHostScopeChange(value as ExecutionHostScope)}
         >
-          {forkPrimaryVaultHosts(hostOptions).map((option) => (
+          {hostOptions.map((option) => (
             <DropdownMenuRadioItem key={option.id} value={option.id}>
               {option.label}
             </DropdownMenuRadioItem>

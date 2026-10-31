@@ -12,17 +12,18 @@ import {
   runtimeHostConnectionStateForEntry
 } from '@/runtime/runtime-host-connection-state'
 import type { RuntimeEnvironmentStatus } from '../../shared/runtime-host-status'
-import type { Repo } from '../../shared/repo-types'
-import type { Worktree } from '../../shared/worktree/types'
 import {
   getExecutionHostLabel,
   getWorktreeExecutionHostId,
   toRuntimeExecutionHostId,
-  type ExecutionHostId
+  type ExecutionHostId,
+  type ExecutionHostScope
 } from '../../shared/execution-host'
 import type { AiVaultHostScopeOption } from '../../renderer/src/components/right-sidebar/ai-vault-host-scope'
+import type { AiVaultPanelWorkspace } from '../../renderer/src/components/right-sidebar/ai-vault-panel-workspace'
 import type { AiVaultSessionListGroup } from '../../renderer/src/components/right-sidebar/ai-vault-session-filters'
-import { markSecondaryVaultHosts } from './host-menu'
+import { useAiVaultPanelWorkspace } from '../../renderer/src/components/right-sidebar/use-ai-vault-panel-workspace'
+import { splitVaultHostMenu } from './host-menu'
 import {
   aiVaultHostRowsRegistered,
   collapseAllAiVaultGroups,
@@ -138,14 +139,18 @@ function connectedRuntimeHostKey(
   return connected.sort().join('\n')
 }
 
-/** The history host menu with idle hosts marked for "Other configured hosts". Unregistered, unchanged. */
+/**
+ * The history host menu's main list; the hosts it leaves out go to "Other configured hosts" through
+ * `otherVaultHosts`. The selected host always stays in the main list. Unregistered, unchanged.
+ */
 export function useForkVaultHostMenu<T extends AiVaultHostScopeOption>(
   options: readonly T[],
   history: readonly { executionHostId: string }[],
-  activeWorktree: Pick<Worktree, 'hostId'> | null | undefined,
-  activeRepo: Pick<Repo, 'connectionId' | 'executionHostId'> | null | undefined
+  selected: ExecutionHostScope,
+  workspace: AiVaultPanelWorkspace | undefined
 ): readonly T[] {
   const enabled = aiVaultHostRowsRegistered()
+  const { worktree, repo } = useAiVaultPanelWorkspace(workspace)
   // Partial stores in upstream panel tests omit the map; that reads as no connected host.
   const connectedKey = useAppStore((s) =>
     enabled ? connectedRuntimeHostKey(s.runtimeStatusByEnvironmentId) : ''
@@ -155,9 +160,7 @@ export function useForkVaultHostMenu<T extends AiVaultHostScopeOption>(
       hostsWithHistory.add(session.executionHostId)
     }
   }, [enabled, history])
-  const activeHostId = activeWorktree
-    ? getWorktreeExecutionHostId(activeWorktree, activeRepo ?? undefined)
-    : null
+  const activeHostId = worktree ? getWorktreeExecutionHostId(worktree, repo ?? undefined) : null
   return useMemo(() => {
     if (!enabled) {
       return options
@@ -166,10 +169,11 @@ export function useForkVaultHostMenu<T extends AiVaultHostScopeOption>(
     for (const session of history) {
       historyHostIds.add(session.executionHostId)
     }
-    return markSecondaryVaultHosts(options, {
+    return splitVaultHostMenu(options, {
       historyHostIds,
       activeHostId,
-      connectedHostIds: new Set(connectedKey ? connectedKey.split('\n') : [])
+      connectedHostIds: new Set(connectedKey ? connectedKey.split('\n') : []),
+      selected
     })
-  }, [activeHostId, connectedKey, enabled, history, options])
+  }, [activeHostId, connectedKey, enabled, history, options, selected])
 }

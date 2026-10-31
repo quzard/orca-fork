@@ -219,7 +219,14 @@ it('keeps hosts with sessions, the connected server and All hosts in the menu, a
   const other = within(menu).getByRole('menuitem', { name: 'Other configured hosts' })
   act(() => other.focus())
   await user.keyboard('{ArrowRight}')
-  expect(await screen.findByRole('menuitemradio', { name: 'idle-linux' })).toBeTruthy()
+  await user.click(await screen.findByRole('menuitemradio', { name: 'idle-linux' }))
+
+  // Picked from the submenu, the server keeps its saved name and moves to the main list.
+  const reopened = await openHostMenu(user, 'idle-linux')
+  expect(reopened.primary).toContain('idle-linux')
+  expect(
+    within(reopened.menu).queryByRole('menuitem', { name: 'Other configured hosts' })
+  ).toBeNull()
 })
 
 it('keeps a server that listed sessions in the main menu after picking another host', async () => {

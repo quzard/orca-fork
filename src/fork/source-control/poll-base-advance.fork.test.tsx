@@ -38,8 +38,11 @@ describe('workspace repository poll', () => {
   let compareCalls: number
 
   beforeEach(() => {
-    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    vi.useFakeTimers({
+      toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date']
+    })
     compareCalls = 0
+    mocks.callRuntimeRpc.mockReset()
     mocks.statusBaseOid = firstOid
     mocks.compareBaseOid = firstOid
     mocks.callRuntimeRpc.mockImplementation(async (_target: unknown, method: string) => {
@@ -85,18 +88,30 @@ describe('workspace repository poll', () => {
     act(() => root.unmount())
     container.remove()
     vi.useRealTimers()
+    setVisibility('visible')
   })
 
   const target = { kind: 'local' as const }
 
-  function Probe(): null {
+  function setVisibility(state: 'visible' | 'hidden'): void {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: state })
+    document.dispatchEvent(new Event('visibilitychange'))
+  }
+
+  function Probe({ enabled = true }: { enabled?: boolean }): null {
     useWorkspaceRepositoryPoll({
-      enabled: true,
+      enabled,
       target,
       worktreeId: 'wt-1',
       refreshToken: 0
     })
     return null
+  }
+
+  function statusCalls(): number {
+    return mocks.callRuntimeRpc.mock.calls.filter(
+      (call) => call[1] === FORK_GIT_WORKSPACE_STATUS_METHOD
+    ).length
   }
 
   it('compares again when the base oid moves and HEAD stays put', async () => {
@@ -135,6 +150,46 @@ describe('workspace repository poll', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(WORKSPACE_REPOSITORY_POLL_INTERVAL_MS)
     })
+    expect(compareCalls).toBe(1)
+  })
+  it('stops while the window is hidden and polls again when it shows', async () => {
+    await act(async () => {
+      root.render(<Probe />)
+    })
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(statusCalls()).toBe(1)
+    setVisibility('hidden')
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(WORKSPACE_REPOSITORY_POLL_INTERVAL_MS * 5)
+    })
+    expect(statusCalls()).toBe(1)
+    await act(async () => {
+      setVisibility('visible')
+      await vi.advanceTimersByTimeAsync(WORKSPACE_REPOSITORY_POLL_INTERVAL_MS)
+    })
+    expect(statusCalls()).toBeGreaterThan(1)
+  })
+
+  it('does not compare every repository again when the panel is shown again', async () => {
+    await act(async () => {
+      root.render(<Probe />)
+    })
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(compareCalls).toBe(1)
+    await act(async () => {
+      root.render(<Probe enabled={false} />)
+    })
+    await act(async () => {
+      root.render(<Probe />)
+    })
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(statusCalls()).toBe(2)
     expect(compareCalls).toBe(1)
   })
 })

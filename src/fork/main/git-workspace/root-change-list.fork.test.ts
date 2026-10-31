@@ -11,9 +11,8 @@ import {
 } from '../../../shared/app-environment'
 import type { RuntimeGitTarget } from '../../../main/runtime/runtime-git-command-target'
 import { repositoryHasChanges } from '../../source-control/repo-order'
-import { bindForkGitTargetResolver, resetForkGitTargetResolverForTests } from './bind-target'
 import { clearWorkspaceRepositoryDiscoveryCache } from './discover'
-import { readWorkspaceRepositoryStatus } from './reads'
+import { readWorkspaceRepositoryStatus, type WorkspaceRpcCaller } from './reads'
 
 function git(cwd: string, args: string[]): void {
   execFileSync('git', ['-c', 'user.email=dev@example.com', '-c', 'user.name=Dev', ...args], {
@@ -45,15 +44,15 @@ function norm(path: string): string {
   return path.replace(/\\/g, '/').replace(/\/+$/, '')
 }
 
-function openLocalWorkspace(ws: string): void {
-  bindForkGitTargetResolver(async () => {
-    const target = {
-      executionHostId: 'local' as const,
-      worktree: { path: ws, hostId: 'host-a' as const }
-    }
+function localCaller(ws: string): WorkspaceRpcCaller {
+  const target = {
+    executionHostId: 'local' as const,
+    worktree: { path: ws, hostId: 'host-a' as const }
+  }
+  return {
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: 本地 git 只读 path、hostId 和 executionHostId。
-    return target as unknown as RuntimeGitTarget
-  })
+    runtime: { resolveRuntimeGitTarget: async () => target as unknown as RuntimeGitTarget }
+  }
 }
 
 function registerCheckedOutSubmodule(ws: string, name: string, source: string): void {
@@ -76,7 +75,6 @@ describe('root repository change list', () => {
   let previous: AppEnvironment | null = null
 
   afterEach(() => {
-    resetForkGitTargetResolverForTests()
     clearWorkspaceRepositoryDiscoveryCache()
     setAppEnvironment(previous ?? appEnvironment(tmpdir()))
     if (root) {
@@ -100,9 +98,9 @@ describe('root repository change list', () => {
     writeFileSync(join(ws, 'README'), 'ok\nedit\n')
     writeFileSync(join(ws, 'task-demo.txt'), 'keep\n')
     writeFileSync(join(ws, 'demo-api-notes.txt'), 'prefix\n')
-    openLocalWorkspace(ws)
+    const caller = localCaller(ws)
 
-    const rootStatus = await readWorkspaceRepositoryStatus(ws, '', 'status')
+    const rootStatus = await readWorkspaceRepositoryStatus(caller, 'id:wt-1', '', 'status', false)
     const paths = rootStatus.entries.map((entry) => norm(entry.path))
     expect(paths).toContain('task-demo.txt')
     expect(paths).toContain('demo-api-notes.txt')
@@ -110,7 +108,13 @@ describe('root repository change list', () => {
     expect(paths.some((path) => path === 'demo-api' || path.startsWith('demo-api/'))).toBe(false)
     expect(paths.some((path) => path === 'demo-web' || path.startsWith('demo-web/'))).toBe(false)
 
-    const nested = await readWorkspaceRepositoryStatus(ws, 'demo-api', 'status')
+    const nested = await readWorkspaceRepositoryStatus(
+      caller,
+      'id:wt-1',
+      'demo-api',
+      'status',
+      false
+    )
     expect(nested.entries.map((entry) => entry.path)).toContain('local.txt')
   }, 120_000)
 
@@ -128,9 +132,9 @@ describe('root repository change list', () => {
     git(join(ws, 'demo-api'), ['commit', '-m', 'lib'])
     initRepo(join(ws, 'demo-console'))
     writeFileSync(join(ws, 'task-demo.txt'), 'keep\n')
-    openLocalWorkspace(ws)
+    const caller = localCaller(ws)
 
-    const unstaged = await readWorkspaceRepositoryStatus(ws, '', 'status')
+    const unstaged = await readWorkspaceRepositoryStatus(caller, 'id:wt-1', '', 'status', false)
     const unstagedPaths = unstaged.entries.map((entry) => norm(entry.path))
     const unstagedGitlink = unstaged.entries.find(
       (entry) => norm(entry.path) === 'demo-api' && entry.area === 'unstaged'
@@ -143,7 +147,7 @@ describe('root repository change list', () => {
     expect(repositoryHasChanges(unstaged, undefined)).toBe(true)
 
     git(ws, ['add', 'demo-api'])
-    const staged = await readWorkspaceRepositoryStatus(ws, '', 'status')
+    const staged = await readWorkspaceRepositoryStatus(caller, 'id:wt-1', '', 'status', false)
     const stagedPaths = staged.entries.map((entry) => norm(entry.path))
     const stagedGitlink = staged.entries.find(
       (entry) => norm(entry.path) === 'demo-api' && entry.area === 'staged'

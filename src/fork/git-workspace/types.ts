@@ -31,6 +31,8 @@ export type WorkspaceRepositoryStatus = {
   entries: GitStatusEntry[]
   upstreamStatus?: GitUpstreamStatus
   didHitLimit?: boolean
+  // git status 读失败时的错误。这时 entries 为空不代表没改动。
+  readError?: string
   compareTarget: CompareTargetResolution
   // 比较目标 ref 的当前提交。HEAD 不变时它前进了就要重做分支比较。
   baseOid?: string | null

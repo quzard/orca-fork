@@ -1,6 +1,9 @@
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { rmSync, writeFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { getAppEnvironment } from '../../../shared/app-environment'
+import { renameFileWithWindowsRetry } from '../../../shared/windows-retry-file-operations'
+import { withFileTransactionLock } from '../../../main/file-transaction-lock'
 import { COMPARE_TARGET_DIRECTORY, COMPARE_TARGET_FILE_NAME } from '../../git-workspace/constants'
 
 export type CompareTargetKey = {
@@ -18,18 +21,18 @@ export function compareTargetFilePath(userDataPath: string): string {
   return join(userDataPath, COMPARE_TARGET_DIRECTORY, COMPARE_TARGET_FILE_NAME)
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 function isCompareTargetEntry(value: unknown): value is CompareTargetEntry {
-  if (!value || typeof value !== 'object') {
-    return false
-  }
-  // SAFETY: 磁盘上的 JSON 没有类型。只把五个字段都是字符串的对象当成一条覆盖。
-  const entry = value as Record<string, unknown>
   return (
-    typeof entry.hostId === 'string' &&
-    typeof entry.worktreePath === 'string' &&
-    typeof entry.repositoryPath === 'string' &&
-    typeof entry.branch === 'string' &&
-    typeof entry.ref === 'string'
+    isRecord(value) &&
+    typeof value.hostId === 'string' &&
+    typeof value.worktreePath === 'string' &&
+    typeof value.repositoryPath === 'string' &&
+    typeof value.branch === 'string' &&
+    typeof value.ref === 'string'
   )
 }
 
@@ -42,24 +45,31 @@ function sameKey(entry: CompareTargetEntry, key: CompareTargetKey): boolean {
   )
 }
 
-// 桌面和 `orca serve` 的 orcad 可以共用一份 userData（ORCA_USER_DATA 指向桌面 profile）。
-// 互斥靠共享实例锁，桌面以 role 'desktop' 领取。锁被占用时另一边起不来。
-// state 为 'unavailable' 时桌面拿不到锁仍会启动，两边可能同时写这个文件。
-// 下面的队列只串起本进程。发布前再读一次合并，缩小丢掉对方写入的窗口。
-const writeQueues = new Map<string, Promise<void>>()
-let temporarySerial = 0
-
-function enqueueWrite(filePath: string, write: () => void): Promise<void> {
-  const previous = writeQueues.get(filePath) ?? Promise.resolve()
-  const task = previous.then(write, write)
-  const settled = task.then(
-    () => undefined,
-    () => undefined
-  )
-  writeQueues.set(filePath, settled)
-  return task
+function isEnoent(error: unknown): boolean {
+  return isRecord(error) && error.code === 'ENOENT'
 }
 
+// null：文件在，但读不了、不是 JSON，或者不是这一版的格式。缺文件是空表，调用方可以新建。
+async function readEntries(filePath: string): Promise<CompareTargetEntry[] | null> {
+  let raw: string
+  try {
+    raw = await readFile(filePath, 'utf8')
+  } catch (error) {
+    return isEnoent(error) ? [] : null
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (!isRecord(parsed) || parsed.version !== 1 || !Array.isArray(parsed.entries)) {
+      return null
+    }
+    return parsed.entries.filter(isCompareTargetEntry)
+  } catch {
+    return null
+  }
+}
+
+// 桌面和 `orca serve` 的 orcad 可以共用一份 userData（实例锁 unavailable 时两边都会起来）。
+// 写入用上游的跨进程文件事务锁串起来；读不加锁，靠临时文件加 rename 永远读到完整 JSON。
 export class CompareTargetStore {
   constructor(private readonly filePath: string) {}
 
@@ -67,90 +77,34 @@ export class CompareTargetStore {
     return new CompareTargetStore(compareTargetFilePath(getAppEnvironment().getPath('userData')))
   }
 
-  read(): CompareTargetEntry[] {
-    return this.readFile() ?? []
+  async read(): Promise<CompareTargetEntry[]> {
+    return (await readEntries(this.filePath)) ?? []
   }
 
-  // null：文件在，但读不了或不是 JSON。缺文件是空表，调用方可以新建。
-  private readFile(): CompareTargetEntry[] | null {
-    let raw: string
-    try {
-      raw = readFileSync(this.filePath, 'utf8')
-    } catch (error) {
-      return isEnoent(error) ? [] : null
-    }
-    try {
-      const parsed: unknown = JSON.parse(raw)
-      if (!parsed || typeof parsed !== 'object' || !('entries' in parsed)) {
-        return []
-      }
-      const entries = (parsed as { entries?: unknown }).entries
-      if (!Array.isArray(entries)) {
-        return []
-      }
-      return entries.filter((entry): entry is CompareTargetEntry => isCompareTargetEntry(entry))
-    } catch {
-      return null
-    }
+  async get(key: CompareTargetKey): Promise<string | null> {
+    return (await this.read()).find((entry) => sameKey(entry, key))?.ref ?? null
   }
 
-  get(key: CompareTargetKey): string | null {
-    return this.read().find((entry) => sameKey(entry, key))?.ref ?? null
-  }
-
-  private refuseUnreadable(): never {
-    console.warn('[fork] compare-target file is unreadable; leaving it unchanged')
-    throw new Error('compare target file is unreadable')
-  }
-
-  private writeBody(temporary: string, entries: CompareTargetEntry[]): void {
-    const body: CompareTargetFile = { version: 1, entries }
-    writeFileSync(temporary, `${JSON.stringify(body)}\n`, { encoding: 'utf8', mode: 0o600 })
-  }
-
-  // ref 为 null 时删掉这一档。先写临时文件，rename 前再读一次合并，读到的永远是完整 JSON。
+  // ref 为 null 时删掉这一档。读不了的文件原样留着，不拿空表覆盖。
   set(key: CompareTargetKey, ref: string | null): Promise<void> {
-    return enqueueWrite(this.filePath, () => {
-      const loaded = this.readFile()
+    return withFileTransactionLock(this.filePath, async () => {
+      const loaded = await readEntries(this.filePath)
       if (loaded === null) {
-        this.refuseUnreadable()
+        console.warn('[fork] compare-target file is unreadable; leaving it unchanged')
+        throw new Error('compare target file is unreadable')
       }
-      const merged = withRef(loaded, key, ref)
-      const temporary = `${this.filePath}.${process.pid}.${Date.now()}.${temporarySerial}.tmp`
-      temporarySerial += 1
-      mkdirSync(dirname(this.filePath), { recursive: true })
+      const entries = loaded.filter((entry) => !sameKey(entry, key))
+      if (ref !== null) {
+        entries.push({ ...key, ref })
+      }
+      const body: CompareTargetFile = { version: 1, entries }
+      const temporary = `${this.filePath}.${process.pid}.${Date.now()}.tmp`
       try {
-        this.writeBody(temporary, merged)
-        // 对方可能在第一次读之后、这次 rename 之前写过。读不了就不改名，避免盖掉原文件。
-        const latest = this.readFile()
-        if (latest === null) {
-          this.refuseUnreadable()
-        }
-        const again = withRef(latest, key, ref)
-        if (JSON.stringify(again) !== JSON.stringify(merged)) {
-          this.writeBody(temporary, again)
-        }
-        renameSync(temporary, this.filePath)
-      } catch (error) {
+        writeFileSync(temporary, `${JSON.stringify(body)}\n`, { encoding: 'utf8', mode: 0o600 })
+        renameFileWithWindowsRetry(temporary, this.filePath)
+      } finally {
         rmSync(temporary, { force: true })
-        throw error
       }
     })
   }
-}
-
-function isEnoent(error: unknown): boolean {
-  return !!error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT'
-}
-
-function withRef(
-  entries: CompareTargetEntry[],
-  key: CompareTargetKey,
-  ref: string | null
-): CompareTargetEntry[] {
-  const next = entries.filter((entry) => !sameKey(entry, key))
-  if (ref !== null) {
-    next.push({ ...key, ref })
-  }
-  return next
 }

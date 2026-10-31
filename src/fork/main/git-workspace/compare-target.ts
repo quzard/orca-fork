@@ -63,7 +63,8 @@ export async function resolveWorkspaceCompareTarget(args: {
   refresh?: boolean
   now?: number
 }): Promise<CompareTargetResolution> {
-  const saved = args.key.branch ? args.store.get(args.key) : null
+  // 覆盖按分支记。分离 HEAD 没有分支，只能用默认基线。
+  const saved = args.key.branch ? await args.store.get(args.key) : null
   if (saved) {
     return { ref: saved, source: 'override' }
   }
@@ -83,8 +84,7 @@ export async function resolveWorkspaceCompareTarget(args: {
   const resolution: CompareTargetResolution = detected
     ? { ref: detected, source: 'default' }
     : { ref: null, source: 'unset' }
-  if (args.key.branch) {
-    rememberDefaultBase(cacheKey, { head, resolution, at: now })
-  }
+  // 分离 HEAD（常见于子模块）也要记住，不然每次状态轮询都重跑一遍默认基线探测。
+  rememberDefaultBase(cacheKey, { head, resolution, at: now })
   return resolution
 }

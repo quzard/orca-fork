@@ -3,7 +3,6 @@ import type { OrcaRuntimeService } from '../../../main/runtime/orca-runtime'
 import { RpcDispatcher } from '../../../main/runtime/rpc/dispatcher'
 import type { RuntimeGitTarget } from '../../../main/runtime/runtime-git-command-target'
 import { FORK_GIT_WORKSPACE_METHOD_NAMES } from '../../git-workspace/constants'
-import { bindForkGitTargetResolver, resetForkGitTargetResolverForTests } from './bind-target'
 import { FORK_GIT_WORKSPACE_METHODS } from './methods'
 
 const fsCalls = vi.hoisted(() => ({ n: 0 }))
@@ -27,15 +26,22 @@ function target(executionHostId: string): RuntimeGitTarget {
   return value as unknown as RuntimeGitTarget
 }
 
-describe('workspace repository routes', () => {
-  const dispatcher = new RpcDispatcher({
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: 分发器只读 getRuntimeId。
-    runtime: { getRuntimeId: () => 'test-runtime' } as OrcaRuntimeService,
+function dispatcherFor(executionHostId: string): RpcDispatcher {
+  const runtime = {
+    getRuntimeId: () => 'test-runtime',
+    resolveRuntimeGitTarget: async () => target(executionHostId)
+  }
+  return new RpcDispatcher({
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: 分发器只读 getRuntimeId，fork 方法只调 resolveRuntimeGitTarget。
+    runtime: runtime as unknown as OrcaRuntimeService,
     methods: FORK_GIT_WORKSPACE_METHODS
   })
+}
+
+describe('workspace repository routes', () => {
+  let dispatcher = dispatcherFor('local')
 
   afterEach(() => {
-    resetForkGitTargetResolverForTests()
     fsCalls.n = 0
   })
 
@@ -77,14 +83,14 @@ describe('workspace repository routes', () => {
   it.each(['ssh:box', 'runtime:env-1'])(
     'rejects %s before touching the client filesystem',
     async (executionHostId) => {
-      bindForkGitTargetResolver(async () => target(executionHostId))
+      dispatcher = dispatcherFor(executionHostId)
       await callEveryMethod()
       expect(fsCalls.n).toBe(0)
     }
   )
 
   it('still reads the filesystem for a local worktree', async () => {
-    bindForkGitTargetResolver(async () => target('local'))
+    dispatcher = dispatcherFor('local')
     const response = await call('git.workspaceRepositories')
     expect(response.ok).toBe(false)
     expect(fsCalls.n).toBeGreaterThan(0)

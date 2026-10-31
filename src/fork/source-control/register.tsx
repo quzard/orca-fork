@@ -4,8 +4,6 @@ import { readNestedRepositoryDiff } from './diff-read'
 import { ForkSourceControlScope } from './scope-panel'
 
 export function registerWorkspaceRepositorySourceControl(): void {
-  registerSourceControlScope((upstream, model) => (
-    <ForkSourceControlScope upstream={upstream} model={model} />
-  ))
+  registerSourceControlScope((upstream) => <ForkSourceControlScope upstream={upstream} />)
   registerWorkspaceRepositoryDiff(readNestedRepositoryDiff)
 }

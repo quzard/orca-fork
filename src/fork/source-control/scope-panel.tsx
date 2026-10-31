@@ -1,11 +1,10 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
+import { useSourceControlWorktreeContext } from '@/components/right-sidebar/source-control/listing/use-worktree-context'
 import { runtimeEnvironmentSupportsCapability } from '@/runtime/runtime-rpc-client'
 import { FORK_GIT_WORKSPACE_REPOSITORIES_CAPABILITY } from '../../shared/fork-hooks/git-workspace-capability'
-import type { SourceControlScopeModel } from '../../shared/fork-hooks/source-control-scope'
 import type { RuntimeClientTarget } from '../../shared/runtime-client-target'
 import {
-  SOURCE_CONTROL_PANEL_TAB,
   SOURCE_CONTROL_SCOPE_CURRENT,
   SOURCE_CONTROL_SCOPE_CURRENT_TEST_ID,
   SOURCE_CONTROL_SCOPE_UPDATE_HOST_TEST_ID,
@@ -21,71 +20,119 @@ import {
 import { desktopGitRouteServesWorkspaceRepos } from './desktop-git-route'
 import { WorkspaceRepositoriesView } from './workspace-view'
 
-function useWorkspaceRepositoriesCapability(target: RuntimeClientTarget | null): boolean | null {
+type HostSupport = 'checking' | 'supported' | 'unsupported' | 'unreachable'
+
+// 主机连不上或还没更新时，面板开着就隔一会儿再探，重连或升级之后不用切换工作区。
+const SUPPORT_RETRY_MS = 15_000
+
+async function probeSupport(environmentId: string): Promise<HostSupport> {
+  try {
+    const supported = await runtimeEnvironmentSupportsCapability(
+      environmentId,
+      FORK_GIT_WORKSPACE_REPOSITORIES_CAPABILITY
+    )
+    return supported ? 'supported' : 'unsupported'
+  } catch {
+    return 'unreachable'
+  }
+}
+
+// 本机桌面就是 fork 构建，视为支持。配对或托管主机按能力探测，旧主机不会收到新方法。
+function useWorkspaceRepositoriesSupport(
+  target: RuntimeClientTarget | null,
+  visible: boolean
+): HostSupport {
   const environmentId = target?.kind === 'environment' ? target.environmentId : null
-  const [supported, setSupported] = useState<boolean | null>(environmentId ? null : Boolean(target))
+  const [probe, setProbe] = useState<{ environmentId: string; support: HostSupport } | null>(null)
+  const [attempt, setAttempt] = useState(0)
   useEffect(() => {
-    if (!target || target.kind === 'local') {
-      setSupported(Boolean(target))
+    if (!environmentId || !visible) {
       return
     }
     let cancelled = false
-    setSupported(null)
-    void runtimeEnvironmentSupportsCapability(
-      target.environmentId,
-      FORK_GIT_WORKSPACE_REPOSITORIES_CAPABILITY
-    ).then(
-      (value) => {
-        if (!cancelled) {
-          setSupported(value)
-        }
-      },
-      () => {
-        if (!cancelled) {
-          setSupported(false)
-        }
+    void probeSupport(environmentId).then((support) => {
+      if (!cancelled) {
+        setProbe({ environmentId, support })
       }
-    )
+    })
     return () => {
       cancelled = true
     }
-  }, [environmentId, target])
-  return supported
+  }, [attempt, environmentId, visible])
+  // 每次探测结果都是新对象，没成功就重新排一次下一轮。
+  useEffect(() => {
+    if (!visible || !probe || probe.support === 'supported') {
+      return
+    }
+    const retry = setTimeout(() => setAttempt((value) => value + 1), SUPPORT_RETRY_MS)
+    return () => clearTimeout(retry)
+  }, [probe, visible])
+  if (!target) {
+    return 'unsupported'
+  }
+  if (target.kind === 'local') {
+    return 'supported'
+  }
+  return probe?.environmentId === environmentId ? probe.support : 'checking'
 }
 
-export function ForkSourceControlScope({
-  upstream,
-  model
-}: {
-  upstream: ReactNode
-  model: SourceControlScopeModel
-}): React.JSX.Element {
-  const worktreeId = model.activeWorktree?.id ?? ''
-  const target = model.activeRepoTarget ?? null
-  const probed = useWorkspaceRepositoriesCapability(target)
-  // 托管 SSH 的目标是 environment，请求发到那台主机的 orcad。桌面上的 ssh: 行扫不了磁盘。
+function supportHint(routeBlocked: boolean, support: HostSupport): string | null {
+  if (routeBlocked) {
+    return forkTranslate(
+      'fork.sourceControl.scope.remoteHost',
+      "This SSH host isn't served by Orca's server yet. Reconnect it to see workspace repos."
+    )
+  }
+  if (support === 'unsupported') {
+    return forkTranslate(
+      'fork.sourceControl.scope.updateHost',
+      'Update the host to compare nested repositories'
+    )
+  }
+  if (support === 'unreachable') {
+    return forkTranslate(
+      'fork.sourceControl.scope.unreachable',
+      "Can't reach the host to check workspace repos."
+    )
+  }
+  return null
+}
+
+export function ForkSourceControlScope({ upstream }: { upstream: ReactNode }): React.JSX.Element {
+  // 和上游面板同一个来源：同一个工作区、同一条路由。
+  const context = useSourceControlWorktreeContext()
+  const worktreeId = context.activeWorktreeId ?? ''
+  const target = context.activeRepoTarget
+  // 托管 SSH 的目标是 environment，请求发到那台主机的 orcad。桌面上的 ssh: 行没有能跑 git 的主机。
   const routeBlocked =
-    target?.kind !== 'environment' &&
+    target !== null &&
+    target.kind !== 'environment' &&
     !desktopGitRouteServesWorkspaceRepos({
-      executionHostId: model.activeRepoExecutionHostId,
-      connectionId: model.activeConnectionId
+      executionHostId: context.activeRepoExecutionHostId,
+      connectionId: context.activeConnectionId
     })
-  const supported = routeBlocked ? false : probed
-  const [scope, setScope] = useState<SourceControlScope>(() =>
-    worktreeId ? readSourceControlScope(worktreeId) : SOURCE_CONTROL_SCOPE_CURRENT
+  const support = useWorkspaceRepositoriesSupport(
+    routeBlocked ? null : target,
+    context.isBranchVisible
   )
-  useEffect(() => {
-    setScope(worktreeId ? readSourceControlScope(worktreeId) : SOURCE_CONTROL_SCOPE_CURRENT)
-  }, [worktreeId])
-  const shown = supported === true ? scope : SOURCE_CONTROL_SCOPE_CURRENT
-  const visible =
-    model.rightSidebarTab === undefined || model.rightSidebarTab === SOURCE_CONTROL_PANEL_TAB
+  const supported = !routeBlocked && support === 'supported'
+  const stored = useMemo(
+    () => (worktreeId ? readSourceControlScope(worktreeId) : SOURCE_CONTROL_SCOPE_CURRENT),
+    [worktreeId]
+  )
+  // 选择跟着工作区 id 走：换工作区的第一帧就用新工作区记住的范围，不会先按旧范围发请求。
+  const [chosen, setChosen] = useState<{ worktreeId: string; scope: SourceControlScope } | null>(
+    null
+  )
+  const scope = chosen?.worktreeId === worktreeId ? chosen.scope : stored
+  const shown = supported ? scope : SOURCE_CONTROL_SCOPE_CURRENT
+  const hint = target ? supportHint(routeBlocked, support) : null
   const choose = (next: SourceControlScope): void => {
-    if (supported !== true || !worktreeId) {
+    if (!supported || !worktreeId) {
       return
     }
     writeSourceControlScope(worktreeId, next)
-    setScope(next)
+    setChosen({ worktreeId, scope: next })
   }
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -95,7 +142,7 @@ export function ForkSourceControlScope({
           size="xs"
           variant={shown === SOURCE_CONTROL_SCOPE_CURRENT ? 'secondary' : 'ghost'}
           aria-pressed={shown === SOURCE_CONTROL_SCOPE_CURRENT}
-          disabled={supported !== true}
+          disabled={!supported}
           data-testid={SOURCE_CONTROL_SCOPE_CURRENT_TEST_ID}
           onClick={() => choose(SOURCE_CONTROL_SCOPE_CURRENT)}
         >
@@ -106,36 +153,29 @@ export function ForkSourceControlScope({
           size="xs"
           variant={shown === SOURCE_CONTROL_SCOPE_WORKSPACE ? 'secondary' : 'ghost'}
           aria-pressed={shown === SOURCE_CONTROL_SCOPE_WORKSPACE}
-          disabled={supported !== true}
+          disabled={!supported}
           data-testid={SOURCE_CONTROL_SCOPE_WORKSPACE_TEST_ID}
           onClick={() => choose(SOURCE_CONTROL_SCOPE_WORKSPACE)}
         >
           {forkTranslate('fork.sourceControl.scope.workspace', 'Workspace repos')}
         </Button>
-        {supported === false ? (
+        {hint ? (
           <span
             className="min-w-0 truncate text-xs text-muted-foreground"
+            title={hint}
             data-testid={SOURCE_CONTROL_SCOPE_UPDATE_HOST_TEST_ID}
           >
-            {routeBlocked
-              ? forkTranslate(
-                  'fork.sourceControl.scope.remoteHost',
-                  "This computer can't read nested repositories on an SSH host. Use that host's Orca."
-                )
-              : forkTranslate(
-                  'fork.sourceControl.scope.updateHost',
-                  'Update the host to compare nested repositories'
-                )}
+            {hint}
           </span>
         ) : null}
       </div>
-      {shown === SOURCE_CONTROL_SCOPE_WORKSPACE && target && model.worktreePath ? (
+      {shown === SOURCE_CONTROL_SCOPE_WORKSPACE && target && context.worktreePath ? (
         <WorkspaceRepositoriesView
           key={worktreeId}
           target={target}
           worktreeId={worktreeId}
-          worktreePath={model.worktreePath}
-          visible={visible}
+          worktreePath={context.worktreePath}
+          visible={context.isBranchVisible}
         />
       ) : (
         upstream

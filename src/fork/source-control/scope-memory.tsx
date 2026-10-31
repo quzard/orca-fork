@@ -31,10 +31,21 @@ export function readSourceControlScope(worktreeId: string): SourceControlScope {
     : SOURCE_CONTROL_SCOPE_CURRENT
 }
 
+// 只记非默认的「工作区仓库」。切回当前仓库就删掉这一条，删掉的工作区不会一直留在表里。
 export function writeSourceControlScope(worktreeId: string, scope: SourceControlScope): void {
-  const next = readMap()
-  next[worktreeId] = scope
-  localStorage.setItem(SOURCE_CONTROL_SCOPE_STORAGE_KEY, JSON.stringify(next))
+  const others = Object.entries(readMap()).filter(([id]) => id !== worktreeId)
+  const next = Object.fromEntries(
+    scope === SOURCE_CONTROL_SCOPE_WORKSPACE ? [...others, [worktreeId, scope]] : others
+  )
+  try {
+    if (Object.keys(next).length === 0) {
+      localStorage.removeItem(SOURCE_CONTROL_SCOPE_STORAGE_KEY)
+    } else {
+      localStorage.setItem(SOURCE_CONTROL_SCOPE_STORAGE_KEY, JSON.stringify(next))
+    }
+  } catch {
+    // 写不进去时，这次会话里的选择仍然有效。
+  }
 }
 
 // 整个面板一份，不按工作区分。缺省关。

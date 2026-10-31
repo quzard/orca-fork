@@ -17,6 +17,9 @@ type DiscoveryOptions = {
   maxRepos: number
   timeoutMs: number
   refresh: boolean
+  // 状态、diff 只要确认路径属于这个工作区：上一轮列表（含超时截断的）在这个时间内都能用。
+  maxAgeMs: number
+  acceptPartial: boolean
   gitOptions: GitRuntimeOptions
   signal?: AbortSignal
 }
@@ -29,10 +32,23 @@ type AddRepository = (
   depth: number
 ) => boolean
 
-const cache = new Map<string, { expiresAt: number; value: WorkspaceRepositoryList }>()
+// 成员查询最多认一分钟前的结果。更旧的条目在下一次写入时清掉。
+export const WORKSPACE_REPOSITORY_MEMBERSHIP_MAX_AGE_MS = 60_000
+
+const cache = new Map<string, { at: number; complete: boolean; value: WorkspaceRepositoryList }>()
 
 export function clearWorkspaceRepositoryDiscoveryCache(): void {
   cache.clear()
+}
+
+function remember(cacheKey: string, complete: boolean, value: WorkspaceRepositoryList): void {
+  const now = Date.now()
+  for (const [key, entry] of cache) {
+    if (now - entry.at >= WORKSPACE_REPOSITORY_MEMBERSHIP_MAX_AGE_MS) {
+      cache.delete(key)
+    }
+  }
+  cache.set(cacheKey, { at: now, complete, value })
 }
 
 // .git 目录或文件都算检出。worktree add 写的是文件，不能只认目录。
@@ -80,11 +96,17 @@ export async function discoverWorkspaceRepositories(
 ): Promise<WorkspaceRepositoryList> {
   const maxRepos = options.maxRepos ?? WORKSPACE_REPOSITORY_MAX_REPOS
   const timeoutMs = options.timeoutMs ?? WORKSPACE_REPOSITORY_TIMEOUT_MS
+  const maxAgeMs = options.maxAgeMs ?? WORKSPACE_REPOSITORY_DISCOVERY_CACHE_MS
   const gitOptions = options.gitOptions ?? {}
   const rootReal = await realpath(worktreePath)
   const cacheKey = [rootReal, maxRepos, timeoutMs].join('\0')
   const cached = cache.get(cacheKey)
-  if (!options.refresh && cached && cached.expiresAt > Date.now()) {
+  if (
+    !options.refresh &&
+    cached &&
+    Date.now() - cached.at < maxAgeMs &&
+    (cached.complete || options.acceptPartial)
+  ) {
     return cached.value
   }
 
@@ -93,7 +115,7 @@ export async function discoverWorkspaceRepositories(
   let truncated = false
   let timedOut = false
   const deadline = Date.now() + timeoutMs
-  // 到点或调用方取消就停。超时要记下来，取消不记成超时，两种都不进缓存。
+  // 到点或调用方取消就停。超时要记下来；取消的结果不完整，也不进缓存。
   const stop = (): boolean => {
     if (options.signal?.aborted) {
       return true
@@ -136,8 +158,9 @@ export async function discoverWorkspaceRepositories(
   }
   records.sort((left, right) => left.repositoryPath.localeCompare(right.repositoryPath))
   const value = { repositories: records, truncated, timedOut }
-  if (!timedOut && !options.signal?.aborted) {
-    cache.set(cacheKey, { expiresAt: Date.now() + WORKSPACE_REPOSITORY_DISCOVERY_CACHE_MS, value })
+  if (!options.signal?.aborted) {
+    // 超时截断的列表只给成员查询用；下一次列出仓库仍重新扫。
+    remember(cacheKey, !timedOut, value)
   }
   return value
 }
@@ -149,26 +172,22 @@ async function addFirstLevelChildren(
   atCap: () => boolean,
   add: AddRepository
 ): Promise<void> {
-  let entries: { name: string; isDirectory: () => boolean; isSymbolicLink: () => boolean }[]
+  let entries: { name: string; isDirectory: () => boolean }[]
   try {
     entries = await readdir(worktreePath, { withFileTypes: true })
   } catch {
     return
   }
+  // 软链目录不跟（isDirectory 对软链是 false）。指回工作区内部的也不跟，否则深层检出可以借软链出现在第一层。
   const children = entries
-    .filter((entry) => entry.isDirectory() || entry.isSymbolicLink())
+    .filter((entry) => entry.isDirectory())
     .filter((entry) => !entry.name.startsWith('.') && entry.name !== 'node_modules')
     .sort((left, right) => left.name.localeCompare(right.name))
   for (const entry of children) {
     if (stop()) {
       return
     }
-    // 软链目录不跟。指回工作区内部的也不跟，否则深层检出可以借软链出现在第一层。
-    if (entry.isSymbolicLink()) {
-      continue
-    }
-    const name = entry.name
-    const absolute = join(worktreePath, name)
+    const absolute = join(worktreePath, entry.name)
     if (!(await hasGitMarker(absolute))) {
       continue
     }

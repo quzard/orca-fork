@@ -100,9 +100,8 @@ export function useEditorPanelDiffContentLoader({
         }
         let pending = inFlightDiffReads.get(key)
         if (!pending) {
-          // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: every branch resolves a git diff result, which DiffContent mirrors.
           const readUpstream = (): Promise<DiffContent> =>
-            (effectiveDiffSource === 'commit'
+            effectiveDiffSource === 'commit'
               ? commitCompare
                 ? getRuntimeGitCommitDiff(
                     {
@@ -156,18 +155,9 @@ export function useEditorPanelDiffContentLoader({
                         : {})
                     },
                     wake
-                  )) as Promise<DiffContent>
-          // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: a nested hit is the same diff result; a miss is readUpstream.
-          const promise = (forkWorkspaceRepositoryDiff({
-            file,
-            worktreePath,
-            connectionId,
-            target: fileTarget,
-            effectiveDiffSource: effectiveDiffSource ?? '',
-            compareAgainstHead,
-            branchCompare,
-            readUpstream
-          }) ?? readUpstream()) as Promise<DiffContent>
+                  )
+          const fork = { file, fileTarget, connectionId, effectiveDiffSource, compareAgainstHead }
+          const promise = forkWorkspaceRepositoryDiff(fork, readUpstream) ?? readUpstream()
           pending = { externalEventGeneration: options?.externalEventGeneration, promise }
           inFlightDiffReads.set(key, pending)
           queueMicrotask(() => {

@@ -4,7 +4,7 @@
 
 ## 审计表（AUDIT.md）
 
-- 生成只有一条命令：`python3 fork/scripts/generate-audit.py`。它读 `src/fork/skills-source-commit.ts` 记录的上游基点，对工作区跑 `git diff --no-renames <基点>`，主表一行一个和基点不同的已跟踪文件（上游文件也算），一个不多一个不少；再经仓库里的 oxfmt 格式化后写入。`--check` 只比对，表过期时以 1 退出。需要 git、python3 和 `node_modules`（oxfmt）。
+- 生成只有一条命令：`python3 fork/scripts/generate-audit.py`。它读 `src/fork/skills-source-commit.ts` 记录的上游基点，对工作区跑 `git diff --no-renames <基点>`，主表一行一个和基点不同的已跟踪文件（上游文件也算），一个不多一个不少；再经仓库里的 oxfmt 格式化后写入。`--check` 只比对，表过期时以 1 退出。需要 git、python3 和 `node_modules`（oxfmt）。只看已跟踪的文件：新文件 `git add` 之后再生成。
 - 原因列默认写「fork 自有文件」「fork 新增文件（上游目录）」或「上游文件，fork 改动 N 行」。脚本里的 `REASONS` 只给少数行补一句说明；`HISTORY` 单列已恢复成上游或已删除的文件。补充说明指向的文件和基点相同、或者 `HISTORY` 里的文件又和基点不同时，脚本直接报错，不会悄悄留下过期条目。旧脚本按 PR #6 之前的提交算「shrink」，需要那几个老提交，已去掉；以前各轮写的 PR 备注不再沿用。
 - `src/fork/audit-table.fork.test.ts` 自己用 git 重算文件集合（不信任生成器）：主表等于和基点不同的文件、决定都是 keep；`HISTORY` 里的文件仍和基点相同、删除的文件确实不存在；汇总数字对得上；最后跑一次 `--check`。
 - 推送门：`fork/push_github.sh` 推送前先跑 `generate-audit.py --check`，再跑 fork 测试（`src/fork src/shared/fork-hooks`，含审计表测试），任何一项失败都不推送。推送的检出因此要有 `node_modules`。

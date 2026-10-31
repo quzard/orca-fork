@@ -61,7 +61,6 @@ export type AiVaultServiceInit = {
   protocol: typeof AI_VAULT_SERVICE_PROTOCOL_VERSION
   sessionParseCache: SessionParseCachePersistenceOptions | null
   sessionSearch: AiVaultSessionSearchInit | null
-  /** Present only when this build registered fork scan policy. Older peers omit it. */
   fork?: AiVaultForkServicePolicy
 }
 

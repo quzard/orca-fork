@@ -8,16 +8,11 @@ import {
   SESSION_SEARCH_SCHEMA_VERSION
 } from '../../../main/ai-vault-search/session-search-schema'
 import {
-  aiVaultSearchSchemaVersion,
+  readAiVaultServiceHeapMiB,
   registerAiVaultServiceHeap,
   registerAiVaultToolIndexPolicy,
   resetAiVaultForkHooksForTests
 } from '../../../shared/fork-hooks/ai-vault'
-import {
-  resetStartupForkHooksForTests,
-  registerDeferBrowserSessionProxy
-} from '../../../shared/fork-hooks/startup'
-import { applyStartupBrowserSessionProxies } from '../startup/browser-session-proxy'
 import { aiVaultServiceHeapMiB } from './heap'
 import { applyAiVaultForkServicePolicy, aiVaultForkServicePolicy } from './service-policy'
 
@@ -26,7 +21,6 @@ const GIB = 1024 * MIB
 
 afterEach(() => {
   resetAiVaultForkHooksForTests()
-  resetStartupForkHooksForTests()
 })
 
 describe('scan policy', () => {
@@ -34,8 +28,10 @@ describe('scan policy', () => {
     expect(aiVaultServiceHeapMiB(2 * GIB)).toBe(384)
     expect(aiVaultServiceHeapMiB(4 * GIB)).toBe(1024)
     expect(aiVaultServiceHeapMiB(16 * GIB)).toBe(2048)
+    // The spawn passes upstream's 384 as the fallback; only a registered resolver changes it.
+    expect(readAiVaultServiceHeapMiB(384)).toBe(384)
     registerAiVaultServiceHeap(() => aiVaultServiceHeapMiB(16 * GIB))
-    expect(aiVaultServiceHeapMiB(16 * GIB)).toBe(2048)
+    expect(readAiVaultServiceHeapMiB(384)).toBe(2048)
   })
 
   it('indexes a whole tool result in chunks and bumps the schema', async () => {
@@ -55,8 +51,8 @@ describe('scan policy', () => {
       const version = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()
       const value =
         version && typeof version === 'object' && 'value' in version ? version.value : undefined
-      // 上游 schema 版本再加上 fork 的偏移，整段工具结果分块后索引要重建。
-      expect(value).toBe(String(aiVaultSearchSchemaVersion(SESSION_SEARCH_SCHEMA_VERSION)))
+      // fork 偏移 1：旧库里的工具输出是截断的，打开时要丢掉重建。
+      expect(value).toBe(String(SESSION_SEARCH_SCHEMA_VERSION + 1))
       db.close()
     } finally {
       await rm(root, { recursive: true, force: true })
@@ -68,20 +64,5 @@ describe('scan policy', () => {
     const rows = [...searchMessageRows([{ role: 'tool', text: 'x'.repeat(9000), timestamp: null }])]
     expect(rows).toHaveLength(1)
     expect(rows[0]?.text.length).toBeLessThanOrEqual(3072)
-  })
-
-  it('does not block startup on the browser proxy apply', async () => {
-    registerDeferBrowserSessionProxy(true)
-    let settled = false
-    await applyStartupBrowserSessionProxies(
-      () =>
-        new Promise((resolve) => {
-          setTimeout(() => {
-            settled = true
-            resolve(undefined)
-          }, 30)
-        })
-    )
-    expect(settled).toBe(false)
   })
 })

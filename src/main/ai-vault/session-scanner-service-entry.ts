@@ -191,9 +191,7 @@ process.on('message', (raw: AiVaultServiceParentMessage) => {
       return
     }
     initialized = true
-    if (raw.fork) {
-      applyAiVaultForkServicePolicy(raw.fork)
-    }
+    applyAiVaultForkServicePolicy(raw.fork)
     if (raw.sessionParseCache) {
       initSessionParseCachePersistence(raw.sessionParseCache)
     }

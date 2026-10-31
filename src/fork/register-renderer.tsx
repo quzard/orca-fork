@@ -34,7 +34,6 @@ import {
 } from './terminal/reconnect-tui-pulse'
 import { registerComposerSeed } from './sidebar/register-composer-seed'
 import { installForkLocaleOverlays } from './i18n/locale-overlay'
-import { registerForkWorktreeContextMenuLabels } from './sidebar/context-menu-labels'
 import { installManagedSshAddressPreview } from './terminal/html-preview-address'
 import { installSshRoutedHtmlPreviewRecovery } from './terminal/html-preview-reclaim'
 import { registerTerminalFileLinkStayWatch } from './terminal/file-link-stay-watch'
@@ -70,7 +69,6 @@ export function registerForkRendererModules(): void {
     consumeDeferredSshReconnectTui(info, resizePty)
   })
   registerComposerSeed()
-  registerForkWorktreeContextMenuLabels()
   registerTerminalFileLinkStayWatch()
   installManagedSshAddressPreview()
   installSshRoutedHtmlPreviewRecovery()

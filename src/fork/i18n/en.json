@@ -59,14 +59,6 @@
       "hostTooOldForGroups": "Update Orca on this host to move workspaces between groups.",
       "restoreWorkspace": "Restore",
       "searchWorkspaces": "Search workspaces",
-      "contextMenu": {
-        "sleep": "Sleep",
-        "sleepOne": "Sleep {{count}} Workspace",
-        "sleepMany": "Sleep {{count}} Workspaces",
-        "deleteSelected": "Delete Selected",
-        "deleteOne": "Delete {{count}} Workspace",
-        "deleteMany": "Delete {{count}} Workspaces"
-      },
       "hostMode": "Host",
       "hostModeDescription": "Group workspaces by execution host, then by directory.",
       "ungroupOnly": "Ungroup only",
@@ -75,8 +67,6 @@
     "workspaceDelete": {
       "alsoDeleteFolder": "Also delete folder",
       "keepFolderHint": "Leave this off to keep the folder on disk.",
-      "keepFolderOne": "from Orca. The workspace folder on disk will not be deleted.",
-      "keepFolderMany": "from Orca. Workspace folders on disk will not be deleted.",
       "keepFolderSingle": "Remove <target/> from Orca. The workspace folder on disk will not be deleted.",
       "keepFolderBatch": "Remove <target>{{count}} workspaces</target> from Orca. Workspace folders on disk will not be deleted.",
       "keepFolderWithChild": "Remove <target/> and <descendants>1 child workspace</descendants> from Orca. Workspace folders on disk will not be deleted.",

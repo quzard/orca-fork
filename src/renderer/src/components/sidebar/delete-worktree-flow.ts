@@ -11,8 +11,7 @@ import { resolveSshWorkspaceForget } from './ssh-workspace-forget-resolution'
 import { resolveWorktreeOperationRouteForHost } from '@/lib/worktree-operation-route'
 import { isPairedWebClientWindow } from '@/lib/desktop-window-chrome'
 import { parseWorkspaceKey } from '../../../../shared/workspace-scope'
-import { getWorktreeExecutionHostId, type ExecutionHostId } from '../../../../shared/execution-host'
-import { isFolderRepo } from '../../../../shared/repo-kind'
+import { getWorktreeExecutionHostId } from '../../../../shared/execution-host'
 import {
   resolveWorktreeBatchDeleteTargets,
   toWorktreeDeleteIdentities,
@@ -25,49 +24,7 @@ import {
   runWorktreeDeleteWithToast
 } from './worktree-delete-execution'
 import { collectRemovalUnsavedFiles } from '@/components/editor/removal-unsaved-editor-files'
-import {
-  takeWorkspaceRecordRemoval,
-  workspaceFolderDeleteRegistered,
-  type WorkspaceRecordIdentity
-} from '../../../../shared/fork-hooks/workspace-folder-delete'
-
-// 勾过“不要再问”也只是跳过对话框。登记之后默认仍只移出 Orca。
-// 返回 null 的是本来就不删目录的文件夹工作区。登记后的回退只删这些文件夹，不碰 git 行。
-function folderRemovalTargets<T extends { repoId: string; hostId?: ExecutionHostId }>(
-  targets: readonly T[]
-): T[] {
-  const repos = useAppStore.getState().repos
-  return targets.filter((target) => {
-    const repo = target.hostId
-      ? findRepoForHost(repos, target.repoId, { hostId: target.hostId })
-      : (repos.find((entry) => entry.id === target.repoId) ?? null)
-    return Boolean(repo && isFolderRepo(repo))
-  })
-}
-
-function startRecordOnlyRemoval(
-  identities: readonly WorktreeDeleteIdentity[],
-  hardDelete: () => void,
-  onRemoved?: (removed: readonly WorkspaceRecordIdentity[]) => void
-): boolean {
-  if (!workspaceFolderDeleteRegistered()) {
-    return false
-  }
-  void takeWorkspaceRecordRemoval(identities, false)
-    .then((removed) => {
-      if (removed === null) {
-        hardDelete()
-        return
-      }
-      if (removed.length > 0) {
-        onRemoved?.(removed)
-      }
-    })
-    .catch((error: unknown) => {
-      console.error('Failed to remove workspace from Orca:', error)
-    })
-  return true
-}
+import { skipConfirmHardDeletes } from '../../../../shared/fork-hooks/workspace-folder-delete'
 
 export { runWorktreeDeletesInParallel, runWorktreeDeleteWithToast }
 
@@ -145,18 +102,10 @@ export function runWorktreeDelete(worktreeId: string, options: WorktreeDeleteOpt
     (state.settings?.skipDeleteWorktreeConfirm ?? false) &&
     collectRemovalUnsavedFiles(useAppStore.getState, [target]).length === 0
   if (skipConfirm && !hasLineageChildren) {
-    const hardDelete = (): void => {
-      void runWorktreeDeleteWithToast(toWorktreeRemovalTarget(target), target.displayName)
+    if (skipConfirmHardDeletes([target]).length === 0) {
+      return
     }
-    if (
-      !startRecordOnlyRemoval(toWorktreeDeleteIdentities([target]), () => {
-        if (folderRemovalTargets([target]).length > 0) {
-          hardDelete()
-        }
-      })
-    ) {
-      hardDelete()
-    }
+    void runWorktreeDeleteWithToast(toWorktreeRemovalTarget(target), target.displayName)
     return
   }
   state.openModal('delete-worktree', {
@@ -214,37 +163,13 @@ export function runWorktreeBatchDelete(
     (state.settings?.skipDeleteWorktreeConfirm ?? false) &&
     collectRemovalUnsavedFiles(useAppStore.getState, targets).length === 0
   if (skipConfirm) {
-    const hardDelete = (targetsToDelete: typeof targets): void => {
-      if (targetsToDelete.length === 0) {
-        return
+    void runWorktreeDeletesInParallel(skipConfirmHardDeletes(targets, options.onDeleted), {
+      onForceDeleted: (deletedTarget) => options.onDeleted?.([deletedTarget])
+    }).then((deletedTargets) => {
+      if (deletedTargets.length > 0) {
+        options.onDeleted?.(deletedTargets)
       }
-      void runWorktreeDeletesInParallel(targetsToDelete, {
-        onForceDeleted: (deletedTarget) => options.onDeleted?.([deletedTarget])
-      }).then((deletedTargets) => {
-        if (deletedTargets.length > 0) {
-          options.onDeleted?.(deletedTargets)
-        }
-      })
-    }
-    const handled = startRecordOnlyRemoval(
-      toWorktreeDeleteIdentities(targets),
-      () => hardDelete(folderRemovalTargets(targets)),
-      (removed) => {
-        const deleted = targets.filter((worktree) =>
-          removed.some(
-            (item) =>
-              item.id === worktree.id &&
-              (item.hostId ?? undefined) === (worktree.hostId ?? undefined)
-          )
-        )
-        if (deleted.length > 0) {
-          options.onDeleted?.(deleted.map((worktree) => toWorktreeRemovalTarget(worktree)))
-        }
-      }
-    )
-    if (!handled) {
-      hardDelete(targets)
-    }
+    })
     return true
   }
 

@@ -59,14 +59,6 @@
       "hostTooOldForGroups": "请先更新此主机上的 Orca，才能在分组之间移动工作区。",
       "restoreWorkspace": "恢复",
       "searchWorkspaces": "搜索工作区",
-      "contextMenu": {
-        "sleep": "休眠",
-        "sleepOne": "休眠 {{count}} 个工作区",
-        "sleepMany": "休眠 {{count}} 个工作区",
-        "deleteSelected": "删除所选",
-        "deleteOne": "删除 {{count}} 个工作区",
-        "deleteMany": "删除 {{count}} 个工作区"
-      },
       "hostMode": "主机",
       "hostModeDescription": "先按执行主机、再按目录给工作区分组。",
       "ungroupOnly": "仅取消分组",
@@ -75,8 +67,6 @@
     "workspaceDelete": {
       "alsoDeleteFolder": "同时删除文件夹",
       "keepFolderHint": "不勾选则保留磁盘上的文件夹。",
-      "keepFolderOne": "仅从 Orca 移除，不会删除磁盘上的工作区文件夹。",
-      "keepFolderMany": "仅从 Orca 移除，不会删除磁盘上的工作区文件夹。",
       "keepFolderSingle": "从 Orca 移除 <target/>。不会删除磁盘上的工作区文件夹。",
       "keepFolderBatch": "从 Orca 移除 <target>{{count}} 个工作区</target>。不会删除磁盘上的工作区文件夹。",
       "keepFolderWithChild": "从 Orca 移除 <target/> 和 <descendants>1 个子工作区</descendants>。不会删除磁盘上的工作区文件夹。",

@@ -3,6 +3,7 @@ import { useAppStore } from '@/store'
 import { forkTranslate } from '../i18n/fork-translate'
 import { normalizeRuntimePathForComparison } from '../../shared/cross-platform-path'
 import { LOCAL_EXECUTION_HOST_ID, type ExecutionHostId } from '../../shared/execution-host'
+import { composeWorktreeId } from '../../shared/worktree/id'
 import type { ForkPostImportDetails } from '../../shared/fork-hooks/post-import'
 // 文件夹主机解析已从目录模块搬到 shared，签名仍是工作区加项目组列表。
 import { getFolderWorkspaceHostId } from '../../shared/folder-workspace-execution-host'
@@ -39,7 +40,7 @@ async function keepSelectedWorktrees(details: ForkPostImportDetails): Promise<vo
     const releasePaths = async (): Promise<void> => {
       for (const importedPath of paths) {
         await releaseImportedWorktree({
-          id: `${projectId}::${importedPath}`,
+          id: composeWorktreeId(projectId, importedPath),
           path: importedPath,
           repoId: projectId,
           hostId
@@ -89,7 +90,7 @@ async function ensureParentFolder(details: ForkPostImportDetails): Promise<void>
   if (existing) {
     if (!existing.isArchived) {
       releaseDurableArchiveAtPath({
-        id: `${details.repoId}::${parentPath}`,
+        id: composeWorktreeId(details.repoId, parentPath),
         path: parentPath,
         repoId: details.repoId,
         hostId
@@ -103,7 +104,7 @@ async function ensureParentFolder(details: ForkPostImportDetails): Promise<void>
       throw new Error(PARENT_FOLDER_IMPORT_FAILED)
     }
     releaseDurableArchiveAtPath({
-      id: `${details.repoId}::${parentPath}`,
+      id: composeWorktreeId(details.repoId, parentPath),
       path: parentPath,
       repoId: details.repoId,
       hostId
@@ -122,7 +123,7 @@ async function ensureParentFolder(details: ForkPostImportDetails): Promise<void>
     { runtimeEnvironmentId: details.runtimeEnvironmentId ?? null }
   )
   releaseDurableArchiveAtPath({
-    id: `${details.repoId}::${parentPath}`,
+    id: composeWorktreeId(details.repoId, parentPath),
     path: parentPath,
     repoId: details.repoId,
     hostId
@@ -137,7 +138,7 @@ export async function applyForkPostImport(details: ForkPostImportDetails): Promi
         continue
       }
       await releaseImportedWorktree({
-        id: `${details.repoId}::${importedPath}`,
+        id: composeWorktreeId(details.repoId, importedPath),
         path: importedPath,
         repoId: details.repoId,
         hostId: details.executionHostId

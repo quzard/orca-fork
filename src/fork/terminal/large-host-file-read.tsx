@@ -1,7 +1,8 @@
-// F046: the editor opens a text file outside every workspace that its terminal grant will not send:
-// past 512 KiB, past the reply once decoded, or a log that changed since its grant. It pages the file
-// by absolute path through upstream's loop, up to the size upstream opens inside a workspace. Images
-// and PDFs keep upstream's grant preview. .tsx because it imports renderer aliases.
+// F046: the editor opens a file outside every workspace that its terminal grant will not send in one
+// reply: text past 512 KiB, past the reply once decoded, or a log that changed since its grant; an
+// image or PDF past the grant preview's reply (about 3 MB). It pages the file by absolute path
+// through upstream's loop, up to the size upstream opens inside a workspace. .tsx because it imports
+// renderer aliases.
 import { useAppStore } from '@/store'
 import { decodeBase64Bytes } from '@/lib/base64-bytes'
 import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
@@ -12,6 +13,7 @@ import {
   PAGED_REMOTE_FILE_MAX_BYTES,
   pagedFilePreviewResult,
   pagedTextFileResult,
+  previewableBinaryMimeType,
   readFileInChunks,
   type ChunkedFileReader
 } from '@/runtime/runtime-paged-file-read'
@@ -25,6 +27,7 @@ import {
   HOST_FILE_READ_CHUNK_METHOD,
   HOST_FILE_STAT_METHOD,
   registerLargeHostFileReader,
+  registerLargeHostPreviewReader,
   type GrantedHostFile,
   type LargeHostFileRefusal
 } from '../../shared/fork-hooks/host-file-doc-preview'
@@ -33,7 +36,7 @@ import {
 const GRANT_WRITE_MAX_BYTES = 512 * 1024
 
 type HostFileSnapshot = RuntimeFileSnapshot & { fileId?: string }
-type HostFile = Pick<
+export type HostFile = Pick<
   GrantedHostFile,
   'target' | 'worktreeId' | 'absolutePath' | 'expectedEnvironmentPairingRevision'
 >
@@ -52,11 +55,11 @@ function callHost<TResult>(
   )
 }
 
-function statHostFile(file: HostFile): Promise<HostFileSnapshot> {
+export function statHostFile(file: HostFile): Promise<HostFileSnapshot> {
   return callHost(file, HOST_FILE_STAT_METHOD, 15_000)
 }
 
-function readHostRange(
+export function readHostRange(
   file: HostFile,
   offset: number,
   length: number
@@ -67,7 +70,7 @@ function readHostRange(
 }
 
 /** Upstream's terms: a file that changes in any way while it loads is refused. */
-export function strictHostFileReader(file: HostFile): ChunkedFileReader {
+function strictHostFileReader(file: HostFile): ChunkedFileReader {
   return {
     stat: () => statHostFile(file),
     readChunk: (offset, length) => readHostRange(file, offset, length)
@@ -127,7 +130,7 @@ function snapshotHostFileReader(file: HostFile): ChunkedFileReader {
   }
 }
 
-function isMissingMethod(error: unknown): boolean {
+export function isMissingMethod(error: unknown): boolean {
   return error instanceof RuntimeRpcCallError && error.code === 'method_not_found'
 }
 
@@ -166,7 +169,8 @@ async function readLargeHostFile(
   if (decodeBase64Bytes(probe.contentBase64).includes(0)) {
     return { content: '', isBinary: true }
   }
-  // Why: a host CSV has no paged preview, so past upstream's paging threshold it stays refused.
+  // Why: past upstream's paging threshold a host CSV opens in the paged preview (host-file-csv-preview);
+  // a whole read reaching here is a tab with a draft, which upstream also refuses as a table.
   const maxBytes = /\.(csv|tsv)$/i.test(file.absolutePath)
     ? CSV_PAGED_PREVIEW_BYTES
     : PAGED_REMOTE_FILE_MAX_BYTES
@@ -183,12 +187,14 @@ async function readLargeHostFile(
   return pagedTextFileResult(paged.bytes)
 }
 
-/** An image a Markdown file outside the workspace names, past the grant preview's one reply. */
-export async function readLargeHostImage(
+/** An image or PDF past the grant preview's one reply: the editor's, a chat's or a Markdown file's. */
+async function readLargeHostPreview(
   file: HostFile,
   refusal: unknown
 ): Promise<RuntimeFilePreviewResult> {
-  if (!(refusal instanceof RuntimeRpcCallError && refusal.message === 'file_too_large')) {
+  const tooLarge = refusal instanceof RuntimeRpcCallError && refusal.message === 'file_too_large'
+  // Why: the preview sends no other binary's bytes, so paging one would only fetch megabytes to drop.
+  if (!tooLarge || !previewableBinaryMimeType(file.absolutePath)) {
     throw refusal
   }
   const paged = await readFileInChunks(strictHostFileReader(file))
@@ -200,4 +206,5 @@ export async function readLargeHostImage(
 
 export function registerLargeHostFileReads(): void {
   registerLargeHostFileReader(readLargeHostFile)
+  registerLargeHostPreviewReader(readLargeHostPreview)
 }

@@ -5,6 +5,7 @@ import {
   type RuntimeFileSnapshot
 } from '@/runtime/runtime-file-range-client'
 import type { FileContent } from '../editor-panel-content-types'
+import { pagedHostCsvPreview } from '../../../../../shared/fork-hooks/host-file-ranges'
 
 import { CSV_PAGED_PREVIEW_BYTES } from './csv-file-limits'
 export { CSV_PAGED_PREVIEW_BYTES } from './csv-file-limits'
@@ -22,5 +23,5 @@ export async function readEditorCsvFileContent(
       return { content: '', isBinary: false, csvPreview: { readArgs: args, snapshot } }
     }
   }
-  return readRuntimeFileContent(args)
+  return (await pagedHostCsvPreview(args, allowPagedPreview)) ?? readRuntimeFileContent(args)
 }

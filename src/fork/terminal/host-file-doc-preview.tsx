@@ -11,7 +11,6 @@ import {
   registerHostFileDocPreview,
   type HostFileDocLocation
 } from '../../shared/fork-hooks/host-file-doc-preview'
-import { readLargeHostImage } from './large-host-file-read'
 
 const DRIVE_ROOT = /^[A-Za-z]:[\\/]/
 
@@ -74,9 +73,8 @@ function documentLocation(args: {
 export function registerHostFileDocPreviews(): void {
   registerHostFileDocPreview({
     location: documentLocation,
+    // Past one reply, the grant preview's image is paged by large-host-file-read.
     readDocumentResource: (target, worktreeId, absolutePath) =>
-      readHostFilePreview({ target, worktreeId, absolutePath }).catch((refusal: unknown) =>
-        readLargeHostImage({ target, worktreeId, absolutePath }, refusal)
-      )
+      readHostFilePreview({ target, worktreeId, absolutePath })
   })
 }

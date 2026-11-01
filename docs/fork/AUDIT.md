@@ -2,7 +2,7 @@
 
 由 `python3 fork/scripts/generate-audit.py` 生成（`--check` 只比对）。主表是和上游基点（`src/fork/skills-source-commit.ts` 记录的提交）不同的每个文件，一个不多一个不少；末尾另列已恢复成上游或已删除的文件，它们必须和基点相同。`src/fork/audit-table.fork.test.ts` 检查表和仓库一致。
 
-共 446 行：delete 5，keep 420，revert-to-upstream 21。上游文件（不含 fork 目录）里的 fork 改动 783 行，涉及 149 个文件。
+共 448 行：delete 5，keep 422，revert-to-upstream 21。上游文件（不含 fork 目录）里的 fork 改动 800 行，涉及 151 个文件。
 
 | 文件                                                                                    | 功能                     | 决定 | 原因                                                                                                                                              |
 | --------------------------------------------------------------------------------------- | ------------------------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -305,6 +305,7 @@
 | `src/main/wsl/wsl-hosts-policy-live-update.ts`                                          | UPD 应用内更新           | keep | 上游文件，fork 改动 3 行                                                                                                                          |
 | `src/preload/api/worktree-api.ts`                                                       | SB 侧栏/工作区           | keep | 上游文件，fork 改动 4 行                                                                                                                          |
 | `src/renderer/src/components/automations/WorkspaceCombobox.tsx`                         | SB 侧栏/工作区           | keep | 上游文件，fork 改动 7 行                                                                                                                          |
+| `src/renderer/src/components/editor/csv/csv-file-content.ts`                            | F046 终端文件链接        | keep | 上游文件，fork 改动 3 行。F046：工作区外的 CSV 过了上游的分页阈值，最后一行先问 pagedHostCsvPreview，用上游的分页预览打开                         |
 | `src/renderer/src/components/editor/useEditorPanelDiffContentLoader.ts`                 | F047 工作区仓库          | keep | 上游文件，fork 改动 5 行                                                                                                                          |
 | `src/renderer/src/components/editor/useEditorPanelFileContentLoader.ts`                 | INFRA 登记/工程/文档     | keep | 上游文件，fork 改动 4 行                                                                                                                          |
 | `src/renderer/src/components/right-sidebar/AiVaultPanel.tsx`                            | AIV 历史会话             | keep | 上游文件，fork 改动 11 行                                                                                                                         |
@@ -357,8 +358,9 @@
 | `src/renderer/src/lib/startup-ui-hydration.ts`                                          | INFRA 登记/工程/文档     | keep | 上游文件，fork 改动 6 行                                                                                                                          |
 | `src/renderer/src/lib/worktree-creation-completion.ts`                                  | SB 侧栏/工作区           | keep | 上游文件，fork 改动 7 行                                                                                                                          |
 | `src/renderer/src/main.tsx`                                                             | INFRA 登记/工程/文档     | keep | 上游文件，fork 改动 2 行                                                                                                                          |
+| `src/renderer/src/runtime/runtime-file-range-client.ts`                                 | F046 终端文件链接        | keep | 上游文件，fork 改动 9 行。F046：分页 CSV 预览的 stat 和按段读各在开头一行，工作区外的主机文件按绝对路径读（files.hostFile.*）                     |
 | `src/renderer/src/runtime/runtime-file-read-client.ts`                                  | INFRA 登记/工程/文档     | keep | 上游文件，fork 改动 5 行                                                                                                                          |
-| `src/renderer/src/runtime/runtime-terminal-artifact-read.ts`                            | F046 终端文件链接        | keep | 上游文件，fork 改动 9 行。F046：授权读一次回复给不了的大文件，catch 开头交给 readLargeHostFile 分段读                                             |
+| `src/renderer/src/runtime/runtime-terminal-artifact-read.ts`                            | F046 终端文件链接        | keep | 上游文件，fork 改动 14 行。F046：授权读给不了的大文本交给 readLargeHostFile 分段读；图片、PDF 的预览超过一次回复交给 readLargeHostPreview         |
 | `src/renderer/src/store/folder-workspaces/folder-workspace-mutations.ts`                | SB 侧栏/工作区           | keep | 上游文件，fork 改动 13 行                                                                                                                         |
 | `src/renderer/src/store/project-groups/project-group-removal-state.ts`                  | SB 侧栏/项目组           | keep | 上游文件，fork 改动 2 行                                                                                                                          |
 | `src/renderer/src/store/repos/repo-add-actions.ts`                                      | INFRA 登记/工程/文档     | keep | 上游文件，fork 改动 5 行                                                                                                                          |

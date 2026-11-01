@@ -7,6 +7,7 @@ import { callRuntimeRpc } from './runtime-rpc-client'
 import { RuntimeRpcCallError } from './runtime-rpc-result'
 import { toRuntimeWorktreeSelector } from './runtime-worktree-selector'
 import { decodeBase64Bytes } from '@/lib/base64-bytes'
+import { readHostFileRange, statHostFileRange } from '../../../shared/fork-hooks/host-file-ranges'
 
 /** A file on a paired runtime, addressed the way its host's `files.*` methods expect. */
 export type RuntimeRemoteFileAddress = {
@@ -77,6 +78,10 @@ export function readRemoteRuntimeFileChunk(
 export async function statRuntimeReadTarget(
   args: RuntimeFileReadArgs
 ): Promise<RuntimeFileSnapshot> {
+  const hostFile = statHostFileRange(args)
+  if (hostFile) {
+    return hostFile
+  }
   const remote = rangeReadTarget(args)
   if (!remote) {
     return window.api.fs.stat({
@@ -114,6 +119,10 @@ export async function readRuntimeFileRange(
   length: number
 ): Promise<Uint8Array<ArrayBuffer>> {
   validateFileRangeRequest(offset, length)
+  const hostRange = readHostFileRange(args, offset, length)
+  if (hostRange) {
+    return hostRange
+  }
   const remote = rangeReadTarget(args)
   let result: RuntimeFileReadChunkResult
   try {

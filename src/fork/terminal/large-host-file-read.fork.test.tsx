@@ -1,5 +1,6 @@
 // F046: text outside every workspace that a terminal grant will not send opens in the editor, paged
-// by absolute path. A log that only grew while it loads opens as it was; a rewrite is refused.
+// by absolute path. A log that only grew while it loads opens as it was; a rewrite is refused. An
+// image or PDF past the grant preview's reply is paged the same way.
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useAppStore } from '@/store'
 import type { OpenFile } from '@/store/slices/editor'
@@ -18,7 +19,14 @@ const LOG_BYTES = Buffer.from('epoch 1 loss 0.5\n'.repeat(60_000))
 const PNG_PREVIEW = { content: 'iVBO', isBinary: true, isImage: true, mimeType: 'image/png' }
 
 type Refusal = 'file_too_large' | 'terminal_file_grant_stale' | 'binary_file' | 'truncated'
-type HostFile = { bytes: Buffer; fileId: string; mtime: number; refusal: Refusal }
+type HostFile = {
+  bytes: Buffer
+  fileId: string
+  mtime: number
+  refusal: Refusal
+  /** The grant preview's reply: whole, or refused as past one reply. */
+  preview?: 'too_large'
+}
 
 let host = new Map<string, HostFile>()
 let legacyHost = false
@@ -48,7 +56,7 @@ function respond(method: string, params: unknown): unknown {
       : fail(file.refusal)
   }
   if (method === 'files.readTerminalArtifactPreview') {
-    return ok(PNG_PREVIEW)
+    return file.preview === 'too_large' ? fail('file_too_large') : ok(PNG_PREVIEW)
   }
   if (legacyHost) {
     return fail(method, 'method_not_found')
@@ -109,8 +117,18 @@ beforeEach(() => {
 })
 
 describe('before the fork registers', () => {
-  it('keeps the host refusal of a log past 512 KiB', async () => {
+  it('keeps the host refusals of a log past 512 KiB and a PDF past one preview reply', async () => {
+    host.set('/home/me/paper.pdf', {
+      bytes: Buffer.alloc(8),
+      fileId: '1:14',
+      mtime: 1,
+      refusal: 'binary_file',
+      preview: 'too_large'
+    })
+
     await expect(read(LOG)).rejects.toThrow('file_too_large')
+    await expect(read('/home/me/paper.pdf')).rejects.toThrow('file_too_large')
+    expect(methodsCalled()).not.toContain('files.hostFile.stat')
   })
 })
 
@@ -197,7 +215,7 @@ describe('text a grant will not send', () => {
     expect(readChunks).toBe(1)
   })
 
-  it('keeps a host CSV past the paging threshold refused, as before', async () => {
+  it('keeps a CSV read whole past the paging threshold refused, as upstream refuses the table', async () => {
     host.set('/data/results.csv', {
       bytes: Buffer.alloc(2 * 1024 * 1024, 0x61),
       fileId: '1:12',
@@ -219,5 +237,37 @@ describe('text a grant will not send', () => {
 
     legacyHost = true
     await expect(read(LOG)).rejects.toThrow('file_too_large')
+  })
+
+  it('pages an image or PDF past the grant preview reply, and no other binary', async () => {
+    const pdf = Buffer.concat([Buffer.from('%PDF-1.7\n'), Buffer.alloc(900 * 1024, 0x20)])
+    host.set('/home/me/paper.pdf', {
+      bytes: pdf,
+      fileId: '1:14',
+      mtime: 1,
+      refusal: 'binary_file',
+      preview: 'too_large'
+    })
+    host.set('/data/weights.zip', {
+      bytes: Buffer.alloc(900 * 1024, 1),
+      fileId: '1:15',
+      mtime: 1,
+      refusal: 'binary_file',
+      preview: 'too_large'
+    })
+
+    await expect(read('/home/me/paper.pdf')).resolves.toEqual({
+      content: pdf.toString('base64'),
+      isBinary: true,
+      isImage: true,
+      mimeType: 'application/pdf'
+    })
+    const pdfChunks = readChunks
+    expect(pdfChunks).toBeGreaterThan(1)
+    await expect(read('/data/weights.zip')).rejects.toThrow('file_too_large')
+    expect(readChunks).toBe(pdfChunks)
+
+    legacyHost = true
+    await expect(read('/home/me/paper.pdf')).rejects.toThrow('file_too_large')
   })
 })

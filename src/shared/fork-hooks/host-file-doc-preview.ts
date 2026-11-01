@@ -68,12 +68,18 @@ type LargeHostFileReader = (
   refusal: LargeHostFileRefusal
 ) => Promise<RuntimeFilePreviewResult>
 
+type LargeHostPreviewReader = (
+  file: GrantedHostFile,
+  refusal: unknown
+) => Promise<RuntimeFilePreviewResult>
+
 // Text the grant will not send whole: past 512 KiB, or a log that changed since its grant.
 const PAGED_REFUSALS = new Set(['file_too_large', 'terminal_file_grant_stale'])
 
 let renderer: HostFileDocPreviewRenderer | null = null
 let reader: HostFileDocPreviewReader | null = null
 let largeFileReader: LargeHostFileReader | null = null
+let largePreviewReader: LargeHostPreviewReader | null = null
 
 export function registerHostFileDocPreview(next: HostFileDocPreviewRenderer): void {
   renderer = next
@@ -87,6 +93,11 @@ export function registerHostFileDocPreviewRead(next: HostFileDocPreviewReader): 
 /** Renderer: reads what a terminal grant refuses to send in one reply. */
 export function registerLargeHostFileReader(next: LargeHostFileReader): void {
   largeFileReader = next
+}
+
+/** Renderer: reads an image or PDF the grant preview refuses to send in one reply. */
+export function registerLargeHostPreviewReader(next: LargeHostPreviewReader): void {
+  largePreviewReader = next
 }
 
 /** Whether a paired host's preview plan and HTML links cover files outside the workspace. */
@@ -150,4 +161,18 @@ export function readLargeHostFile(
   return reply.truncated === true && typeof reply.byteLength === 'number'
     ? largeFileReader(file, { byteLength: reply.byteLength })
     : null
+}
+
+/**
+ * Renderer, where a grant's image or PDF preview fails: past one reply (about 3 MB) it is paged.
+ * Unregistered, it rethrows what upstream would have thrown.
+ */
+export async function readLargeHostPreview(
+  file: GrantedHostFile,
+  refusal: unknown
+): Promise<RuntimeFilePreviewResult> {
+  if (!largePreviewReader) {
+    throw refusal
+  }
+  return largePreviewReader(file, refusal)
 }

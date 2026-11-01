@@ -32,6 +32,30 @@ test.skip(process.platform === 'win32', 'The Docker SSH host uses POSIX tooling'
 const CHECKERBOARD_PNG =
   'iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAAAUElEQVR42u3XsQ0AIAgEQEZxBEZydEZxBCUx2lzy9XMdEJW5zZi1za2eAAICAgICaoJeDjvpAQICAgIC6oJseyAgICAgf5nzAwgICAjoK2gBvFTQpjZgKqQAAAAASUVORK5CYII='
 
+/**
+ * A one-page PDF, its objects first so their offsets are known here; the host pads it past one
+ * preview reply with comment lines and appends the cross-reference table at the real offset.
+ */
+function pdfParts(text: string): { objects: string; xref: string } {
+  const content = `BT /F1 24 Tf 20 100 Td (${text}) Tj ET`
+  const bodies = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 400 200] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+    `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'
+  ]
+  let objects = '%PDF-1.4\n'
+  const offsets: number[] = []
+  bodies.forEach((body, index) => {
+    offsets.push(objects.length)
+    objects += `${index + 1} 0 obj\n${body}\nendobj\n`
+  })
+  const entries = offsets.map((offset) => `${String(offset).padStart(10, '0')} 00000 n \n`).join('')
+  const xref = `xref\n0 ${bodies.length + 1}\n0000000000 65535 f \n${entries}trailer\n<< /Size ${bodies.length + 1} /Root 1 0 R >>\n`
+  return { objects, xref }
+}
+
 test('host terminal links to files outside the workspace stay in the clicked workspace', async (// oxlint-disable-next-line no-empty-pattern -- Owns its app launch through a restart session.
 {}, testInfo) => {
   // Why: the first connect deploys orcad into an emulated x86_64 container, which takes minutes.
@@ -52,6 +76,10 @@ test('host terminal links to files outside the workspace stay in the clicked wor
     // Past one reply: a finished log, and one still being written while it opens.
     log: '/root/logs/train.log',
     liveLog: '/root/logs/live.log',
+    // Past any one preview reply (about 3 MB remote, 10 MiB local), and past the 1 MiB CSV paging threshold.
+    bigImage: '/root/data/big.png',
+    bigPdf: '/root/data/paper.pdf',
+    csv: '/root/data/results.csv',
     owned: `${libPath}/src/index.ts`,
     ownedPage: `${libPath}/page.html`,
     // Same path on this Mac and on the host, with different contents.
@@ -112,6 +140,18 @@ test('host terminal links to files outside the workspace stay in the clicked wor
         `mkdir -p /root/logs && seq 1 200000 | sed 's/^/line /' > ${files.log} && cp ${files.log} ${files.liveLog}`
       )
       const logBytes = Number(exec(`stat -c %s ${files.log}`).trim())
+      // A decoder stops at the PNG's end chunk, so the trailing bytes only make the file large.
+      exec(
+        `mkdir -p /root/data && { printf '%s' ${quotePosixShell(CHECKERBOARD_PNG)} | base64 -d; head -c 12000000 /dev/zero; } > ${files.bigImage}`
+      )
+      const pdf = pdfParts(`Server PDF ${stamp}`)
+      exec(
+        `printf '%s' ${quotePosixShell(pdf.objects)} > ${files.bigPdf} && ` +
+          `{ head -c 12000000 /dev/zero | tr '\\0' x | fold -w 1000; echo; } | sed 's/^/%/' >> ${files.bigPdf} && ` +
+          `offset=$(stat -c %s ${files.bigPdf}) && printf '%s' ${quotePosixShell(pdf.xref)} >> ${files.bigPdf} && ` +
+          `printf 'startxref\\n%s\\n%%%%EOF\\n' "$offset" >> ${files.bigPdf}`
+      )
+      exec(`{ echo 'step,loss'; seq 1 150000 | awk '{ print $1 ",0." $1 }'; } > ${files.csv}`)
       write(files.owned, `export const ownedByLib = 'LIB_OWNED_${stamp}'\n`)
       write(
         files.ownedPage,
@@ -338,6 +378,59 @@ test('host terminal links to files outside the workspace stay in the clicked wor
           .toBeGreaterThanOrEqual(logBytes)
         await expect(page.getByText('File changed on disk while it was loading')).toHaveCount(0)
         await stayedInA()
+      })
+
+      await test.step('an image and a PDF past one preview reply render in the editor', async () => {
+        await clickPrintedHostPath(page, testInfo, terminal, files.bigImage)
+        await expect
+          .poll(() => readOpenedFile(page, files.bigImage), { timeout: 30_000 })
+          .toMatchObject({ worktreeId: workspaceA, granted: true })
+        const image = page.locator('img[alt="big.png"]:visible').first()
+        await expect
+          .poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth), {
+            timeout: 60_000,
+            message: 'the image past one preview reply never loaded'
+          })
+          .toBe(48)
+        await stayedInA()
+        await forkShot(page, testInfo, 'f046-large-image')
+
+        await clickPrintedHostPath(page, testInfo, terminal, files.bigPdf)
+        await expect
+          .poll(() => readOpenedFile(page, files.bigPdf), { timeout: 30_000 })
+          .toMatchObject({ worktreeId: workspaceA, granted: true })
+        await expect(page.locator('.pdfViewer:visible .textLayer').first()).toContainText(
+          `Server PDF ${stamp}`,
+          { timeout: 60_000 }
+        )
+        await stayedInA()
+        await forkShot(page, testInfo, 'f046-large-pdf')
+      })
+
+      await test.step('a CSV past the paging threshold opens in the paged preview', async () => {
+        await clickPrintedHostPath(page, testInfo, terminal, files.csv)
+        await expect
+          .poll(
+            () =>
+              page.evaluate(
+                (target) =>
+                  window.__store!.getState().openFiles.find((file) => file.filePath === target)
+                    ?.csvPreviewOnly ?? null,
+                files.csv
+              ),
+            { timeout: 30_000, message: 'the CSV never opened in the paged preview' }
+          )
+          .toBe(true)
+        await expect(page.getByText('Large file preview · Read-only')).toBeVisible()
+        await expect(page.getByText('loss', { exact: true }).first()).toBeVisible({
+          timeout: 60_000
+        })
+        await expect(page.getByText('0.2', { exact: true }).first()).toBeVisible({
+          timeout: 60_000
+        })
+        await expect(page.getByText(/too large to open/i)).toHaveCount(0)
+        await stayedInA()
+        await forkShot(page, testInfo, 'f046-large-csv')
       })
 
       await test.step("workspace B's file opens read-only in A without activating B", async () => {

@@ -12,7 +12,10 @@ import {
   renewTerminalArtifactGrant,
   type TerminalArtifactGrantTarget
 } from './runtime-terminal-artifact-grant'
-import { readLargeHostFile } from '../../../shared/fork-hooks/host-file-doc-preview'
+import {
+  readLargeHostFile,
+  readLargeHostPreview
+} from '../../../shared/fork-hooks/host-file-doc-preview'
 
 export async function readHostFilePreview(
   unpinned: TerminalArtifactGrantTarget
@@ -112,7 +115,7 @@ async function readThroughGrant(
           timeoutMs: 15_000,
           expectedEnvironmentPairingRevision: args.expectedEnvironmentPairingRevision
         }
-      )
+      ).catch((previewError: unknown) => readLargeHostPreview(args, previewError))
     }
     throw err
   }

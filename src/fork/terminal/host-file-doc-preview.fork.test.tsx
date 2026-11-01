@@ -11,6 +11,7 @@ import {
   runtimeEnvironmentCall
 } from '@/runtime/runtime-file-client-test-harness'
 import { registerHostFileDocPreviews } from './host-file-doc-preview'
+import { registerLargeHostFileReads } from './large-host-file-read'
 
 vi.mock('@/store', () => ({ useAppStore: { getState: () => state } }))
 vi.mock('@/lib/connection-owner-resolution', () => ({
@@ -165,6 +166,7 @@ describe('a server document outside the clicked workspace', () => {
 
   it('pages an image past the grant preview reply through the host reads', async () => {
     registerHostFileDocPreviews()
+    registerLargeHostFileReads()
     const image = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47]), Buffer.alloc(9000, 7)])
     const meta = { runtimeId: 'remote-runtime' }
     runtimeEnvironmentCall.mockImplementation((args: { method: string; params?: unknown }) => {

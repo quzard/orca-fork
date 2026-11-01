@@ -1,7 +1,9 @@
-// F046: the editor opens a text file outside every workspace that its terminal grant will not send:
-// past 512 KiB, past the reply once decoded, or a log that changed since its grant. It pages the file
-// by absolute path through upstream's loop, up to the size upstream opens inside a workspace. Images
-// and PDFs keep upstream's grant preview. .tsx because it imports renderer aliases.
+// F046: the editor opens a file outside every workspace that its terminal grant will not send in one
+// reply: text past 512 KiB, past the reply once decoded, or a log that changed since its grant; an
+// image or PDF past the grant preview's reply (about 3 MB). It pages the file by absolute path
+// through upstream's loop, up to the 50 MiB upstream pages (a desktop workspace PDF streams by range
+// instead). Any other binary shows as one, as inside a workspace. .tsx because it imports renderer
+// aliases.
 import { useAppStore } from '@/store'
 import { decodeBase64Bytes } from '@/lib/base64-bytes'
 import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
@@ -9,14 +11,15 @@ import { RuntimeRpcCallError } from '@/runtime/runtime-rpc-result'
 import { toRuntimeWorktreeSelector } from '@/runtime/runtime-worktree-selector'
 import type { RuntimeFileSnapshot } from '@/runtime/runtime-file-range-client'
 import {
-  PAGED_REMOTE_FILE_MAX_BYTES,
   pagedFilePreviewResult,
   pagedTextFileResult,
+  previewableBinaryMimeType,
   readFileInChunks,
   type ChunkedFileReader
 } from '@/runtime/runtime-paged-file-read'
-import { CSV_PAGED_PREVIEW_BYTES } from '@/components/editor/csv/csv-file-limits'
 import { BINARY_PROBE_BYTES } from '../../shared/binary-buffer'
+import { rasterImageExceedsPreviewLimits } from '../../shared/raster-image-prefix-limits'
+import { RASTER_IMAGE_PREVIEW_TOO_LARGE_ERROR } from '../../shared/raster-image-preview-limits'
 import type {
   RuntimeFilePreviewResult,
   RuntimeFileReadChunkResult
@@ -25,15 +28,18 @@ import {
   HOST_FILE_READ_CHUNK_METHOD,
   HOST_FILE_STAT_METHOD,
   registerLargeHostFileReader,
+  registerLargeHostPreviewReader,
   type GrantedHostFile,
   type LargeHostFileRefusal
 } from '../../shared/fork-hooks/host-file-doc-preview'
 
 /** A grant saves at most this much; a tab read past it is a view. */
 const GRANT_WRITE_MAX_BYTES = 512 * 1024
+/** Under files.hostFile.readChunk's 512 KiB cap. */
+const PREFIX_CHUNK_BYTES = 384 * 1024
 
 type HostFileSnapshot = RuntimeFileSnapshot & { fileId?: string }
-type HostFile = Pick<
+export type HostFile = Pick<
   GrantedHostFile,
   'target' | 'worktreeId' | 'absolutePath' | 'expectedEnvironmentPairingRevision'
 >
@@ -52,11 +58,11 @@ function callHost<TResult>(
   )
 }
 
-function statHostFile(file: HostFile): Promise<HostFileSnapshot> {
+export function statHostFile(file: HostFile): Promise<HostFileSnapshot> {
   return callHost(file, HOST_FILE_STAT_METHOD, 15_000)
 }
 
-function readHostRange(
+export function readHostRange(
   file: HostFile,
   offset: number,
   length: number
@@ -67,7 +73,7 @@ function readHostRange(
 }
 
 /** Upstream's terms: a file that changes in any way while it loads is refused. */
-export function strictHostFileReader(file: HostFile): ChunkedFileReader {
+function strictHostFileReader(file: HostFile): ChunkedFileReader {
   return {
     stat: () => statHostFile(file),
     readChunk: (offset, length) => readHostRange(file, offset, length)
@@ -166,11 +172,7 @@ async function readLargeHostFile(
   if (decodeBase64Bytes(probe.contentBase64).includes(0)) {
     return { content: '', isBinary: true }
   }
-  // Why: a host CSV has no paged preview, so past upstream's paging threshold it stays refused.
-  const maxBytes = /\.(csv|tsv)$/i.test(file.absolutePath)
-    ? CSV_PAGED_PREVIEW_BYTES
-    : PAGED_REMOTE_FILE_MAX_BYTES
-  const paged = await readFileInChunks(snapshotHostFileReader(file), { maxBytes })
+  const paged = await readFileInChunks(snapshotHostFileReader(file))
   if (paged.kind === 'unsupported') {
     throw upstreamRefusal(refusal)
   }
@@ -183,13 +185,50 @@ async function readLargeHostFile(
   return pagedTextFileResult(paged.bytes)
 }
 
-/** An image a Markdown file outside the workspace names, past the grant preview's one reply. */
-export async function readLargeHostImage(
+/** A file's first bytes for the shared raster header check, each wider probe reading only its tail. */
+function hostPrefixReader(file: HostFile): (bytes: number) => Promise<Uint8Array> {
+  let prefix = new Uint8Array(0)
+  let atEnd = false
+  return async (bytes) => {
+    while (!atEnd && prefix.length < bytes) {
+      const length = Math.min(PREFIX_CHUNK_BYTES, bytes - prefix.length)
+      const chunk = await readHostRange(file, prefix.length, length)
+      const tail = decodeBase64Bytes(chunk.contentBase64)
+      const grown = new Uint8Array(prefix.length + tail.length)
+      grown.set(prefix)
+      grown.set(tail, prefix.length)
+      prefix = grown
+      atEnd = chunk.eof || tail.length === 0
+    }
+    return prefix.subarray(0, Math.min(bytes, prefix.length))
+  }
+}
+
+/**
+ * A grant's binary preview refusal, for the editor, a chat or a Markdown file. Past one reply an image
+ * or PDF pages, unless an image's header already proves it too large to decode; any other binary
+ * shows as one, as upstream shows it inside a workspace.
+ */
+async function readRefusedHostPreview(
   file: HostFile,
   refusal: unknown
 ): Promise<RuntimeFilePreviewResult> {
-  if (!(refusal instanceof RuntimeRpcCallError && refusal.message === 'file_too_large')) {
+  const reason = refusal instanceof RuntimeRpcCallError ? refusal.message : null
+  const mimeType = previewableBinaryMimeType(file.absolutePath)
+  if (!mimeType && (reason === 'binary_file' || reason === 'file_too_large')) {
+    return { content: '', isBinary: true }
+  }
+  if (!mimeType || reason !== 'file_too_large') {
     throw refusal
+  }
+  let oversized: boolean
+  try {
+    oversized = await rasterImageExceedsPreviewLimits(hostPrefixReader(file), mimeType)
+  } catch (error) {
+    throw isMissingMethod(error) ? refusal : error
+  }
+  if (oversized) {
+    throw new Error(RASTER_IMAGE_PREVIEW_TOO_LARGE_ERROR)
   }
   const paged = await readFileInChunks(strictHostFileReader(file))
   if (paged.kind !== 'ok') {
@@ -200,4 +239,5 @@ export async function readLargeHostImage(
 
 export function registerLargeHostFileReads(): void {
   registerLargeHostFileReader(readLargeHostFile)
+  registerLargeHostPreviewReader(readRefusedHostPreview)
 }

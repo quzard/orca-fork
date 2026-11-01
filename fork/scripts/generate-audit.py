@@ -34,6 +34,8 @@ FEATURES = [
     ('doc-preview-grant-ipc', 'F051 文档预览免授权'),
     ('doc-preview', 'F046 终端文件链接'),
     ('host-file', 'F046 终端文件链接'),
+    ('csv-file-content', 'F046 终端文件链接'),
+    ('runtime-file-range-client', 'F046 终端文件链接'),
     ('runtime-rpc-call-queue', 'F046 终端文件链接'),
     ('html-preview', 'F046 终端文件链接'),
     ('workspace-doc-address', 'F046 终端文件链接'),
@@ -138,7 +140,9 @@ REASONS = {
     'src/main/runtime/rpc/rpc-params-type-parity.ts': '类型对齐检查跳过 ForkRpcMethodName（schema 在 src/fork）',
     'src/main/ipc/doc-preview-grant-ipc.ts': 'F051：铸 grant 后一行 openDocPreviewAccess，整个请求根放行，不弹文件夹提示',
     'src/shared/runtime-rpc-call-queue.ts': 'F046：分段读 files.hostDocPreview.readChunk、files.hostFile.readChunk 和上游 files.readDocPreviewChunk 一样走 bulk 通道',
-    'src/renderer/src/runtime/runtime-terminal-artifact-read.ts': 'F046：授权读一次回复给不了的大文件，catch 开头交给 readLargeHostFile 分段读',
+    'src/renderer/src/runtime/runtime-terminal-artifact-read.ts': 'F046：授权读给不了的大文本交给 readLargeHostFile 分段读；二进制预览交给 pageLargeHostPreview（图片、PDF 分段读）',
+    'src/renderer/src/components/editor/csv/csv-file-content.ts': 'F046：开头先问 readHostCsv，工作区外的主机 CSV 过了分页阈值用上游的分页预览，否则整份读',
+    'src/renderer/src/runtime/runtime-file-range-client.ts': 'F046：分页 CSV 预览的 stat 和按段读各在开头一行，工作区外的主机文件按绝对路径读（files.hostFile.*）',
 }
 
 # Files a rework put back to upstream or deleted. Each must not differ from the base.

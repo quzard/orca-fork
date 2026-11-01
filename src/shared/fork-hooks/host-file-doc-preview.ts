@@ -68,12 +68,18 @@ type LargeHostFileReader = (
   refusal: LargeHostFileRefusal
 ) => Promise<RuntimeFilePreviewResult>
 
+type LargeHostPreviewReader = (
+  file: GrantedHostFile,
+  refusal: unknown
+) => Promise<RuntimeFilePreviewResult>
+
 // Text the grant will not send whole: past 512 KiB, or a log that changed since its grant.
 const PAGED_REFUSALS = new Set(['file_too_large', 'terminal_file_grant_stale'])
 
 let renderer: HostFileDocPreviewRenderer | null = null
 let reader: HostFileDocPreviewReader | null = null
 let largeFileReader: LargeHostFileReader | null = null
+let largePreviewReader: LargeHostPreviewReader | null = null
 
 export function registerHostFileDocPreview(next: HostFileDocPreviewRenderer): void {
   renderer = next
@@ -87,6 +93,11 @@ export function registerHostFileDocPreviewRead(next: HostFileDocPreviewReader): 
 /** Renderer: reads what a terminal grant refuses to send in one reply. */
 export function registerLargeHostFileReader(next: LargeHostFileReader): void {
   largeFileReader = next
+}
+
+/** Renderer: answers a grant's binary preview refusal (an image or PDF past one reply, any other binary). */
+export function registerLargeHostPreviewReader(next: LargeHostPreviewReader): void {
+  largePreviewReader = next
 }
 
 /** Whether a paired host's preview plan and HTML links cover files outside the workspace. */
@@ -150,4 +161,16 @@ export function readLargeHostFile(
   return reply.truncated === true && typeof reply.byteLength === 'number'
     ? largeFileReader(file, { byteLength: reply.byteLength })
     : null
+}
+
+/**
+ * Renderer, around a grant's binary preview: an image or PDF past one reply (about 3 MB) is paged,
+ * another binary shows as one. Null when unregistered, so upstream returns its own call untouched.
+ */
+export function pageLargeHostPreview(
+  file: GrantedHostFile,
+  preview: Promise<RuntimeFilePreviewResult>
+): Promise<RuntimeFilePreviewResult> | null {
+  const reader = largePreviewReader
+  return reader ? preview.catch((refusal: unknown) => reader(file, refusal)) : null
 }

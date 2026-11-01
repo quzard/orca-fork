@@ -12,7 +12,10 @@ import {
   renewTerminalArtifactGrant,
   type TerminalArtifactGrantTarget
 } from './runtime-terminal-artifact-grant'
-import { readLargeHostFile } from '../../../shared/fork-hooks/host-file-doc-preview'
+import {
+  pageLargeHostPreview,
+  readLargeHostFile
+} from '../../../shared/fork-hooks/host-file-doc-preview'
 
 export async function readHostFilePreview(
   unpinned: TerminalArtifactGrantTarget
@@ -104,7 +107,7 @@ async function readThroughGrant(
     }
     // Why: the host refuses binary artifacts with this exact typed error; images use the preview.
     if (err instanceof RuntimeRpcCallError && err.message === 'binary_file') {
-      return callRuntimeRpc<RuntimeFilePreviewResult>(
+      const preview = callRuntimeRpc<RuntimeFilePreviewResult>(
         args.target,
         'files.readTerminalArtifactPreview',
         params,
@@ -113,6 +116,7 @@ async function readThroughGrant(
           expectedEnvironmentPairingRevision: args.expectedEnvironmentPairingRevision
         }
       )
+      return pageLargeHostPreview(args, preview) ?? preview
     }
     throw err
   }

@@ -29,6 +29,7 @@ FEATURES = [
     ('cookie', 'F049 Cookie 导入'),
     ('browser-workspace-types', 'F049 Cookie 导入'),
     ('doc-preview', 'F046 终端文件链接'),
+    ('runtime-rpc-call-queue', 'F046 终端文件链接'),
     ('html-preview', 'F046 终端文件链接'),
     ('workspace-doc-address', 'F046 终端文件链接'),
     ('open-html-file-preview', 'F046 终端文件链接'),
@@ -47,8 +48,9 @@ FEATURES = [
     ('git-workspace', 'F047 工作区仓库'),
     ('source-control', 'F047 工作区仓库'),
     ('workspace-repository', 'F047 工作区仓库'),
-    ('rpc-params', 'F047 工作区仓库'),
-    ('rpc/methods/index.ts', 'F047 工作区仓库'),
+    ('rpc-params', 'INFRA 登记/工程/文档'),
+    ('rpc/methods/index.ts', 'INFRA 登记/工程/文档'),
+    ('src/fork/main/rpc-methods.ts', 'INFRA 登记/工程/文档'),
     ('runtime-construction', 'F047 工作区仓库'),
     ('protocol-version', 'F047 工作区仓库'),
     ('useEditorPanelDiffContentLoader', 'F047 工作区仓库'),
@@ -125,6 +127,10 @@ REASONS = {
     'native/computer-use-macos/Sources/OrcaComputerUseMacOS/main.swift': 'F006：DraggableAppTile 不再 private（fork 子类）、一行 install、带参数时保持窗口显示',
     'package.json': 'fork 版本号 1.4.228',
     '.gitattributes': '末尾一行：RPC 目录 merge=ours，合并不冲突；daily-sync 合并后重新生成并提交',
+    'src/main/runtime/rpc/methods/index.ts': 'fork 的 RPC 方法（F046 主机读取、F047 工作区仓库）经 src/fork/main/rpc-methods.ts 一行摊进 ALL_RPC_METHODS',
+    'src/main/runtime/rpc/rpc-params-type-parity.ts': '类型对齐检查跳过 ForkRpcMethodName（schema 在 src/fork）',
+    'src/main/ipc/doc-preview-grant-ipc.ts': 'F046：铸 grant 后一行 openHostFileDocFolder，工作区外文档自己的目录不再弹提示',
+    'src/shared/runtime-rpc-call-queue.ts': 'F046：分段读 files.hostDocPreview.readChunk 和上游 files.readDocPreviewChunk 一样走 bulk 通道',
 }
 
 # Files a rework put back to upstream or deleted. Each must not differ from the base.

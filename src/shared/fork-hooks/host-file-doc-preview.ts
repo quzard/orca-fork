@@ -1,9 +1,19 @@
 // fork: F046. A paired host's document outside the clicked workspace renders in the doc preview,
-// read through the host's per-file grants (upstream #33958). Unregistered, previews stay upstream.
+// read by absolute path on the host. Unregistered, previews stay upstream.
 import type { DocPreviewFileFailureReason } from '../doc-preview-scheme'
 import type { LocalFileAccess } from '../local-file-access'
 import type { RuntimeClientTarget } from '../runtime-client-target'
 import type { RuntimeFilePreviewResult } from '../runtime-file-contracts'
+
+/** Host RPC: one file of such a preview, with upstream's files.readDocPreview limits and checks. */
+export const HOST_DOC_PREVIEW_READ_METHOD = 'files.hostDocPreview.read'
+/** Host RPC: a byte range of a file too large for one reply, as files.readDocPreviewChunk. */
+export const HOST_DOC_PREVIEW_READ_CHUNK_METHOD = 'files.hostDocPreview.readChunk'
+
+/** Ranged reads share upstream's bulk lane, so a large page does not hold terminal or workspace slots. */
+export function isHostDocPreviewBulkRead(method: string): boolean {
+  return method === HOST_DOC_PREVIEW_READ_CHUNK_METHOD
+}
 
 export type HostFileDocLocation = {
   owner: { kind: 'runtime'; environmentId: string; worktreeSelector: string; worktreeRoot: string }
@@ -45,6 +55,7 @@ type HostFileDocPreviewReader = (
 
 let renderer: HostFileDocPreviewRenderer | null = null
 let reader: HostFileDocPreviewReader | null = null
+let folderAccess: ((grantId: string) => void) | null = null
 
 export function registerHostFileDocPreview(next: HostFileDocPreviewRenderer): void {
   renderer = next
@@ -53,6 +64,16 @@ export function registerHostFileDocPreview(next: HostFileDocPreviewRenderer): vo
 /** Main process: serves grants whose document lies outside the owner's worktree. */
 export function registerHostFileDocPreviewRead(next: HostFileDocPreviewReader): void {
   reader = next
+}
+
+/** Main process: decides, as a grant is minted, whether its page may read the document's folder. */
+export function registerHostFileDocFolderAccess(next: (grantId: string) => void): void {
+  folderAccess = next
+}
+
+/** Right after minting; unregistered, the grant keeps upstream's entry-only reach. */
+export function openHostFileDocFolder(grantId: string): void {
+  folderAccess?.(grantId)
 }
 
 /** Whether a paired host's preview plan and HTML links cover files outside the workspace. */

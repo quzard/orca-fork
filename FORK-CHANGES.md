@@ -136,6 +136,7 @@ fork 加的部分，未登记时全部是上游行为：
 - 工作区外的大文件在编辑器里打开：授权读一次回复只给 512 KiB 文本、约 3 MB 图片或 PDF，超过时（文本回 `file_too_large`，或图片、PDF 的预览回 `file_too_large`）改由 fork 的 RPC `files.hostFile.stat` 和 `files.hostFile.readChunk` 按绝对路径分段读（`src/fork/terminal/large-host-file-read.tsx`），上限是上游在工作区里分段读用的 50 MiB。还在写的日志按开始读时的大小读完，读的过程中变长不算失败；读完发现变短（被截断或重写）才报「读的时候文件变了」。文本按上游分段读的方式解码（NUL 判二进制，保留 BOM）；图片和 PDF 用上游的预览格式；其他二进制照旧不读。主机没有这两个方法时保持上游的「太大」错误。这类文件超过 512 KiB 时保存仍被上游拒绝（「This file is too large to save to its host (512 KB limit).」）：上游在工作区里往远端保存也只到一次请求约 720 KiB，所以大文件按只看处理。
 - 另一个工作区认领的文件留在点击时的工作区，只读，经授权读（超过一次回复时同上分段读）。`resolveHostWorkspaceFile` 收到别的工作区时，为点击时的工作区向同一台主机要一份授权，路由因此当成工作区外文件处理，不激活归属工作区，也不跳到已打开的同路径标签；HTML 同样开文档预览。目录、点在工作区根上、浮动终端仍走上游。主机不给授权（#33958 之前的主机只授权终端打印过的路径）时保持上游的切换。悬停判断链接是否存在也经过这里，代价是对别的工作区里的路径多一次授权请求，结果进上游的存在缓存。编辑器加载器不把只读、带运行时 id、按绝对路径命名的标签重挂到归属工作区，重启后照常经授权读。
 - Markdown 预览和富文本里引用的工作区外图片经主机授权读，和上游对 `chat-image` 的处理一样。
+- 同一台主机上，更深的工作区已经可写打开同一路径时，外层可写标签降为只读，标签留在外层。外层还有未保存的修改或草稿时先不改，等它干净了再改；更深的那张自己是只读的就不降级，避免一份可写都不剩。非本地（SSH 或运行时）降级时把路径记进 `orca.fork.terminal-file-link-stay`，关掉标签后清掉。本地嵌套只改只读，不记标记，也不恢复 #33304 删掉的「留在当前工作区」开关，本地 HTML 和文件路由仍跟上游。监视在 `src/fork/terminal/file-link-stay-watch.tsx`，渲染进程登记后订阅编辑器标签，不改上游打开文件的路由。
 
 直接 SSH（`ssh:` 路由、只有 `connectionId` 的旧行）和运行时背后的嵌套 SSH 不补：上游已经不在桌面上服务 SSH 文件（#27644），这些路径在工作区里也打不开。
 
@@ -297,4 +298,6 @@ launchd 里签名可能停在 Orca Local Signing 的钥匙串确认上。`--boot
 
 原生聊天盖层是窗格（`.pane`）的直接子元素（`.native-chat-pane-shell`）。渲染进程登记时注入一张样式表（`src/fork/terminal/covered-terminal-canvas.tsx`）：含有这个盖层的窗格里，盖层之外的 `.xterm` 设 `pointer-events: none`，它里面所有 canvas 设 `visibility: hidden` 和 `pointer-events: none`。画布仍占布局盒，不释放 WebGL backing。盖层卸下后选择器自然不再命中；盖住之后才创建的画布（WebGL 挂上、context 丢失重建）、之后才 open 的 xterm 也都覆盖，不需要 MutationObserver。分屏里没被盖住的窗格、盖层自己内容里的元素不受影响。没有 document 的环境（node 下登记渲染模块的测试）什么都不做。
 
-上游文件都是原样。智能体会话盖层和同组终端宿主都按 `group.activeTabId` 决定显示，会话标签激活时同组终端宿主一定是隐藏的，所以不需要处理。这是一个可以报给上游的 bug（macOS 把 WebGL 画布合成到 z-10 的 HTML 之上），fork 只保留一张样式表。测试是 `src/fork/terminal/covered-terminal-canvas.fork.test.tsx`，用真实的 `NativeChatPaneCover`。
+智能体会话（历史转录也在这只宿主里）不进 `.pane`。它和终端都是 `RetainedPaneHost`，由 fragment 直接挂在工作区表面或浮动面板上，xterm 是旁边那只宿主里的兄弟，不是 `.native-chat-pane-shell` 的兄弟。会话宿主还看得见（没有 `inert`）时，同一分栏组里其他宿主的 `.xterm` 用同一套 `pointer-events` / `visibility` 藏起来，包括已经 `display: none` 或 `inert` 的终端：隐藏宿主上的 WebGL 层仍可能画在转录上面。盖层变成 `inert` 后选择器不再命中，切回终端不会一直灰。另一分栏组、盖层自己里面的画布不受影响。分栏组第一次出现时往同一张样式表补一条规则，不挂 MutationObserver。
+
+`RetainedPaneHost` 多两处钩子调用（`src/shared/fork-hooks/covered-terminal-group.ts`）：渲染时写 `data-retained-pane-group`，布局时记下这个组。未登记时没有属性、也没有这些规则。智能体会话盖层组件本身仍是上游。这是一个可以报给上游的 bug（macOS 把 WebGL 画布合成到 z-10 的 HTML 之上）。测试是 `src/fork/terminal/covered-terminal-canvas.fork.test.tsx`，窗格盖层用真实的 `NativeChatPaneCover`，会话盖层用真实的 `RetainedPaneHost`。

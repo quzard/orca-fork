@@ -3,6 +3,10 @@ import { SYNC_FIT_PANES_EVENT } from '@/constants/terminal'
 import { tabGroupBodyAnchorName } from './tab-group-body-anchor'
 import { subscribeTabGroupBodyRect, type TabGroupBodyRect } from './tab-group-body-geometry'
 import { UNFOCUSED_SPLIT_GROUP_OPACITY } from './split-group-dim'
+import {
+  noteRetainedPaneGroup,
+  retainedPaneGroupMarker
+} from '../../../../shared/fork-hooks/covered-terminal-group'
 
 const HAS_CSS_ANCHOR_POSITIONING =
   typeof CSS !== 'undefined' &&
@@ -139,6 +143,10 @@ export function RetainedPaneHost({
       onFocusOwningGroup(groupId)
     }
   }, [groupId, onFocusOwningGroup])
+  // fork: 同组智能体会话盖层靠这个属性选中旁边的 xterm。未登记时没有属性。
+  useLayoutEffect(() => {
+    noteRetainedPaneGroup(groupId)
+  }, [groupId])
 
   return (
     <div
@@ -148,6 +156,7 @@ export function RetainedPaneHost({
       className="isolate z-10 min-h-0 min-w-0 overflow-hidden"
       data-retained-pane-host=""
       {...identity}
+      {...retainedPaneGroupMarker(groupId)}
       inert={!isVisible}
       aria-hidden={!isVisible}
       onPointerDown={focusGroup}

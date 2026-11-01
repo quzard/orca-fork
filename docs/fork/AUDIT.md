@@ -2,7 +2,7 @@
 
 由 `python3 fork/scripts/generate-audit.py` 生成（`--check` 只比对）。主表是和上游基点（`src/fork/skills-source-commit.ts` 记录的提交）不同的每个文件，一个不多一个不少；末尾另列已恢复成上游或已删除的文件，它们必须和基点相同。`src/fork/audit-table.fork.test.ts` 检查表和仓库一致。
 
-共 438 行：delete 5，keep 411，revert-to-upstream 22。上游文件（不含 fork 目录）里的 fork 改动 768 行，涉及 148 个文件。
+共 445 行：delete 5，keep 419，revert-to-upstream 21。上游文件（不含 fork 目录）里的 fork 改动 777 行，涉及 149 个文件。
 
 | 文件                                                                                    | 功能                     | 决定 | 原因                                                                                                                                              |
 | --------------------------------------------------------------------------------------- | ------------------------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -234,6 +234,12 @@
 | `src/fork/source-control/workspace-view.tsx`                                            | F047 工作区仓库          | keep | fork 自有文件                                                                                                                                     |
 | `src/fork/terminal/covered-terminal-canvas.fork.test.tsx`                               | F050 聊天盖层画布        | keep | fork 自有文件（测试）                                                                                                                             |
 | `src/fork/terminal/covered-terminal-canvas.tsx`                                         | F050 聊天盖层画布        | keep | fork 自有文件                                                                                                                                     |
+| `src/fork/terminal/file-link-nested-copy.fork.test.ts`                                  | F046 终端文件链接        | keep | fork 自有文件（测试）                                                                                                                             |
+| `src/fork/terminal/file-link-nested-copy.ts`                                            | F046 终端文件链接        | keep | fork 自有文件                                                                                                                                     |
+| `src/fork/terminal/file-link-nested-dirty.fork.test.tsx`                                | F046 终端文件链接        | keep | fork 自有文件（测试）                                                                                                                             |
+| `src/fork/terminal/file-link-stay-hydration.fork.test.tsx`                              | F046 终端文件链接        | keep | fork 自有文件（测试）                                                                                                                             |
+| `src/fork/terminal/file-link-stay-watch.tsx`                                            | F046 终端文件链接        | keep | fork 自有文件                                                                                                                                     |
+| `src/fork/terminal/file-link-stay.ts`                                                   | F046 终端文件链接        | keep | fork 自有文件                                                                                                                                     |
 | `src/fork/terminal/host-file-doc-preview.fork.test.tsx`                                 | F046 终端文件链接        | keep | fork 自有文件（测试）                                                                                                                             |
 | `src/fork/terminal/host-file-doc-preview.tsx`                                           | F046 终端文件链接        | keep | fork 自有文件                                                                                                                                     |
 | `src/fork/terminal/kept-host-file-view-loader.fork.test.tsx`                            | F046 终端文件链接        | keep | fork 自有文件（测试）                                                                                                                             |
@@ -335,6 +341,7 @@
 | `src/renderer/src/components/sidebar/worktree-list/rows/use-project-group-dialogs.ts`   | SB 侧栏/项目组           | keep | 上游文件，fork 改动 5 行                                                                                                                          |
 | `src/renderer/src/components/sidebar/worktree-list/rows/virtual-row-dispatch.tsx`       | SB 侧栏                  | keep | 上游文件，fork 改动 2 行                                                                                                                          |
 | `src/renderer/src/components/status-bar/SshTargetStatusRow.tsx`                         | SSH 状态                 | keep | 上游文件，fork 改动 4 行                                                                                                                          |
+| `src/renderer/src/components/tab-group/RetainedPaneHost.tsx`                            | F050 聊天盖层画布        | keep | 上游文件，fork 改动 9 行。F050：登记后写 data-retained-pane-group，样式表才能按分栏组藏起旁边的 xterm；未登记时没有这个属性                       |
 | `src/renderer/src/components/terminal-pane/pty-connection/connect-pane-pty.ts`          | F010 SSH 重连重绘        | keep | 上游文件，fork 改动 2 行                                                                                                                          |
 | `src/renderer/src/components/terminal-pane/pty-connection/reattach-grid-fit.ts`         | F010 SSH 重连重绘        | keep | 上游文件，fork 改动 2 行                                                                                                                          |
 | `src/renderer/src/components/terminal-pane/pty-connection/session-reconcile-dispose.ts` | F010 SSH 重连重绘        | keep | 上游文件，fork 改动 2 行                                                                                                                          |
@@ -375,6 +382,7 @@
 | `src/shared/fork-hooks/ai-vault.ts`                                                     | AIV 历史会话             | keep | fork 自有文件                                                                                                                                     |
 | `src/shared/fork-hooks/chromium-cookie-browsers.ts`                                     | F049 Cookie 导入         | keep | fork 自有文件                                                                                                                                     |
 | `src/shared/fork-hooks/computer-use-permission.ts`                                      | F006 权限窗口            | keep | fork 自有文件                                                                                                                                     |
+| `src/shared/fork-hooks/covered-terminal-group.ts`                                       | F050 聊天盖层画布        | keep | fork 自有文件                                                                                                                                     |
 | `src/shared/fork-hooks/desktop-secret-store.ts`                                         | F038 密钥存储            | keep | fork 自有文件                                                                                                                                     |
 | `src/shared/fork-hooks/doc-preview-access.ts`                                           | F051 文档预览免授权      | keep | fork 自有文件                                                                                                                                     |
 | `src/shared/fork-hooks/git-workspace-capability.ts`                                     | F047 工作区仓库          | keep | fork 自有文件                                                                                                                                     |
@@ -445,7 +453,6 @@
 | `src/renderer/src/components/native-chat/StructuredAgentSessionPaneOverlayLayer.tsx` | INFRA 登记/工程/文档 | revert-to-upstream | F050 智能体会话盖层分支从未生效，已删除                          |
 | `src/renderer/src/components/right-sidebar/local-port-section.tsx`                   | F021/F043 端口转发   | revert-to-upstream | F021/F043 的 Forward 不再穿过分区传参                            |
 | `src/renderer/src/components/sidebar/WorktreeOpenInMenu.tsx`                         | SB 侧栏              | revert-to-upstream | 上游 #33877 覆盖 Open in 的远端启用                              |
-| `src/renderer/src/components/tab-group/RetainedPaneHost.tsx`                         | INFRA 登记/工程/文档 | revert-to-upstream | F050 不再需要分栏组属性                                          |
 | `src/renderer/src/components/terminal-pane/use-covered-terminal-focus-handoff.ts`    | F050 聊天盖层画布    | revert-to-upstream | F050 改成 src/fork/terminal/covered-terminal-canvas.tsx 的样式表 |
 | `src/renderer/src/i18n/locales/en.json`                                              | I18N 界面中文        | revert-to-upstream | fork 键在 src/fork/i18n/en.json                                  |
 | `src/renderer/src/lib/agent-feature-install-commands.ts`                             | INFRA 登记/工程/文档 | revert-to-upstream | SKL 渲染进程的 ORCA_BUILD_COMMIT 由构建配置给上游基点            |

@@ -298,7 +298,7 @@ test('host terminal links to files outside the workspace stay in the clicked wor
         await stayedInA()
       })
 
-      await test.step('a log past 512 KiB opens in the editor, whole', async () => {
+      await test.step('a log past 512 KiB opens in the editor, whole and read-only', async () => {
         await clickPrintedHostPath(page, testInfo, terminal, files.log)
         await expect
           .poll(() => readOpenedFile(page, files.log), { timeout: 30_000 })
@@ -313,6 +313,10 @@ test('host terminal links to files outside the workspace stay in the clicked wor
             { timeout: 60_000, message: 'the log never loaded whole' }
           )
           .toBe(logBytes)
+        // A grant saves at most 512 KiB, so the tab is a view rather than a save that fails later.
+        await expect
+          .poll(() => readOpenedFile(page, files.log), { timeout: 10_000 })
+          .toMatchObject({ readOnly: true })
         await stayedInA()
         await forkShot(page, testInfo, 'f046-large-log')
       })

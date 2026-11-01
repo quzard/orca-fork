@@ -1524,6 +1524,8 @@ export const RPC_METHODS_WITHOUT_SHARED_PARAMS: readonly string[] = [
   'emulator.install',
   'files.hostDocPreview.read',
   'files.hostDocPreview.readChunk',
+  'files.hostFile.readChunk',
+  'files.hostFile.stat',
   'git.workspaceRepositories',
   'git.workspaceRepositories.branchCompare',
   'git.workspaceRepositories.branchDiff',

@@ -51,6 +51,9 @@ const files: Record<string, HostFile> = {
   '/home/me/style.css': { content: 'body { color: blue }' },
   '/home/me/app/dist/index.html': { content: '<script src="/assets/app.js"></script>' },
   '/home/me/app/dist/assets/app.js': { content: 'window.app = 1' },
+  // The same root-absolute path on the host root and under the site: the site's own wins.
+  '/data/metrics.json': { content: '{"host":true}' },
+  '/home/me/app/dist/data/metrics.json': { content: '{"site":true}' },
   '/home/me/.ssh/config': { content: 'Host dev' }
 }
 // A link beside the document into the user's SSH folder: nothing is off limits now.
@@ -99,6 +102,9 @@ function serveHost(hostPathMethods: boolean): void {
         method === 'files.readTerminalArtifactPreview' ||
         (hostPathMethods && method === 'files.hostDocPreview.read')
       ) {
+        if (path.endsWith('/locked.css')) {
+          return failure(`EACCES: permission denied, open '${path}'`)
+        }
         const file = files[symlinks[path] ?? path]
         if (!file) {
           return failure(`ENOENT: no such file or directory, realpath '${path}'`)
@@ -202,20 +208,40 @@ describe('with the fork registered', () => {
     )
   })
 
-  it('reads a root-absolute path the filesystem lacks from the page folder', async () => {
+  it('reads a root-absolute path from the page folder first, as its site serves it', async () => {
     const grant = outsideGrant('/home/me/app/dist/index.html')
 
     expect(await readDocPreviewFile(grant, 'assets/app.js')).toEqual(
       text('window.app = 1', 'text/javascript; charset=utf-8')
     )
+    expect(await readDocPreviewFile(grant, 'data/metrics.json')).toEqual(
+      text('{"site":true}', 'application/json; charset=utf-8')
+    )
     expect(hostCalls('files.hostDocPreview.read').map((params) => params.targetPath)).toEqual([
-      '/assets/app.js',
-      '/home/me/app/dist/assets/app.js'
+      '/home/me/app/dist/assets/app.js',
+      '/home/me/app/dist/data/metrics.json'
     ])
     expect(await readDocPreviewFile(grant, 'home/me/app/missing.css')).toMatchObject({
       status: 404,
       reason: 'unreadable'
     })
+  })
+
+  it('falls to the host path only when the site has no such file', async () => {
+    const grant = outsideGrant(`${PAGES}/sub/index.html`)
+
+    expect(await readDocPreviewFile(grant, 'home/me/pages/style.css')).toEqual(
+      text('body { color: red }')
+    )
+    expect(await readDocPreviewFile(grant, 'home/me/pages/locked.css')).toMatchObject({
+      status: 404,
+      message: expect.stringContaining('EACCES')
+    })
+    expect(hostCalls('files.hostDocPreview.read').map((params) => params.targetPath)).toEqual([
+      `${PAGES}/sub/home/me/pages/style.css`,
+      `${PAGES}/style.css`,
+      `${PAGES}/sub/home/me/pages/locked.css`
+    ])
   })
 
   it('pages a file larger than one reply, and refuses one rewritten mid-read', async () => {

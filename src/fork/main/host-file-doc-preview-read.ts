@@ -14,73 +14,29 @@ import {
   HOST_DOC_PREVIEW_READ_METHOD,
   type HostFileDocPreviewOutcome
 } from '../../shared/fork-hooks/host-file-doc-preview'
-import { callRuntimeEnvironment } from '../../main/ipc/runtime-environments/runtime-environment-transport-routing'
-import { getRuntimeEnvironmentRegistryRoot } from '../../main/ipc/runtime-environments/runtime-environment-registry-root'
 import {
   getDocPreviewGrant,
-  resolveCanonicalDocPreviewPath,
   resolveDocPreviewAuthorityPaths,
   toRuntimeWorktreeRelativePath,
   type DocPreviewGrant
 } from '../../main/browser/doc-preview-grant-registry'
 import type { HostDocPreviewReadParams } from './host-file-methods'
+import {
+  callHost,
+  isMissing,
+  isMissingMethod,
+  isTooLarge,
+  notFound,
+  toOutcome,
+  TOO_LARGE,
+  TOO_LARGE_ERROR,
+  UNSUPPORTED,
+  type OutsideDocument
+} from './host-file-doc-preview-host-call'
+import { readThroughTerminalGrants } from './host-file-doc-preview-terminal-grants'
 
-const READ_TIMEOUT_MS = 15_000
 // Why: under the chunk method's 512 KiB cap, and a multiple of 3 so its base64 has no padding.
 const CHUNK_BYTES = 384 * 1024
-const TOO_LARGE_ERROR = 'file_too_large'
-
-const TOO_LARGE: HostFileDocPreviewOutcome = {
-  ok: false,
-  status: 413,
-  reason: 'too-large',
-  message: 'This document is too large for the server to send in full.'
-}
-
-const UNSUPPORTED: HostFileDocPreviewOutcome = {
-  ok: false,
-  status: 415,
-  reason: 'unsupported-asset',
-  message: 'This workspace cannot send this file type to a preview.'
-}
-
-function notFound(message = 'Not found'): HostFileDocPreviewOutcome {
-  return { ok: false, status: 404, reason: 'unreadable', message }
-}
-
-type HostOwner = Extract<DocPreviewGrant['owner'], { kind: 'runtime' }>
-type OutsideDocument = { grant: DocPreviewGrant; owner: HostOwner; entryPath: string }
-
-class HostCallError extends Error {
-  constructor(
-    readonly code: string,
-    message: string
-  ) {
-    super(message)
-  }
-}
-
-async function callHost(owner: HostOwner, method: string, params: object): Promise<unknown> {
-  const response = await callRuntimeEnvironment(
-    getRuntimeEnvironmentRegistryRoot(),
-    owner.environmentId,
-    method,
-    { worktree: owner.worktreeSelector, ...params },
-    READ_TIMEOUT_MS
-  )
-  if (!response.ok) {
-    throw new HostCallError(response.error.code, response.error.message)
-  }
-  return response.result
-}
-
-function isMissingMethod(error: unknown): boolean {
-  return error instanceof HostCallError && error.code === 'method_not_found'
-}
-
-function isTooLarge(error: unknown): boolean {
-  return error instanceof Error && error.message === TOO_LARGE_ERROR
-}
 
 /** A grant minted for a document outside its runtime worktree, else null. */
 function outsideWorkspaceDocument(grant: DocPreviewGrant | null): OutsideDocument | null {
@@ -91,26 +47,6 @@ function outsideWorkspaceDocument(grant: DocPreviewGrant | null): OutsideDocumen
   return entryPath && toRuntimeWorktreeRelativePath(grant.owner.worktreeRoot, entryPath) === null
     ? { grant, owner: grant.owner, entryPath }
     : null
-}
-
-function toOutcome(preview: unknown, contentType: string): HostFileDocPreviewOutcome {
-  if (typeof preview !== 'object' || preview === null) {
-    return notFound()
-  }
-  const fields: Partial<Record<'content' | 'isBinary' | 'mimeType', unknown>> = preview
-  if (typeof fields.content !== 'string' || typeof fields.isBinary !== 'boolean') {
-    return notFound()
-  }
-  if (!fields.isBinary) {
-    return { ok: true, bytes: Buffer.from(fields.content, 'utf8'), contentType }
-  }
-  if (fields.content) {
-    return { ok: true, bytes: Buffer.from(fields.content, 'base64'), contentType }
-  }
-  // Same rule as upstream's reader: an empty binary without a type is an unsupported format.
-  return typeof fields.mimeType === 'string'
-    ? { ok: true, bytes: Buffer.alloc(0), contentType }
-    : UNSUPPORTED
 }
 
 function isDocPreviewFileChunk(value: unknown): value is DocPreviewFileChunk {
@@ -204,91 +140,32 @@ async function readByHostPath(
     : { ok: true, bytes: paged.bytes, contentType }
 }
 
-function hostCanonicalPath(resolution: unknown): string | null {
-  if (typeof resolution !== 'object' || resolution === null) {
-    return null
-  }
-  const fields: Partial<Record<'exists' | 'absolutePath', unknown>> = resolution
-  return fields.exists === true && typeof fields.absolutePath === 'string'
-    ? fields.absolutePath
-    : null
-}
-
-function hostGrant(resolution: unknown): { absolutePath: string; grantId: string } | null {
-  if (typeof resolution !== 'object' || resolution === null) {
-    return null
-  }
-  const { openTarget }: Partial<Record<'openTarget', unknown>> = resolution
-  if (typeof openTarget !== 'object' || openTarget === null) {
-    return null
-  }
-  const target: Partial<Record<'kind' | 'absolutePath' | 'grantId', unknown>> = openTarget
-  return target.kind === 'absolute-file' &&
-    typeof target.absolutePath === 'string' &&
-    typeof target.grantId === 'string'
-    ? { absolutePath: target.absolutePath, grantId: target.grantId }
-    : null
-}
-
-/** Hosts before files.hostDocPreview.*: one terminal grant per file, 512 KiB of text, no fonts. */
-async function readThroughTerminalGrants(
-  document: OutsideDocument,
-  absolutePath: string,
-  contentType: string
-): Promise<HostFileDocPreviewOutcome> {
-  const resolutions = new Map<string, Promise<unknown>>()
-  const resolve = (path: string): Promise<unknown> => {
-    let pending = resolutions.get(path)
-    if (!pending) {
-      pending = callHost(document.owner, 'files.resolveTerminalPath', { pathText: path })
-      resolutions.set(path, pending)
-    }
-    return pending
-  }
-  const canonical = await resolveCanonicalDocPreviewPath(
-    document.grant,
-    absolutePath,
-    async (path) => {
-      const hostPath = hostCanonicalPath(await resolve(path))
-      if (!hostPath) {
-        throw new Error('Not found')
-      }
-      return hostPath
-    }
-  )
-  const granted = canonical ? hostGrant(await resolve(absolutePath)) : null
-  if (!granted) {
-    return notFound()
-  }
-  return toOutcome(
-    await callHost(document.owner, 'files.readTerminalArtifactPreview', granted),
-    contentType
-  )
-}
-
 async function readOutsideFile(
   document: OutsideDocument,
   absolutePath: string,
   contentType: string
-): Promise<HostFileDocPreviewOutcome> {
+): Promise<{ outcome: HostFileDocPreviewOutcome; missing: boolean }> {
   try {
-    return (
+    const outcome =
       (await readByHostPath(document, absolutePath, contentType)) ??
       (await readThroughTerminalGrants(document, absolutePath, contentType))
-    )
+    return { outcome, missing: false }
   } catch (error) {
     const message = error instanceof Error ? error.message : undefined
     if (message === TOO_LARGE_ERROR) {
-      return TOO_LARGE
+      return { outcome: TOO_LARGE, missing: false }
     }
-    return message === 'binary_file' ? UNSUPPORTED : notFound(message)
+    if (message === 'binary_file') {
+      return { outcome: UNSUPPORTED, missing: false }
+    }
+    return { outcome: notFound(message), missing: isMissing(error) }
   }
 }
 
 /**
- * Where a root-absolute URL (`/assets/app.js`) lands when the filesystem root lacks it: under the
- * document's folder, as when that folder is served (a built single-page app). Null for a path
- * already in that folder.
+ * A path outside the document's folder spelled under it instead: a root-absolute URL
+ * (`/assets/app.js`) means the page's own site, as when its folder is served (a built single-page
+ * app). Null for a path already in that folder.
  */
 function siteRootPath(grant: DocPreviewGrant, absolutePath: string): string | null {
   const flavor = isWindowsAbsolutePathLike(grant.root) ? win32 : posix
@@ -311,8 +188,13 @@ export async function readGrantedHostDocPreview(
   if (!document) {
     return notFound()
   }
-  const outcome = await readOutsideFile(document, absolutePath, contentType)
-  const fallback =
-    outcome.ok || outcome.status !== 404 ? null : siteRootPath(document.grant, absolutePath)
-  return fallback ? readOutsideFile(document, fallback, contentType) : outcome
+  // The site's own file first; only a confirmed miss there falls to the host path, where `..` lands.
+  const sitePath = siteRootPath(document.grant, absolutePath)
+  if (sitePath) {
+    const site = await readOutsideFile(document, sitePath, contentType)
+    if (!site.missing || !getDocPreviewGrant(grantId)) {
+      return site.outcome
+    }
+  }
+  return (await readOutsideFile(document, absolutePath, contentType)).outcome
 }

@@ -60,10 +60,16 @@ export type GrantedHostFile = {
   expectedEnvironmentPairingRevision?: number
 }
 
+/** A grant read's refusal: its error, or a text reply cut short at the reply cap. */
+export type LargeHostFileRefusal = Error | { byteLength: number }
+
 type LargeHostFileReader = (
   file: GrantedHostFile,
-  refusal: Error
+  refusal: LargeHostFileRefusal
 ) => Promise<RuntimeFilePreviewResult>
+
+// Text the grant will not send whole: past 512 KiB, or a log that changed since its grant.
+const PAGED_REFUSALS = new Set(['file_too_large', 'terminal_file_grant_stale'])
 
 let renderer: HostFileDocPreviewRenderer | null = null
 let reader: HostFileDocPreviewReader | null = null
@@ -124,16 +130,24 @@ export function readHostDocPreview(
 }
 
 /**
- * Renderer, where a grant read refuses a file: text past 512 KiB, or a binary, whose image or PDF
- * preview may be past one reply. Null keeps upstream's handling of the refusal.
+ * Renderer, where a grant read refuses text: past 512 KiB, changed since its grant, or a reply cut
+ * short (`truncated`). Binaries stay with upstream. Null keeps upstream's handling.
  */
 export function readLargeHostFile(
   file: GrantedHostFile,
   refusal: unknown
 ): Promise<RuntimeFilePreviewResult> | null {
-  return largeFileReader &&
-    refusal instanceof Error &&
-    (refusal.message === 'file_too_large' || refusal.message === 'binary_file')
-    ? largeFileReader(file, refusal)
+  if (!largeFileReader) {
+    return null
+  }
+  if (refusal instanceof Error) {
+    return PAGED_REFUSALS.has(refusal.message) ? largeFileReader(file, refusal) : null
+  }
+  if (typeof refusal !== 'object' || refusal === null) {
+    return null
+  }
+  const reply: Partial<Record<'truncated' | 'byteLength', unknown>> = refusal
+  return reply.truncated === true && typeof reply.byteLength === 'number'
+    ? largeFileReader(file, { byteLength: reply.byteLength })
     : null
 }

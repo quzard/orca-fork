@@ -101,6 +101,31 @@ describe('a server document outside the clicked workspace', () => {
     })
   })
 
+  it('spells the entry the way the preview URLs come back, on any host path form', () => {
+    registerHostFileDocPreviews()
+    const locate = (filePath: string) => buildDocPreviewGrantRequest(state, 'wt-1', filePath)
+
+    expect(locate('/home/me//pages/report.html')).toMatchObject({
+      requestBase: '/',
+      entryRelativePath: 'home/me/pages/report.html'
+    })
+    expect(locate('C:\\Users\\me\\pages\\report.html')).toMatchObject({
+      requestBase: 'C:\\',
+      entryRelativePath: 'Users/me/pages/report.html'
+    })
+    expect(locate('C:\\report.html')).toMatchObject({
+      requestBase: 'C:\\',
+      root: 'C:\\',
+      entryRelativePath: 'report.html'
+    })
+    // A share has no filesystem root to hang from: the document's folder stands in, as before.
+    expect(locate('//srv/share/report.html')).toMatchObject({
+      requestBase: '//srv/share',
+      root: '//srv/share',
+      entryRelativePath: 'report.html'
+    })
+  })
+
   it('still serves a workspace document through upstream files.readDocPreview', () => {
     registerHostFileDocPreviews()
 
@@ -136,5 +161,50 @@ describe('a server document outside the clicked workspace', () => {
       })
     )
     expect(fsReadFile).not.toHaveBeenCalled()
+  })
+
+  it('pages an image past the grant preview reply through the host reads', async () => {
+    registerHostFileDocPreviews()
+    const image = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47]), Buffer.alloc(9000, 7)])
+    const meta = { runtimeId: 'remote-runtime' }
+    runtimeEnvironmentCall.mockImplementation((args: { method: string; params?: unknown }) => {
+      const params: Partial<Record<'offset' | 'length', unknown>> =
+        typeof args.params === 'object' && args.params !== null ? args.params : {}
+      if (args.method === 'files.resolveTerminalPath') {
+        return Promise.resolve({
+          id: 'resolve',
+          ok: true,
+          result: {
+            exists: true,
+            openTarget: { kind: 'absolute-file', absolutePath: IMAGE, grantId: 'g-img' }
+          },
+          _meta: meta
+        })
+      }
+      if (args.method === 'files.hostFile.stat') {
+        const stat = { size: image.length, isDirectory: false, mtime: 1, ctime: 1, fileId: '1:2' }
+        return Promise.resolve({ id: 'stat', ok: true, result: stat, _meta: meta })
+      }
+      if (args.method === 'files.hostFile.readChunk') {
+        const offset = Number(params.offset)
+        const slice = image.subarray(offset, offset + Number(params.length))
+        const chunk = {
+          contentBase64: slice.toString('base64'),
+          bytesRead: slice.length,
+          eof: offset + slice.length >= image.length
+        }
+        return Promise.resolve({ id: 'chunk', ok: true, result: chunk, _meta: meta })
+      }
+      const message =
+        args.method === 'files.readTerminalArtifact' ? 'binary_file' : 'file_too_large'
+      return Promise.resolve({ id: 'read', ok: false, error: { code: 'runtime_error', message } })
+    })
+
+    await expect(readRuntimeFilePreview(imageContext, IMAGE, imageAccess)).resolves.toEqual({
+      content: image.toString('base64'),
+      isBinary: true,
+      isImage: true,
+      mimeType: 'image/png'
+    })
   })
 })

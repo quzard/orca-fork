@@ -97,12 +97,15 @@ export const HOST_FILE_METHODS = [
     params: HostFilePath,
     handler: async (params, { runtime }) => {
       await requireLocalHost(runtime, params.worktree)
-      const stats = await stat(params.path)
+      // bigint: an inode past 2^53 must still compare exactly.
+      const stats = await stat(params.path, { bigint: true })
       return {
-        size: stats.size,
+        size: Number(stats.size),
         isDirectory: stats.isDirectory(),
-        mtime: stats.mtimeMs,
-        ctime: stats.ctimeMs
+        mtime: Number(stats.mtimeNs) / 1e6,
+        ctime: Number(stats.ctimeNs) / 1e6,
+        // Why: tells a log that grew from a file replaced under the same path.
+        fileId: `${stats.dev}:${stats.ino}`
       }
     }
   }),

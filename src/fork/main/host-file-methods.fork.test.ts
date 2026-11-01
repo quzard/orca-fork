@@ -31,6 +31,7 @@ function call(
 ): Promise<RpcResponse> {
   const runtime: Pick<OrcaRuntimeService, 'getRuntimeId' | 'resolveRuntimeFileTarget'> = {
     getRuntimeId: () => 'runtime-1',
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: these methods read only the worktree id and path and the execution host.
     resolveRuntimeFileTarget: vi.fn(async () => ({
       worktree: { id: 'wt-1', path: join(root, 'app'), repoId: 'repo-1' },
       executionHostId
@@ -145,10 +146,11 @@ describe('host file methods', () => {
 
   it('stat and page any file for the editor', async () => {
     const file = join(pages, 'bundle.js')
-    expect(result(await call('files.hostFile.stat', { path: file }))).toMatchObject({
-      size: Buffer.byteLength(BUNDLE),
-      isDirectory: false
-    })
+    const stat = result(await call('files.hostFile.stat', { path: file }))
+    expect(stat).toMatchObject({ size: Buffer.byteLength(BUNDLE), isDirectory: false })
+    // The identity that tells a log that grew from a file replaced under the same path.
+    expect(stat.fileId).toMatch(/^\d+:\d+$/)
+    expect(result(await call('files.hostFile.stat', { path: file })).fileId).toBe(stat.fileId)
     expect(result(await call('files.hostFile.stat', { path: pages })).isDirectory).toBe(true)
     const tail = result(
       await call('files.hostFile.readChunk', { path: file, offset: 600 * 1024, length: 1024 })
@@ -164,8 +166,15 @@ describe('host file methods', () => {
   })
 
   it('reject relative paths and workspaces this host reaches over SSH', async () => {
-    expect((await call('files.hostFile.stat', { path: 'pages/bundle.js' })).ok).toBe(false)
-    expect((await readPreview('style.css', { targetPath: 'pages/style.css' })).ok).toBe(false)
+    const relative = { code: 'invalid_argument', message: 'Expected an absolute path' }
+    expect(await call('files.hostFile.stat', { path: 'pages/bundle.js' })).toMatchObject({
+      ok: false,
+      error: relative
+    })
+    expect(await readPreview('style.css', { targetPath: 'pages/style.css' })).toMatchObject({
+      ok: false,
+      error: relative
+    })
     expect(
       (await call('files.hostFile.stat', { path: join(pages, 'style.css') }, 'ssh:target-1')).ok
     ).toBe(false)

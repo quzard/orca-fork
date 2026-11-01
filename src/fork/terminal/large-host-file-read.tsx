@@ -1,18 +1,22 @@
-// F046: the editor opens a host file outside every workspace past a terminal grant's one reply
-// (512 KiB of text, about 3 MB of image or PDF) by reading it in ranges by absolute path, up to the
-// 50 MiB upstream opens inside a workspace. Saving past 512 KiB stays refused, as upstream does.
-// .tsx because it imports renderer aliases.
+// F046: the editor opens a text file outside every workspace that its terminal grant will not send:
+// past 512 KiB, past the reply once decoded, or a log that changed since its grant. It pages the file
+// by absolute path through upstream's loop, up to the size upstream opens inside a workspace. Images
+// and PDFs keep upstream's grant preview. .tsx because it imports renderer aliases.
+import { useAppStore } from '@/store'
+import { decodeBase64Bytes } from '@/lib/base64-bytes'
 import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
 import { RuntimeRpcCallError } from '@/runtime/runtime-rpc-result'
 import { toRuntimeWorktreeSelector } from '@/runtime/runtime-worktree-selector'
 import type { RuntimeFileSnapshot } from '@/runtime/runtime-file-range-client'
 import {
   PAGED_REMOTE_FILE_MAX_BYTES,
-  REMOTE_FILE_CHANGED_DURING_READ_MESSAGE,
   pagedFilePreviewResult,
   pagedTextFileResult,
-  previewableBinaryMimeType
+  readFileInChunks,
+  type ChunkedFileReader
 } from '@/runtime/runtime-paged-file-read'
+import { CSV_PAGED_PREVIEW_BYTES } from '@/components/editor/csv/csv-file-limits'
+import { BINARY_PROBE_BYTES } from '../../shared/binary-buffer'
 import type {
   RuntimeFilePreviewResult,
   RuntimeFileReadChunkResult
@@ -21,124 +25,177 @@ import {
   HOST_FILE_READ_CHUNK_METHOD,
   HOST_FILE_STAT_METHOD,
   registerLargeHostFileReader,
-  type GrantedHostFile
+  type GrantedHostFile,
+  type LargeHostFileRefusal
 } from '../../shared/fork-hooks/host-file-doc-preview'
 
-// Why: under the chunk method's 512 KiB cap, and a multiple of 3 so its base64 has no padding.
-const CHUNK_BYTES = 384 * 1024
+/** A grant saves at most this much; a tab read past it is a view. */
+const GRANT_WRITE_MAX_BYTES = 512 * 1024
+
+type HostFileSnapshot = RuntimeFileSnapshot & { fileId?: string }
+type HostFile = Pick<
+  GrantedHostFile,
+  'target' | 'worktreeId' | 'absolutePath' | 'expectedEnvironmentPairingRevision'
+>
 
 function callHost<TResult>(
-  file: GrantedHostFile,
+  file: HostFile,
   method: string,
-  params: object,
-  timeoutMs: number
+  timeoutMs: number,
+  range?: { offset: number; length: number }
 ): Promise<TResult> {
-  return callRuntimeRpc<TResult>(file.target, method, params, {
-    timeoutMs,
-    expectedEnvironmentPairingRevision: file.expectedEnvironmentPairingRevision
-  })
-}
-
-function statHostFile(file: GrantedHostFile): Promise<RuntimeFileSnapshot> {
-  return callHost(
-    file,
-    HOST_FILE_STAT_METHOD,
-    { worktree: toRuntimeWorktreeSelector(file.worktreeId), path: file.absolutePath },
-    15_000
+  return callRuntimeRpc<TResult>(
+    file.target,
+    method,
+    { worktree: toRuntimeWorktreeSelector(file.worktreeId), path: file.absolutePath, ...range },
+    { timeoutMs, expectedEnvironmentPairingRevision: file.expectedEnvironmentPairingRevision }
   )
 }
 
-function decodeBase64(contentBase64: string): Uint8Array {
-  const binary = atob(contentBase64)
-  const bytes = new Uint8Array(binary.length)
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index)
-  }
-  return bytes
+function statHostFile(file: HostFile): Promise<HostFileSnapshot> {
+  return callHost(file, HOST_FILE_STAT_METHOD, 15_000)
 }
 
-/** The file's bytes as of the first stat; null when the host predates files.hostFile.*. */
-async function readHostFileBytes(file: GrantedHostFile): Promise<Uint8Array | null> {
-  let before: RuntimeFileSnapshot
-  try {
-    before = await statHostFile(file)
-  } catch (error) {
-    if (error instanceof RuntimeRpcCallError && error.code === 'method_not_found') {
-      return null
-    }
-    throw error
-  }
-  if (before.isDirectory) {
-    throw new Error('Remote path is a directory')
-  }
-  if (before.size > PAGED_REMOTE_FILE_MAX_BYTES) {
-    throw new Error(`Remote file is too large to open in the editor (${before.size} bytes)`)
-  }
-  const bytes = new Uint8Array(before.size)
-  let offset = 0
-  while (offset < before.size) {
-    const chunk = await callHost<RuntimeFileReadChunkResult>(
-      file,
-      HOST_FILE_READ_CHUNK_METHOD,
-      {
-        worktree: toRuntimeWorktreeSelector(file.worktreeId),
-        path: file.absolutePath,
-        offset,
-        length: Math.min(CHUNK_BYTES, before.size - offset)
-      },
-      60_000
-    )
-    const decoded = decodeBase64(chunk.contentBase64)
-    if (decoded.length === 0) {
-      throw new Error(REMOTE_FILE_CHANGED_DURING_READ_MESSAGE)
-    }
-    bytes.set(decoded, offset)
-    offset += decoded.length
-  }
-  // Why: a log grows while it loads and the bytes read are still the file as it was; a shrink is a rewrite.
-  if ((await statHostFile(file)).size < before.size) {
-    throw new Error(REMOTE_FILE_CHANGED_DURING_READ_MESSAGE)
-  }
-  return bytes
+function readHostRange(
+  file: HostFile,
+  offset: number,
+  length: number
+): Promise<RuntimeFileReadChunkResult> {
+  return length > 0
+    ? callHost(file, HOST_FILE_READ_CHUNK_METHOD, 60_000, { offset, length })
+    : Promise.resolve({ contentBase64: '', bytesRead: 0, eof: true })
 }
 
-function isTooLarge(error: unknown): boolean {
-  return error instanceof RuntimeRpcCallError && error.message === 'file_too_large'
+/** Upstream's terms: a file that changes in any way while it loads is refused. */
+export function strictHostFileReader(file: HostFile): ChunkedFileReader {
+  return {
+    stat: () => statHostFile(file),
+    readChunk: (offset, length) => readHostRange(file, offset, length)
+  }
+}
+
+function unchanged(first: HostFileSnapshot, current: HostFileSnapshot): boolean {
+  return (
+    first.size === current.size && first.mtime === current.mtime && first.ctime === current.ctime
+  )
+}
+
+type ReadRange = { offset: number; contentBase64: string; bytesRead: number }
+
+/**
+ * Text read as of the first stat. A file that only grew since (the same file, longer, its first and
+ * last ranges read still holding the same bytes) passes the loop's final check, so a log being
+ * written opens. Any other change, a same-size rewrite included, is refused as upstream refuses it.
+ */
+function snapshotHostFileReader(file: HostFile): ChunkedFileReader {
+  let first: HostFileSnapshot | null = null
+  const ranges: ReadRange[] = []
+  const stillHolds = async (range: ReadRange): Promise<boolean> =>
+    range.bytesRead === 0 ||
+    (await readHostRange(file, range.offset, range.bytesRead)).contentBase64 === range.contentBase64
+  const onlyGrew = async (before: HostFileSnapshot, after: HostFileSnapshot): Promise<boolean> => {
+    // Why: appending always lengthens a file; the same size with a new mtime is a rewrite.
+    if (after.size <= before.size || (before.fileId && after.fileId !== before.fileId)) {
+      return false
+    }
+    const edges = new Set([ranges[0], ranges.at(-1)])
+    for (const range of edges) {
+      if (!range) {
+        continue
+      }
+      if (!(await stillHolds(range))) {
+        return false
+      }
+    }
+    return true
+  }
+  return {
+    stat: async () => {
+      const current = await statHostFile(file)
+      if (!first) {
+        first = current
+        return current
+      }
+      return !unchanged(first, current) && (await onlyGrew(first, current)) ? first : current
+    },
+    readChunk: async (offset, length) => {
+      const size = first?.size ?? 0
+      const chunk = await readHostRange(file, offset, Math.min(length, Math.max(0, size - offset)))
+      ranges.push({ offset, contentBase64: chunk.contentBase64, bytesRead: chunk.bytesRead })
+      return offset + chunk.bytesRead >= size ? { ...chunk, eof: true } : chunk
+    }
+  }
+}
+
+function isMissingMethod(error: unknown): boolean {
+  return error instanceof RuntimeRpcCallError && error.code === 'method_not_found'
+}
+
+function tooLargeError(size: number): Error {
+  return new Error(`Remote file is too large to open in the editor (${size} bytes)`)
+}
+
+/** What upstream would have thrown, for a host without files.hostFile.*. */
+function upstreamRefusal(refusal: LargeHostFileRefusal): Error {
+  return refusal instanceof Error ? refusal : tooLargeError(refusal.byteLength)
+}
+
+/** No save of this size can reach the host, so the tab says so instead of failing at save time. */
+function keepReadOnly(file: HostFile): void {
+  const { openFiles } = useAppStore.getState()
+  const matches = (open: (typeof openFiles)[number]): boolean =>
+    open.worktreeId === file.worktreeId && open.filePath === file.absolutePath && !open.readOnly
+  if (openFiles.some(matches)) {
+    useAppStore.setState({
+      openFiles: openFiles.map((open) => (matches(open) ? { ...open, readOnly: true } : open))
+    })
+  }
 }
 
 async function readLargeHostFile(
   file: GrantedHostFile,
-  refusal: Error
+  refusal: LargeHostFileRefusal
 ): Promise<RuntimeFilePreviewResult> {
-  if (refusal.message !== 'binary_file') {
-    const bytes = await readHostFileBytes(file)
-    if (!bytes) {
-      throw refusal
-    }
-    return pagedTextFileResult(bytes)
-  }
-  // Upstream's binary branch: images and PDFs preview through the grant in one reply.
+  let probe: RuntimeFileReadChunkResult
   try {
-    return await callHost<RuntimeFilePreviewResult>(
-      file,
-      'files.readTerminalArtifactPreview',
-      {
-        worktree: toRuntimeWorktreeSelector(file.worktreeId),
-        grantId: file.grantId,
-        absolutePath: file.absolutePath
-      },
-      15_000
-    )
+    probe = await readHostRange(file, 0, BINARY_PROBE_BYTES)
   } catch (error) {
-    if (!isTooLarge(error) || !previewableBinaryMimeType(file.absolutePath)) {
-      throw error
-    }
-    const bytes = await readHostFileBytes(file)
-    if (!bytes) {
-      throw error
-    }
-    return pagedFilePreviewResult(file.absolutePath, bytes)
+    throw isMissingMethod(error) ? upstreamRefusal(refusal) : error
   }
+  // A binary without an image or PDF extension: say so without paging megabytes first.
+  if (decodeBase64Bytes(probe.contentBase64).includes(0)) {
+    return { content: '', isBinary: true }
+  }
+  // Why: a host CSV has no paged preview, so past upstream's paging threshold it stays refused.
+  const maxBytes = /\.(csv|tsv)$/i.test(file.absolutePath)
+    ? CSV_PAGED_PREVIEW_BYTES
+    : PAGED_REMOTE_FILE_MAX_BYTES
+  const paged = await readFileInChunks(snapshotHostFileReader(file), { maxBytes })
+  if (paged.kind === 'unsupported') {
+    throw upstreamRefusal(refusal)
+  }
+  if (paged.kind === 'too_large') {
+    throw tooLargeError(paged.size)
+  }
+  if (paged.bytes.length > GRANT_WRITE_MAX_BYTES) {
+    keepReadOnly(file)
+  }
+  return pagedTextFileResult(paged.bytes)
+}
+
+/** An image a Markdown file outside the workspace names, past the grant preview's one reply. */
+export async function readLargeHostImage(
+  file: HostFile,
+  refusal: unknown
+): Promise<RuntimeFilePreviewResult> {
+  if (!(refusal instanceof RuntimeRpcCallError && refusal.message === 'file_too_large')) {
+    throw refusal
+  }
+  const paged = await readFileInChunks(strictHostFileReader(file))
+  if (paged.kind !== 'ok') {
+    throw refusal
+  }
+  return pagedFilePreviewResult(file.absolutePath, paged.bytes)
 }
 
 export function registerLargeHostFileReads(): void {

@@ -6,18 +6,28 @@ import { readHostFilePreview } from '@/runtime/runtime-terminal-artifact-read'
 import { toRuntimeWorktreeSelector } from '@/runtime/runtime-worktree-selector'
 import { useAppStore } from '@/store'
 import { toRuntimeExecutionHostId } from '../../shared/execution-host'
+import { isWindowsAbsolutePathLike, normalizeRelativePath } from '../../shared/cross-platform-path'
 import {
   registerHostFileDocPreview,
   type HostFileDocLocation
 } from '../../shared/fork-hooks/host-file-doc-preview'
+import { readLargeHostImage } from './large-host-file-read'
 
-/** The filesystem root a host path hangs from: `/`, or a Windows drive root. Null for other forms. */
+const DRIVE_ROOT = /^[A-Za-z]:[\\/]/
+
+/** The filesystem root a host path hangs from: `/`, or a drive root. Null for a UNC share. */
 function filesystemRoot(filePath: string): string | null {
-  if (filePath.startsWith('/')) {
-    return '/'
+  const drive = DRIVE_ROOT.exec(filePath)?.[0]
+  if (drive) {
+    return `${drive.slice(0, 2)}\\`
   }
-  const drive = /^[A-Za-z]:[\\/]/.exec(filePath)?.[0]
-  return drive ? `${drive.slice(0, 2)}\\` : null
+  return filePath.startsWith('/') && !isWindowsAbsolutePathLike(filePath) ? '/' : null
+}
+
+/** A drive's root keeps its separator: `C:` alone names the drive's current folder. */
+function documentFolder(filePath: string): string {
+  const folder = dirname(filePath)
+  return /^[A-Za-z]:$/.test(folder) ? `${folder}\\` : folder
 }
 
 function documentLocation(args: {
@@ -30,7 +40,7 @@ function documentLocation(args: {
   const state = useAppStore.getState()
   const holder = findWorkspaceFileRoute(state, toRuntimeExecutionHostId(environmentId), filePath)
   const holderRoot = holder ? state.getKnownWorktreeById(holder.worktreeId)?.path : undefined
-  const root = dirname(filePath)
+  const root = documentFolder(filePath)
   // Another workspace's document reads through that workspace, as upstream previews it there.
   if (holder && holderRoot) {
     return {
@@ -56,7 +66,8 @@ function documentLocation(args: {
     },
     requestBase: base,
     root,
-    entryRelativePath: filePath.slice(base.length).replace(/^[\\/]+/, '')
+    // The '/'-joined form the preview's URLs come back in; a doubled separator would name nothing.
+    entryRelativePath: normalizeRelativePath(filePath.slice(base.length), base)
   }
 }
 
@@ -64,6 +75,8 @@ export function registerHostFileDocPreviews(): void {
   registerHostFileDocPreview({
     location: documentLocation,
     readDocumentResource: (target, worktreeId, absolutePath) =>
-      readHostFilePreview({ target, worktreeId, absolutePath })
+      readHostFilePreview({ target, worktreeId, absolutePath }).catch((refusal: unknown) =>
+        readLargeHostImage({ target, worktreeId, absolutePath }, refusal)
+      )
   })
 }

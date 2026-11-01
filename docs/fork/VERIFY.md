@@ -55,7 +55,7 @@ An older fork orcad does not grant paths outside the workspace without `crossWor
 6. `site.html` loads every stylesheet, image, script and font, beside it, above it and root-absolute, with no folder prompt.
 7. `huge.html` renders.
 8. `~/top.html` (directly in the home folder) and `~/wt/app/page.html` (at A's root) style with no folder prompt.
-9. `~/logs/train.log` opens whole in A's editor; so does it while `while true; do date >> ~/logs/train.log; sleep 0.1; done` runs.
+9. `~/logs/train.log` opens whole and read-only in A's editor; so does it while `while true; do date >> ~/logs/train.log; sleep 0.1; done` runs. A large binary such as `~/model.bin` shows as binary at once.
 10. In A's terminal, click a text file of B (`~/wt/lib/src/index.ts`): it opens read-only in A and B does not activate. After an app restart the tab is still in A and readable.
 11. From A, click an HTML file of B: a doc preview opens in A, B does not activate, and the files beside it load without a folder prompt.
 12. Click B's root directory: B activates (upstream behavior).

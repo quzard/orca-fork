@@ -116,6 +116,10 @@ async function readThroughGrant(
     }
     throw err
   }
+  const pagedTruncated = readLargeHostFile(args, result)
+  if (pagedTruncated) {
+    return pagedTruncated
+  }
   if (result.truncated) {
     throw new Error(`Remote file is too large to open in the editor (${result.byteLength} bytes)`)
   }

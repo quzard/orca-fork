@@ -1,7 +1,6 @@
 // 外层已经可写打开时，内层再打开不能留下第二份可写缓冲。标签留在外层，只是改为只读。
 import { beforeEach, describe, expect, it } from 'vitest'
 import { demoteShallowerWritableCopies } from './file-link-nested-copy'
-import { loadTerminalFileLinkStay, resetTerminalFileLinkStayCacheForTests } from './file-link-stay'
 
 const FILE = '/Users/me/nas/x.txt'
 
@@ -35,7 +34,6 @@ describe('shallower writable copies', () => {
 
   beforeEach(() => {
     storage.clear()
-    resetTerminalFileLinkStayCacheForTests()
     Object.defineProperty(globalThis, 'localStorage', {
       configurable: true,
       value: {
@@ -54,15 +52,12 @@ describe('shallower writable copies', () => {
     const next = demote([outer, inner])
 
     expect(next).toEqual([{ ...outer, readOnly: true }, inner])
-    expect(loadTerminalFileLinkStay('wt-home', FILE)).toBe(false)
-    expect(loadTerminalFileLinkStay('wt-nas', FILE)).toBe(false)
   })
 
   it('leaves the outer tab writable until the nested workspace opens the file', () => {
     const outer: Copy = { id: 'outer', filePath: FILE, worktreeId: 'wt-home', mode: 'edit' }
 
     expect(demote([outer])).toBeNull()
-    expect(loadTerminalFileLinkStay('wt-home', FILE)).toBe(false)
   })
 
   it('demotes an outer SSH or runtime tab without touching the nested one', () => {
@@ -85,12 +80,10 @@ describe('shallower writable copies', () => {
       const next = demote([outer, inner])
       expect(next?.map((file) => file.readOnly)).toEqual([true, undefined])
       expect(next?.map((file) => file.id)).toEqual(['outer', 'inner'])
-      expect(loadTerminalFileLinkStay('wt-home', FILE)).toBe(true)
-      expect(loadTerminalFileLinkStay('wt-nas', FILE)).toBe(false)
     }
   })
 
-  it('does not demote a dirty SSH outer tab or record a stay', () => {
+  it('does not demote a dirty SSH outer tab', () => {
     const outer: Copy = {
       id: 'outer',
       filePath: FILE,
@@ -108,7 +101,6 @@ describe('shallower writable copies', () => {
     }
 
     expect(demote([outer, inner])).toBeNull()
-    expect(loadTerminalFileLinkStay('wt-home', FILE)).toBe(false)
   })
 
   it('leaves a dirty outer tab writable', () => {
@@ -122,7 +114,6 @@ describe('shallower writable copies', () => {
     const inner: Copy = { id: 'inner', filePath: FILE, worktreeId: 'wt-nas', mode: 'edit' }
 
     expect(demote([outer, inner])).toBeNull()
-    expect(loadTerminalFileLinkStay('wt-home', FILE)).toBe(false)
   })
 
   it('leaves an outer tab writable while it still holds a draft', () => {
@@ -137,7 +128,6 @@ describe('shallower writable copies', () => {
     )
 
     expect(next).toBeNull()
-    expect(loadTerminalFileLinkStay('wt-home', FILE)).toBe(false)
   })
 
   it('does not demote an SSH outer tab that still holds an unsaved draft', () => {
@@ -164,7 +154,6 @@ describe('shallower writable copies', () => {
     )
 
     expect(next).toBeNull()
-    expect(loadTerminalFileLinkStay('wt-home', FILE)).toBe(false)
   })
 
   it('demotes the outer tab once its edits are gone', () => {
@@ -193,7 +182,6 @@ describe('shallower writable copies', () => {
     }
 
     expect(demote([outer, inner])).toBeNull()
-    expect(loadTerminalFileLinkStay('wt-home', FILE)).toBe(false)
   })
 
   it('does not demote a tab on a different host', () => {

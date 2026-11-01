@@ -5,10 +5,9 @@ import { needsSavePromptOnClose } from '@/store/slices/editor/buffers/editor-buf
 import type { OpenFile } from '@/store/slices/editor/types/open-file'
 import { makeWorktree, TEST_REPO } from '@/store/slices/worktrees-slice-test-fixtures'
 import {
-  registerTerminalFileLinkStayWatch,
-  resetTerminalFileLinkStayWatchForTests
-} from './file-link-stay-watch'
-import { resetTerminalFileLinkStayCacheForTests } from './file-link-stay'
+  registerNestedCopyDemotion,
+  resetNestedCopyDemotionForTests
+} from './file-link-nested-demotion'
 
 vi.mock('sonner', () => ({
   toast: { error: vi.fn() }
@@ -38,8 +37,7 @@ describe('nested demotion keeps unsaved edits', () => {
 
   beforeEach(() => {
     storage.clear()
-    resetTerminalFileLinkStayCacheForTests()
-    resetTerminalFileLinkStayWatchForTests()
+    resetNestedCopyDemotionForTests()
     Object.defineProperty(globalThis, 'localStorage', {
       configurable: true,
       value: {
@@ -71,7 +69,7 @@ describe('nested demotion keeps unsaved edits', () => {
       },
       folderWorkspaces: []
     })
-    registerTerminalFileLinkStayWatch()
+    registerNestedCopyDemotion()
   })
 
   it('keeps a dirty outer tab writable, then demotes it after the edits are saved', () => {

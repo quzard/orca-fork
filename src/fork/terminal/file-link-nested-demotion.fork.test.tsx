@@ -1,7 +1,7 @@
-// 启动失败会把 workspaceSessionReady 设上，但 hydrationSucceeded 仍是 false，不能把标记清掉。
+// 更深工作区打开同一路径后，外层可写标签降为只读；脏的等干净了再降；工作区列表晚到也补上。
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-type StayFile = {
+type DemotionFile = {
   id: string
   worktreeId: string
   filePath: string
@@ -9,19 +9,17 @@ type StayFile = {
   readOnly?: true
   isDirty?: boolean
 }
-type StayState = {
-  openFiles: StayFile[]
-  workspaceSessionReady: boolean
-  hydrationSucceeded: boolean
+type DemotionState = {
+  openFiles: DemotionFile[]
   settings: object
   worktreesByRepo?: object
   folderWorkspaces?: unknown[]
 }
 
-const listeners = new Set<(state: StayState) => void>()
-let state: StayState
+const listeners = new Set<(state: DemotionState) => void>()
+let state: DemotionState
 
-function setState(partial: Partial<StayState>): void {
+function setState(partial: Partial<DemotionState>): void {
   state = { ...state, ...partial }
   for (const listener of listeners) {
     listener(state)
@@ -37,8 +35,8 @@ vi.mock('@/lib/runtime-workspace-file-route', () => ({
 vi.mock('@/store', () => ({
   useAppStore: {
     getState: () => state,
-    setState: (partial: Partial<StayState>) => setState(partial),
-    subscribe: (listener: (next: StayState) => void) => {
+    setState: (partial: Partial<DemotionState>) => setState(partial),
+    subscribe: (listener: (next: DemotionState) => void) => {
       listeners.add(listener)
       return () => {
         listeners.delete(listener)
@@ -52,69 +50,21 @@ vi.mock('@/components/settings/SearchableSetting', () => ({
 }))
 
 import {
-  registerTerminalFileLinkStayWatch,
-  resetTerminalFileLinkStayWatchForTests
-} from './file-link-stay-watch'
-import {
-  loadTerminalFileLinkStay,
-  resetTerminalFileLinkStayCacheForTests,
-  saveTerminalFileLinkStay
-} from './file-link-stay'
+  registerNestedCopyDemotion,
+  resetNestedCopyDemotionForTests
+} from './file-link-nested-demotion'
 
-const PATH = '/Users/me/x.html'
-const WORKTREE = 'wt-a'
-
-describe('terminal file-link stay hydration', () => {
-  const storage = new Map<string, string>()
-
+describe('nested copy demotion', () => {
   beforeEach(() => {
-    storage.clear()
-    resetTerminalFileLinkStayCacheForTests()
-    resetTerminalFileLinkStayWatchForTests()
+    resetNestedCopyDemotionForTests()
     listeners.clear()
     findRoute.mockReset()
     findRoute.mockReturnValue(null)
-    state = {
-      openFiles: [],
-      workspaceSessionReady: false,
-      hydrationSucceeded: false,
-      settings: {}
-    }
-    Object.defineProperty(globalThis, 'localStorage', {
-      configurable: true,
-      value: {
-        getItem: (key: string) => storage.get(key) ?? null,
-        setItem: (key: string, value: string) => {
-          storage.set(key, value)
-        }
-      }
-    })
-  })
-
-  it('does not prune when a degraded startup is ready with no files, and waits out a snapshot gap', () => {
-    saveTerminalFileLinkStay(WORKTREE, PATH)
-    registerTerminalFileLinkStayWatch()
-
-    setState({
-      workspaceSessionReady: true,
-      hydrationSucceeded: false,
-      openFiles: []
-    })
-    expect(loadTerminalFileLinkStay(WORKTREE, PATH)).toBe(true)
-
-    const kept = { id: 'owned', worktreeId: WORKTREE, filePath: PATH }
-    setState({ hydrationSucceeded: true, openFiles: [kept] })
-    expect(loadTerminalFileLinkStay(WORKTREE, PATH)).toBe(true)
-
-    setState({ openFiles: [] })
-    expect(loadTerminalFileLinkStay(WORKTREE, PATH)).toBe(true)
-
-    setState({ openFiles: [{ id: 'other', worktreeId: 'wt-b', filePath: '/repo/b.ts' }] })
-    expect(loadTerminalFileLinkStay(WORKTREE, PATH)).toBe(false)
+    state = { openFiles: [], settings: {} }
   })
 
   it('demotes an older writable outer tab when the nested workspace opens the same path', () => {
-    registerTerminalFileLinkStayWatch()
+    registerNestedCopyDemotion()
     findRoute.mockReturnValue({
       worktreeId: 'wt-nas',
       relativePath: 'x.txt',
@@ -135,12 +85,10 @@ describe('terminal file-link stay hydration', () => {
       ['outer', true],
       ['inner', undefined]
     ])
-    expect(loadTerminalFileLinkStay('wt-home', filePath)).toBe(false)
-    expect(loadTerminalFileLinkStay('wt-nas', filePath)).toBe(false)
   })
 
   it('waits to demote a dirty outer tab until the edits are gone', () => {
-    registerTerminalFileLinkStayWatch()
+    registerNestedCopyDemotion()
     findRoute.mockReturnValue({
       worktreeId: 'wt-nas',
       relativePath: 'x.txt',
@@ -172,7 +120,7 @@ describe('terminal file-link stay hydration', () => {
   })
 
   it('does not demote when the nested tab is read-only', () => {
-    registerTerminalFileLinkStayWatch()
+    registerNestedCopyDemotion()
     findRoute.mockReturnValue({
       worktreeId: 'wt-nas',
       relativePath: 'x.txt',
@@ -190,11 +138,10 @@ describe('terminal file-link stay hydration', () => {
     })
 
     expect(state.openFiles.find((file) => file.id === 'outer')?.readOnly).toBeUndefined()
-    expect(loadTerminalFileLinkStay('wt-home', filePath)).toBe(false)
   })
 
   it('looks up only the path that changed', () => {
-    registerTerminalFileLinkStayWatch()
+    registerNestedCopyDemotion()
     const nested = '/Users/me/nas/x.txt'
     const other = '/Users/me/other.txt'
     findRoute.mockImplementation((_state, _host, filePath: string) =>
@@ -227,7 +174,7 @@ describe('terminal file-link stay hydration', () => {
   })
 
   it('demotes both copies when the workspace list arrives after they are open', () => {
-    registerTerminalFileLinkStayWatch()
+    registerNestedCopyDemotion()
     const filePath = '/Users/me/nas/x.txt'
     const route = { worktreeId: 'wt-nas', relativePath: 'x.txt', executionHostId: 'local' }
     findRoute.mockReturnValue(route)
@@ -247,11 +194,10 @@ describe('terminal file-link stay hydration', () => {
       ['outer', true],
       ['inner', undefined]
     ])
-    expect(loadTerminalFileLinkStay('wt-home', filePath)).toBe(false)
   })
 
   it('demotes both copies when only the folder workspace list arrives late', () => {
-    registerTerminalFileLinkStayWatch()
+    registerNestedCopyDemotion()
     const filePath = '/Users/me/nas/x.txt'
     findRoute.mockReturnValue({
       worktreeId: 'wt-nas',
@@ -272,7 +218,7 @@ describe('terminal file-link stay hydration', () => {
   })
 
   it('keeps a dirty outer tab writable when the workspace list arrives, then demotes it once clean', () => {
-    registerTerminalFileLinkStayWatch()
+    registerNestedCopyDemotion()
     const filePath = '/Users/me/nas/x.txt'
     const inner = { id: 'inner', worktreeId: 'wt-nas', filePath, mode: 'edit' as const }
     findRoute.mockReturnValue({
@@ -299,7 +245,7 @@ describe('terminal file-link stay hydration', () => {
   })
 
   it('demotes both writable copies once the workspace catalog arrives', () => {
-    registerTerminalFileLinkStayWatch()
+    registerNestedCopyDemotion()
     const filePath = '/Users/me/nas/x.txt'
     const other = '/Users/me/other.txt'
     findRoute.mockImplementation((_state, _host, path: string) =>
@@ -327,56 +273,8 @@ describe('terminal file-link stay hydration', () => {
     expect(state.openFiles.find((file) => file.id === 'other')?.readOnly).toBeUndefined()
   })
 
-  it('forgets a marked tab closed in the same update that demotes another tab', () => {
-    const markedPath = '/Users/me/kept.html'
-    const nested = '/Users/me/nas/x.txt'
-    saveTerminalFileLinkStay('wt-marked', markedPath)
-    registerTerminalFileLinkStayWatch()
-    findRoute.mockReturnValue({
-      worktreeId: 'wt-nas',
-      relativePath: 'x.txt',
-      executionHostId: 'local'
-    })
-    setState({
-      workspaceSessionReady: true,
-      hydrationSucceeded: true,
-      worktreesByRepo: {},
-      folderWorkspaces: [],
-      openFiles: [
-        {
-          id: 'marked',
-          worktreeId: 'wt-marked',
-          filePath: markedPath,
-          mode: 'edit',
-          readOnly: true
-        },
-        { id: 'outer', worktreeId: 'wt-home', filePath: nested, mode: 'edit' }
-      ]
-    })
-    expect(loadTerminalFileLinkStay('wt-marked', markedPath)).toBe(true)
-
-    setState({
-      openFiles: [
-        { id: 'outer', worktreeId: 'wt-home', filePath: nested, mode: 'edit' },
-        { id: 'inner', worktreeId: 'wt-nas', filePath: nested, mode: 'edit' }
-      ]
-    })
-    expect(state.openFiles.find((file) => file.id === 'outer')?.readOnly).toBe(true)
-    expect(loadTerminalFileLinkStay('wt-marked', markedPath)).toBe(true)
-    expect(loadTerminalFileLinkStay('wt-home', nested)).toBe(false)
-
-    setState({
-      openFiles: [
-        ...state.openFiles,
-        { id: 'other', worktreeId: 'wt-b', filePath: '/repo/b.ts', mode: 'edit' }
-      ]
-    })
-    expect(loadTerminalFileLinkStay('wt-marked', markedPath)).toBe(false)
-    expect(loadTerminalFileLinkStay('wt-home', nested)).toBe(false)
-  })
-
   it('retries a path whose owner was unknown when another tab changes', () => {
-    registerTerminalFileLinkStayWatch()
+    registerNestedCopyDemotion()
     const filePath = '/Users/me/nas/x.txt'
     const other = '/Users/me/other.txt'
     findRoute.mockReturnValue(null)

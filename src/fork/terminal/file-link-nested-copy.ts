@@ -1,9 +1,6 @@
 // 同一路径可编辑的缓冲只留在根最深的工作区。外层已有的可写标签在内层打开后改为只读，不删标签。
 // 外层还有未保存的修改时先不改：只读标签不能保存，草稿也不能丢。等它干净了再改。
 
-import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
-import { saveTerminalFileLinkStay } from './file-link-stay'
-
 type NestedCopyFile = {
   id?: string
   filePath: string
@@ -103,10 +100,6 @@ export function demoteShallowerWritableCopies<T extends NestedCopyFile>(
       continue
     }
     changed = true
-    // 本地降级只改只读，不记停留。停留标记只留给 SSH/服务器，重启后仍按归属工作区读。
-    if (hostOf(file) !== LOCAL_EXECUTION_HOST_ID) {
-      saveTerminalFileLinkStay(file.worktreeId, file.filePath)
-    }
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the copy keeps every field of T and only sets readOnly, which T already allows.
     next.push({ ...file, readOnly: true } as T)
   }

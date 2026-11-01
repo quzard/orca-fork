@@ -44,7 +44,7 @@ import {
   installCoveredTerminalCanvasStyle,
   registerCoveredTerminalGroupRules
 } from './terminal/covered-terminal-canvas'
-import { registerTerminalFileLinkStayWatch } from './terminal/file-link-stay-watch'
+import { registerNestedCopyDemotion } from './terminal/file-link-nested-demotion'
 import { registerWorkspaceRepositorySourceControl } from './source-control/register'
 import { registerHostFileDocPreviews } from './terminal/host-file-doc-preview'
 import { registerLargeHostFileReads } from './terminal/large-host-file-read'
@@ -85,7 +85,7 @@ export function registerForkRendererModules(): void {
   })
   installCoveredTerminalCanvasStyle()
   registerCoveredTerminalGroupRules()
-  registerTerminalFileLinkStayWatch()
+  registerNestedCopyDemotion()
   registerComposerSeed()
   registerHostFileDocPreviews()
   registerLargeHostFileReads()

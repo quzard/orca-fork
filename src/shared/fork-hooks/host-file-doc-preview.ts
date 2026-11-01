@@ -1,5 +1,6 @@
-// fork: F046. A paired host's document outside the clicked workspace renders in the doc preview,
-// read by absolute path on the host. Unregistered, previews stay upstream.
+// fork: F046. A paired host's files outside the clicked workspace: HTML renders in the doc preview,
+// read by absolute path on the host, and the editor reads files past a terminal grant's one reply
+// in ranges. Unregistered, previews and reads stay upstream.
 import type { DocPreviewFileFailureReason } from '../doc-preview-scheme'
 import type { LocalFileAccess } from '../local-file-access'
 import type { RuntimeClientTarget } from '../runtime-client-target'
@@ -9,10 +10,14 @@ import type { RuntimeFilePreviewResult } from '../runtime-file-contracts'
 export const HOST_DOC_PREVIEW_READ_METHOD = 'files.hostDocPreview.read'
 /** Host RPC: a byte range of a file too large for one reply, as files.readDocPreviewChunk. */
 export const HOST_DOC_PREVIEW_READ_CHUNK_METHOD = 'files.hostDocPreview.readChunk'
+/** Host RPC: files.stat for an absolute path. */
+export const HOST_FILE_STAT_METHOD = 'files.hostFile.stat'
+/** Host RPC: files.readChunk for an absolute path. */
+export const HOST_FILE_READ_CHUNK_METHOD = 'files.hostFile.readChunk'
 
-/** Ranged reads share upstream's bulk lane, so a large page does not hold terminal or workspace slots. */
-export function isHostDocPreviewBulkRead(method: string): boolean {
-  return method === HOST_DOC_PREVIEW_READ_CHUNK_METHOD
+/** Ranged reads share upstream's bulk lane, so a large file does not hold terminal or workspace slots. */
+export function isHostFileBulkRead(method: string): boolean {
+  return method === HOST_DOC_PREVIEW_READ_CHUNK_METHOD || method === HOST_FILE_READ_CHUNK_METHOD
 }
 
 export type HostFileDocLocation = {
@@ -34,13 +39,6 @@ type HostFileDocPreviewRenderer = {
     worktreeId: string,
     filePath: string
   ) => Promise<RuntimeFilePreviewResult>
-  folder: (location: HostFileDocPreviewGrantLocation) => string | null
-}
-
-/** A minted grant's location as the renderer keeps it; SSH owners name no worktree root. */
-export type HostFileDocPreviewGrantLocation = {
-  owner: { kind: string; worktreeRoot?: string }
-  requestBase: string
 }
 
 export type HostFileDocPreviewOutcome =
@@ -53,9 +51,23 @@ type HostFileDocPreviewReader = (
   contentType: string
 ) => Promise<HostFileDocPreviewOutcome>
 
+/** A host file outside every workspace as the editor reads it, through its terminal grant. */
+export type GrantedHostFile = {
+  target: RuntimeClientTarget & { kind: 'environment' }
+  worktreeId: string
+  absolutePath: string
+  grantId: string
+  expectedEnvironmentPairingRevision?: number
+}
+
+type LargeHostFileReader = (
+  file: GrantedHostFile,
+  refusal: Error
+) => Promise<RuntimeFilePreviewResult>
+
 let renderer: HostFileDocPreviewRenderer | null = null
 let reader: HostFileDocPreviewReader | null = null
-let folderAccess: ((grantId: string) => void) | null = null
+let largeFileReader: LargeHostFileReader | null = null
 
 export function registerHostFileDocPreview(next: HostFileDocPreviewRenderer): void {
   renderer = next
@@ -66,14 +78,9 @@ export function registerHostFileDocPreviewRead(next: HostFileDocPreviewReader): 
   reader = next
 }
 
-/** Main process: decides, as a grant is minted, whether its page may read the document's folder. */
-export function registerHostFileDocFolderAccess(next: (grantId: string) => void): void {
-  folderAccess = next
-}
-
-/** Right after minting; unregistered, the grant keeps upstream's entry-only reach. */
-export function openHostFileDocFolder(grantId: string): void {
-  folderAccess?.(grantId)
+/** Renderer: reads what a terminal grant refuses to send in one reply. */
+export function registerLargeHostFileReader(next: LargeHostFileReader): void {
+  largeFileReader = next
 }
 
 /** Whether a paired host's preview plan and HTML links cover files outside the workspace. */
@@ -107,13 +114,6 @@ export function readHostDocumentResource(
   return worktreeId ? renderer.readDocumentResource(target, worktreeId, filePath) : null
 }
 
-/** The folder relative requests resolve against; null keeps upstream's worktree-root label. */
-export function hostFileDocFolder(
-  location: HostFileDocPreviewGrantLocation | null | undefined
-): string | null {
-  return renderer && location ? renderer.folder(location) : null
-}
-
 /** Main process, where upstream's reader gives up outside the worktree; null keeps its 404. */
 export function readHostDocPreview(
   grantId: string,
@@ -121,4 +121,19 @@ export function readHostDocPreview(
   contentType: string
 ): Promise<HostFileDocPreviewOutcome> | null {
   return reader ? reader(grantId, absolutePath, contentType) : null
+}
+
+/**
+ * Renderer, where a grant read refuses a file: text past 512 KiB, or a binary, whose image or PDF
+ * preview may be past one reply. Null keeps upstream's handling of the refusal.
+ */
+export function readLargeHostFile(
+  file: GrantedHostFile,
+  refusal: unknown
+): Promise<RuntimeFilePreviewResult> | null {
+  return largeFileReader &&
+    refusal instanceof Error &&
+    (refusal.message === 'file_too_large' || refusal.message === 'binary_file')
+    ? largeFileReader(file, refusal)
+    : null
 }

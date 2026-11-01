@@ -43,6 +43,7 @@ import { installForkLocaleOverlays } from './i18n/locale-overlay'
 import { installCoveredTerminalCanvasStyle } from './terminal/covered-terminal-canvas'
 import { registerWorkspaceRepositorySourceControl } from './source-control/register'
 import { registerHostFileDocPreviews } from './terminal/host-file-doc-preview'
+import { registerLargeHostFileReads } from './terminal/large-host-file-read'
 import { registerKeptHostFileViewHooks } from './terminal/kept-host-file-view'
 import { registerForkModules } from './register'
 
@@ -81,6 +82,7 @@ export function registerForkRendererModules(): void {
   installCoveredTerminalCanvasStyle()
   registerComposerSeed()
   registerHostFileDocPreviews()
+  registerLargeHostFileReads()
   registerKeptHostFileViewHooks()
   registerPostImportHook((details) =>
     import('./import/apply-post-import').then((module) => module.applyForkPostImport(details))

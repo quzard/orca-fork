@@ -1,10 +1,12 @@
-// F046: a doc preview whose document lies outside its runtime worktree. The host reads each file by
-// absolute path (files.hostDocPreview.*, ranged past one reply); a host without those methods serves
-// it file by file through terminal grants (files.resolveTerminalPath, files.readTerminalArtifactPreview).
+// F046: a doc preview whose document lies outside its runtime worktree. Its grant is rooted at the
+// host's filesystem root, so the page resolves paths as it would from file:// (F051 lets it read
+// them all). The host reads each file by absolute path (files.hostDocPreview.*, ranged past one
+// reply); a host without those methods serves it through terminal grants.
+import { posix, win32 } from 'node:path'
 import { isBinaryBuffer } from '../../shared/binary-buffer'
+import { isWindowsAbsolutePathLike } from '../../shared/cross-platform-path'
 import {
   DOC_PREVIEW_FILE_CHANGED_MESSAGE,
-  DOC_PREVIEW_PATH_AUTHORIZATION_ERROR,
   type DocPreviewFileChunk
 } from '../../shared/doc-preview-file-access'
 import {
@@ -15,15 +17,13 @@ import {
 import { callRuntimeEnvironment } from '../../main/ipc/runtime-environments/runtime-environment-transport-routing'
 import { getRuntimeEnvironmentRegistryRoot } from '../../main/ipc/runtime-environments/runtime-environment-registry-root'
 import {
-  authorizeDocPreviewDirectory,
   getDocPreviewGrant,
   resolveCanonicalDocPreviewPath,
   resolveDocPreviewAuthorityPaths,
   toRuntimeWorktreeRelativePath,
   type DocPreviewGrant
 } from '../../main/browser/doc-preview-grant-registry'
-import type { HostDocPreviewReadParams } from './host-file-doc-preview-methods'
-import { isBroadDocumentFolder, isHiddenBelow } from './host-file-doc-preview-paths'
+import type { HostDocPreviewReadParams } from './host-file-methods'
 
 const READ_TIMEOUT_MS = 15_000
 // Why: under the chunk method's 512 KiB cap, and a multiple of 3 so its base64 has no padding.
@@ -49,6 +49,7 @@ function notFound(message = 'Not found'): HostFileDocPreviewOutcome {
 }
 
 type HostOwner = Extract<DocPreviewGrant['owner'], { kind: 'runtime' }>
+type OutsideDocument = { grant: DocPreviewGrant; owner: HostOwner; entryPath: string }
 
 class HostCallError extends Error {
   constructor(
@@ -81,25 +82,15 @@ function isTooLarge(error: unknown): boolean {
   return error instanceof Error && error.message === TOO_LARGE_ERROR
 }
 
-/** The runtime owner and entry of a grant minted for a document outside its worktree, else null. */
-function outsideWorkspaceDocument(
-  grant: DocPreviewGrant | null
-): { owner: HostOwner; entryPath: string } | null {
+/** A grant minted for a document outside its runtime worktree, else null. */
+function outsideWorkspaceDocument(grant: DocPreviewGrant | null): OutsideDocument | null {
   if (!grant || grant.owner.kind !== 'runtime') {
     return null
   }
   const entryPath = resolveDocPreviewAuthorityPaths(grant).entryPath
   return entryPath && toRuntimeWorktreeRelativePath(grant.owner.worktreeRoot, entryPath) === null
-    ? { owner: grant.owner, entryPath }
+    ? { grant, owner: grant.owner, entryPath }
     : null
-}
-
-/** Registered on mint: the page reads its own folder without a prompt; a home or top-level folder still asks. */
-export function openOwnDocumentFolder(grantId: string): void {
-  const grant = getDocPreviewGrant(grantId)
-  if (grant && outsideWorkspaceDocument(grant) && !isBroadDocumentFolder(grant.requestBase)) {
-    authorizeDocPreviewDirectory(grant.id, grant.entryRelativePath)
-  }
 }
 
 function toOutcome(preview: unknown, contentType: string): HostFileDocPreviewOutcome {
@@ -138,8 +129,7 @@ function isDocPreviewFileChunk(value: unknown): value is DocPreviewFileChunk {
 
 /** As upstream's ranged doc-preview read: every chunk must report the version the first one opened. */
 async function readInChunks(
-  grant: DocPreviewGrant,
-  owner: HostOwner,
+  document: OutsideDocument,
   params: Omit<HostDocPreviewReadParams, 'worktree'>
 ): Promise<{ bytes: Buffer; mimeType?: string }> {
   const chunks: Buffer[] = []
@@ -147,12 +137,12 @@ async function readInChunks(
   let offset = 0
   do {
     // Why: a closed preview revokes its grant; stop paging a file nobody will see.
-    if (!getDocPreviewGrant(grant.id)) {
+    if (!getDocPreviewGrant(document.grant.id)) {
       throw new Error('Not found')
     }
     let chunk: unknown
     try {
-      chunk = await callHost(owner, HOST_DOC_PREVIEW_READ_CHUNK_METHOD, {
+      chunk = await callHost(document.owner, HOST_DOC_PREVIEW_READ_CHUNK_METHOD, {
         ...params,
         offset,
         length: CHUNK_BYTES
@@ -182,22 +172,23 @@ async function readInChunks(
 
 /** Null when the host predates files.hostDocPreview.*. */
 async function readByHostPath(
-  grant: DocPreviewGrant,
-  owner: HostOwner,
-  entryPath: string,
+  document: OutsideDocument,
   absolutePath: string,
   contentType: string
 ): Promise<HostFileDocPreviewOutcome | null> {
-  const authority = resolveDocPreviewAuthorityPaths(grant)
+  const authority = resolveDocPreviewAuthorityPaths(document.grant)
   const params = {
-    boundaryPath: grant.requestBase,
-    entryPath,
+    boundaryPath: document.grant.requestBase,
+    entryPath: document.entryPath,
     implicitRootPath: authority.implicitRootPath,
     authorizedRootPaths: authority.authorizedRootPaths,
     targetPath: absolutePath
   }
   try {
-    return toOutcome(await callHost(owner, HOST_DOC_PREVIEW_READ_METHOD, params), contentType)
+    return toOutcome(
+      await callHost(document.owner, HOST_DOC_PREVIEW_READ_METHOD, params),
+      contentType
+    )
   } catch (error) {
     if (isMissingMethod(error)) {
       return null
@@ -206,7 +197,7 @@ async function readByHostPath(
       throw error
     }
   }
-  const paged = await readInChunks(grant, owner, params)
+  const paged = await readInChunks(document, params)
   // The sniff the host applies to a whole text read.
   return !paged.mimeType && isBinaryBuffer(paged.bytes)
     ? UNSUPPORTED
@@ -241,9 +232,7 @@ function hostGrant(resolution: unknown): { absolutePath: string; grantId: string
 
 /** Hosts before files.hostDocPreview.*: one terminal grant per file, 512 KiB of text, no fonts. */
 async function readThroughTerminalGrants(
-  grant: DocPreviewGrant,
-  owner: HostOwner,
-  entryPath: string,
+  document: OutsideDocument,
   absolutePath: string,
   contentType: string
 ): Promise<HostFileDocPreviewOutcome> {
@@ -251,32 +240,65 @@ async function readThroughTerminalGrants(
   const resolve = (path: string): Promise<unknown> => {
     let pending = resolutions.get(path)
     if (!pending) {
-      pending = callHost(owner, 'files.resolveTerminalPath', { pathText: path })
+      pending = callHost(document.owner, 'files.resolveTerminalPath', { pathText: path })
       resolutions.set(path, pending)
     }
     return pending
   }
-  const realpath = async (path: string): Promise<string> => {
-    const hostPath = hostCanonicalPath(await resolve(path))
-    if (!hostPath) {
-      throw new Error('Not found')
+  const canonical = await resolveCanonicalDocPreviewPath(
+    document.grant,
+    absolutePath,
+    async (path) => {
+      const hostPath = hostCanonicalPath(await resolve(path))
+      if (!hostPath) {
+        throw new Error('Not found')
+      }
+      return hostPath
     }
-    return hostPath
-  }
-  // Why canonical on the host: a symlink beside the document must not reach past its folder.
-  const canonical = await resolveCanonicalDocPreviewPath(grant, absolutePath, realpath)
-  if (
-    !canonical ||
-    (canonical !== (await realpath(entryPath)) &&
-      isHiddenBelow(await realpath(grant.requestBase), canonical))
-  ) {
-    return notFound()
-  }
-  const granted = hostGrant(await resolve(absolutePath))
+  )
+  const granted = canonical ? hostGrant(await resolve(absolutePath)) : null
   if (!granted) {
     return notFound()
   }
-  return toOutcome(await callHost(owner, 'files.readTerminalArtifactPreview', granted), contentType)
+  return toOutcome(
+    await callHost(document.owner, 'files.readTerminalArtifactPreview', granted),
+    contentType
+  )
+}
+
+async function readOutsideFile(
+  document: OutsideDocument,
+  absolutePath: string,
+  contentType: string
+): Promise<HostFileDocPreviewOutcome> {
+  try {
+    return (
+      (await readByHostPath(document, absolutePath, contentType)) ??
+      (await readThroughTerminalGrants(document, absolutePath, contentType))
+    )
+  } catch (error) {
+    const message = error instanceof Error ? error.message : undefined
+    if (message === TOO_LARGE_ERROR) {
+      return TOO_LARGE
+    }
+    return message === 'binary_file' ? UNSUPPORTED : notFound(message)
+  }
+}
+
+/**
+ * Where a root-absolute URL (`/assets/app.js`) lands when the filesystem root lacks it: under the
+ * document's folder, as when that folder is served (a built single-page app). Null for a path
+ * already in that folder.
+ */
+function siteRootPath(grant: DocPreviewGrant, absolutePath: string): string | null {
+  const flavor = isWindowsAbsolutePathLike(grant.root) ? win32 : posix
+  const fromFolder = flavor.relative(grant.root, absolutePath)
+  const outside =
+    fromFolder === '..' || fromFolder.startsWith(`..${flavor.sep}`) || flavor.isAbsolute(fromFolder)
+  if (!outside) {
+    return null
+  }
+  return flavor.join(grant.root, flavor.relative(grant.requestBase, absolutePath))
 }
 
 /** Called only where upstream's reader gives up; a document inside the worktree stays its 404. */
@@ -285,37 +307,12 @@ export async function readGrantedHostDocPreview(
   absolutePath: string,
   contentType: string
 ): Promise<HostFileDocPreviewOutcome> {
-  const grant = getDocPreviewGrant(grantId)
-  const document = outsideWorkspaceDocument(grant)
-  if (!grant || !document) {
+  const document = outsideWorkspaceDocument(getDocPreviewGrant(grantId))
+  if (!document) {
     return notFound()
   }
-  try {
-    return (
-      (await readByHostPath(
-        grant,
-        document.owner,
-        document.entryPath,
-        absolutePath,
-        contentType
-      )) ??
-      (await readThroughTerminalGrants(
-        grant,
-        document.owner,
-        document.entryPath,
-        absolutePath,
-        contentType
-      ))
-    )
-  } catch (error) {
-    const message = error instanceof Error ? error.message : undefined
-    if (message === TOO_LARGE_ERROR) {
-      return TOO_LARGE
-    }
-    if (message === 'binary_file') {
-      return UNSUPPORTED
-    }
-    // A link out of the folder, or a dot-named file in it, reads as absent rather than prompting.
-    return notFound(message === DOC_PREVIEW_PATH_AUTHORIZATION_ERROR ? undefined : message)
-  }
+  const outcome = await readOutsideFile(document, absolutePath, contentType)
+  const fallback =
+    outcome.ok || outcome.status !== 404 ? null : siteRootPath(document.grant, absolutePath)
+  return fallback ? readOutsideFile(document, fallback, contentType) : outcome
 }

@@ -1,6 +1,6 @@
 // F046: a server document outside the clicked workspace is previewable: outside every workspace its
-// grant is rooted at its own folder, inside another workspace at that workspace; images it names are
-// read from the host through grants.
+// grant is rooted at the host's filesystem root, so the page resolves paths as from file://; inside
+// another workspace at that workspace. Images it names are read from the host through grants.
 import { describe, expect, it, vi } from 'vitest'
 import { getWorkspaceFilePreviewPlan } from '@/lib/file-preview'
 import { buildDocPreviewGrantRequest } from '@/lib/doc-preview-grants'
@@ -10,7 +10,6 @@ import {
   installRuntimeFileClientEnvironment,
   runtimeEnvironmentCall
 } from '@/runtime/runtime-file-client-test-harness'
-import { hostFileDocFolder } from '../../shared/fork-hooks/host-file-doc-preview'
 import { registerHostFileDocPreviews } from './host-file-doc-preview'
 
 vi.mock('@/store', () => ({ useAppStore: { getState: () => state } }))
@@ -85,23 +84,20 @@ describe('before the fork registers', () => {
 })
 
 describe('a server document outside the clicked workspace', () => {
-  it('plans a doc preview whose grant is rooted at the document folder', () => {
+  it('plans a doc preview whose grant is rooted at the filesystem root', () => {
     registerHostFileDocPreviews()
 
     expect(getWorkspaceFilePreviewPlan(state, 'wt-1', REPORT)).toEqual({ status: 'doc-preview' })
-    const location = buildDocPreviewGrantRequest(state, 'wt-1', REPORT)
-    // The folder-access prompt names this folder, not the clicked workspace root.
-    expect(hostFileDocFolder(location)).toBe(PAGES)
-    expect(location).toEqual({
+    expect(buildDocPreviewGrantRequest(state, 'wt-1', REPORT)).toEqual({
       owner: {
         kind: 'runtime',
         environmentId: 'env-1',
         worktreeSelector: 'id:wt-1',
         worktreeRoot: WORKTREE
       },
-      requestBase: PAGES,
+      requestBase: '/',
       root: PAGES,
-      entryRelativePath: 'report.html'
+      entryRelativePath: REPORT.slice(1)
     })
   })
 
@@ -110,7 +106,6 @@ describe('a server document outside the clicked workspace', () => {
 
     const location = buildDocPreviewGrantRequest(state, 'wt-1', `${WORKTREE}/docs/a.html`)
     expect(location).toMatchObject({ requestBase: WORKTREE, entryRelativePath: 'docs/a.html' })
-    expect(hostFileDocFolder(location)).toBe(WORKTREE)
   })
 
   it('reads a document another workspace holds through that workspace', () => {

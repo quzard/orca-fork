@@ -1,6 +1,6 @@
 // F046: documents a paired host keeps outside the clicked workspace render in the doc preview.
 // .tsx because it imports renderer aliases; the node project only includes src/fork/**/*.ts.
-import { basename, dirname } from '@/lib/path'
+import { dirname } from '@/lib/path'
 import { findWorkspaceFileRoute } from '@/lib/runtime-workspace-file-route'
 import { readHostFilePreview } from '@/runtime/runtime-terminal-artifact-read'
 import { toRuntimeWorktreeSelector } from '@/runtime/runtime-worktree-selector'
@@ -10,6 +10,15 @@ import {
   registerHostFileDocPreview,
   type HostFileDocLocation
 } from '../../shared/fork-hooks/host-file-doc-preview'
+
+/** The filesystem root a host path hangs from: `/`, or a Windows drive root. Null for other forms. */
+function filesystemRoot(filePath: string): string | null {
+  if (filePath.startsWith('/')) {
+    return '/'
+  }
+  const drive = /^[A-Za-z]:[\\/]/.exec(filePath)?.[0]
+  return drive ? `${drive.slice(0, 2)}\\` : null
+}
 
 function documentLocation(args: {
   environmentId: string
@@ -36,7 +45,8 @@ function documentLocation(args: {
       entryRelativePath: holder.relativePath
     }
   }
-  // Outside every workspace only the document's folder is in reach, as upstream does for SSH.
+  // Outside every workspace the page resolves paths as from file://: `..`, other folders, any file.
+  const base = filesystemRoot(filePath) ?? root
   return {
     owner: {
       kind: 'runtime',
@@ -44,9 +54,9 @@ function documentLocation(args: {
       worktreeSelector: toRuntimeWorktreeSelector(args.worktreeId),
       worktreeRoot: args.worktreeRoot
     },
-    requestBase: root,
+    requestBase: base,
     root,
-    entryRelativePath: basename(filePath)
+    entryRelativePath: filePath.slice(base.length).replace(/^[\\/]+/, '')
   }
 }
 
@@ -54,7 +64,6 @@ export function registerHostFileDocPreviews(): void {
   registerHostFileDocPreview({
     location: documentLocation,
     readDocumentResource: (target, worktreeId, absolutePath) =>
-      readHostFilePreview({ target, worktreeId, absolutePath }),
-    folder: ({ owner, requestBase }) => (owner.kind === 'runtime' ? requestBase : null)
+      readHostFilePreview({ target, worktreeId, absolutePath })
   })
 }

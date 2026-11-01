@@ -45,8 +45,13 @@ test('host terminal links to files outside the workspace stay in the clicked wor
     report: '/root/pages/report.html',
     site: '/root/pages/site.html',
     huge: '/root/pages/huge.html',
-    // Directly in the host user's home: still asks before reading beside it.
+    // Directly in the host user's home.
     top: '/root/top.html',
+    // At workspace A's root, beside its stylesheet (F051).
+    appPage: `${appPath}/page.html`,
+    // Past one reply: a finished log, and one still being written while it opens.
+    log: '/root/logs/train.log',
+    liveLog: '/root/logs/live.log',
     owned: `${libPath}/src/index.ts`,
     ownedPage: `${libPath}/page.html`,
     // Same path on this Mac and on the host, with different contents.
@@ -76,11 +81,14 @@ test('host terminal links to files outside the workspace stay in the clicked wor
       write(
         files.site,
         `<!doctype html><html><head><title>Site</title><link rel="stylesheet" href="style.css">` +
-          `<script src="js/bundle.js"></script></head>` +
+          `<link rel="stylesheet" href="../shared/theme.css">` +
+          `<script src="js/bundle.js"></script><script src="/assets/app.js"></script></head>` +
           `<body><h1 id="title">Server site ${stamp}</h1></body></html>\n`
       )
       write('/root/pages/style.css', 'h1 { color: rgb(200, 30, 30); }\n')
-      write('/root/pages/.env', `E2E_SECRET_${stamp}\n`)
+      // Above the page's folder, and at a root-absolute path a built single-page app uses.
+      write('/root/shared/theme.css', 'body { background-color: rgb(1, 2, 3); }\n')
+      write('/root/pages/assets/app.js', 'window.__spaLoaded = "ok"\n')
       // Past the 512 KiB one host reply carries; generated on the host, too long for one argument.
       exec(
         `mkdir -p /root/pages/js /root/pages/fonts && ` +
@@ -94,6 +102,16 @@ test('host terminal links to files outside the workspace stay in the clicked wor
           `<body><h1 id="title">Top page ${stamp}</h1></body></html>\n`
       )
       write('/root/top.css', 'h1 { color: rgb(30, 30, 200); }\n')
+      write(
+        files.appPage,
+        `<!doctype html><html><head><link rel="stylesheet" href="page.css"></head>` +
+          `<body><h1 id="title">App page ${stamp}</h1></body></html>\n`
+      )
+      write(`${appPath}/page.css`, 'h1 { color: rgb(10, 120, 10); }\n')
+      exec(
+        `mkdir -p /root/logs && seq 1 200000 | sed 's/^/line /' > ${files.log} && cp ${files.log} ${files.liveLog}`
+      )
+      const logBytes = Number(exec(`stat -c %s ${files.log}`).trim())
       write(files.owned, `export const ownedByLib = 'LIB_OWNED_${stamp}'\n`)
       write(
         files.ownedPage,
@@ -192,7 +210,7 @@ test('host terminal links to files outside the workspace stay in the clicked wor
         await forkShot(page, testInfo, 'f046-html-doc-preview')
       })
 
-      await test.step('HTML beside its stylesheet, a large script and a font loads without a prompt', async () => {
+      await test.step('HTML with its stylesheets, scripts and font, beside it, above it and root-absolute, loads without a prompt', async () => {
         await clickPrintedHostPath(page, testInfo, terminal, files.site)
         await expect
           .poll(async () => (await readDocPreviewTabs(page, files.site)).map((t) => t.worktreeId), {
@@ -225,12 +243,13 @@ test('host terminal links to files outside the workspace stay in the clicked wor
           'fonts are served, as terminal grants did not'
         ).toEqual([200, 'font/woff2'])
         expect(
-          await readDocPreviewGuest(
-            page,
-            `fetch('.env').then(async (r) => [r.status, (await r.text()).includes('E2E_SECRET')])`
-          ),
-          'a dot-named file beside the page stays unreadable'
-        ).toEqual([404, false])
+          await readDocPreviewGuest(page, `getComputedStyle(document.body).backgroundColor`),
+          'the stylesheet above the page folder applied'
+        ).toBe('rgb(1, 2, 3)')
+        expect(
+          await readDocPreviewGuest(page, `window.__spaLoaded ?? null`),
+          'a root-absolute script resolved under the page folder'
+        ).toBe('ok')
         await expect(page.getByText(/This preview wants to read files/)).toHaveCount(0)
         expect(await readDesktopOpens(app)).toEqual([])
         await stayedInA()
@@ -249,18 +268,8 @@ test('host terminal links to files outside the workspace stay in the clicked wor
         await forkShot(page, testInfo, 'f046-huge-html')
       })
 
-      await test.step('a page directly in the home folder asks first, then styles apply', async () => {
+      await test.step('a page directly in the home folder styles without a prompt', async () => {
         await clickPrintedHostPath(page, testInfo, terminal, files.top)
-        await expect
-          .poll(() => readDocPreviewGuest(page, `document.querySelector('#title')?.textContent`), {
-            timeout: 60_000
-          })
-          .toBe(`Top page ${stamp}`)
-        const prompt = page.getByText('This preview wants to read files in /root.')
-        await expect(prompt).toBeVisible({ timeout: 30_000 })
-        await forkShot(page, testInfo, 'f046-home-folder-prompt')
-        await page.getByRole('button', { name: 'Allow folder', exact: true }).click()
-        await expect(prompt).toBeHidden()
         await expect
           .poll(
             () =>
@@ -268,6 +277,62 @@ test('host terminal links to files outside the workspace stay in the clicked wor
             { timeout: 60_000, message: 'the stylesheet beside the home-folder page never applied' }
           )
           .toBe('rgb(30, 30, 200)')
+        await expect(page.getByText(/This preview wants to read files/)).toHaveCount(0)
+        await stayedInA()
+        await forkShot(page, testInfo, 'f046-home-folder-no-prompt')
+      })
+
+      await test.step("a page at workspace A's root styles without a prompt (F051)", async () => {
+        await clickPrintedHostPath(page, testInfo, terminal, files.appPage)
+        await expect
+          .poll(
+            () =>
+              readDocPreviewGuest(page, `getComputedStyle(document.querySelector('#title')).color`),
+            {
+              timeout: 60_000,
+              message: 'the stylesheet beside the workspace-root page never applied'
+            }
+          )
+          .toBe('rgb(10, 120, 10)')
+        await expect(page.getByText(/This preview wants to read files/)).toHaveCount(0)
+        await stayedInA()
+      })
+
+      await test.step('a log past 512 KiB opens in the editor, whole', async () => {
+        await clickPrintedHostPath(page, testInfo, terminal, files.log)
+        await expect
+          .poll(() => readOpenedFile(page, files.log), { timeout: 30_000 })
+          .toMatchObject({ worktreeId: workspaceA, granted: true })
+        await expect
+          .poll(
+            () =>
+              page.evaluate((target) => {
+                const probe = window.__monacoEditorE2E
+                return probe?.filePath === target ? probe.snapshot().valueLength : null
+              }, files.log),
+            { timeout: 60_000, message: 'the log never loaded whole' }
+          )
+          .toBe(logBytes)
+        await stayedInA()
+        await forkShot(page, testInfo, 'f046-large-log')
+      })
+
+      await test.step('a log still being written opens as it was when the read began', async () => {
+        exec(
+          `nohup sh -c 'i=0; while [ $i -lt 600 ]; do echo "grow $i" >> ${files.liveLog}; i=$((i+1)); sleep 0.05; done' >/dev/null 2>&1 &`
+        )
+        await clickPrintedHostPath(page, testInfo, terminal, files.liveLog)
+        await expect
+          .poll(
+            () =>
+              page.evaluate((target) => {
+                const probe = window.__monacoEditorE2E
+                return probe?.filePath === target ? probe.snapshot().valueLength : null
+              }, files.liveLog),
+            { timeout: 60_000, message: 'the growing log never loaded' }
+          )
+          .toBeGreaterThanOrEqual(logBytes)
+        await expect(page.getByText('File changed on disk while it was loading')).toHaveCount(0)
         await stayedInA()
       })
 

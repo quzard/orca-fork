@@ -77,6 +77,7 @@ export type OpenedFile = {
   readOnly: boolean
   granted: boolean
   runtimeEnvironmentId: string | null
+  csvPreviewOnly: boolean
 }
 
 export function readOpenedFile(page: Page, filePath: string): Promise<OpenedFile | null> {
@@ -87,7 +88,8 @@ export function readOpenedFile(page: Page, filePath: string): Promise<OpenedFile
           worktreeId: file.worktreeId,
           readOnly: file.readOnly === true,
           granted: Boolean(file.terminalArtifactGrantId),
-          runtimeEnvironmentId: file.runtimeEnvironmentId ?? null
+          runtimeEnvironmentId: file.runtimeEnvironmentId ?? null,
+          csvPreviewOnly: file.csvPreviewOnly === true
         }
       : null
   }, filePath)

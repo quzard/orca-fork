@@ -1,25 +1,30 @@
 // F046: a CSV or TSV outside every workspace past upstream's paging threshold opens in upstream's paged
 // preview, as one inside a workspace does: the preview stats it and reads its ranges by absolute path
-// through files.hostFile.*. A host without those keeps the whole read through the grant. .tsx because
-// it imports renderer aliases.
+// through files.hostFile.*. A smaller one, and any on a host without those, reads whole as before,
+// through a grant (renewed for a restored tab). .tsx because it imports renderer aliases.
 import { decodeBase64Bytes } from '@/lib/base64-bytes'
 import { isHostFileOutsideWorkspaces } from '@/runtime/runtime-terminal-artifact-read'
 import { CSV_PAGED_PREVIEW_BYTES } from '@/components/editor/csv/csv-file-limits'
 import {
   registerHostFileRanges,
+  type HostCsvPreview,
   type HostFileReadArgs,
   type HostFileSnapshot
 } from '../../shared/fork-hooks/host-file-ranges'
-import { isMissingMethod, readHostRange, statHostFile, type HostFile } from './large-host-file-read'
+import { readHostRange, statHostFile, type HostFile } from './large-host-file-read'
 
 function hostFile(args: HostFileReadArgs): HostFile | null {
   const { target, worktreeId, filePath } = args
+  // Why: a direct SSH connection's tab names that machine's path; upstream's route refuses it.
+  if (target.kind !== 'environment' || !worktreeId || args.expectedExternalSshTargetId) {
+    return null
+  }
   const outside = isHostFileOutsideWorkspaces({
     filePath,
     relativePath: args.relativePath,
     grantId: args.terminalArtifactGrantId
   })
-  return target.kind === 'environment' && worktreeId && outside
+  return outside
     ? {
         target,
         worktreeId,
@@ -29,21 +34,29 @@ function hostFile(args: HostFileReadArgs): HostFile | null {
     : null
 }
 
-async function pagedCsvSnapshot(args: HostFileReadArgs): Promise<HostFileSnapshot | null> {
-  const file = /\.(csv|tsv)$/i.test(args.filePath) ? hostFile(args) : null
-  if (!file) {
-    return null
-  }
+async function pagedOrWhole<TArgs extends HostFileReadArgs, TContent>(
+  file: HostFile,
+  args: TArgs,
+  readWhole: () => Promise<TContent>
+): Promise<TContent | HostCsvPreview<TArgs>> {
+  let snapshot: HostFileSnapshot
   try {
-    const snapshot = await statHostFile(file)
-    return !snapshot.isDirectory && snapshot.size >= CSV_PAGED_PREVIEW_BYTES ? snapshot : null
-  } catch (error) {
-    // Why: an older host cannot stat by path; its grant still sends a CSV up to the reply cap.
-    if (isMissingMethod(error)) {
-      return null
-    }
-    throw error
+    snapshot = await statHostFile(file)
+  } catch {
+    // Why: an older host cannot stat by path, and a missing file should fail as upstream reports it.
+    return readWhole()
   }
+  return !snapshot.isDirectory && snapshot.size >= CSV_PAGED_PREVIEW_BYTES
+    ? { content: '', isBinary: false, csvPreview: { readArgs: args, snapshot } }
+    : readWhole()
+}
+
+function readCsv<TArgs extends HostFileReadArgs, TContent>(
+  args: TArgs,
+  readWhole: () => Promise<TContent>
+): Promise<TContent | HostCsvPreview<TArgs>> | null {
+  const file = /\.(csv|tsv)$/i.test(args.filePath) ? hostFile(args) : null
+  return file ? pagedOrWhole(file, args, readWhole) : null
 }
 
 async function readRange(
@@ -62,7 +75,7 @@ async function readRange(
 
 export function registerHostCsvPreviews(): void {
   registerHostFileRanges({
-    pagedCsvSnapshot,
+    readCsv,
     stat: (args) => {
       const file = hostFile(args)
       return file ? statHostFile(file) : null

@@ -1,6 +1,6 @@
 // fork: F046. A CSV or TSV outside every workspace past upstream's paging threshold opens in upstream's
 // paged preview; the preview's stat and range reads go to the host by absolute path. Unregistered, a
-// granted host file keeps upstream's whole read through its grant.
+// host file keeps upstream's reads.
 import type { RuntimeClientTarget } from '../runtime-client-target'
 
 /** The fields of the renderer's file read args that name a host file. */
@@ -11,13 +11,25 @@ export type HostFileReadArgs = {
   worktreeId?: string
   terminalArtifactGrantId?: string
   expectedEnvironmentPairingRevision?: number
+  /** Set on a tab of a direct SSH connection, which these reads never serve. */
+  expectedExternalSshTargetId?: string
 }
 
 export type HostFileSnapshot = { size: number; isDirectory: boolean; mtime: number; ctime?: number }
 
+/** The editor content of a CSV for upstream's paged preview. */
+export type HostCsvPreview<TArgs> = {
+  content: string
+  isBinary: false
+  csvPreview: { readArgs: TArgs; snapshot: HostFileSnapshot }
+}
+
 type HostFileRanges = {
-  /** The host CSV's stat when the paged preview should open it; null reads it whole. */
-  pagedCsvSnapshot: (args: HostFileReadArgs) => Promise<HostFileSnapshot | null>
+  /** A host CSV past the paging threshold as a paged preview, else `readWhole`; null for any other file. */
+  readCsv: <TArgs extends HostFileReadArgs, TContent>(
+    args: TArgs,
+    readWhole: () => Promise<TContent>
+  ) => Promise<TContent | HostCsvPreview<TArgs>> | null
   /** Null when the args name no host file outside every workspace. */
   stat: (args: HostFileReadArgs) => Promise<HostFileSnapshot> | null
   read: (
@@ -34,19 +46,13 @@ export function registerHostFileRanges(next: HostFileRanges): void {
   ranges = next
 }
 
-/** Where upstream reads a granted host CSV whole; null keeps that read. */
-export async function pagedHostCsvPreview<TArgs extends HostFileReadArgs>(
+/** Before upstream's CSV branch, which has no route for a host file; null keeps that branch. */
+export function readHostCsv<TArgs extends HostFileReadArgs, TContent>(
   args: TArgs,
-  allowPagedPreview: boolean
-): Promise<{
-  content: string
-  isBinary: false
-  csvPreview: { readArgs: TArgs; snapshot: HostFileSnapshot }
-} | null> {
-  const snapshot = ranges && allowPagedPreview ? await ranges.pagedCsvSnapshot(args) : null
-  return snapshot
-    ? { content: '', isBinary: false, csvPreview: { readArgs: args, snapshot } }
-    : null
+  allowPagedPreview: boolean,
+  readWhole: () => Promise<TContent>
+): Promise<TContent | HostCsvPreview<TArgs>> | null {
+  return ranges && allowPagedPreview ? ranges.readCsv(args, readWhole) : null
 }
 
 /** The paged preview's stat; null keeps upstream's route, which has none for a host file. */

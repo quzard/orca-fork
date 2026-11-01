@@ -95,7 +95,7 @@ export function registerLargeHostFileReader(next: LargeHostFileReader): void {
   largeFileReader = next
 }
 
-/** Renderer: reads an image or PDF the grant preview refuses to send in one reply. */
+/** Renderer: answers a grant's binary preview refusal (an image or PDF past one reply, any other binary). */
 export function registerLargeHostPreviewReader(next: LargeHostPreviewReader): void {
   largePreviewReader = next
 }
@@ -164,15 +164,13 @@ export function readLargeHostFile(
 }
 
 /**
- * Renderer, where a grant's image or PDF preview fails: past one reply (about 3 MB) it is paged.
- * Unregistered, it rethrows what upstream would have thrown.
+ * Renderer, around a grant's binary preview: an image or PDF past one reply (about 3 MB) is paged,
+ * another binary shows as one. Null when unregistered, so upstream returns its own call untouched.
  */
-export async function readLargeHostPreview(
+export function pageLargeHostPreview(
   file: GrantedHostFile,
-  refusal: unknown
-): Promise<RuntimeFilePreviewResult> {
-  if (!largePreviewReader) {
-    throw refusal
-  }
-  return largePreviewReader(file, refusal)
+  preview: Promise<RuntimeFilePreviewResult>
+): Promise<RuntimeFilePreviewResult> | null {
+  const reader = largePreviewReader
+  return reader ? preview.catch((refusal: unknown) => reader(file, refusal)) : null
 }

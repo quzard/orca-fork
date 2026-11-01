@@ -10,6 +10,7 @@ import {
   withManagedHost
 } from './helpers/orcad-managed-workspace'
 import { quotePosixShell } from '../../src/shared/shell-argument-quoting'
+import { createPdfFindFixture } from './helpers/pdf-find-fixture'
 import { toRuntimeExecutionHostId } from '../../src/shared/execution-host'
 import { folderWorkspaceKey } from '../../src/shared/workspace-scope'
 import {
@@ -31,30 +32,6 @@ test.skip(process.platform === 'win32', 'The Docker SSH host uses POSIX tooling'
 // A 48x48 checkerboard PNG: a loaded image proves the bytes arrived, and it shows in screenshots.
 const CHECKERBOARD_PNG =
   'iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAAAUElEQVR42u3XsQ0AIAgEQEZxBEZydEZxBCUx2lzy9XMdEJW5zZi1za2eAAICAgICaoJeDjvpAQICAgIC6oJseyAgICAgf5nzAwgICAjoK2gBvFTQpjZgKqQAAAAASUVORK5CYII='
-
-/**
- * A one-page PDF, its objects first so their offsets are known here; the host pads it past one
- * preview reply with comment lines and appends the cross-reference table at the real offset.
- */
-function pdfParts(text: string): { objects: string; xref: string } {
-  const content = `BT /F1 24 Tf 20 100 Td (${text}) Tj ET`
-  const bodies = [
-    '<< /Type /Catalog /Pages 2 0 R >>',
-    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 400 200] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
-    `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
-    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'
-  ]
-  let objects = '%PDF-1.4\n'
-  const offsets: number[] = []
-  bodies.forEach((body, index) => {
-    offsets.push(objects.length)
-    objects += `${index + 1} 0 obj\n${body}\nendobj\n`
-  })
-  const entries = offsets.map((offset) => `${String(offset).padStart(10, '0')} 00000 n \n`).join('')
-  const xref = `xref\n0 ${bodies.length + 1}\n0000000000 65535 f \n${entries}trailer\n<< /Size ${bodies.length + 1} /Root 1 0 R >>\n`
-  return { objects, xref }
-}
 
 test('host terminal links to files outside the workspace stay in the clicked workspace', async (// oxlint-disable-next-line no-empty-pattern -- Owns its app launch through a restart session.
 {}, testInfo) => {
@@ -144,12 +121,10 @@ test('host terminal links to files outside the workspace stay in the clicked wor
       exec(
         `mkdir -p /root/data && { printf '%s' ${quotePosixShell(CHECKERBOARD_PNG)} | base64 -d; head -c 12000000 /dev/zero; } > ${files.bigImage}`
       )
-      const pdf = pdfParts(`Server PDF ${stamp}`)
+      const pdf = createPdfFindFixture({ title: `Server PDF ${stamp}` }).toString('base64')
+      // pdf.js finds the cross-reference table back past the padding, as it does past any trailing bytes.
       exec(
-        `printf '%s' ${quotePosixShell(pdf.objects)} > ${files.bigPdf} && ` +
-          `{ head -c 12000000 /dev/zero | tr '\\0' x | fold -w 1000; echo; } | sed 's/^/%/' >> ${files.bigPdf} && ` +
-          `offset=$(stat -c %s ${files.bigPdf}) && printf '%s' ${quotePosixShell(pdf.xref)} >> ${files.bigPdf} && ` +
-          `printf 'startxref\\n%s\\n%%%%EOF\\n' "$offset" >> ${files.bigPdf}`
+        `{ printf '%s' ${quotePosixShell(pdf)} | base64 -d; head -c 12000000 /dev/zero; } > ${files.bigPdf}`
       )
       exec(`{ echo 'step,loss'; seq 1 150000 | awk '{ print $1 ",0." $1 }'; } > ${files.csv}`)
       write(files.owned, `export const ownedByLib = 'LIB_OWNED_${stamp}'\n`)
@@ -410,17 +385,11 @@ test('host terminal links to files outside the workspace stay in the clicked wor
       await test.step('a CSV past the paging threshold opens in the paged preview', async () => {
         await clickPrintedHostPath(page, testInfo, terminal, files.csv)
         await expect
-          .poll(
-            () =>
-              page.evaluate(
-                (target) =>
-                  window.__store!.getState().openFiles.find((file) => file.filePath === target)
-                    ?.csvPreviewOnly ?? null,
-                files.csv
-              ),
-            { timeout: 30_000, message: 'the CSV never opened in the paged preview' }
-          )
-          .toBe(true)
+          .poll(() => readOpenedFile(page, files.csv), {
+            timeout: 30_000,
+            message: 'the CSV never opened in the paged preview'
+          })
+          .toMatchObject({ worktreeId: workspaceA, granted: true, csvPreviewOnly: true })
         await expect(page.getByText('Large file preview · Read-only')).toBeVisible()
         await expect(page.getByText('loss', { exact: true }).first()).toBeVisible({
           timeout: 60_000

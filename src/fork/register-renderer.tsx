@@ -40,7 +40,11 @@ import {
 } from './terminal/reconnect-tui-pulse'
 import { registerComposerSeed } from './sidebar/register-composer-seed'
 import { installForkLocaleOverlays } from './i18n/locale-overlay'
-import { installCoveredTerminalCanvasStyle } from './terminal/covered-terminal-canvas'
+import {
+  installCoveredTerminalCanvasStyle,
+  registerCoveredTerminalGroupRules
+} from './terminal/covered-terminal-canvas'
+import { registerTerminalFileLinkStayWatch } from './terminal/file-link-stay-watch'
 import { registerWorkspaceRepositorySourceControl } from './source-control/register'
 import { registerHostFileDocPreviews } from './terminal/host-file-doc-preview'
 import { registerLargeHostFileReads } from './terminal/large-host-file-read'
@@ -80,6 +84,8 @@ export function registerForkRendererModules(): void {
     consumeDeferredSshReconnectTui(info, resizePty)
   })
   installCoveredTerminalCanvasStyle()
+  registerCoveredTerminalGroupRules()
+  registerTerminalFileLinkStayWatch()
   registerComposerSeed()
   registerHostFileDocPreviews()
   registerLargeHostFileReads()

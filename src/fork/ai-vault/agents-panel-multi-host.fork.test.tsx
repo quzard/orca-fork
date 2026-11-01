@@ -52,12 +52,12 @@ function session(n: number, host: ExecutionHostId, cwd: string): AiVaultSession 
 const build = toRuntimeExecutionHostId(BUILD_ENV)
 const gpu = toRuntimeExecutionHostId(GPU_ENV)
 const sessions = [
-  session(1, LOCAL_EXECUTION_HOST_ID, '/Users/tom/src/app'),
-  session(2, LOCAL_EXECUTION_HOST_ID, '/Users/tom/src/app'),
-  session(3, build, '/home/tom/src/app'),
-  session(4, build, '/home/tom/src/app'),
+  session(1, LOCAL_EXECUTION_HOST_ID, '/home/user/src/app'),
+  session(2, LOCAL_EXECUTION_HOST_ID, '/home/user/src/app'),
+  session(3, build, '/home/user/src/app'),
+  session(4, build, '/home/user/src/app'),
   session(5, build, '/srv/tools'),
-  session(6, gpu, '/home/tom/train')
+  session(6, gpu, '/home/user/train')
 ]
 // The host's answer for each scope, one array per scope as the real hook keeps its result.
 const sessionsByScope = new Map<string, AiVaultSession[]>()
@@ -168,13 +168,13 @@ it('lists each host under its own row, named after the saved server, collapsed u
   expect(groupHeaders()).toEqual([
     `${local} (2) closed`,
     'build-linux (3) open',
-    '/home/tom/src/app (2) closed',
+    '/home/user/src/app (2) closed',
     '/srv/tools (1) closed',
     'gpu-linux (1) closed'
   ])
   expect(screen.queryByText('Session 3')).toBeNull()
 
-  await user.click(screen.getByRole('button', { name: /\/home\/tom\/src\/app/ }))
+  await user.click(screen.getByRole('button', { name: /\/home\/user\/src\/app/ }))
   expect(screen.getByText('Session 3')).toBeTruthy()
   expect(screen.getByText('Session 4')).toBeTruthy()
 
@@ -189,7 +189,7 @@ it('lists each host under its own row, named after the saved server, collapsed u
   // Collapse-all also closed the directories under the server row.
   await user.click(screen.getByRole('button', { name: /build-linux/ }))
   expect(groupHeaders().slice(2, 4)).toEqual([
-    '/home/tom/src/app (2) closed',
+    '/home/user/src/app (2) closed',
     '/srv/tools (1) closed'
   ])
 })
@@ -233,11 +233,11 @@ it('keeps a server that listed sessions in the main menu after picking another h
   renderPanel()
   const user = userEvent.setup()
   await user.click(screen.getByRole('button', { name: /build-linux/ }))
-  await user.click(screen.getByRole('button', { name: /\/home\/tom\/src\/app/ }))
+  await user.click(screen.getByRole('button', { name: /\/home\/user\/src\/app/ }))
   const { menu } = await openHostMenu(user, 'All hosts')
   await user.click(within(menu).getByRole('menuitemradio', { name: 'build-linux' }))
   // The server alone has no host row; the directory opened under it stays open.
-  expect(groupHeaders()).toEqual(['/home/tom/src/app (2) open', '/srv/tools (1) closed'])
+  expect(groupHeaders()).toEqual(['/home/user/src/app (2) open', '/srv/tools (1) closed'])
 
   const { primary } = await openHostMenu(user, 'build-linux')
   expect(primary).toContain('gpu-linux')

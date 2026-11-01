@@ -29,7 +29,6 @@ import { buildDocPreviewDocumentIdentity } from './doc-preview-document-identity
 import { docPreviewFailureDetail, docPreviewNotices } from './doc-preview-failure-messages'
 import { DocPreviewToolbar } from './doc-preview-toolbar'
 import { buildDocPreviewShareControl } from './doc-preview-artifact-share'
-import { hostFileDocFolder } from '../../../../../shared/fork-hooks/host-file-doc-preview'
 import { useDocPreviewWebviewHistory } from './doc-preview-webview-history'
 import { useDocPreviewGuestFocus } from './use-doc-preview-guest-focus'
 import { useDocPreviewGuestTools } from './use-doc-preview-guest-tools'
@@ -357,7 +356,7 @@ export function HtmlDocPreview({
         <DocPreviewDirectoryAccessBanner
           requests={accessRequests}
           busy={accessRequestBusy}
-          worktreeRoot={hostFileDocFolder(grant?.location) ?? worktreeRoot}
+          worktreeRoot={worktreeRoot}
           onDismiss={dismissDirectoryAccess}
           onAllow={allowDirectoryAccess}
         />

@@ -45,25 +45,26 @@ Install this build on the Mac and connect an x86_64 Linux host over SSH; let the
 
 ### F046 host file links
 
-An older fork orcad does not grant paths outside the workspace without `crossWorkspace`: HTML outside every workspace 404s and another workspace's file switches workspaces. A host without `files.hostDocPreview.*` (a fork orcad from before it, or upstream `orca serve`) reads such a page file by file through terminal grants: text stops at 512 KiB and fonts fail. Those are the expected degradations. On the host, create workspaces A (`~/wt/app`) and B (`~/wt/lib`), and outside them `~/notes/plain.txt`, `~/notes/doc.md` (with `![](img/chart.png)`) and `~/notes/img/chart.png`, `~/pages/report.html` (styles inline), `~/pages/site.html` (linking `style.css`, `img/a.png`, a script over 512 KiB and a web font) and those files, `~/pages/.env`, `~/pages/leak.css` (a symlink to `~/.ssh/id_rsa` or another file outside the folder), `~/pages/huge.html` (over 512 KiB), `~/top.html` (linking `~/top.css`), and `/tmp/same.txt` (different content on the Mac and on the host).
+An older fork orcad does not grant paths outside the workspace without `crossWorkspace`: HTML outside every workspace 404s and another workspace's file switches workspaces. A host without `files.hostDocPreview.*` and `files.hostFile.*` (a fork orcad from before them, or upstream `orca serve`) reads such files through terminal grants: text stops at 512 KiB and fonts fail. Those are the expected degradations. On the host, create workspaces A (`~/wt/app`) and B (`~/wt/lib`), and outside them `~/notes/plain.txt`, `~/notes/doc.md` (with `![](img/chart.png)`) and `~/notes/img/chart.png`, `~/pages/report.html` (styles inline), `~/pages/site.html` (linking `style.css`, `img/a.png`, `../shared/theme.css`, `/assets/app.js` kept at `~/pages/assets/app.js`, a script over 512 KiB and a web font) and those files, `~/pages/huge.html` (over 512 KiB), `~/top.html` (linking `~/top.css`), `~/wt/app/page.html` (linking `page.css` beside it), `~/logs/train.log` (a few MB), and `/tmp/same.txt` (different content on the Mac and on the host).
 
 1. Print the absolute path of `~/notes/plain.txt` in A's terminal and Cmd-click it: A's editor opens the host's content, A stays active, and the file saves (newer hosts grant write).
 2. `/tmp/same.txt` shows the host's content, not the Mac's.
 3. After `cd ~/notes && ls`, click `plain.txt` (relative to the cwd), and an OSC 8 link (`printf '\e]8;;file:///home/<u>/notes/plain.txt\e\\link\e]8;;\e\\\n'`): same as 1. Note whether a bare `~/notes/plain.txt` becomes a link and opens the host file (upstream behavior).
 4. `doc.md` opens in the editor; its Markdown preview renders and shows `img/chart.png`.
 5. `report.html` opens a doc preview tab in A that renders the page: no editor source, no system browser, no workspace switch.
-6. `site.html` loads its CSS, image, script and font with no folder prompt. `leak.css` and `.env` are among the failed resources and the page gets none of their content.
+6. `site.html` loads every stylesheet, image, script and font, beside it, above it and root-absolute, with no folder prompt.
 7. `huge.html` renders.
-8. `~/top.html` sits directly in the home folder: the folder prompt names `~`; after allowing it the CSS loads.
-9. In A's terminal, click a text file of B (`~/wt/lib/src/index.ts`): it opens read-only in A and B does not activate. After an app restart the tab is still in A and readable.
-10. From A, click an HTML file of B: a doc preview opens in A, B does not activate, and the files beside it load without a folder prompt.
-11. Click B's root directory: B activates (upstream behavior).
-12. The same absolute-path links in A's native agent chat behave like 1, 4, 5 and 9.
-13. Paste the absolute path of `~/pages/report.html`, or `file:///home/<u>/pages/report.html`, into the address bar of a browser page in A: it becomes a doc preview read from the host.
-14. Click `~/notes` (a folder): the hint names a folder outside the host's workspaces and nothing on the Mac opens. Click a missing `~/nope.txt`: the hint says the host has no such file.
-15. Restart the app with the `report.html` preview open: it reads from the host again.
-16. In a local Mac workspace, local HTML follows the link-routing setting (system browser or in-app page), and a file of another local workspace still switches to it (upstream behavior).
-17. With a paired client or phone, if available: files outside every workspace open (upstream #33958).
+8. `~/top.html` (directly in the home folder) and `~/wt/app/page.html` (at A's root) style with no folder prompt.
+9. `~/logs/train.log` opens whole in A's editor; so does it while `while true; do date >> ~/logs/train.log; sleep 0.1; done` runs.
+10. In A's terminal, click a text file of B (`~/wt/lib/src/index.ts`): it opens read-only in A and B does not activate. After an app restart the tab is still in A and readable.
+11. From A, click an HTML file of B: a doc preview opens in A, B does not activate, and the files beside it load without a folder prompt.
+12. Click B's root directory: B activates (upstream behavior).
+13. The same absolute-path links in A's native agent chat behave like 1, 4, 5 and 10.
+14. Paste the absolute path of `~/pages/report.html`, or `file:///home/<u>/pages/report.html`, into the address bar of a browser page in A: it becomes a doc preview read from the host.
+15. Click `~/notes` (a folder): the hint names a folder outside the host's workspaces and nothing on the Mac opens. Click a missing `~/nope.txt`: the hint says the host has no such file.
+16. Restart the app with the `report.html` preview open: it reads from the host again.
+17. In a local Mac workspace, local HTML follows the link-routing setting (system browser or in-app page), and a file of another local workspace still switches to it (upstream behavior).
+18. With a paired client or phone, if available: files outside every workspace open (upstream #33958).
 
 ### F047 workspace repositories
 

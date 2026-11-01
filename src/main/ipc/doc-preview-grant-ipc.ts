@@ -15,7 +15,7 @@ import {
   type DocPreviewOwner
 } from '../browser/doc-preview-grant-registry'
 import { isTrustedBrowserRenderer } from './browser-renderer-trust'
-import { openHostFileDocFolder } from '../../shared/fork-hooks/host-file-doc-preview'
+import { openDocPreviewAccess } from '../../shared/fork-hooks/doc-preview-access'
 
 export type DocPreviewGrantRequest = {
   owner: DocPreviewOwner
@@ -71,7 +71,7 @@ export function registerDocPreviewGrantHandlers(): void {
         entryRelativePath: request.entryRelativePath,
         browserPageId: request.browserPageId
       })
-      openHostFileDocFolder(grant.id)
+      openDocPreviewAccess(grant.id)
       return {
         grantId: grant.id,
         url: buildDocPreviewUrl(grant.id, grant.entryRelativePath)

@@ -28,7 +28,12 @@ FEATURES = [
     ('ego-lite', 'F049 Cookie 导入'),
     ('cookie', 'F049 Cookie 导入'),
     ('browser-workspace-types', 'F049 Cookie 导入'),
+    ('doc-preview-access', 'F051 文档预览免授权'),
+    ('doc-preview-open-access', 'F051 文档预览免授权'),
+    ('HtmlDocPreview', 'F051 文档预览免授权'),
+    ('doc-preview-grant-ipc', 'F051 文档预览免授权'),
     ('doc-preview', 'F046 终端文件链接'),
+    ('host-file', 'F046 终端文件链接'),
     ('runtime-rpc-call-queue', 'F046 终端文件链接'),
     ('html-preview', 'F046 终端文件链接'),
     ('workspace-doc-address', 'F046 终端文件链接'),
@@ -129,8 +134,9 @@ REASONS = {
     '.gitattributes': '末尾一行：RPC 目录 merge=ours，合并不冲突；daily-sync 合并后重新生成并提交',
     'src/main/runtime/rpc/methods/index.ts': 'fork 的 RPC 方法（F046 主机读取、F047 工作区仓库）经 src/fork/main/rpc-methods.ts 一行摊进 ALL_RPC_METHODS',
     'src/main/runtime/rpc/rpc-params-type-parity.ts': '类型对齐检查跳过 ForkRpcMethodName（schema 在 src/fork）',
-    'src/main/ipc/doc-preview-grant-ipc.ts': 'F046：铸 grant 后一行 openHostFileDocFolder，工作区外文档自己的目录不再弹提示',
-    'src/shared/runtime-rpc-call-queue.ts': 'F046：分段读 files.hostDocPreview.readChunk 和上游 files.readDocPreviewChunk 一样走 bulk 通道',
+    'src/main/ipc/doc-preview-grant-ipc.ts': 'F051：铸 grant 后一行 openDocPreviewAccess，整个请求根放行，不弹文件夹提示',
+    'src/shared/runtime-rpc-call-queue.ts': 'F046：分段读 files.hostDocPreview.readChunk、files.hostFile.readChunk 和上游 files.readDocPreviewChunk 一样走 bulk 通道',
+    'src/renderer/src/runtime/runtime-terminal-artifact-read.ts': 'F046：授权读一次回复给不了的大文件，catch 开头交给 readLargeHostFile 分段读',
 }
 
 # Files a rework put back to upstream or deleted. Each must not differ from the base.
@@ -153,6 +159,7 @@ HISTORY = {
     'src/renderer/src/lib/agent-feature-install-commands.ts': ('revert-to-upstream', 'SKL 渲染进程的 ORCA_BUILD_COMMIT 由构建配置给上游基点'),
     'config/scripts/vitest-node-runtime-files.mjs': ('revert-to-upstream', 'SQLite 扫描已经找到两个 fork 测试'),
     'src/main/runtime/workspaces/workspace-selectors.ts': ('revert-to-upstream', '只多了一行注释'),
+    'src/renderer/src/components/browser-pane/workspace-doc/HtmlDocPreview.tsx': ('revert-to-upstream', 'F051 之后文件夹提示不再出现，提示里的目录标签钩子已删'),
     'config/scripts/compact-packaged-orcad-ripgrep.cjs': ('revert-to-upstream', 'F036 在上游校验函数的默认参数里收窄目标'),
     'config/scripts/packaged-orcad-browser.cjs': ('revert-to-upstream', 'F036 同上'),
     'src/renderer/src/components/right-sidebar/local-port-section.tsx': ('revert-to-upstream', 'F021/F043 的 Forward 不再穿过分区传参'),

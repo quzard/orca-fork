@@ -44,6 +44,9 @@ test('host terminal links to files outside the workspace stay in the clicked wor
     markdown: '/root/notes/doc.md',
     report: '/root/pages/report.html',
     site: '/root/pages/site.html',
+    huge: '/root/pages/huge.html',
+    // Directly in the host user's home: still asks before reading beside it.
+    top: '/root/top.html',
     owned: `${libPath}/src/index.ts`,
     ownedPage: `${libPath}/page.html`,
     // Same path on this Mac and on the host, with different contents.
@@ -72,10 +75,25 @@ test('host terminal links to files outside the workspace stay in the clicked wor
       )
       write(
         files.site,
-        `<!doctype html><html><head><title>Site</title><link rel="stylesheet" href="style.css"></head>` +
+        `<!doctype html><html><head><title>Site</title><link rel="stylesheet" href="style.css">` +
+          `<script src="js/bundle.js"></script></head>` +
           `<body><h1 id="title">Server site ${stamp}</h1></body></html>\n`
       )
       write('/root/pages/style.css', 'h1 { color: rgb(200, 30, 30); }\n')
+      write('/root/pages/.env', `E2E_SECRET_${stamp}\n`)
+      // Past the 512 KiB one host reply carries; generated on the host, too long for one argument.
+      exec(
+        `mkdir -p /root/pages/js /root/pages/fonts && ` +
+          `{ printf 'window.__bundleLoaded = "ok";\\n/*'; head -c 700000 /dev/zero | tr '\\0' x; printf '*/\\n'; } > /root/pages/js/bundle.js && ` +
+          `head -c 2048 /dev/urandom > /root/pages/fonts/icons.woff2 && ` +
+          `{ printf '<!doctype html><html><body><h1 id="title">Huge page ${stamp}</h1><!--'; head -c 900000 /dev/zero | tr '\\0' x; printf -- '--></body></html>\\n'; } > ${files.huge}`
+      )
+      write(
+        files.top,
+        `<!doctype html><html><head><title>Top</title><link rel="stylesheet" href="top.css"></head>` +
+          `<body><h1 id="title">Top page ${stamp}</h1></body></html>\n`
+      )
+      write('/root/top.css', 'h1 { color: rgb(30, 30, 200); }\n')
       write(files.owned, `export const ownedByLib = 'LIB_OWNED_${stamp}'\n`)
       write(
         files.ownedPage,
@@ -174,7 +192,7 @@ test('host terminal links to files outside the workspace stay in the clicked wor
         await forkShot(page, testInfo, 'f046-html-doc-preview')
       })
 
-      await test.step('HTML with a relative stylesheet asks for its folder, then styles apply', async () => {
+      await test.step('HTML beside its stylesheet, a large script and a font loads without a prompt', async () => {
         await clickPrintedHostPath(page, testInfo, terminal, files.site)
         await expect
           .poll(async () => (await readDocPreviewTabs(page, files.site)).map((t) => t.worktreeId), {
@@ -186,11 +204,6 @@ test('host terminal links to files outside the workspace stay in the clicked wor
             timeout: 60_000
           })
           .toBe(`Server site ${stamp}`)
-        const prompt = page.getByText('This preview wants to read files in /root/pages.')
-        await expect(prompt).toBeVisible({ timeout: 30_000 })
-        await forkShot(page, testInfo, 'f046-html-folder-prompt')
-        await page.getByRole('button', { name: 'Allow folder', exact: true }).click()
-        await expect(prompt).toBeHidden()
         await expect
           .poll(
             () =>
@@ -198,9 +211,64 @@ test('host terminal links to files outside the workspace stay in the clicked wor
             { timeout: 60_000, message: 'the stylesheet beside the HTML never applied' }
           )
           .toBe('rgb(200, 30, 30)')
+        await expect
+          .poll(() => readDocPreviewGuest(page, `window.__bundleLoaded ?? null`), {
+            timeout: 60_000,
+            message: 'the script past 512 KiB never ran'
+          })
+          .toBe('ok')
+        expect(
+          await readDocPreviewGuest(
+            page,
+            `fetch('fonts/icons.woff2').then((r) => [r.status, r.headers.get('content-type')])`
+          ),
+          'fonts are served, as terminal grants did not'
+        ).toEqual([200, 'font/woff2'])
+        expect(
+          await readDocPreviewGuest(
+            page,
+            `fetch('.env').then(async (r) => [r.status, (await r.text()).includes('E2E_SECRET')])`
+          ),
+          'a dot-named file beside the page stays unreadable'
+        ).toEqual([404, false])
+        await expect(page.getByText(/This preview wants to read files/)).toHaveCount(0)
         expect(await readDesktopOpens(app)).toEqual([])
         await stayedInA()
-        await forkShot(page, testInfo, 'f046-html-css-applied')
+        await forkShot(page, testInfo, 'f046-html-folder-no-prompt')
+      })
+
+      await test.step('HTML larger than one host reply renders', async () => {
+        await clickPrintedHostPath(page, testInfo, terminal, files.huge)
+        await expect
+          .poll(() => readDocPreviewGuest(page, `document.querySelector('#title')?.textContent`), {
+            timeout: 60_000,
+            message: 'the HTML past 512 KiB never rendered'
+          })
+          .toBe(`Huge page ${stamp}`)
+        await stayedInA()
+        await forkShot(page, testInfo, 'f046-huge-html')
+      })
+
+      await test.step('a page directly in the home folder asks first, then styles apply', async () => {
+        await clickPrintedHostPath(page, testInfo, terminal, files.top)
+        await expect
+          .poll(() => readDocPreviewGuest(page, `document.querySelector('#title')?.textContent`), {
+            timeout: 60_000
+          })
+          .toBe(`Top page ${stamp}`)
+        const prompt = page.getByText('This preview wants to read files in /root.')
+        await expect(prompt).toBeVisible({ timeout: 30_000 })
+        await forkShot(page, testInfo, 'f046-home-folder-prompt')
+        await page.getByRole('button', { name: 'Allow folder', exact: true }).click()
+        await expect(prompt).toBeHidden()
+        await expect
+          .poll(
+            () =>
+              readDocPreviewGuest(page, `getComputedStyle(document.querySelector('#title')).color`),
+            { timeout: 60_000, message: 'the stylesheet beside the home-folder page never applied' }
+          )
+          .toBe('rgb(30, 30, 200)')
+        await stayedInA()
       })
 
       await test.step("workspace B's file opens read-only in A without activating B", async () => {

@@ -24,7 +24,7 @@ import {
   writeWorkspaceCompareTarget
 } from './reads'
 
-// 桌面本机、orcad 和 orca serve 共用这一份方法表（rpc/methods/index.ts 摊进 ALL_RPC_METHODS）。
+// 桌面本机、orcad 和 orca serve 共用这一份方法表（经 src/fork/main/rpc-methods.ts 摊进 ALL_RPC_METHODS）。
 export const FORK_GIT_WORKSPACE_METHODS = [
   defineMethod({
     name: FORK_GIT_WORKSPACE_REPOSITORIES_METHOD,

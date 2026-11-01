@@ -36,7 +36,7 @@ These need macOS, a logged-in GUI session, or a Mac-only binary. Linux does not 
 - `electron-builder --mac dmg:arm64 zip:arm64` through `fork/scripts/install-mac-release.sh`, `mac.signIgnore`, and the Docker manylinux orcad slots (F002, F036). The installer refuses a non-arm64 Node. On Linux the fork tests run `bash -n` on that script and on `fork/scripts/build-orcad-linux-prebuilds.sh`, check `assertLocalTemplateTargets` against a manifest without the glibc 2.17 slot, and, when `out/cli/index.js` exists (after `pnpm build:cli`), run `node fork/scripts/verify-packaged-cli-closure.mjs`. A checkout without a Docker daemon does not compile the manylinux slots. The x64 PTY check is not executed because that package is not built.
 - Dragging the computer-use app card into System Settings (`pnpm build:computer-macos`, F006). Linux only checks, in `src/fork/computer-use/permission-card.fork.test.ts`, that `ForkPermissionCard.swift` uses the same `--fork-drag-card` argument and that `main.swift` installs the card.
 - Opening an SSH workspace, or a managed-server workspace whose files are on that SSH host, in Cursor, VS Code, or Zed. That is upstream #33877 (`cursor --new-window --remote ssh-remote+…`, not a `cursor://` URL) and needs the editor plus a reachable SSH host. The per-port Forward button on a managed workspace (F043) needs that host too.
-- Seeing a host file from a terminal or chat link on a managed server (F046): a file outside every workspace, a file another workspace holds, and HTML in the doc preview. Linux covers the preview plan, the grant location, the main-process read through host grants (including a symlink to `~/.ssh/id_rsa` that stays unreadable), the kept read-only view and the loader with `host-file-doc-preview*.fork.test.*` and `kept-host-file-view*.fork.test.tsx`. The rendered page needs that server; see the manual list below.
+- Seeing a host file from a terminal or chat link on a managed server (F046): a file outside every workspace, a file another workspace holds, and HTML in the doc preview. Linux covers the preview plan, the grant location, the host's absolute-path reads (fonts, ranged reads past 512 KiB, dot-named files and links to them refused), the main-process read with its fallback to host grants (including a symlink to `~/.ssh/id_rsa` that stays unreadable), which folders open without a prompt, the kept read-only view and the loader with `host-file-doc-preview*.fork.test.*` and `kept-host-file-view*.fork.test.tsx`. `tests/e2e/fork-f046-host-file-links.spec.ts` drives the same links against an x86_64 Docker host. The rendered page needs that server; see the manual list below.
 - A signed Mac app. The deep link and the permission card are not a substitute for that check.
 
 ## Manual checks with a Linux host
@@ -45,24 +45,25 @@ Install this build on the Mac and connect an x86_64 Linux host over SSH; let the
 
 ### F046 host file links
 
-An older fork orcad does not grant paths outside the workspace without `crossWorkspace`: HTML outside every workspace 404s and another workspace's file switches workspaces. That is the expected degradation. On the host, create workspaces A (`~/wt/app`) and B (`~/wt/lib`), and outside them `~/notes/plain.txt`, `~/notes/doc.md` (with `![](img/chart.png)`) and `~/notes/img/chart.png`, `~/pages/report.html` (styles inline), `~/pages/site.html` (linking `style.css` and `img/a.png`) and those two files, `~/pages/leak.css` (a symlink to `~/.ssh/id_rsa` or another file outside the folder), `~/pages/huge.html` (over 512 KiB), and `/tmp/same.txt` (different content on the Mac and on the host).
+An older fork orcad does not grant paths outside the workspace without `crossWorkspace`: HTML outside every workspace 404s and another workspace's file switches workspaces. A host without `files.hostDocPreview.*` (a fork orcad from before it, or upstream `orca serve`) reads such a page file by file through terminal grants: text stops at 512 KiB and fonts fail. Those are the expected degradations. On the host, create workspaces A (`~/wt/app`) and B (`~/wt/lib`), and outside them `~/notes/plain.txt`, `~/notes/doc.md` (with `![](img/chart.png)`) and `~/notes/img/chart.png`, `~/pages/report.html` (styles inline), `~/pages/site.html` (linking `style.css`, `img/a.png`, a script over 512 KiB and a web font) and those files, `~/pages/.env`, `~/pages/leak.css` (a symlink to `~/.ssh/id_rsa` or another file outside the folder), `~/pages/huge.html` (over 512 KiB), `~/top.html` (linking `~/top.css`), and `/tmp/same.txt` (different content on the Mac and on the host).
 
 1. Print the absolute path of `~/notes/plain.txt` in A's terminal and Cmd-click it: A's editor opens the host's content, A stays active, and the file saves (newer hosts grant write).
 2. `/tmp/same.txt` shows the host's content, not the Mac's.
 3. After `cd ~/notes && ls`, click `plain.txt` (relative to the cwd), and an OSC 8 link (`printf '\e]8;;file:///home/<u>/notes/plain.txt\e\\link\e]8;;\e\\\n'`): same as 1. Note whether a bare `~/notes/plain.txt` becomes a link and opens the host file (upstream behavior).
 4. `doc.md` opens in the editor; its Markdown preview renders and shows `img/chart.png`.
 5. `report.html` opens a doc preview tab in A that renders the page: no editor source, no system browser, no workspace switch.
-6. `site.html` shows the doc preview's folder prompt for `~/pages`; after allowing it the CSS and the image load. `leak.css` is among the failed resources and the page gets none of its content.
-7. `huge.html` shows that the document is too large.
-8. In A's terminal, click a text file of B (`~/wt/lib/src/index.ts`): it opens read-only in A and B does not activate. After an app restart the tab is still in A and readable.
-9. From A, click an HTML file of B: a doc preview opens in A, B does not activate, and the files beside it load without a folder prompt.
-10. Click B's root directory: B activates (upstream behavior).
-11. The same absolute-path links in A's native agent chat behave like 1, 4, 5 and 8.
-12. Paste the absolute path of `~/pages/report.html`, or `file:///home/<u>/pages/report.html`, into the address bar of a browser page in A: it becomes a doc preview read from the host.
-13. Click `~/notes` (a folder): the hint names a folder outside the host's workspaces and nothing on the Mac opens. Click a missing `~/nope.txt`: the hint says the host has no such file.
-14. Restart the app with the `report.html` preview open: it reads from the host again.
-15. In a local Mac workspace, local HTML follows the link-routing setting (system browser or in-app page), and a file of another local workspace still switches to it (upstream behavior).
-16. With a paired client or phone, if available: files outside every workspace open (upstream #33958).
+6. `site.html` loads its CSS, image, script and font with no folder prompt. `leak.css` and `.env` are among the failed resources and the page gets none of their content.
+7. `huge.html` renders.
+8. `~/top.html` sits directly in the home folder: the folder prompt names `~`; after allowing it the CSS loads.
+9. In A's terminal, click a text file of B (`~/wt/lib/src/index.ts`): it opens read-only in A and B does not activate. After an app restart the tab is still in A and readable.
+10. From A, click an HTML file of B: a doc preview opens in A, B does not activate, and the files beside it load without a folder prompt.
+11. Click B's root directory: B activates (upstream behavior).
+12. The same absolute-path links in A's native agent chat behave like 1, 4, 5 and 9.
+13. Paste the absolute path of `~/pages/report.html`, or `file:///home/<u>/pages/report.html`, into the address bar of a browser page in A: it becomes a doc preview read from the host.
+14. Click `~/notes` (a folder): the hint names a folder outside the host's workspaces and nothing on the Mac opens. Click a missing `~/nope.txt`: the hint says the host has no such file.
+15. Restart the app with the `report.html` preview open: it reads from the host again.
+16. In a local Mac workspace, local HTML follows the link-routing setting (system browser or in-app page), and a file of another local workspace still switches to it (upstream behavior).
+17. With a paired client or phone, if available: files outside every workspace open (upstream #33958).
 
 ### F047 workspace repositories
 

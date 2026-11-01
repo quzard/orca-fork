@@ -1,5 +1,6 @@
 import { abortSignalReason } from './abort-signal-reason'
 import { REMOTE_RUNTIME_MAX_PREPARED_RPC_BYTES } from './remote-runtime/remote-runtime-memory-limits'
+import { isHostDocPreviewBulkRead } from './fork-hooks/host-file-doc-preview'
 
 const DEFAULT_REMOTE_RUNTIME_CALL_CONCURRENCY = 8
 const DEFAULT_REMOTE_RUNTIME_BACKGROUND_CALL_CONCURRENCY = 2
@@ -61,6 +62,9 @@ function isLongWaitRuntimeMethod(method: string): boolean {
 
 // Byte-range reads (media, paged files, downloads) are bulk: a playing video must not hold terminal or workspace slots.
 function isBulkReadRuntimeMethod(method: string): boolean {
+  if (isHostDocPreviewBulkRead(method)) {
+    return true
+  }
   return method === 'files.readChunk' || method === 'files.readDocPreviewChunk'
 }
 

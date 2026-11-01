@@ -31,7 +31,7 @@ import { COMPUTER_METHODS } from './computer'
 import { SESSION_TAB_METHODS } from './session-tabs'
 import { NATIVE_CHAT_METHODS } from './native-chat'
 import { FILE_METHODS } from './files'
-import { FORK_GIT_WORKSPACE_METHODS } from '../../../../fork/main/git-workspace/methods'
+import { FORK_RPC_METHODS } from '../../../../fork/main/rpc-methods'
 import { GIT_METHODS } from './git'
 import { GITHUB_METHODS } from './github'
 import { GITLAB_METHODS } from './gitlab'
@@ -124,7 +124,7 @@ export const ALL_RPC_METHODS = [
   ...NATIVE_CHAT_METHODS,
   ...FILE_METHODS,
   ...GIT_METHODS,
-  ...FORK_GIT_WORKSPACE_METHODS,
+  ...FORK_RPC_METHODS,
   ...GITHUB_METHODS,
   ...GITLAB_METHODS,
   ...HOSTED_REVIEW_METHODS,

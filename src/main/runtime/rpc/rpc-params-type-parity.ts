@@ -2,7 +2,7 @@ import type {
   RpcMethodName,
   RpcParams
 } from '../../../shared/rpc-contract/rpc-params-catalog.generated'
-import type { ForkGitWorkspaceMethodName } from '../../../fork/git-workspace/constants'
+import type { ForkRpcMethodName } from '../../../fork/main/rpc-methods'
 import type { RpcAnyMethodDeclaration } from './core'
 import type { ALL_RPC_METHODS } from './methods'
 
@@ -31,7 +31,7 @@ type MismatchedMethod<Method extends RpcAnyMethodDeclaration> =
       ? ParamsMatch<Parameters<Method['handler']>[0], RpcParams<Method['name']>> extends true
         ? never
         : Method['name']
-      : Exclude<Method['name'], UncataloguedMethod | ForkGitWorkspaceMethodName>
+      : Exclude<Method['name'], UncataloguedMethod | ForkRpcMethodName>
     : never
 
 type AssertNever<T extends never> = T

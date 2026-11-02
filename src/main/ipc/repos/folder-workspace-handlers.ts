@@ -18,7 +18,11 @@ import {
   parseProjectGroupIpcArgs
 } from './repo-ipc-arg-schemas'
 import { visibleFolderWorkspaces } from '../../ssh/orcad-retained-source'
+<<<<<<< HEAD
 import { applySidebarFieldClears } from '../../../shared/fork-hooks/sidebar-field-clear'
+=======
+import { createFolderWorkspaceWithPluginHooks } from '../../plugins/hooks/workspace-create-plugin-hook'
+>>>>>>> 96cceba75a8a9a32935df57122360318c3e7e361
 import {
   isLocalWslMoveRow,
   shouldDropWslMoveProjectUpdate
@@ -65,10 +69,9 @@ export function registerFolderWorkspaceHandlers(
         repos: store.getRepos()
       })
       assertFolderWorkspacePathUsable(status)
-      const workspace = store.createFolderWorkspace({
-        ...args,
-        creatorProvenance: { kind: 'host' }
-      })
+      const workspace = await createFolderWorkspaceWithPluginHooks(args, (request) =>
+        store.createFolderWorkspace({ ...request, creatorProvenance: { kind: 'host' } })
+      )
       notifyReposChanged(mainWindow)
       return workspace
     }

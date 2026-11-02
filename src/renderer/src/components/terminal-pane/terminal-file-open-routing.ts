@@ -237,7 +237,9 @@ export function openDetectedFilePath(
     }
 
     // Route local HTML to Orca browser, including system-browser opens OS could not launch.
-    if (isHtmlFilePath(mappedFilePath) && (hostGrant === null || previewsHostFiles())) {
+    // Why: a read-only grant comes from a host that re-grants only to the printing terminal, so preview reads would fail.
+    // A registered host-file preview reads that path itself, so it still opens.
+    if (isHtmlFilePath(mappedFilePath) && (previewsHostFiles() || !hostGrant?.readOnly)) {
       if (deps.openInSourceGroup) {
         refuseExplicitNonEditorRoute()
         return

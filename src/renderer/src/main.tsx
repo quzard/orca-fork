@@ -31,6 +31,7 @@ import { handleGuestWindowCloseMessage } from './components/browser-pane/host-gu
 import { installOsFileDropCancellationGuard } from './lib/os-file-drop-cancellation-guard'
 import { installBodyOverlayAttributes } from './lib/body-overlay-attributes'
 import { registerForkRenderer } from '../../fork/register-renderer'
+import { applyWindowMaterialToDocument } from './lib/window-material-runtime'
 
 registerForkRenderer()
 const disposeOsFileDropGuard = installOsFileDropCancellationGuard()
@@ -54,6 +55,7 @@ if (
   void import('react-grab/styles.css')
 }
 
+applyWindowMaterialToDocument()
 const cachedPluginTheme = readCachedPluginAppTheme()
 applyDocumentTheme(cachedPluginTheme?.base ?? 'system', { disableTransitions: false })
 if (cachedPluginTheme) {

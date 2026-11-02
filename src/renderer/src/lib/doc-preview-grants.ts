@@ -49,8 +49,31 @@ export function buildDocPreviewGrantRequest(
           relativePath: worktreeRelativePath
         }
       : chatScratchFileAddress(filePath)
-  if (!environmentId || !base) {
-    return hostFileDocLocation(environmentId, worktreeId, worktreeRoot, filePath)
+  if (!environmentId) {
+    return null
+  }
+  if (!base) {
+    // Registered host preview addresses the file by absolute path. Otherwise use the
+    // terminal-artifact grant upstream mints for HTML outside the workspace.
+    const hostLocation = hostFileDocLocation(environmentId, worktreeId, worktreeRoot, filePath)
+    if (hostLocation) {
+      return hostLocation
+    }
+    if (!worktreeRoot) {
+      return null
+    }
+    return {
+      owner: {
+        kind: 'runtime',
+        environmentId,
+        worktreeSelector: toRuntimeWorktreeSelector(worktreeId),
+        worktreeRoot,
+        fileAccess: 'terminal-artifact'
+      },
+      requestBase: root,
+      root,
+      entryRelativePath: basename(filePath)
+    }
   }
   return {
     owner: {

@@ -71,12 +71,20 @@ function serveImageThroughGrant(): void {
 }
 
 describe('before the fork registers', () => {
-  it('keeps upstream: refused plan, no grant, no outside image read', async () => {
-    expect(getWorkspaceFilePreviewPlan(state, 'wt-1', REPORT)).toMatchObject({
-      status: 'unsupported',
-      reason: 'outside-worktree'
+  it('keeps upstream: a terminal-artifact preview grant, and no outside image read', async () => {
+    expect(getWorkspaceFilePreviewPlan(state, 'wt-1', REPORT)).toEqual({ status: 'doc-preview' })
+    expect(buildDocPreviewGrantRequest(state, 'wt-1', REPORT)).toEqual({
+      owner: {
+        kind: 'runtime',
+        environmentId: 'env-1',
+        worktreeSelector: 'id:wt-1',
+        worktreeRoot: WORKTREE,
+        fileAccess: 'terminal-artifact'
+      },
+      requestBase: PAGES,
+      root: PAGES,
+      entryRelativePath: 'report.html'
     })
-    expect(buildDocPreviewGrantRequest(state, 'wt-1', REPORT)).toBeNull()
     await expect(readRuntimeFilePreview(imageContext, IMAGE, imageAccess)).rejects.toThrow(
       'Remote file is outside the owning runtime worktree'
     )

@@ -78,5 +78,10 @@
 /resources/skills/*.json linguist-generated=true text eol=lf
 # Vitest writes snapshots with LF, so checkout bytes must match on every host.
 **/__snapshots__/*.snap text eol=lf
+<<<<<<< HEAD
 # fork: both sides add RPC methods; keep ours on merge, then daily-sync regenerates it.
 /src/shared/rpc-contract/rpc-params-catalog.generated.ts merge=ours
+=======
+# Generated, minified bundles (config/scripts/build-plugin-declarative-runtime.mjs).
+/resources/plugins/declarative/orca-test*.mjs linguist-generated=true -diff
+>>>>>>> 8fa8c9fee34eb5e31aec627ddad7014857f9f89f

@@ -21,6 +21,9 @@ const state = {
   workspaceStatuses: [],
   openModal: vi.fn(),
   projectGroups: [],
+  // 上游 WSL 启动项按 repos / folderWorkspaces 找主机；测试里没有仓库。
+  repos: [],
+  folderWorkspaces: [],
   createProjectGroup: vi.fn(),
   moveProjectToGroup: vi.fn(),
   deleteStateByWorktreeId: {},

@@ -18,8 +18,12 @@ import {
   resolveRuntimeGitLabWorktreeBase,
   type RuntimeGitLabWorktreeBaseArgs
 } from '../runtime-gitlab-worktree-base'
+<<<<<<< HEAD
 import { listWorktreesStrict } from '../../git/worktree-listing'
 import type { ClearableSidebarField } from '../../../shared/fork-hooks/sidebar-field-clear'
+=======
+import { listWorktreesStrict } from '../../git/worktrees/catalog/worktree-listing'
+>>>>>>> 29079b567f3316c88d1125bffcf8294ecb1cd0a8
 import {
   adoptRuntimeProvisionedRoot,
   readLocalSparseCheckoutEnabled,

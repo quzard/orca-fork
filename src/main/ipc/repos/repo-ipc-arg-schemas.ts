@@ -1,10 +1,14 @@
 import { z } from 'zod'
+<<<<<<< HEAD
 import { isTuiAgent } from '../../../shared/tui-agent-config'
 import { CLEARABLE_SIDEBAR_FIELDS } from '../../../shared/fork-hooks/sidebar-field-clear'
+=======
+import { isTuiAgent } from '../../../shared/agent-launch/catalog/tui-agent-config'
+>>>>>>> a19de980854e1c875a4555e1bd24d832c9f96657
 import { TaskSourceContextSchema } from '../../../shared/task-source-context-schema'
-import { WorkspaceLinkedItemSchema } from '../../../shared/workspace-linked-item-schema'
-import { WorkspaceAttachmentsSchema } from '../../../shared/workspace-attachment-schema'
-import { isWorkspaceLinkedItemSourceContextMatch } from '../../../shared/workspace-linked-item-source-context'
+import { WorkspaceLinkedItemSchema } from '../../../shared/workspace-attachments/workspace-linked-item-schema'
+import { WorkspaceAttachmentsSchema } from '../../../shared/workspace-attachments/workspace-attachment-schema'
+import { isWorkspaceLinkedItemSourceContextMatch } from '../../../shared/workspace-attachments/workspace-linked-item-source-context'
 import { DiffCommentSchema } from '../../../shared/diff-comment-schema'
 import { normalizeExecutionHostId } from '../../../shared/execution-host'
 

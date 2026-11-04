@@ -6,8 +6,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { formatOptionalPrimaryShortcutLabel } from '@/hooks/useShortcutLabel'
 import { translate } from '@/i18n/i18n'
 import { openWorkspaceCreationComposerWithTourHandoff } from '../contextual-tours/workspace-creation-tour-handoff'
+<<<<<<< HEAD
 import { renderSidebarHeaderExtra } from '../../../../shared/fork-hooks/sidebar-chrome'
 import SidebarWorkspaceOptionsMenu from './SidebarWorkspaceOptionsMenu'
+=======
+import SidebarWorkspaceOptionsMenu from './worktree-list/controls/SidebarWorkspaceOptionsMenu'
+>>>>>>> a19de980854e1c875a4555e1bd24d832c9f96657
 
 function AddProjectButton({
   preserveWorkspaceBoardOpen

@@ -3,17 +3,21 @@ import {
   getWorkspaceKanbanSidebarDropTarget,
   isWorkspaceKanbanSidebarDropPointInBoard,
   resolveWorkspaceKanbanSidebarFullLaneDropIndex
-} from '../../workspace-kanban-sidebar-drop'
-import { resolveWorkspaceKanbanCardDropCommitTarget } from '../../workspace-kanban-card-pointer-drag-dom'
-import { getFullDropIndexForWorktreeDragUnit } from '../../worktree-drag-units'
-import { resolveWorktreeSidebarStatusDropCommitTarget } from '../../worktree-sidebar-drop-preview'
+} from '../../workspace-board/drag/workspace-kanban-sidebar-drop'
+import { resolveWorkspaceKanbanCardDropCommitTarget } from '../../workspace-board/drag/workspace-kanban-card-pointer-drag-dom'
+import { getFullDropIndexForWorktreeDragUnit } from './worktree-drag-units'
+import { resolveWorktreeSidebarStatusDropCommitTarget } from './worktree-sidebar-drop-preview'
 import { getPointerDropStatusTarget, shouldPreferSidebarStatusDropTarget } from './status-target'
 import type {
   WorktreeDropCommitContext,
   WorktreeStatusDropAtIndexArgs
 } from './drop-commit-context'
+<<<<<<< HEAD
 import type { WorktreeSidebarStatusDropTarget } from '../../worktree-sidebar-drop-preview'
 import { commitRegisteredWorkspaceGroupDrop } from '../../../../../../shared/fork-hooks/sidebar-chrome'
+=======
+import type { WorktreeSidebarStatusDropTarget } from './worktree-sidebar-drop-preview'
+>>>>>>> a19de980854e1c875a4555e1bd24d832c9f96657
 import { NO_WORKTREE_SIDEBAR_DROP_TARGET, type WorktreePointerDrag } from './row-state'
 
 type PointerDropCommitArgs = {

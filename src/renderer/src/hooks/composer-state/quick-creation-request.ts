@@ -1,14 +1,19 @@
 import type { AgentStartedTelemetry } from '@/lib/worktree-startup-payload'
 import type { WorktreeCreationRequest } from '@/lib/pending-worktree-creation'
-import type { AgentStartupPlan } from '@/lib/tui-agent-startup'
+import type { AgentStartupPlan } from '../../../../shared/agent-launch/startup/tui-agent-startup'
 import type { LinkedWorkItemSummary } from '@/lib/new-workspace'
 import type { TaskSourceContext } from '../../../../shared/task-source-context'
-import type { TuiAgent } from '../../../../shared/tui-agent'
+import type { TuiAgent } from '../../../../shared/agent-launch/catalog/tui-agent'
 import type { AgentLaunchChoice } from '@/lib/agent-menu-selection'
 import type { GitPushTarget } from '../../../../shared/worktree/types'
 import type { SetupDecision } from '../../../../shared/worktree/create-types'
+<<<<<<< HEAD
 import { toFolderWorkspaceLinkedTask } from '@/components/sidebar/folder-workspace-composer-helpers'
 import { sidebarGroupIdForCreate } from '../../../../shared/fork-hooks/workspace-composer-seed'
+=======
+import '@/components/sidebar/workspace-creation/folder/folder-workspace-source-repos'
+import { toFolderWorkspaceLinkedTask } from '@/components/sidebar/workspace-creation/folder/folder-workspace-source-selection'
+>>>>>>> a19de980854e1c875a4555e1bd24d832c9f96657
 
 export type QuickCreationRequestInput = {
   repoId: string

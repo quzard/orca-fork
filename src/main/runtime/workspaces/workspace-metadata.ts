@@ -1,14 +1,15 @@
-import { OrcaRuntimeWithCreateManagedWorktree } from './workspace-creation'
-import type { LocalGitExecOptions } from '../../git/repo-default-base-ref'
-import type { CreateWorktreeResult } from '../../../shared/worktree/create-types'
-import type { RemoteFetchResult, RemoteTrackingBase } from '../runtime-remote-fetch-controller'
+import type {
+  RemoteFetchResult,
+  RemoteTrackingBase
+} from '../repositories/runtime-remote-fetch-controller'
 import type { WorktreeBaseStatusEvent } from '../../../shared/worktree/base-ref-drift-types'
-import { probeRuntimeWorktreeDrift } from '../runtime-worktree-drift-probe'
+import { probeRuntimeWorktreeDrift } from './metadata/runtime-worktree-drift-probe'
 import type { WorktreeMeta } from '../../../shared/worktree/meta-types'
-import type { GitHubPrStartPoint, GitPushTarget } from '../../../shared/worktree/types'
+import type { GitPushTarget } from '../../../shared/worktree/types'
 import {
   persistRuntimeManagedWorktreeSortOrder,
   updateRuntimeManagedWorktreeMetadata
+<<<<<<< HEAD
 } from '../runtime-managed-worktree-metadata'
 import {
   resolveRuntimeGitHubWorktreeBase,
@@ -74,7 +75,12 @@ export abstract class OrcaRuntimeWithCreateManagedRemoteWorktree extends OrcaRun
   ): Promise<boolean> {
     return await this.remoteFetches.hasRemoteTrackingRef(repoPath, base, gitOptions)
   }
+=======
+} from './metadata/runtime-managed-worktree-metadata'
+import { RuntimeWorktreeReviewBase } from './metadata/runtime-worktree-review-base'
+>>>>>>> 239a70040c18fdf1f28af3be955da09ee2cb45bb
 
+export abstract class RuntimeWorkspaceMetadata extends RuntimeWorktreeReviewBase {
   recordOptimisticReconcileToken(worktreeId: string): string {
     return this.worktreeBaseReconciliation.recordToken(worktreeId)
   }
@@ -146,27 +152,6 @@ export abstract class OrcaRuntimeWithCreateManagedRemoteWorktree extends OrcaRun
     })
   }
 
-  adoptManagedProvisionedRoot(
-    repoSelector: string,
-    request: RuntimeProvisionedRootRequest
-  ): Promise<CreateWorktreeResult> {
-    if (!this.store) {
-      throw new Error('runtime_unavailable')
-    }
-    return adoptRuntimeProvisionedRoot(repoSelector, request, {
-      store: this.store,
-      resolveRepo: (selector) => this.resolveRepoSelector(selector),
-      listWorktrees: (repoPath) => listWorktreesStrict(repoPath),
-      isSparseCheckoutEnabled: readLocalSparseCheckoutEnabled,
-      invalidateScan: (repoId) => {
-        this.invalidateResolvedWorktreeCache()
-        this.invalidateWorktreeScanCacheForRepo(repoId)
-      },
-      notifyChanged: (repoId) => this.notifyWorktreesChanged(repoId),
-      showWorktree: (selector) => this.showManagedWorktree(selector)
-    })
-  }
-
   persistManagedWorktreeSortOrder(
     orderedIds: string[],
     hostIds?: readonly string[]
@@ -186,26 +171,6 @@ export abstract class OrcaRuntimeWithCreateManagedRemoteWorktree extends OrcaRun
             ? { invalidateGitScans: false, sortOrderOnly: true, sortOrders }
             : { invalidateGitScans: false }
         )
-    })
-  }
-
-  async resolveManagedPrBase(
-    args: RuntimeGitHubWorktreeBaseArgs
-  ): Promise<GitHubPrStartPoint | { error: string }> {
-    return resolveRuntimeGitHubWorktreeBase(args, {
-      store: this.store ? this.requireStore() : null,
-      resolveRepo: (selector) => this.resolveRepoSelector(selector)
-    })
-  }
-
-  async resolveManagedMrBase(
-    args: RuntimeGitLabWorktreeBaseArgs
-  ): Promise<
-    { baseBranch: string; compareBaseRef?: string; pushTarget?: GitPushTarget } | { error: string }
-  > {
-    return resolveRuntimeGitLabWorktreeBase(args, {
-      store: this.store ? this.requireStore() : null,
-      resolveRepo: (selector) => this.resolveRepoSelector(selector)
     })
   }
 }

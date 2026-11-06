@@ -1,11 +1,14 @@
-import { basename } from 'node:path'
 import type { WorktreeMeta } from '../../shared/worktree/meta-types'
 import type { GitWorktreeInfo, Worktree } from '../../shared/worktree/types'
 import { DEFAULT_WORKSPACE_STATUS_ID } from '../../shared/workspace-statuses'
 import { getLinkedWorkItemMetadata } from './worktree-linked-work-item-metadata'
 import { normalizeWorkspaceCreatorProvenance } from '../../shared/workspace-creator-provenance'
 import { createWorktreeIdentity } from '../../shared/worktree/identity'
+<<<<<<< HEAD
 import { forkWorkspaceFields } from '../../shared/fork-hooks/sidebar-group-membership'
+=======
+import { automaticWorktreeDisplayName } from '../../shared/worktree/display-name-provenance'
+>>>>>>> 3228095e973a72eeb9eaa695b52f9d227896a5ec
 
 export function mergeWorktree(
   repoId: string,
@@ -16,7 +19,11 @@ export function mergeWorktree(
   const branchShort = git.branch.replace(/^refs\/heads\//, '')
   const creatorProvenance = normalizeWorkspaceCreatorProvenance(meta?.creatorProvenance)
   const worktreeId = `${repoId}::${git.path}`
-  const automaticDisplayName = branchShort || defaultDisplayName || basename(git.path)
+  const automaticDisplayName = automaticWorktreeDisplayName({
+    branch: git.branch,
+    projectName: defaultDisplayName,
+    path: git.path
+  })
   // CLI-created labels predate displayNameIsPinned but are still explicit names.
   const legacyCliDisplayNameIsPinned =
     meta?.displayNameIsPinned === undefined && meta?.cliProvenance?.kind === 'created-by-cli'

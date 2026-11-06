@@ -1,7 +1,5 @@
-import type { RuntimeFilePreviewResult, RuntimeFileReadResult } from '../../../shared/runtime-types'
 import type { RuntimeReadableFileContent } from './runtime-file-client-types'
-import { callRuntimeRpc } from './runtime-rpc-client'
-import { RuntimeRpcCallError } from './runtime-rpc-result'
+import { readRemoteFileContent } from './runtime-remote-file-content'
 import { toRuntimeWorktreeSelector } from './runtime-worktree-selector'
 import { chatScratchFileAddress } from './runtime-chat-scratch-file-address'
 import {
@@ -10,6 +8,7 @@ import {
   pinTerminalArtifactGrantTarget,
   renewRestoredHostFileGrant,
   renewTerminalArtifactGrant,
+  TERMINAL_ARTIFACT_WRITE_MAX_BYTES,
   type TerminalArtifactGrantTarget
 } from './runtime-terminal-artifact-grant'
 import {
@@ -25,11 +24,10 @@ export async function readHostFilePreview(
   if (!granted) {
     throw new Error(`File not found on its host: ${pinned.absolutePath}`)
   }
-  return readRuntimeTerminalArtifactContent({
-    ...pinned,
-    absolutePath: granted.absolutePath,
-    grantId: granted.grantId
-  })
+  return readRuntimeTerminalArtifactContent(
+    { ...pinned, absolutePath: granted.absolutePath, grantId: granted.grantId },
+    { pageOversizedBinary: false }
+  )
 }
 
 /** A granted host file, or a restored tab's absolute host path (grants are never persisted). */
@@ -50,6 +48,7 @@ export async function readHostFileOutsideWorkspaces(args: {
   relativePath?: string
   grantId?: string
   expectedEnvironmentPairingRevision?: number
+  pageOversizedBinary: boolean
 }): Promise<RuntimeReadableFileContent> {
   const pinned = pinTerminalArtifactGrantTarget({
     target: args.target,
@@ -58,16 +57,20 @@ export async function readHostFileOutsideWorkspaces(args: {
     expectedEnvironmentPairingRevision: args.expectedEnvironmentPairingRevision
   })
   const grantId = args.grantId ?? (await renewRestoredHostFileGrant(pinned))
-  return readRuntimeTerminalArtifactContent({ ...pinned, grantId })
+  return readRuntimeTerminalArtifactContent(
+    { ...pinned, grantId },
+    { pageOversizedBinary: args.pageOversizedBinary }
+  )
 }
 
 /** Reads a host file outside every workspace through its grant, renewing a lapsed or stale one. */
 export async function readRuntimeTerminalArtifactContent(
-  unpinned: TerminalArtifactGrantTarget & { grantId: string }
+  unpinned: TerminalArtifactGrantTarget & { grantId: string },
+  options: { pageOversizedBinary: boolean }
 ): Promise<RuntimeReadableFileContent> {
   const args = pinTerminalArtifactGrantTarget(unpinned)
   try {
-    return await readThroughGrant(args)
+    return await readThroughGrant(args, options)
   } catch (error) {
     if (!isRenewableGrantError(error)) {
       throw error
@@ -78,17 +81,30 @@ export async function readRuntimeTerminalArtifactContent(
   if (!renewed) {
     throw new Error(`File not found on its host: ${args.absolutePath}`)
   }
-  return readThroughGrant({ ...args, grantId: renewed.grantId })
+  const content = await readThroughGrant({ ...args, grantId: renewed.grantId }, options)
+  return renewed.readOnly ? { ...content, readOnly: true } : content
 }
 
 async function readThroughGrant(
-  args: TerminalArtifactGrantTarget & { grantId: string }
+  args: TerminalArtifactGrantTarget & { grantId: string },
+  options: { pageOversizedBinary: boolean }
 ): Promise<RuntimeReadableFileContent> {
-  const params = {
-    worktree: toRuntimeWorktreeSelector(args.worktreeId),
-    grantId: args.grantId,
-    absolutePath: args.absolutePath
+  const content = await readRemoteFileContent(
+    {
+      target: args.target,
+      worktree: toRuntimeWorktreeSelector(args.worktreeId),
+      grantId: args.grantId,
+      absolutePath: args.absolutePath,
+      expectedEnvironmentPairingRevision: args.expectedEnvironmentPairingRevision
+    },
+    options
+  )
+  return {
+    ...content,
+    terminalArtifactGrantId: args.grantId,
+    ...(grantCanSave(content) ? {} : { readOnly: true as const })
   }
+<<<<<<< HEAD
   let result: RuntimeFileReadResult
   try {
     result = await callRuntimeRpc<RuntimeFileReadResult>(
@@ -128,4 +144,16 @@ async function readThroughGrant(
     throw new Error(`Remote file is too large to open in the editor (${result.byteLength} bytes)`)
   }
   return { content: result.content, isBinary: false }
+=======
+}
+
+/** A grant saves only text within one write; a larger or binary file opens read-only. */
+function grantCanSave(content: RuntimeReadableFileContent): boolean {
+  // Why the length first: UTF-8 never takes fewer bytes than UTF-16 units, so long text skips encoding.
+  return (
+    !content.isBinary &&
+    content.content.length <= TERMINAL_ARTIFACT_WRITE_MAX_BYTES &&
+    new TextEncoder().encode(content.content).byteLength <= TERMINAL_ARTIFACT_WRITE_MAX_BYTES
+  )
+>>>>>>> 3228095e973a72eeb9eaa695b52f9d227896a5ec
 }

@@ -16,11 +16,15 @@ export async function readEditorCsvFileContent(
   args: RuntimeFileReadArgs,
   allowPagedPreview = true
 ): Promise<FileContent> {
+<<<<<<< HEAD
   const hostCsv = readHostCsv(args, allowPagedPreview, () => readRuntimeFileContent(args))
   if (hostCsv) {
     return hostCsv
   }
   // Why: a granted host file has no stat route; it reads whole through its grant.
+=======
+  // Why: a granted file opens whole, since older hosts cannot stat it for a paged preview.
+>>>>>>> 3228095e973a72eeb9eaa695b52f9d227896a5ec
   if (allowPagedPreview && !args.terminalArtifactGrantId && /\.(csv|tsv)$/i.test(args.filePath)) {
     const snapshot = await statRuntimeReadTarget(args)
     if (!snapshot.isDirectory && snapshot.size >= CSV_PAGED_PREVIEW_BYTES) {

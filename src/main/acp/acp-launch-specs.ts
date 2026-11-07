@@ -1,10 +1,11 @@
+import type { AntigravityChatAuthConfig } from '../../shared/antigravity-chat-auth-config'
+import type { GlobalSettings } from '../../shared/global-settings-types'
 import type { AcpHistoryTurnIdentity } from './history/acp-history-replay'
 import { join } from 'node:path'
 import type { AcpDialect } from './acp-dialects/acp-dialect'
 import { GROK_ACP_DIALECT } from './acp-dialects/grok-dialect'
 import { OMP_ACP_DIALECT } from './acp-dialects/omp-dialect'
 import { OPENCODE_ACP_DIALECT } from './acp-dialects/opencode-dialect'
-import { ANTIGRAVITY_ACP_DIALECT } from './acp-dialects/antigravity-dialect'
 import { directoryAccountBinding, type AcpAccountBinding } from './acp-account-binding'
 import { openCodeAcpAccountBinding } from '../opencode/opencode-structured-account-home'
 import { scrubOpenCodeAcpEnvironment } from '../opencode/opencode-acp-environment'
@@ -37,6 +38,7 @@ import { OPENCODE_TRANSCRIPT_IMPORT } from '../opencode/opencode-transcript-impo
 import { assertOpenCodeCopyUsesLocalStore } from '../../shared/opencode-launch-command'
 import { OMP_SESSION_HISTORY } from '../omp/omp-session-history'
 import { OMP_TRANSCRIPT_IMPORT } from '../omp/omp-transcript-import'
+<<<<<<< HEAD
 import {
   ANTIGRAVITY_ACP_COMMAND,
   ANTIGRAVITY_ACP_RUNTIME
@@ -52,8 +54,12 @@ import {
   antigravityChatAccount
 } from '../antigravity/antigravity-chat-account'
 import { readAntigravitySignInLine } from '../antigravity/antigravity-sign-in-url'
+=======
+>>>>>>> 0586dab175ae42d57e4324aa32451a128c8a458c
 import type { AcpSignInWatch } from './acp-agent-connection'
 import type { AcpLaunchGate } from './acp-launch-gate'
+import { ANTIGRAVITY_LAUNCH_SPEC } from '../antigravity/antigravity-acp-launch-spec'
+import type { AgentSessionAccountHome } from '../../shared/agent-session/lifecycle/agent-session-account-home'
 
 /** Model discovery never authenticates interactively. */
 export type AcpModelDiscovery =
@@ -134,11 +140,13 @@ export type AcpLaunchSpec = {
   scrubEnvironment?(env: Record<string, string>, inherited: NodeJS.ProcessEnv): string[]
   dialect: AcpDialect
   loginCommand: readonly string[]
-  /** Selects an advertised method using the execution host's environment; undefined leaves it signed out. */
+  /** Selects authentication from the execution host's resolved launch inputs. */
   authMethod?(input: {
     advertised: readonly string[]
+    antigravityChatAuth?: AntigravityChatAuthConfig
     env: Readonly<Record<string, string>>
   }): string | undefined
+  authMethodUnavailableMessage?: string
   /** A valid sign-in output line closes the chat signed out. */
   signIn?: Omit<AcpSignInWatch, 'link'>
   account: AcpAccountBinding
@@ -151,6 +159,8 @@ export type AcpLaunchSpec = {
   /** Agent-enforced modes; Orca does not answer its permission requests. */
   permissionModeConfig?: {
     values: { ask: string } & Partial<Record<AgentChatPermissionMode, string>>
+    /** `args` grants full access; its session mode can equal another mode's. */
+    fullAccessAtLaunch?: true
   }
   /** Enables /compact as a prompt command. */
   compaction?: true
@@ -170,7 +180,29 @@ export type AcpLaunchSpec = {
   /** Prefer session/resume even when loading is supported. */
   resumePreference?: 'resume'
   launchGate?: AcpLaunchGate
+  /** Writes sessions it cannot delete into the user's own history, so it runs no naming tasks. */
+  keepsEverySession?: true
+  /** A program on the host preferred for new chats; chats whose account home it pins keep it. */
+  hostBackend?: AcpHostBackend
 }
+
+export type AcpHostBackend = {
+  spec: AcpLaunchSpec
+  pins(home: AgentSessionAccountHome): boolean
+  /** The account home pinning a new chat to `spec`, or null when the host should not run it. */
+  select(input: {
+    command: string
+    env: Record<string, string>
+    envToDelete: string[]
+    homePath: string
+    /** Orca's data folder on this host, where the agent's own account lives. */
+    stateDirectory: string
+    /** The account type Orca's own Chat signs in with, saved on this host. */
+    settings: AcpHostBackendSettings
+  }): Promise<AgentSessionAccountHome | null>
+}
+
+export type AcpHostBackendSettings = Partial<Pick<GlobalSettings, 'antigravityChatAuth'>>
 
 const GROK_LAUNCH_SPEC: AcpLaunchSpec = {
   agent: 'grok',
@@ -292,6 +324,7 @@ const OMP_LAUNCH_SPEC: AcpLaunchSpec = {
   sessionHistory: OMP_SESSION_HISTORY
 }
 
+<<<<<<< HEAD
 // agy conversations are separate from the ACP server's and cannot resume these sessions.
 const ANTIGRAVITY_SESSION_HISTORY: StructuredAgentSessionHistory = {
   rowAgents: ['antigravity'],
@@ -335,6 +368,8 @@ export const ANTIGRAVITY_LAUNCH_SPEC = {
   launchGate: ANTIGRAVITY_LAUNCH_GATE
 } satisfies AcpLaunchSpec
 
+=======
+>>>>>>> 0586dab175ae42d57e4324aa32451a128c8a458c
 export const ACP_LAUNCH_SPECS: readonly AcpLaunchSpec[] = [
   GROK_LAUNCH_SPEC,
   OPENCODE_LAUNCH_SPEC,

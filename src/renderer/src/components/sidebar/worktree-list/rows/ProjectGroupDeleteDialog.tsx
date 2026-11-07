@@ -12,8 +12,12 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Trans } from 'react-i18next'
 import { i18n, translate } from '@/i18n/i18n'
+<<<<<<< HEAD
 import { renderDeleteProjectGroupOption } from '../../../../../../shared/fork-hooks/project-group-delete'
 import type { WorktreePurgeTarget } from '@/store/slices/worktree-helpers'
+=======
+import type { WorktreePurgeTarget } from '@/store/slices/worktrees/teardown/worktree-purge-target'
+>>>>>>> 0586dab175ae42d57e4324aa32451a128c8a458c
 import { RemovalUnsavedFilesNotice } from '../../workspace-actions/deletion/RemovalUnsavedFilesNotice'
 
 const NO_UNSAVED_TARGETS: readonly WorktreePurgeTarget[] = []

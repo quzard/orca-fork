@@ -1,3 +1,4 @@
+import { applyFolderParentLineage } from '../../../../shared/fork-hooks/requirement-preview'
 import { getRepoRegistrationHostIds } from '../../../../shared/repo-host-identity'
 import type { GitPushTarget, Worktree } from '../../../../shared/worktree/types'
 import type { WorktreeMeta } from '../../../../shared/worktree/meta-types'
@@ -124,6 +125,16 @@ export async function updateRuntimeManagedWorktreeMetadata(args: {
         'A same-id workspace on another host owns this lineage.'
       )
     }
+  } else if (
+    lineage?.parentWorktree &&
+    applyFolderParentLineage({
+      selector: lineage.parentWorktree,
+      store: args.store,
+      child: worktree,
+      target
+    })
+  ) {
+    // 文件夹父级已写入血缘。未登记或不是文件夹时返回 false，下面仍走 git 父级。
   } else if (lineage?.parentWorktree) {
     const parent = await args.ports.resolveWorktree(lineage.parentWorktree)
     args.ports.validateParent(worktree, parent)

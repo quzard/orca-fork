@@ -1,4 +1,6 @@
+/* oxlint-disable max-lines -- fork: hook call only */
 import { withWorktreeSelectorRecovery } from '../worktree-selector-recovery'
+import { allowFolderParentSet } from '../../shared/fork-hooks/requirement-preview'
 import type {
   RuntimeWorktreeListResult,
   RuntimeWorktreePsResult,
@@ -224,7 +226,13 @@ export const WORKTREE_HANDLERS: Record<string, CommandHandler> = {
       'Choose either --parent-worktree or --no-parent, not both.'
     )
     const parentSelector = getOptionalStringFlag(flags, 'parent-worktree')
-    if (parentSelector && getWorkspaceKeyParentSelector(parentSelector)?.startsWith('folder:')) {
+    const folderParentSelector = parentSelector
+      ? getWorkspaceKeyParentSelector(parentSelector)
+      : undefined
+    if (
+      folderParentSelector?.startsWith('folder:') &&
+      !allowFolderParentSet(folderParentSelector)
+    ) {
       throw new RuntimeClientError(
         'invalid_argument',
         `Parent selector "${parentSelector}" is a folder. Folder parents are accepted only by orca worktree create.`
@@ -237,7 +245,10 @@ export const WORKTREE_HANDLERS: Record<string, CommandHandler> = {
     })
     const worktree = await getRequiredWorktreeSelector(flags, 'worktree', cwd, client)
     await assertGitLabLinkFlagProjectsMatch(flags, client, { worktree })
-    const parentFields = await resolveSetParentFields(flags, cwd, client)
+    const parentFields =
+      folderParentSelector && allowFolderParentSet(folderParentSelector)
+        ? { parentWorktree: folderParentSelector }
+        : await resolveSetParentFields(flags, cwd, client)
     const pending = client.call<RuntimeWorktreeSetResult>('worktree.set', {
       worktree,
       displayName: getOptionalStringFlag(flags, 'display-name'),

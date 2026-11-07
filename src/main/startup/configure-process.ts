@@ -1,4 +1,6 @@
 import { app } from 'electron'
+import { readRequirementPreviewMarker } from '../../fork/main/requirement-preview-marker'
+import { resolveRequirementPreviewLaunch } from '../../fork/requirement-preview/profile'
 import { guardExternalOpensInE2E } from './e2e-external-open-guard'
 import { quitProcess } from './process-quit-request'
 import { existsSync, mkdirSync } from 'node:fs'
@@ -200,6 +202,22 @@ export function configureDevUserDataPath(isDev: boolean): void {
     app.setPath('home', e2eHomeDir)
     app.setPath('userData', e2eConfig.userDataDir)
     guardExternalOpensInE2E()
+    return
+  }
+
+  const preview = resolveRequirementPreviewLaunch({
+    env: process.env,
+    appData: app.getPath('appData'),
+    productName: app.getName(),
+    packageMarker: readRequirementPreviewMarker(app.getAppPath())
+  })
+  if ('refused' in preview) {
+    throw new Error(preview.refused)
+  }
+  if (preview.enabled) {
+    process.env.ORCA_REQUIREMENT_PREVIEW = '1'
+    app.setName(preview.appName)
+    app.setPath('userData', preview.userDataPath)
     return
   }
 

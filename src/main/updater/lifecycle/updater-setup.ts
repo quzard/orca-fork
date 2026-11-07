@@ -1,6 +1,7 @@
 import { app, powerMonitor } from 'electron'
 import type { BrowserWindow } from 'electron'
 import { isForkBuild } from '../../../shared/fork-hooks/update-feed'
+import { requirementPreviewBlocksUpdater } from '../../../fork/requirement-preview/profile'
 import { forkInstallsOnQuit } from '../../../fork/main/fork-background-download'
 import type { ReleaseBuild, ReleaseChannel } from '../../../shared/release-channel'
 import type { ReleaseBuildListOptions } from '../releases/updater-release-build-cache'
@@ -26,6 +27,19 @@ import { handleElectronUpdaterProxyLogin } from './electron-updater-proxy-sessio
 import { resolveWindowsUpdateInstallDirectory } from './windows-update-install-directory'
 import type { PreQuitCleanupFailureMode, UpdateInstallMode } from './updater-state'
 
+function previewRemoteSnapshot(runtimeId: string): RemoteServerUpdaterSnapshot {
+  return {
+    appVersion: app.getVersion(),
+    runtimeId,
+    support: {
+      installMode: 'unsupported-headless-serve',
+      automatic: false,
+      reason: 'updater-unavailable'
+    },
+    status: { state: 'not-available' }
+  }
+}
+
 export type UpdaterSetupOptions = {
   getMainWindow?: () => BrowserWindow | null
   getLastUpdateCheckAt?: () => number | null
@@ -43,10 +57,16 @@ export type UpdaterSetupOptions = {
 
 export class UpdaterSetup extends ForkBackgroundUpdates {
   checkForUpdates(): void {
+    if (requirementPreviewBlocksUpdater()) {
+      return
+    }
     this.checkForUpdatesInBackground()
   }
 
   checkForUpdatesFromMenu(options?: UpdateCheckOptions): void {
+    if (requirementPreviewBlocksUpdater()) {
+      return
+    }
     super.checkForUpdatesFromMenu(options)
   }
 
@@ -67,6 +87,13 @@ export class UpdaterSetup extends ForkBackgroundUpdates {
   }
 
   getRemoteServerUpdateSupport(): RemoteServerUpdateSupport {
+    if (requirementPreviewBlocksUpdater()) {
+      return {
+        installMode: 'unsupported-headless-serve',
+        automatic: false,
+        reason: 'updater-unavailable'
+      }
+    }
     return super.getRemoteServerUpdateSupport()
   }
 
@@ -78,14 +105,23 @@ export class UpdaterSetup extends ForkBackgroundUpdates {
     runtimeId: string,
     options?: UpdateCheckOptions
   ): RemoteServerUpdaterSnapshot {
+    if (requirementPreviewBlocksUpdater()) {
+      return previewRemoteSnapshot(runtimeId)
+    }
     return super.checkForRemoteServerUpdate(runtimeId, options)
   }
 
   downloadRemoteServerUpdate(runtimeId: string): RemoteServerUpdaterSnapshot {
+    if (requirementPreviewBlocksUpdater()) {
+      return previewRemoteSnapshot(runtimeId)
+    }
     return super.downloadRemoteServerUpdate(runtimeId)
   }
 
   installRemoteServerUpdate(runtimeId: string): RemoteServerUpdateInstallResult {
+    if (requirementPreviewBlocksUpdater()) {
+      throw new Error('Requirement preview does not install remote Orca updates.')
+    }
     return super.installRemoteServerUpdate(runtimeId)
   }
 
@@ -142,7 +178,7 @@ export class UpdaterSetup extends ForkBackgroundUpdates {
       this.sendErrorStatus(`The server update did not complete: ${serveHandoffFailure}`, true)
     }
 
-    if (!app.isPackaged) {
+    if (!app.isPackaged || requirementPreviewBlocksUpdater()) {
       return
     }
 

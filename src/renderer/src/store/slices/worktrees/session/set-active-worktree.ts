@@ -23,12 +23,16 @@ import {
   pendingActivationTerminalPrepCancels,
   shouldDeferActivationTerminalPrep
 } from './activation-terminal-prep'
+import { dismissRequirementOverview } from '../../../../../../shared/fork-hooks/requirement-preview'
 
 export function createSetActiveWorktree(
   set: WorktreeSliceSet,
   get: WorktreeSliceGet
 ): WorktreeSlice['setActiveWorktree'] {
   return (worktreeId, executionHostId, options) => {
+    if (worktreeId) {
+      dismissRequirementOverview()
+    }
     const stateTransition = options?.stateTransition?.(get())
     const createdTabIds = new Set(options?.createdTabIds)
     // A tab its caller just created is not asleep: its first bind is new work, not a wake.

@@ -768,6 +768,21 @@ module.exports = {
   }
 }
 
+const previewPackaging =
+  require('../src/fork/requirement-preview/packaging.cjs').readPreviewPackaging(process.env)
+if (previewPackaging) {
+  module.exports.appId = previewPackaging.appId
+  module.exports.productName = previewPackaging.productName
+  module.exports.protocols = [
+    { name: previewPackaging.protocolName, schemes: [previewPackaging.scheme] }
+  ]
+  module.exports.publish = null
+  module.exports.extraMetadata = {
+    ...(module.exports.extraMetadata ?? {}),
+    orcaRequirementPreview: true
+  }
+}
+
 // Stamp the effective channel version where node-mode CLI code can read it.
 function stampPackagedCliVersion(resourcesDir, version) {
   const packageJsonPath = join(resourcesDir, 'app.asar.unpacked', 'out', 'package.json')

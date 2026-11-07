@@ -1,4 +1,5 @@
 import { memo, Suspense, useCallback, useRef } from 'react'
+import { requirementOverviewLayer } from '../../../shared/fork-hooks/requirement-preview'
 import { lazyWithRetry as lazy } from '@/lib/lazy-with-retry'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
@@ -83,6 +84,15 @@ function PendingCreationSurface(props: {
     return entry ? pendingCreationOpensNativeChat(entry) : false
   })
   return opensChat ? <PendingNativeChatCreation {...props} /> : <WorktreeCreationPanel {...props} />
+}
+
+function RequirementOverviewSlot(): React.JSX.Element | null {
+  const layer = requirementOverviewLayer()
+  if (layer == null || typeof layer === 'boolean') {
+    return null
+  }
+  // SAFETY: the fork registration returns a React element; unregistered calls return null.
+  return <>{layer as React.ReactNode}</>
 }
 
 function ActivePage({ layout }: { layout: AppChromeLayout }): React.JSX.Element {
@@ -243,6 +253,7 @@ export function AppWorkspaceShell(props: {
                     </RecoverableRenderErrorBoundary>
                   </Suspense>
                 </div>
+                <RequirementOverviewSlot />
                 {floatingWorkspace.showToggleButton && !capturingPluginShot ? (
                   <MemoFloatingTerminalToggleButton
                     open={floatingWorkspace.open}

@@ -10,6 +10,10 @@ import {
   type TaskSourceContext
 } from '../../../../shared/task-source-context'
 import { parseWorkspaceKey } from '../../../../shared/workspace-scope'
+import {
+  activateRequirementHistoryEntry,
+  requirementHistoryEntryIsLive
+} from '../../../../shared/fork-hooks/requirement-preview'
 import { selectFolderWorkspaces, selectWorktreesByRepo } from '../workspace-record-selectors'
 
 // Why: bound per-session history growth; 50 keeps goBack/goForward's linear scans cheap yet is never hit in normal use.
@@ -135,7 +139,7 @@ function getHistoryEntryKey(entry: WorktreeNavHistoryEntry): string {
 }
 
 function isLiveEntry(entry: WorktreeNavHistoryEntry, state: AppState): boolean {
-  if (isViewEntry(entry)) {
+  if (requirementHistoryEntryIsLive(entry) || isViewEntry(entry)) {
     return true
   }
   const workspaceScope = parseWorkspaceKey(entry)
@@ -277,7 +281,9 @@ function navigateToIndex(
   const prevNavigating = get().isNavigatingHistory
   set({ isNavigatingHistory: true } as Partial<AppState>)
   try {
-    if (isViewEntry(targetEntry)) {
+    if (activateRequirementHistoryEntry(targetEntry)) {
+      set({ worktreeNavHistoryIndex: targetIndex } as Partial<AppState>)
+    } else if (isViewEntry(targetEntry)) {
       if (!viewActivator) {
         // Why: warn (not a silent no-op) so a page-entry chord isn't a broken-looking no-op.
         console.warn(

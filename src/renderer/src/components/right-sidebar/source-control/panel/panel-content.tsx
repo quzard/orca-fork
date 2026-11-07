@@ -1,4 +1,5 @@
 import { GitHistoryPanel } from '../sync/git-history-panel'
+import { requirementScmNote } from '../../../../../../shared/fork-hooks/requirement-preview'
 import { shouldShowSourceControlCompareUnavailableCard } from './header-toolbar'
 import { shouldRenderCommitArea } from '../commit/component-gates'
 import { SourceControlBranchSection } from '../listing/branch-section'
@@ -11,6 +12,7 @@ import type { SourceControlPanelReadyProps } from './panel-props'
 
 export function SourceControlPanelContent(props: SourceControlPanelReadyProps) {
   const { activeWorktree, currentWorktreeId, model, worktreePath } = props
+  const nestedWorktreeNote = requirementScmNote(currentWorktreeId)
   const {
     activeConnectionId,
     activeOpenRowKeys,
@@ -90,6 +92,9 @@ export function SourceControlPanelContent(props: SourceControlPanelReadyProps) {
 
   return (
     <>
+      {nestedWorktreeNote ? (
+        <p className="px-3 py-2 text-xs text-muted-foreground">{nestedWorktreeNote}</p>
+      ) : null}
       <SourceControlContentStatus
         unresolvedConflictCount={unresolvedConflictReviewEntries.length}
         conflictOperation={conflictOperation}

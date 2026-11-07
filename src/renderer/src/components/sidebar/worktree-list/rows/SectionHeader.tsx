@@ -1,5 +1,6 @@
 /* oxlint-disable max-lines -- fork: hook call only */
 import React from 'react'
+import { openRequirementHeader } from '../../../../../../shared/fork-hooks/requirement-preview'
 import { ChevronDown } from 'lucide-react'
 import { ProjectHeaderHostLabel, ProjectHeaderHostTooltip } from './ProjectHeaderHostLabel'
 import type { ProjectHeaderHostContext } from './project-header-host-context'
@@ -302,11 +303,18 @@ export function renderWorktreeSectionHeaderRow(args: {
                 : undefined
           }
           onClick={(event) => {
+            if (openRequirementHeader(row.key)) {
+              return
+            }
             if (!shouldIgnoreRepoHeaderToggle(event)) {
               toggleHeader(event)
             }
           }}
           onKeyDown={(e) => {
+            if (e.key === 'Enter' && openRequirementHeader(row.key)) {
+              e.preventDefault()
+              return
+            }
             if (shouldIgnoreRepoHeaderToggle(e)) {
               return
             }

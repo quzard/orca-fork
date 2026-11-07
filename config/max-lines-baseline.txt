@@ -12,3 +12,4 @@ inline src/renderer/src/components/sidebar/workspace-actions/deletion/DeleteWork
 inline src/renderer/src/components/sidebar/project-admission/nested-import/useAddRepoNestedImportFlow.ts
 inline src/renderer/src/components/sidebar/workspace-actions/context-menu/WorktreeContextMenuView.tsx
 inline src/renderer/src/components/sidebar/worktree-list/rows/SectionHeader.tsx
+inline src/cli/handlers/worktree.ts

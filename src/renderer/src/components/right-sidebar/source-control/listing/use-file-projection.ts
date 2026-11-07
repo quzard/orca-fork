@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { projectRequirementScmEntries } from '../../../../../../shared/fork-hooks/requirement-preview'
 import type { GitBranchChangeEntry } from '../../../../../../shared/git/diff/git-diff-compare-types'
 import type { GitStatusEntry } from '../../../../../../shared/git/status/git-status-types'
 import type { SourceControlViewMode } from '../../../../../../shared/ui-chrome-types'
@@ -99,7 +100,11 @@ export function useSourceControlFileProjection({
   sourceControlViewMode: SourceControlViewMode
   collapsedSections: Set<string>
 }): SourceControlFileProjection {
-  const grouped = useMemo(() => groupSourceControlEntries(entries), [entries])
+  const projectedEntries = useMemo(
+    () => projectRequirementScmEntries(activeWorktreeId, entries),
+    [activeWorktreeId, entries]
+  )
+  const grouped = useMemo(() => groupSourceControlEntries(projectedEntries), [projectedEntries])
 
   const fileFilterState = useMemo(() => getSourceControlFileFilterState(filterQuery), [filterQuery])
   const normalizedFilter = fileFilterState.normalizedFilter

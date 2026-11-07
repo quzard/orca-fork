@@ -10,6 +10,7 @@ import {
   toggleReviewFile
 } from './overview-session'
 import { orderRequirementRows, type RequirementRow } from './requirements'
+import { requirementsForSidebar } from './sidebar-model'
 import { collapseNestedWorktreeEntries } from './scm-collapse'
 
 const row = (id: string, name: string, role: 'root' | 'member' = 'member'): RequirementRow => ({
@@ -95,6 +96,40 @@ describe('requirement overview facts', () => {
     )
     expect(ordered.visible.map((entry) => entry.id)).toEqual(['folder:parent', 'wt-catalog'])
     expect(ordered.folded.map((entry) => entry.name)).toEqual(['root'])
+  })
+
+  it('groups a folder parent stored only on workspace lineage', () => {
+    const requirements = requirementsForSidebar({
+      worktrees: [
+        {
+          id: 'repo::/srv/catalog',
+          path: '/srv/requirement-alpha/catalog',
+          displayName: 'catalog',
+          hostId: 'local',
+          instanceId: 'c1'
+        }
+      ],
+      folders: [
+        {
+          id: 'parent',
+          name: 'requirement-alpha',
+          folderPath: '/srv/requirement-alpha',
+          executionHostId: 'local',
+          isArchived: false
+        }
+      ],
+      lineageById: {},
+      workspaceLineage: [
+        {
+          childWorkspaceKey: 'worktree:repo::/srv/catalog',
+          childInstanceId: 'c1',
+          parentWorkspaceKey: 'folder:parent',
+          parentInstanceId: null
+        }
+      ]
+    })
+    expect(requirements.map((requirement) => requirement.id)).toEqual(['folder:parent'])
+    expect(requirements[0]?.rows.map((row) => row.lineage)).toEqual(['root', 'confirmed'])
   })
 
   it('collapses nested worktree paths and keeps parent docs', () => {

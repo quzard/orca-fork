@@ -18,6 +18,17 @@ export function macosFileSecretDirectory(home = homedir()): string {
   return join(home, LOCAL_SECRET_STORAGE.root, LOCAL_SECRET_STORAGE.directory)
 }
 
+/** 预览包把密钥放进自己的 userData，不碰日常 Orca 的 ~/.orca/secrets。 */
+export function packagedMacosSecretDirectory(input: {
+  preview: boolean
+  userDataPath: string
+  home?: string
+}): string {
+  return input.preview
+    ? join(input.userDataPath, LOCAL_SECRET_STORAGE.directory)
+    : macosFileSecretDirectory(input.home)
+}
+
 /**
  * Plugin secrets and account sessions call guardedSafeStorage directly, not the desktop store.
  * `satisfies` fails the typecheck if upstream adds a method this would leave on the keychain.
@@ -40,7 +51,12 @@ export function createPackagedMacosSecretStore(): SecretStore | null {
   if (!usesPackagedMacosFileSecretStore(gate)) {
     return null
   }
-  const store = new MacosFileSecretStore(macosFileSecretDirectory())
+  const store = new MacosFileSecretStore(
+    packagedMacosSecretDirectory({
+      preview: process.env.ORCA_REQUIREMENT_PREVIEW === '1',
+      userDataPath: app.getPath('userData')
+    })
+  )
   routeGuardedSafeStorage(store)
   return store
 }

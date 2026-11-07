@@ -6,7 +6,6 @@ import {
 } from '../../shared/workspace-scope'
 import { getFolderWorkspaceWorktreeHostId } from '../../shared/folder-workspaces/folder-workspace-worktree'
 import type { FolderWorkspace } from '../../shared/folder-workspaces/folder-workspace-types'
-import type { WorktreeLineage } from '../../shared/worktree/lineage-types'
 import { RuntimeLineageError } from '../../main/runtime/workspaces/lineage/runtime-worktree-lineage-resolution'
 
 export const FOLDER_PARENT_INSTANCE_MESSAGE = 'Worktree instance identity was unavailable.'
@@ -18,12 +17,12 @@ type FolderRow = Pick<FolderWorkspace, 'id' | 'executionHostId' | 'connectionId'
 
 type LineageStore = {
   getFolderWorkspaces?: () => readonly FolderRow[]
-  setWorktreeLineage?: (target: unknown, lineage: WorktreeLineage) => boolean
+  removeWorktreeLineage?: (target: unknown) => void
   setWorkspaceLineage?: (lineage: {
     childWorkspaceKey: string
     childInstanceId: string
     parentWorkspaceKey: string
-    parentInstanceId: string
+    parentInstanceId: string | null
     origin: 'manual'
     capture: { source: 'manual-action'; confidence: 'explicit' }
     createdAt: number
@@ -66,32 +65,18 @@ export function applyFolderParentLineage(args: {
       FOLDER_PARENT_CROSS_HOST_MESSAGE
     )
   }
-  if (!args.child.instanceId || !store.setWorktreeLineage) {
+  if (!args.child.instanceId || !store.setWorkspaceLineage) {
     throw new RuntimeLineageError('LINEAGE_PARENT_CONTEXT_MISSING', FOLDER_PARENT_INSTANCE_MESSAGE)
   }
   const createdAt = Date.now()
   const parentId = folderWorkspaceKey(folder.id)
-  const recorded = store.setWorktreeLineage(args.target, {
-    worktreeId: args.child.id,
-    worktreeInstanceId: args.child.instanceId,
-    parentWorktreeId: parentId,
-    // 文件夹没有单独的 instance id，用稳定的文件夹 id，重启后仍能对上。
-    parentWorktreeInstanceId: folder.id,
-    origin: 'manual',
-    capture: { source: 'manual-action', confidence: 'explicit' },
-    createdAt
-  })
-  if (!recorded) {
-    throw new RuntimeLineageError(
-      'LINEAGE_PARENT_CONTEXT_CONFLICT',
-      'A same-id workspace on another host owns this lineage.'
-    )
-  }
-  store.setWorkspaceLineage?.({
+  // 文件夹没有 instance id。写 workspace 血缘，并清掉 git 父级，避免刷新时被投影成 worktree:folder:…
+  store.removeWorktreeLineage?.(args.target)
+  store.setWorkspaceLineage({
     childWorkspaceKey: worktreeWorkspaceKey(args.child.id),
     childInstanceId: args.child.instanceId,
     parentWorkspaceKey: parentId,
-    parentInstanceId: folder.id,
+    parentInstanceId: null,
     origin: 'manual',
     capture: { source: 'manual-action', confidence: 'explicit' },
     createdAt

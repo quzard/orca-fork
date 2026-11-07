@@ -1,17 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import { applyFolderParentLineage } from './folder-parent-lineage'
-import type { WorktreeLineage } from '../../shared/worktree/lineage-types'
-
 describe('folder parent lineage', () => {
-  it('records the existing folder workspace id and does not invent an instance', () => {
-    const saved: WorktreeLineage[] = []
+  it('records the folder on workspace lineage and clears a git parent', () => {
+    const saved: { parentWorkspaceKey: string; parentInstanceId: string | null }[] = []
+    let removed = 0
     const store = {
       getFolderWorkspaces: () => [
         { id: 'parent', executionHostId: 'local' as const, connectionId: null }
       ],
-      setWorktreeLineage: (_target: unknown, lineage: WorktreeLineage) => {
+      removeWorktreeLineage: () => {
+        removed += 1
+      },
+      setWorkspaceLineage: (lineage: {
+        parentWorkspaceKey: string
+        parentInstanceId: string | null
+      }) => {
         saved.push(lineage)
-        return true
       }
     }
     expect(
@@ -22,11 +26,10 @@ describe('folder parent lineage', () => {
         target: { hostId: 'local' }
       })
     ).toBe(true)
+    expect(removed).toBe(1)
     expect(saved[0]).toMatchObject({
-      parentWorktreeId: 'folder:parent',
-      parentWorktreeInstanceId: 'parent',
-      worktreeId: 'repo::/srv/catalog',
-      worktreeInstanceId: 'child-1'
+      parentWorkspaceKey: 'folder:parent',
+      parentInstanceId: null
     })
     expect(
       applyFolderParentLineage({

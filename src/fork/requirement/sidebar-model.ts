@@ -38,6 +38,12 @@ export function requirementsForSidebar(input: {
   worktrees: readonly SidebarWorktree[]
   folders: readonly SidebarFolder[]
   lineageById: Readonly<Record<string, SidebarLineage>>
+  workspaceLineage?: readonly {
+    childWorkspaceKey: string
+    childInstanceId?: string | null
+    parentWorkspaceKey: string
+    parentInstanceId?: string | null
+  }[]
   defaultHostId?: ExecutionHostId
 }): Requirement[] {
   const fallback = input.defaultHostId ?? 'local'
@@ -69,7 +75,8 @@ export function requirementsForSidebar(input: {
     )
     const parentStale =
       parent?.kind === 'folder'
-        ? lineage.parentWorktreeInstanceId !== parent.id.slice('folder:'.length)
+        ? Boolean(lineage.parentWorktreeInstanceId) &&
+          lineage.parentWorktreeInstanceId !== parent.id.slice('folder:'.length)
         : Boolean(
             parentWorktree?.instanceId &&
             parentWorktree.instanceId !== lineage.parentWorktreeInstanceId
@@ -84,6 +91,31 @@ export function requirementsForSidebar(input: {
       childId,
       parentId: lineage.parentWorktreeId,
       parentInstanceId: lineage.parentWorktreeInstanceId,
+      stale
+    })
+  }
+  const seenChildren = new Set(links.map((link) => link.childId))
+  for (const lineage of input.workspaceLineage ?? []) {
+    if (!lineage.parentWorkspaceKey.startsWith('folder:')) {
+      continue
+    }
+    const childId = lineage.childWorkspaceKey.startsWith('worktree:')
+      ? lineage.childWorkspaceKey.slice('worktree:'.length)
+      : lineage.childWorkspaceKey
+    if (seenChildren.has(childId)) {
+      continue
+    }
+    const parent = byId.get(lineage.parentWorkspaceKey)
+    const stale = Boolean(
+      parent?.kind === 'folder' &&
+      lineage.parentInstanceId &&
+      lineage.parentInstanceId !== parent.id.slice('folder:'.length)
+    )
+    seenChildren.add(childId)
+    links.push({
+      childId,
+      parentId: lineage.parentWorkspaceKey,
+      parentInstanceId: lineage.parentInstanceId ?? null,
       stale
     })
   }

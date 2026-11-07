@@ -1,3 +1,4 @@
+import { useAppStore } from '@/store'
 import { buildHostDirectoryRowPlan } from '../sidebar/host-directory-rows'
 import type { SidebarPlanArgs, SidebarRowPlan } from '../../shared/fork-hooks/sidebar-group-mode'
 import { regroupRequirementRows } from './regroup-rows'
@@ -41,6 +42,7 @@ export function buildRequirementSidebarPlan(input: SidebarPlanArgs): SidebarRowP
     worktrees: source.worktrees ?? [],
     folders: source.folderWorkspaces ?? [],
     lineageById: source.lineageById ?? {},
+    workspaceLineage: Object.values(useAppStore.getState().workspaceLineageByChildKey ?? {}),
     defaultHostId: source.defaultHostId
   })
   return {

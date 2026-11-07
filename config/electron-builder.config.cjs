@@ -778,7 +778,7 @@ if (previewPackaging) {
   ]
   module.exports.publish = null
   module.exports.extraMetadata = {
-    ...(module.exports.extraMetadata ?? {}),
+    ...module.exports.extraMetadata,
     orcaRequirementPreview: true
   }
 }

@@ -86,13 +86,16 @@ function PendingCreationSurface(props: {
   return opensChat ? <PendingNativeChatCreation {...props} /> : <WorktreeCreationPanel {...props} />
 }
 
+function isOverviewElement(value: unknown): value is React.ReactElement {
+  return typeof value === 'object' && value !== null
+}
+
 function RequirementOverviewSlot(): React.JSX.Element | null {
   const layer = requirementOverviewLayer()
-  if (layer == null || typeof layer === 'boolean') {
+  if (!isOverviewElement(layer)) {
     return null
   }
-  // SAFETY: the fork registration returns a React element; unregistered calls return null.
-  return <>{layer as React.ReactNode}</>
+  return layer
 }
 
 function ActivePage({ layout }: { layout: AppChromeLayout }): React.JSX.Element {

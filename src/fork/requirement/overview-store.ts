@@ -10,8 +10,16 @@ function readStoredUi(): RequirementSession['uiByRequirement'] {
     if (!raw) {
       return {}
     }
-    const parsed = JSON.parse(raw) as { uiByRequirement?: RequirementSession['uiByRequirement'] }
-    return parsed.uiByRequirement ?? {}
+    const parsed: unknown = JSON.parse(raw)
+    if (typeof parsed !== 'object' || parsed === null || !('uiByRequirement' in parsed)) {
+      return {}
+    }
+    const stored = parsed.uiByRequirement
+    if (typeof stored !== 'object' || stored === null) {
+      return {}
+    }
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the preview writes this record itself; a bad value only drops overview chrome.
+    return stored as RequirementSession['uiByRequirement']
   } catch {
     return {}
   }

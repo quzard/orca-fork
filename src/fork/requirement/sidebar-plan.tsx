@@ -26,9 +26,17 @@ type PlanShape = {
   defaultHostId?: ExecutionHostId
 }
 
+function isPlanShape(value: SidebarPlanArgs): value is PlanShape {
+  return Array.isArray(value.worktrees) || Array.isArray(value.folderWorkspaces)
+}
+
+function planShape(input: SidebarPlanArgs): PlanShape {
+  return isPlanShape(input) ? input : {}
+}
+
 export function buildRequirementSidebarPlan(input: SidebarPlanArgs): SidebarRowPlan {
   const plan = buildHostDirectoryRowPlan(input)
-  const source = input as PlanShape
+  const source = planShape(input)
   const requirements = requirementsForSidebar({
     worktrees: source.worktrees ?? [],
     folders: source.folderWorkspaces ?? [],

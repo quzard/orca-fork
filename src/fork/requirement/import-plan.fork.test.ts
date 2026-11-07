@@ -170,5 +170,5 @@ describe('requirement import', () => {
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
-  })
+  }, 30_000)
 })

@@ -30,6 +30,10 @@ type LineageStore = {
   }) => void
 }
 
+function isLineageStore(value: unknown): value is LineageStore {
+  return typeof value === 'object' && value !== null && 'getFolderWorkspaces' in value
+}
+
 function folderIdOf(selector: string): string | null {
   const raw = selector.startsWith('id:') ? selector.slice(3) : selector
   const parsed = parseWorkspaceKey(raw)
@@ -47,7 +51,10 @@ export function applyFolderParentLineage(args: {
   if (!folderId) {
     return false
   }
-  const store = args.store as LineageStore
+  if (!isLineageStore(args.store)) {
+    return false
+  }
+  const store = args.store
   const folder = store.getFolderWorkspaces?.().find((entry) => entry.id === folderId)
   if (!folder) {
     throw new RuntimeLineageError('LINEAGE_PARENT_NOT_FOUND', FOLDER_PARENT_MISSING_MESSAGE)

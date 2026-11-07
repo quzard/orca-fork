@@ -26,12 +26,12 @@ type SidebarLineage = {
   worktreeInstanceId?: string
 }
 
+function isHostId(value: string): value is ExecutionHostId {
+  return value === 'local' || value.startsWith('ssh:') || value.startsWith('runtime:')
+}
+
 function asHost(value: string | null | undefined): ExecutionHostId {
-  if (value === 'local' || value?.startsWith('ssh:') || value?.startsWith('runtime:')) {
-    // SAFETY: those prefixes are the ExecutionHostId forms; anything else uses local below.
-    return value as ExecutionHostId
-  }
-  return 'local'
+  return value && isHostId(value) ? value : 'local'
 }
 
 export function requirementsForSidebar(input: {

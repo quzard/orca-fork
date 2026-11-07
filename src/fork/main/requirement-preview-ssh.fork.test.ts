@@ -7,11 +7,11 @@ describe('requirement preview ssh deploy', () => {
     const previous = process.env.ORCA_REQUIREMENT_PREVIEW
     process.env.ORCA_REQUIREMENT_PREVIEW = '1'
     try {
-      await expect(
-        deployOrcad({
-          conn: { getTarget: () => ({ id: 'devbox', label: 'devbox' }) }
-        } as OrcadDeployOptions)
-      ).rejects.toThrow(/does not open SSH/)
+      const options = {
+        conn: { getTarget: () => ({ id: 'devbox', label: 'devbox' }) }
+      }
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: deploy reads only conn.getTarget before the preview refusal throws.
+      await expect(deployOrcad(options as OrcadDeployOptions)).rejects.toThrow(/does not open SSH/)
     } finally {
       if (previous === undefined) {
         delete process.env.ORCA_REQUIREMENT_PREVIEW

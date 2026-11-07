@@ -1,6 +1,8 @@
 import type { App } from 'electron'
-import { requirementPreviewBlocksUpdater } from '../../fork/requirement-preview/profile'
-import { PREVIEW_PROTOCOL } from '../../fork/requirement-preview/profile'
+import {
+  PREVIEW_PROTOCOL,
+  requirementPreviewBlocksUpdater
+} from '../../fork/requirement-preview/profile'
 
 /**
  * Registers `orca://` with Windows, which NSIS installs leave unregistered; macOS reads it from

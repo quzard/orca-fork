@@ -644,6 +644,14 @@ if [[ -z "$DIST" || -z "$SHA_ARG" ]]; then
   ERROR="missing --dist or --sha"
   finish 1
 fi
+if [[ "${ORCA_REQUIREMENT_PREVIEW:-}" == 1 || -f out/requirement-preview-build.json || "$DIST" == *requirement-preview* ]]; then
+  echo 'requirement preview cannot publish daily Orca' >&2
+  exit 1
+fi
+if [[ -f "${DIST}/latest-mac.yml" ]] && grep -q 'orca-requirement-preview' "${DIST}/latest-mac.yml"; then
+  echo 'daily latest-mac.yml names a requirement preview artifact' >&2
+  exit 1
+fi
 if [[ ! -f "${DIST}/${CHANNEL_FILE}" ]]; then
   ERROR="dist/latest-mac.yml is missing"
   finish 1

@@ -1,5 +1,5 @@
 // 一次性发现父目录里的链接工作区。不监听目录，也不读子模块指针。
-import { basename, isAbsolute, resolve } from 'node:path'
+import { posixBasename, posixIsAbsolute, posixResolve } from './posix-path'
 
 export type ListedEntry = { name: string; isDirectory: boolean }
 
@@ -31,21 +31,21 @@ function gitdirFromFile(text: string): string | null {
 }
 
 async function commonDirOf(gitDir: string, io: DiscoveryIo): Promise<string | null> {
-  const pointer = await io.readFile(resolve(gitDir, 'commondir'))
+  const pointer = await io.readFile(posixResolve(gitDir, 'commondir'))
   if (!pointer?.trim()) {
     return null
   }
-  return resolve(gitDir, pointer.trim())
+  return posixResolve(gitDir, pointer.trim())
 }
 
 async function inspectGit(
   path: string,
   io: DiscoveryIo
 ): Promise<DiscoveredCheckout | { reason: 'unreadable' }> {
-  const dotGit = resolve(path, '.git')
+  const dotGit = posixResolve(path, '.git')
   const listing = await io.readDir(dotGit).catch(() => null)
   if (listing) {
-    return { path, name: basename(path), kind: 'nested-clone', gitCommonDir: dotGit }
+    return { path, name: posixBasename(path), kind: 'nested-clone', gitCommonDir: dotGit }
   }
   const text = await io.readFile(dotGit)
   if (text == null) {
@@ -55,12 +55,12 @@ async function inspectGit(
   if (!gitdir) {
     return { reason: 'unreadable' }
   }
-  const absoluteGitDir = isAbsolute(gitdir) ? gitdir : resolve(path, gitdir)
+  const absoluteGitDir = posixIsAbsolute(gitdir) ? gitdir : posixResolve(path, gitdir)
   const common = await commonDirOf(absoluteGitDir, io)
   const linked = absoluteGitDir.includes('/worktrees/')
   return {
     path,
-    name: basename(path),
+    name: posixBasename(path),
     kind: linked ? 'linked-worktree' : 'gitlink',
     gitCommonDir: common
   }
@@ -84,11 +84,11 @@ export async function discoverLinkedMembers(
     if (entry.name === '.git' || !entry.isDirectory) {
       continue
     }
-    const path = resolve(parentPath, entry.name)
+    const path = posixResolve(parentPath, entry.name)
     const found = await inspectGit(path, io)
     if ('reason' in found) {
-      const gitText = await io.readFile(resolve(path, '.git'))
-      const gitDir = await io.readDir(resolve(path, '.git')).catch(() => null)
+      const gitText = await io.readFile(posixResolve(path, '.git'))
+      const gitDir = await io.readDir(posixResolve(path, '.git')).catch(() => null)
       if (gitText == null && !gitDir) {
         continue
       }
@@ -102,7 +102,7 @@ export async function discoverLinkedMembers(
     if (
       found.gitCommonDir &&
       parentGitCommonDir &&
-      resolve(found.gitCommonDir) === resolve(parentGitCommonDir)
+      posixResolve(found.gitCommonDir) === posixResolve(parentGitCommonDir)
     ) {
       skipped.push({ path, reason: 'parent-repo' })
       continue

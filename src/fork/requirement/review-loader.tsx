@@ -1,5 +1,6 @@
-import { join } from 'node:path'
-import { useEffect, useState } from 'react'
+import { posixJoin } from './posix-path'
+import { useEffect, useRef, useState } from 'react'
+import type { GitDiffResult } from '../../shared/git/diff/git-diff-compare-types'
 import type { FolderWorkspace } from '../../shared/folder-workspaces/folder-workspace-types'
 import type { Worktree } from '../../shared/worktree/types'
 import { shouldLoadReviewFiles, type ReviewFileRef } from './overview-session'
@@ -10,6 +11,7 @@ export function ReviewLoader(props: {
   selected: ReviewFileRef[]
   mode: 'diff' | 'content'
   worktrees: readonly Worktree[]
+  memberIds: readonly string[]
   folders: readonly FolderWorkspace[]
   contents: { left: string | null; right: string | null; error: string | null }
   onContents: (next: { left: string | null; right: string | null; error: string | null }) => void
@@ -23,6 +25,7 @@ export function ReviewLoader(props: {
   const selectedKey = props.selected
     .map((file) => `${file.workspaceId}:${file.source}:${file.relativePath}`)
     .join('|')
+  const relativeRequest = useRef(0)
   useEffect(() => {
     if (!shouldLoadReviewFiles(props.selected)) {
       return
@@ -63,7 +66,12 @@ export function ReviewLoader(props: {
       onToggle={props.onToggle}
       onMode={props.onMode}
       onLoadRelativeBase={() => {
-        void loadRelativeBase(props.worktrees).then((result) => {
+        const request = ++relativeRequest.current
+        const members = props.worktrees.filter((worktree) => props.memberIds.includes(worktree.id))
+        void loadRelativeBase(members).then((result) => {
+          if (request !== relativeRequest.current) {
+            return
+          }
           setRelativeBase(result.status)
           setRelativeFiles(result.files)
         })
@@ -117,10 +125,46 @@ async function readReviewFile(
   if (!root) {
     return { ok: false, error: 'missing-workspace' }
   }
+  if (file.source === 'relative-base') {
+    return worktree
+      ? readBaseVersion(worktree, file.relativePath)
+      : { ok: false, error: 'base-unavailable' }
+  }
   try {
-    const result = await window.api.fs.readFile({ filePath: join(root, file.relativePath) })
+    const result = await window.api.fs.readFile({ filePath: posixJoin(root, file.relativePath) })
     return result.isBinary ? { ok: false, error: 'binary' } : { ok: true, text: result.content }
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : 'read-failed' }
   }
+}
+
+async function readBaseVersion(
+  worktree: Worktree,
+  relativePath: string
+): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
+  if (!worktree.baseRef) {
+    return { ok: false, error: 'base-unavailable' }
+  }
+  const compared = await window.api.git.branchCompare({
+    worktreePath: worktree.path,
+    baseRef: worktree.baseRef
+  })
+  const summary = compared.summary
+  if (!summary.baseOid || !summary.headOid || !summary.mergeBase) {
+    return { ok: false, error: summary.errorMessage ?? 'base-unavailable' }
+  }
+  const diff: GitDiffResult = await window.api.git.branchDiff({
+    worktreePath: worktree.path,
+    compare: {
+      baseRef: summary.baseRef,
+      baseOid: summary.baseOid,
+      headOid: summary.headOid,
+      mergeBase: summary.mergeBase
+    },
+    filePath: relativePath
+  })
+  if (diff.kind !== 'text') {
+    return { ok: false, error: 'binary' }
+  }
+  return { ok: true, text: diff.originalContent }
 }

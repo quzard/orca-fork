@@ -1,6 +1,7 @@
 // fork: 主进程与渲染进程都会调用。不要在这里静态引入 electron、node:fs 或界面组件。
 // 主进程登记在 register-main.ts，界面登记在 register-renderer.tsx。
 
+import { isRequirementPreviewBuild } from './requirement-preview/build-flag'
 import { registerFolderParentSetAllowed } from '../shared/fork-hooks/requirement-preview'
 import { registerSidebarGroupIdPreserve } from '../shared/fork-hooks/sidebar-group-membership'
 import { registerForkBuild } from '../shared/fork-hooks/update-feed'
@@ -10,7 +11,9 @@ import { preserveOmittedSidebarGroupIds } from './sidebar/preserve-sidebar-group
 
 export function registerForkModules(): void {
   registerForkBuild()
-  registerFolderParentSetAllowed()
+  if (isRequirementPreviewBuild()) {
+    registerFolderParentSetAllowed()
+  }
   registerHostDirectoryMode()
   registerSidebarGroupIdPreserve(preserveOmittedSidebarGroupIds)
   // 渲染进程的导入提示名单和桌面发现都要看到 Ego Lite。orcad 再在 register-main 登记一次。

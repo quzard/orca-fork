@@ -47,5 +47,13 @@ describe('folder parent lineage', () => {
         target: { hostId: 'ssh:devbox' }
       })
     ).toThrow(/another machine/)
+    expect(() =>
+      applyFolderParentLineage({
+        selector: 'folder:parent',
+        store,
+        child: { id: 'repo::/srv/catalog', instanceId: 'child-1', hostId: null },
+        target: { hostId: 'local' }
+      })
+    ).toThrow(/no host/)
   })
 })

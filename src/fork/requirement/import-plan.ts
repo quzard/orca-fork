@@ -1,5 +1,5 @@
 // 导入计划只描述映射。冲突不会自动改父级；没有回调的创建步骤保持跳过。
-import { resolve } from 'node:path'
+import { posixResolve } from './posix-path'
 import type { DiscoveredCheckout } from './discover-members'
 
 export type ImportProject = {
@@ -44,11 +44,28 @@ export type ImportPlan = {
 }
 
 function same(left: string, right: string): boolean {
-  return resolve(left) === resolve(right)
+  return posixResolve(left) === posixResolve(right)
+}
+
+/** workspace 血缘优先。文件夹父级不能从 worktree 血缘读，那边会把 folder: 投影坏。 */
+export function lineageParentIdFor(
+  workspaceId: string,
+  lineageById: Readonly<Record<string, { parentWorktreeId?: string | null } | undefined>>,
+  workspaceLineage: readonly { childWorkspaceKey: string; parentWorkspaceKey: string }[] | undefined
+): string | null {
+  const stored = workspaceLineage?.find(
+    (row) => row.childWorkspaceKey === `worktree:${workspaceId}`
+  )
+  if (stored?.parentWorkspaceKey) {
+    return stored.parentWorkspaceKey
+  }
+  return lineageById[workspaceId]?.parentWorktreeId ?? null
 }
 
 function projectPathForCommonDir(gitCommonDir: string): string {
-  return gitCommonDir.endsWith('.git') ? resolve(gitCommonDir, '..') : resolve(gitCommonDir)
+  return gitCommonDir.endsWith('.git')
+    ? posixResolve(gitCommonDir, '..')
+    : posixResolve(gitCommonDir)
 }
 
 export function planRequirementImport(request: ImportRequest): ImportPlan {
@@ -72,7 +89,7 @@ export function planRequirementImport(request: ImportRequest): ImportPlan {
     if (member.kind !== 'linked-worktree' || !member.gitCommonDir) {
       continue
     }
-    const common = resolve(member.gitCommonDir)
+    const common = posixResolve(member.gitCommonDir)
     let project = projects.find(
       (entry) => entry.hostId === request.hostId && same(entry.gitCommonDir, common)
     )

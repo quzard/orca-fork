@@ -195,6 +195,7 @@ export const gitApi = {
     filePaths: string[]
     connectionId?: string
     scope?: GitStageWorktreeScope
+    excludedTreePaths?: string[]
   }): Promise<void> => ipcRenderer.invoke('git:bulkStage', args),
   unstage: (args: {
     worktreePath: string

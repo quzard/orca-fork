@@ -6,7 +6,7 @@ import type {
   GroupHeaderRow
 } from '../../shared/sidebar-list/row-types'
 import type { Requirement } from './requirements'
-import { requirementHeaderKey, REQUIREMENT_ROOT_LABEL } from './requirements'
+import { requirementHeaderKey, requirementRootLabel } from './requirements'
 
 function rowWorkspaceId(row: Row): string | null {
   if (row.type === 'item') {
@@ -38,7 +38,7 @@ function rootRow(row: Row): Row {
       ...row,
       rowKey: `requirement-root:${row.worktree.id}`,
       directoryLabel: undefined,
-      worktree: { ...row.worktree, displayName: REQUIREMENT_ROOT_LABEL }
+      worktree: { ...row.worktree, displayName: requirementRootLabel() }
     }
     return next
   }
@@ -63,15 +63,15 @@ export function regroupRequirementRows(
     }
   }
   const kept = withoutIds(rows, claimed)
-  const blocks: Row[] = []
-  for (const requirement of requirements) {
-    const source = new Map<string, Row>()
-    for (const row of rows) {
-      const id = rowWorkspaceId(row)
-      if (id) {
-        source.set(id, row)
-      }
+  const source = new Map<string, Row>()
+  for (const row of rows) {
+    const id = rowWorkspaceId(row)
+    if (id) {
+      source.set(id, row)
     }
+  }
+  const byHost = new Map<string, Row[]>()
+  for (const requirement of requirements) {
     const members = requirement.rows.flatMap((member) => {
       const row = source.get(member.id)
       if (!row) {
@@ -88,7 +88,37 @@ export function regroupRequirementRows(
       hostId: requirement.hostId,
       worktreeIds: requirement.rows.map((member) => member.id)
     }
-    blocks.push(header, ...members)
+    const block = byHost.get(requirement.hostId) ?? []
+    block.push(header, ...members)
+    byHost.set(requirement.hostId, block)
   }
-  return [...kept, ...blocks]
+  const seen = new Set<string>()
+  const placed: Row[] = []
+  for (const row of kept) {
+    const host = rowHost(row)
+    if (!seen.has(host)) {
+      seen.add(host)
+      placed.push(...(byHost.get(host) ?? []))
+    }
+    placed.push(row)
+  }
+  for (const [host, block] of byHost) {
+    if (!seen.has(host)) {
+      placed.push(...block)
+    }
+  }
+  return placed
+}
+
+function rowHost(row: Row): string {
+  if (row.type === 'item') {
+    return row.worktree.hostId ?? 'local'
+  }
+  if (row.type === 'folder-workspace') {
+    return row.folderWorkspace.executionHostId ?? 'local'
+  }
+  if (row.type === 'header' && row.hostId) {
+    return row.hostId
+  }
+  return 'local'
 }

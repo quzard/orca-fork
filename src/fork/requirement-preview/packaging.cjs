@@ -16,7 +16,11 @@ function readPreviewPackaging(env = process.env) {
     appId: PREVIEW_APP_ID,
     productName: PREVIEW_PRODUCT_NAME,
     protocolName: PREVIEW_PROTOCOL_NAME,
-    scheme: PREVIEW_PROTOCOL
+    scheme: PREVIEW_PROTOCOL,
+    outputDir: 'dist-requirement-preview',
+    viteOutDir: 'out-requirement-preview',
+    main: './out-requirement-preview/main/index.js',
+    macArtifactName: 'orca-requirement-preview-macos-${arch}.${ext}'
   }
 }
 

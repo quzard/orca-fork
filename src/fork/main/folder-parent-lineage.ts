@@ -12,6 +12,8 @@ export const FOLDER_PARENT_INSTANCE_MESSAGE = 'Worktree instance identity was un
 export const FOLDER_PARENT_MISSING_MESSAGE = 'Parent selector was not found.'
 export const FOLDER_PARENT_CROSS_HOST_MESSAGE =
   "a folder workspace can't parent a workspace on another machine yet."
+export const FOLDER_PARENT_HOST_MISSING_MESSAGE =
+  'This workspace has no host, so it cannot use a folder parent.'
 
 type FolderRow = Pick<FolderWorkspace, 'id' | 'executionHostId' | 'connectionId'>
 
@@ -59,7 +61,13 @@ export function applyFolderParentLineage(args: {
     throw new RuntimeLineageError('LINEAGE_PARENT_NOT_FOUND', FOLDER_PARENT_MISSING_MESSAGE)
   }
   const parentHost = getFolderWorkspaceWorktreeHostId(folder)
-  if (args.child.hostId && args.child.hostId !== parentHost) {
+  if (!args.child.hostId) {
+    throw new RuntimeLineageError(
+      'LINEAGE_PARENT_CONTEXT_CONFLICT',
+      FOLDER_PARENT_HOST_MISSING_MESSAGE
+    )
+  }
+  if (args.child.hostId !== parentHost) {
     throw new RuntimeLineageError(
       'LINEAGE_PARENT_CONTEXT_CONFLICT',
       FOLDER_PARENT_CROSS_HOST_MESSAGE

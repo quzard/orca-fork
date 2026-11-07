@@ -1,16 +1,17 @@
-import { relative } from 'node:path'
+import { posixRelative } from './posix-path'
 import { useMemo, useState } from 'react'
 import { useAppStore } from '@/store'
 import { getLiveAgentStatusByWorktreeId } from '@/lib/worktree-activity-state'
 import type { Worktree } from '../../shared/worktree/types'
 import {
+  registerRequirementStagePrefixes,
   registerRequirementHeaderOpen,
   registerRequirementHistory,
   registerRequirementOverview,
   registerRequirementScm
 } from '../../shared/fork-hooks/requirement-preview'
 import { forkTranslate } from '../i18n/fork-translate'
-import { requirementPreviewSshRefusal } from '../requirement-preview/profile'
+import { isRequirementPreviewBuild } from '../requirement-preview/build-flag'
 import { isQuietMember, needsMeCounts, needsMeReasons } from './badges'
 import { applyVisiblePlan, dryRunRequirement, ImportSummary } from './import-actions'
 import type { ImportPlan } from './import-plan'
@@ -28,10 +29,11 @@ import { updateRequirementSession, useRequirementSession } from './overview-stor
 import { ReviewLoader } from './review-loader'
 import {
   parseRequirementHeaderKey,
+  registerRequirementRootLabel,
   requirementHistoryEntry,
   requirementIdFromHistory
 } from './requirements'
-import { requirementsForSidebar } from './sidebar-model'
+import { openRequirementForSidebar, requirementsForSidebar } from './sidebar-model'
 import { collapseNestedWorktreeEntries } from './scm-collapse'
 
 function liveAgentsAtRender(
@@ -45,26 +47,35 @@ function flattenWorktrees(worktreesByRepo: Record<string, Worktree[]> | undefine
   return Object.values(worktreesByRepo ?? {}).flat()
 }
 
+function sidebarSnapshot() {
+  const state = useAppStore.getState()
+  return {
+    worktrees: flattenWorktrees(state.worktreesByRepo),
+    folders: state.folderWorkspaces,
+    lineageById: state.worktreeLineageById,
+    workspaceLineage: Object.values(state.workspaceLineageByChildKey ?? {})
+  }
+}
+
 function memberRoots(worktreeId: string | null): string[] | null {
   if (!worktreeId) {
     return null
   }
-  const state = useAppStore.getState()
-  const requirement = requirementsForSidebar({
-    worktrees: flattenWorktrees(state.worktreesByRepo),
-    folders: state.folderWorkspaces,
-    lineageById: state.worktreeLineageById
-  }).find((entry) => entry.root.id === worktreeId)
+  const requirement = requirementsForSidebar(sidebarSnapshot()).find(
+    (entry) => entry.root.id === worktreeId
+  )
   if (!requirement) {
     return null
   }
   return requirement.rows
     .filter((row) => row.role === 'member')
-    .map((row) => relative(requirement.root.path, row.path))
+    .map((row) => posixRelative(requirement.root.path, row.path))
     .filter((path) => path.length > 0 && !path.startsWith('..'))
 }
 
 export function registerRequirementSurfaces(): void {
+  registerRequirementRootLabel(() => forkTranslate('fork.requirement.root', '需求根'))
+  registerRequirementStagePrefixes((worktreeId) => memberRoots(worktreeId) ?? [])
   registerRequirementHeaderOpen((key) => {
     const parsed = parseRequirementHeaderKey(key)
     if (!parsed) {
@@ -97,7 +108,7 @@ export function registerRequirementSurfaces(): void {
       memberRoots(worktreeId)
         ? forkTranslate(
             'fork.requirement.collapsedWorktrees',
-            'Nested worktrees are collapsed. This view does not stage them or run submodule commands.'
+            'Nested worktree paths are hidden. Stage all skips those paths and does not run submodule commands.'
           )
         : null
   })
@@ -109,16 +120,31 @@ export function RequirementLayer(): React.JSX.Element | null {
   const worktreesByRepo = useAppStore((state) => state.worktreesByRepo)
   const folders = useAppStore((state) => state.folderWorkspaces)
   const lineageById = useAppStore((state) => state.worktreeLineageById)
+  const workspaceLineageByChildKey = useAppStore((state) => state.workspaceLineageByChildKey)
   const gitStatusByWorktree = useAppStore((state) => state.gitStatusByWorktree)
   const prCache = useAppStore((state) => state.prCache)
   const agentStatusByPaneKey = useAppStore((state) => state.agentStatusByPaneKey)
   const tabsByWorktree = useAppStore((state) => state.tabsByWorktree)
   const worktrees = useMemo(() => flattenWorktrees(worktreesByRepo), [worktreesByRepo])
-  const requirements = useMemo(
-    () => requirementsForSidebar({ worktrees, folders, lineageById }),
-    [folders, lineageById, worktrees]
+  const workspaceLineage = useMemo(
+    () => Object.values(workspaceLineageByChildKey ?? {}),
+    [workspaceLineageByChildKey]
   )
-  const requirement = requirements.find((entry) => entry.id === session.openRequirementId) ?? null
+  const requirements = useMemo(
+    () => requirementsForSidebar({ worktrees, folders, lineageById, workspaceLineage }),
+    [folders, lineageById, workspaceLineage, worktrees]
+  )
+  const requirement = useMemo(
+    () =>
+      openRequirementForSidebar({
+        worktrees,
+        folders,
+        lineageById,
+        workspaceLineage,
+        openId: session.openRequirementId
+      }),
+    [folders, lineageById, session.openRequirementId, workspaceLineage, worktrees]
+  )
   const [plan, setPlan] = useState<ImportPlan | null>(null)
   const [importNote, setImportNote] = useState<string | null>(null)
   const [reviewContents, setReviewContents] = useState<{
@@ -126,6 +152,11 @@ export function RequirementLayer(): React.JSX.Element | null {
     right: string | null
     error: string | null
   }>({ left: null, right: null, error: null })
+  const [reviewFor, setReviewFor] = useState(session.openRequirementId)
+  if (reviewFor !== session.openRequirementId) {
+    setReviewFor(session.openRequirementId)
+    setReviewContents({ left: null, right: null, error: null })
+  }
   const agents = useMemo(
     () => liveAgentsAtRender(agentStatusByPaneKey, tabsByWorktree),
     [agentStatusByPaneKey, tabsByWorktree]
@@ -134,13 +165,17 @@ export function RequirementLayer(): React.JSX.Element | null {
     return null
   }
   const ui = session.uiByRequirement[requirement.id] ?? emptyOverviewUi()
-  const sshBlocked = requirement.hostId.startsWith('ssh:') && requirementPreviewSshRefusal() != null
+  const sshBlocked = requirement.hostId.startsWith('ssh:') && isRequirementPreviewBuild()
   const facts = new Map(
     requirement.rows.map((row) => {
       const worktree = worktrees.find((entry) => entry.id === row.id)
-      const cached = worktree?.linkedPR
-        ? Object.values(prCache).find((entry) => entry.data?.number === worktree.linkedPR)
-        : undefined
+      const prPrefix = worktree?.repoId ? `${worktree.repoId}::` : null
+      const cached =
+        worktree?.linkedPR && prPrefix
+          ? Object.entries(prCache).find(
+              ([key, entry]) => key.startsWith(prPrefix) && entry.data?.number === worktree.linkedPR
+            )?.[1]
+          : undefined
       return [
         row.id,
         memberFactsFromRecords({
@@ -165,7 +200,10 @@ export function RequirementLayer(): React.JSX.Element | null {
   )
   const quietIds = new Set([...facts].filter(([, fact]) => isQuietMember(fact)).map(([id]) => id))
   const counts = needsMeCounts({
-    requirements: requirements.map((entry) => ({
+    requirements: (requirements.some((entry) => entry.id === requirement.id)
+      ? requirements
+      : [...requirements, requirement]
+    ).map((entry) => ({
       id: entry.id,
       workspaceIds: entry.rows.map((row) => row.id)
     })),
@@ -250,7 +288,8 @@ export function RequirementLayer(): React.JSX.Element | null {
               hostId: requirement.hostId,
               worktrees,
               folders,
-              lineageById
+              lineageById,
+              workspaceLineage
             }).then((next) => {
               setPlan(next.plan)
               setImportNote(next.note)
@@ -275,10 +314,12 @@ export function RequirementLayer(): React.JSX.Element | null {
       ) : null}
       {ui.tab === 'review' ? (
         <ReviewLoader
+          key={requirement.id}
           files={reviewFiles}
           selected={ui.reviewFiles}
           mode={ui.reviewMode}
           worktrees={worktrees}
+          memberIds={requirement.rows.map((row) => row.id)}
           folders={folders}
           contents={reviewContents}
           onContents={setReviewContents}

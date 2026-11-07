@@ -117,6 +117,7 @@ export type GitOperationApi = {
     filePaths: string[]
     connectionId?: string
     scope?: GitStageWorktreeScope
+    excludedTreePaths?: string[]
   }) => Promise<void>
   unstage: (args: {
     worktreePath: string

@@ -131,7 +131,10 @@ export async function bulkStageFiles(
 export async function stageWorktreeChanges(
   worktreePath: string,
   scope: GitStageWorktreeScope,
-  options: GitRuntimeOptions & { sharedLinkPaths?: readonly string[] } = {}
+  options: GitRuntimeOptions & {
+    sharedLinkPaths?: readonly string[]
+    excludedTreePaths?: readonly string[]
+  } = {}
 ): Promise<GitStageWorktreeScopeReceipt> {
   invalidateGitReadCaches()
   try {
@@ -147,7 +150,7 @@ export async function stageWorktreeChanges(
       scope,
       (args, stdin) =>
         gitExecFileAsync(args, stdin === undefined ? gitOptions : { ...gitOptions, stdin }),
-      { excludedUntrackedPaths }
+      { excludedUntrackedPaths, excludedTreePaths: options.excludedTreePaths }
     )
     await redoWriteForDriveCheckoutSuspects(worktreePath, ['.'], STAGE_WRITE, options)
     return receipt

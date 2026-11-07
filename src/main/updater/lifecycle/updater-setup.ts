@@ -71,10 +71,16 @@ export class UpdaterSetup extends ForkBackgroundUpdates {
   }
 
   downloadUpdate(): void {
+    if (requirementPreviewBlocksUpdater()) {
+      return
+    }
     super.downloadUpdate()
   }
 
   quitAndInstall(): void {
+    if (requirementPreviewBlocksUpdater()) {
+      return
+    }
     super.quitAndInstall()
   }
 
@@ -141,6 +147,9 @@ export class UpdaterSetup extends ForkBackgroundUpdates {
     channel: ReleaseChannel,
     options?: ReleaseBuildListOptions
   ): Promise<ReleaseBuild[]> {
+    if (requirementPreviewBlocksUpdater()) {
+      return []
+    }
     return super.listAvailableReleaseBuilds(channel, options)
   }
 

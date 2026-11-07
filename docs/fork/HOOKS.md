@@ -72,12 +72,12 @@ Registries refuse built-in ids, so a registration cannot replace Project, Status
 - `updater-check-failure.ts` (abstract `keepForkStagedUpdate` and its early return), `updater-handler-context.ts` (three optional fork callbacks).
 - `SshTargetStatusRow.tsx`: two `whitespace-nowrap` classes.
 - `build-mac-local.mjs`: extra arguments become electron-builder targets after `--mac`.
-- `config/max-lines-baseline.txt`: the fork block at the end, after `# fork: hook lines in upstream files at the cap`, lists the three upstream files whose first line is the `max-lines` disable.
+- `config/max-lines-baseline.txt`: the fork block at the end, after `# fork: hook lines in upstream files at the cap`, lists upstream files whose first line is the `max-lines` disable. `worktree set` lives in `src/fork/main/worktree-set.ts`, so `src/cli/handlers/worktree.ts` is not on that list.
 - Types and generated output: `sidebarGroupId` on `Worktree`, `WorktreeMeta`, `FolderWorkspace` and `FolderWorkspaceUpdates`; `directoryLabel` on `WorktreeRow`, `WorktreeCard` and its model; `worktreePath` on `ProjectGroupImportProjectResult`; `sidebarGroupId` on `WorktreeCreationRequest`; `code` on the `updateWorktreeMeta` failure; `'ego-lite'` in `BrowserSessionProfileSource`; the fork RPC names in `rpc-params-catalog.generated.ts`; the version in `package.json`.
 
 ## Requirement preview
 
-`requirement-preview.ts` is the registry. Unregistered, folder parents still fail `worktree set`, history entries stay workspace ids, source control lists every git path, and no overview layer is mounted. The preview launch path is `resolveRequirementPreviewLaunch` from `configureDevUserDataPath`, before the single-instance lock. Packaging reads `src/fork/requirement-preview/packaging.cjs` only when `ORCA_REQUIREMENT_PREVIEW=1`. See [requirement-preview.md](requirement-preview.md).
+`requirement-preview.ts` is the registry. Unregistered, folder parents still fail `worktree set`, history entries stay workspace ids, source control lists every git path, and no overview layer is mounted. The preview launch path is `resolveRequirementPreviewLaunch` from `configureDevUserDataPath`, before the single-instance lock. It follows the compile-time build flag, the packaged product name, or the package marker. A terminal environment variable does not turn a daily build into the preview. Packaging reads `src/fork/requirement-preview/packaging.cjs` only when `ORCA_REQUIREMENT_PREVIEW=1`, and that build writes `out-requirement-preview/` and `dist-requirement-preview/`. See [requirement-preview.md](requirement-preview.md).
 
 ## TypeScript projects
 

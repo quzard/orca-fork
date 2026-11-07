@@ -3,6 +3,16 @@ import type { ExecutionHostId } from '../../shared/execution-host'
 import { folderWorkspaceKey } from '../../shared/workspace-scope'
 
 export const REQUIREMENT_ROOT_LABEL = '需求根'
+
+let readRootLabel = (): string => REQUIREMENT_ROOT_LABEL
+
+export function registerRequirementRootLabel(read: () => string): void {
+  readRootLabel = read
+}
+
+export function requirementRootLabel(): string {
+  return readRootLabel()
+}
 export const REQUIREMENT_HEADER_PREFIX = 'requirement:'
 
 export function requirementHeaderKey(hostId: string, requirementId: string): string {
@@ -119,7 +129,48 @@ export function requirementsFromWorkspaces(input: {
   requirements.sort(
     (left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id)
   )
+  return collapseNestedRequirements(requirements)
+}
+
+function collapseNestedRequirements(requirements: Requirement[]): Requirement[] {
+  const memberIds = new Set<string>()
+  for (const requirement of requirements) {
+    for (const row of requirement.rows) {
+      if (row.role === 'member') {
+        memberIds.add(row.id)
+      }
+    }
+  }
   return requirements
+    .filter((requirement) => !memberIds.has(requirement.id))
+    .map((requirement) => appendDescendants(requirement, requirements))
+}
+
+function appendDescendants(requirement: Requirement, all: readonly Requirement[]): Requirement {
+  const seen = new Set(requirement.rows.map((row) => row.id))
+  const extra: RequirementRow[] = []
+  const queue = requirement.rows.filter((row) => row.role === 'member').map((row) => row.id)
+  while (queue.length > 0) {
+    const id = queue.shift()
+    if (!id) {
+      continue
+    }
+    const nested = all.find((entry) => entry.id === id)
+    if (!nested) {
+      continue
+    }
+    for (const row of nested.rows) {
+      if (row.role !== 'member' || seen.has(row.id)) {
+        continue
+      }
+      seen.add(row.id)
+      extra.push(row)
+      queue.push(row.id)
+    }
+  }
+  return extra.length === 0
+    ? requirement
+    : { ...requirement, rows: [...requirement.rows, ...extra] }
 }
 
 export function folderRequirementId(folderId: string): string {
@@ -138,11 +189,11 @@ export function presentRequirementFolderWorktree<T extends { displayName: string
   if (!key.startsWith('requirement-root:')) {
     return worktree
   }
-  return { ...worktree, displayName: REQUIREMENT_ROOT_LABEL }
+  return { ...worktree, displayName: requirementRootLabel() }
 }
 
 export function requirementRowLabel(row: RequirementRow): string {
-  return row.role === 'root' ? REQUIREMENT_ROOT_LABEL : row.name || basename(row.path)
+  return row.role === 'root' ? requirementRootLabel() : row.name || basename(row.path)
 }
 
 export type OrderedRequirementRows = {

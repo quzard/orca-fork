@@ -4,7 +4,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { discoverLinkedMembers } from './discover-members'
-import { applyRequirementPlan, planRequirementImport, type ImportWorkspace } from './import-plan'
+import {
+  applyRequirementPlan,
+  lineageParentIdFor,
+  planRequirementImport,
+  type ImportWorkspace
+} from './import-plan'
 
 function git(cwd: string, args: string[]): void {
   execFileSync('git', args, { cwd, stdio: 'ignore' })
@@ -167,6 +172,29 @@ describe('requirement import', () => {
         workspaces
       })
       expect(missingParent).toEqual({ ok: false, error: 'parent-missing', actions: [] })
+      expect(
+        lineageParentIdFor('wt-catalog', { 'wt-catalog': { parentWorktreeId: 'worktree:old' } }, [
+          { childWorkspaceKey: 'worktree:wt-catalog', parentWorkspaceKey: 'folder:parent' }
+        ])
+      ).toBe('folder:parent')
+      const again = planRequirementImport({
+        hostId: 'local',
+        parentPath: parent,
+        parentWorkspaceId: parentWorkspace.id,
+        discovered: discovered.members.filter((member) => member.name === 'catalog'),
+        projects: [{ id: 'project-catalog', hostId: 'local', gitCommonDir: catalogCommon! }],
+        workspaces: workspaces.map((workspace) =>
+          workspace.id === 'wt-catalog'
+            ? { ...workspace, lineageParentId: 'folder:parent' }
+            : workspace
+        )
+      })
+      expect(again.actions).toContainEqual({
+        op: 'unchanged-lineage',
+        workspaceId: 'wt-catalog',
+        parentId: 'folder:parent'
+      })
+      expect(again.actions.some((action) => action.op === 'link-lineage')).toBe(false)
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

@@ -1,5 +1,6 @@
 // 预览身份只改启动路径和协议。未设置环境、包名和 package 标记时，日常 Orca 的目录不变。
 import { join, resolve } from 'node:path'
+import { isRequirementPreviewBuild } from './build-flag'
 
 export const PREVIEW_APP_ID = 'com.quzard.orca.requirement-preview'
 export const PREVIEW_PRODUCT_NAME = 'Orca Requirement Preview'
@@ -16,10 +17,11 @@ export const PREVIEW_SSH_REFUSAL =
 const PRODUCTION_DIR_NAMES = ['Orca', 'orca-dev', 'Orca Dev']
 
 export type PreviewLaunchInput = {
-  env: NodeJS.ProcessEnv
   appData: string
   productName?: string | null
   packageMarker?: boolean
+  buildFlag?: boolean
+  sshOptIn?: boolean
 }
 
 export type PreviewLaunch =
@@ -42,21 +44,20 @@ function samePath(left: string, right: string): boolean {
 
 export function isRequirementPreviewLaunch(input: PreviewLaunchInput): boolean {
   return (
-    input.env[REQUIREMENT_PREVIEW_ENV] === '1' ||
+    input.buildFlag === true ||
     input.productName === PREVIEW_PRODUCT_NAME ||
     input.packageMarker === true
   )
 }
 
-/** 显式用户数据目录也不能指回日常 Orca、开发目录或当前进程已经在用的生产目录。 */
+/** 用户数据目录只有 appData 下的预览产品名。不接受任意覆盖，避免大小写别名或生产目录嵌套。 */
 export function resolveRequirementPreviewLaunch(
   input: PreviewLaunchInput & { occupiedUserDataPath?: string | null }
 ): PreviewLaunch {
   if (!isRequirementPreviewLaunch(input)) {
     return { enabled: false }
   }
-  const requested = input.env[REQUIREMENT_PREVIEW_USER_DATA_ENV]?.trim()
-  const userDataPath = requested ? resolve(requested) : join(input.appData, PREVIEW_PRODUCT_NAME)
+  const userDataPath = join(input.appData, PREVIEW_PRODUCT_NAME)
   const blocked = [
     ...PRODUCTION_DIR_NAMES.map((name) => join(input.appData, name)),
     ...(input.occupiedUserDataPath ? [input.occupiedUserDataPath] : [])
@@ -76,14 +77,21 @@ export function resolveRequirementPreviewLaunch(
     userDataPath,
     updater: false,
     ssh: false,
-    sshOptInIgnored: input.env[REQUIREMENT_PREVIEW_SSH_ENV] === '1'
+    sshOptInIgnored: input.sshOptIn === true
   }
 }
 
-export function requirementPreviewSshRefusal(env: NodeJS.ProcessEnv = process.env): string | null {
-  return env[REQUIREMENT_PREVIEW_ENV] === '1' ? PREVIEW_SSH_REFUSAL : null
+export function assertRequirementPreviewRemoteClosed(): void {
+  const refusal = requirementPreviewSshRefusal()
+  if (refusal) {
+    throw new Error(refusal)
+  }
 }
 
-export function requirementPreviewBlocksUpdater(env: NodeJS.ProcessEnv = process.env): boolean {
-  return env[REQUIREMENT_PREVIEW_ENV] === '1'
+export function requirementPreviewSshRefusal(): string | null {
+  return isRequirementPreviewBuild() ? PREVIEW_SSH_REFUSAL : null
+}
+
+export function requirementPreviewBlocksUpdater(): boolean {
+  return isRequirementPreviewBuild()
 }

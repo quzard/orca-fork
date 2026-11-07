@@ -34,6 +34,16 @@ type GitStageRunner = (args: string[], stdin?: string) => Promise<{ stdout: stri
 export type StageGitWorktreeScopeOptions = {
   /** Untracked paths `all` must skip: Orca's shared symlinks, already verified as symlinks. */
   excludedUntrackedPaths?: readonly string[]
+  /** Nested worktree roots. Excluded from both `git add --all` and `git add --update`. */
+  excludedTreePaths?: readonly string[]
+}
+
+export function pathUnderStageTree(path: string, trees: readonly string[]): boolean {
+  return trees.some((tree) => path === tree || path.startsWith(`${tree}/`))
+}
+
+function excludePathspecs(paths: readonly string[]): string[] {
+  return paths.map((path) => `:(exclude,literal)${path}`)
 }
 
 function nulSeparatedPaths(stdout: string): string[] {
@@ -46,24 +56,26 @@ export async function stageGitWorktreeScope(
   options: StageGitWorktreeScopeOptions = {}
 ): Promise<GitStageWorktreeScopeReceipt> {
   const excluded = scope === 'all' ? (options.excludedUntrackedPaths ?? []) : []
+  const trees = options.excludedTreePaths ?? []
   // --relative keeps folder workspaces inside their own portion of a larger repo.
   const unresolved = nulSeparatedPaths(
     (await runGit(['diff', '--name-only', '--relative', '-z', '--diff-filter=U'])).stdout
-  )
+  ).filter((path) => !pathUnderStageTree(path, trees))
   if (unresolved.length === 0) {
-    if (excluded.length === 0) {
+    if (excluded.length === 0 && trees.length === 0) {
       await runGit(['add', scope === 'all' ? '--all' : '--update', '--', '.'])
       return { stagedScope: scope }
     }
-    // Why: the exclude must only hide the untracked link; tracked changes at that path still stage.
-    await runGit(['add', '--update', '--', '.'])
-    await runGit([
-      'add',
-      '--all',
-      '--',
-      '.',
-      ...excluded.map((path) => `:(exclude,literal)${path}`)
-    ])
+    if (trees.length === 0) {
+      // Why: the exclude must only hide the untracked link; tracked changes at that path still stage.
+      await runGit(['add', '--update', '--', '.'])
+      await runGit(['add', '--all', '--', '.', ...excludePathspecs(excluded)])
+      return { stagedScope: scope }
+    }
+    await runGit(['add', '--update', '--', '.', ...excludePathspecs(trees)])
+    if (scope === 'all') {
+      await runGit(['add', '--all', '--', '.', ...excludePathspecs([...excluded, ...trees])])
+    }
     return { stagedScope: scope }
   }
   // Why: `git add` resolves an unmerged path even under an exclude pathspec, so name the rest instead.
@@ -71,12 +83,12 @@ export async function stageGitWorktreeScope(
   const excludedSet = new Set(excluded)
   const tracked = nulSeparatedPaths(
     (await runGit(['diff', '--name-only', '--relative', '-z'])).stdout
-  ).filter((path) => !unresolvedSet.has(path))
+  ).filter((path) => !unresolvedSet.has(path) && !pathUnderStageTree(path, trees))
   const untracked =
     scope === 'all'
       ? nulSeparatedPaths(
           (await runGit(['ls-files', '-z', '--others', '--exclude-standard'])).stdout
-        ).filter((path) => !excludedSet.has(path))
+        ).filter((path) => !excludedSet.has(path) && !pathUnderStageTree(path, trees))
       : []
   const paths = [...new Set([...tracked, ...untracked])]
   if (paths.length > 0) {

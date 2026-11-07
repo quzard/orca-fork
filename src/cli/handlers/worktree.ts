@@ -1,11 +1,8 @@
-/* oxlint-disable max-lines -- fork: hook call only */
-import { withWorktreeSelectorRecovery } from '../worktree-selector-recovery'
-import { allowFolderParentSet } from '../../shared/fork-hooks/requirement-preview'
+import { runWorktreeSet } from '../../fork/main/worktree-set'
 import type {
   RuntimeWorktreeListResult,
   RuntimeWorktreePsResult,
   RuntimeWorktreeRecord,
-  RuntimeWorktreeSetResult,
   RuntimeWorktreeCreateResult
 } from '../../shared/runtime-types'
 import type { CommandHandler } from '../dispatch'
@@ -20,7 +17,6 @@ import { RuntimeClientError } from '../runtime-client'
 import {
   getOptionalPositiveIntegerFlag,
   getOptionalStringFlag,
-  getOptionalStringFlagAllowingEmpty,
   getPresentStringFlag,
   getRequiredStringFlag
 } from '../flags'
@@ -32,8 +28,8 @@ import {
 import type { TuiAgent } from '../../shared/agent-launch/catalog/tui-agent'
 import { parseCliAgent, readCliAgentLaunch } from '../agent-launch-request'
 import { createWorktreeWithAgent } from './worktree-create-agent-launch'
-import { formatCrossStoreParentLine, printLineageSummary } from './worktree-lineage-summary'
-import { resolveCreateParentFields, resolveSetParentFields } from './worktree-parent-fields'
+import { printLineageSummary } from './worktree-lineage-summary'
+import { resolveCreateParentFields } from './worktree-parent-fields'
 import { projectWorktreePsTerminalVerdict } from '../worktree-ps-terminal-verdict'
 import {
   assertWorkspaceTargetFlagsCompatible,
@@ -44,11 +40,9 @@ import {
 import {
   assertWorktreeParentFlagsCompatible,
   getEnvParentWorkspace,
-  getWorkspaceKeyParentSelector,
   resolveCreateParentSelector
 } from './worktree-create-parent-selector'
 import { getOptionalLinearIssueLinkFlag } from './worktree-linear-issue-link'
-import { getWorktreeReadFlags } from './worktree-unread-flag'
 import { getReviewTargetLinkFlags } from './worktree-review-link-flags'
 import { withSetupDecisionRecovery } from './worktree-setup-decision-recovery'
 import { assertGitLabLinkFlagProjectsMatch } from './worktree-gitlab-link-context'
@@ -220,68 +214,7 @@ export const WORKTREE_HANDLERS: Record<string, CommandHandler> = {
     printLineageSummary(result.result, json)
     printResult(result, json, formatWorktreeShow)
   },
-  'worktree set': async ({ flags, client, cwd, json }) => {
-    assertWorktreeParentFlagsCompatible(
-      flags,
-      'Choose either --parent-worktree or --no-parent, not both.'
-    )
-    const parentSelector = getOptionalStringFlag(flags, 'parent-worktree')
-    const folderParentSelector = parentSelector
-      ? getWorkspaceKeyParentSelector(parentSelector)
-      : undefined
-    if (
-      folderParentSelector?.startsWith('folder:') &&
-      !allowFolderParentSet(folderParentSelector)
-    ) {
-      throw new RuntimeClientError(
-        'invalid_argument',
-        `Parent selector "${parentSelector}" is a folder. Folder parents are accepted only by orca worktree create.`
-      )
-    }
-    const readFlags = getWorktreeReadFlags(flags)
-    const reviewLinks = getReviewTargetLinkFlags(flags, { nullable: true })
-    const linearIssueLink = getOptionalLinearIssueLinkFlag(flags, 'linear-issue', {
-      allowNull: true
-    })
-    const worktree = await getRequiredWorktreeSelector(flags, 'worktree', cwd, client)
-    await assertGitLabLinkFlagProjectsMatch(flags, client, { worktree })
-    const parentFields =
-      folderParentSelector && allowFolderParentSet(folderParentSelector)
-        ? { parentWorktree: folderParentSelector }
-        : await resolveSetParentFields(flags, cwd, client)
-    const pending = client.call<RuntimeWorktreeSetResult>('worktree.set', {
-      worktree,
-      displayName: getOptionalStringFlag(flags, 'display-name'),
-      ...reviewLinks,
-      ...linearIssueLink,
-      // An explicit empty value clears the stored comment.
-      comment: getOptionalStringFlagAllowingEmpty(flags, 'comment'),
-      workspaceStatus: getOptionalStringFlag(flags, 'workspace-status'),
-      ...readFlags,
-      ...parentFields,
-      noParent: flags.get('no-parent') === true
-    })
-    const result = await withWorktreeSelectorRecovery(
-      pending,
-      parentSelector
-        ? [
-            `Orca could not find the worktree selector "${worktree}" or the parent selector "${parentSelector}". The server did not identify which selector failed.`,
-            'Check both selectors with orca worktree show --worktree <selector> --json.'
-          ]
-        : []
-    )
-    if (!json) {
-      for (const warning of result.result.warnings ?? []) {
-        console.error(`warning: ${warning.message}`)
-      }
-      // The same-store lineage fields stay null for a parent on another machine.
-      const crossStoreLineage = result.result.worktree.crossStoreLineage
-      if (parentFields.crossStoreParent && crossStoreLineage) {
-        console.error(formatCrossStoreParentLine(crossStoreLineage))
-      }
-    }
-    printResult(result, json, formatWorktreeShow)
-  },
+  'worktree set': runWorktreeSet,
   'worktree rm': async ({ flags, client, cwd, json }) => {
     const worktree = await getRequiredWorktreeSelector(flags, 'worktree', cwd, client)
     const resolved = await client.call<{ worktree: RuntimeWorktreeRecord }>('worktree.show', {

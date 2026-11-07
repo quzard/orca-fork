@@ -1,7 +1,7 @@
 /** Activate under a durable host fence/journal only after candidate readiness. Recover the incumbent only with safe profile state; retain changed state/snapshot for explicit recovery. */
 import { logOrcadActivationOutcome } from '../managed-server/activation/orcad-activation-outcome-log'
 import { join } from 'node:path'
-import { isWslOrcadHostTarget, type OrcadHostTransport } from './orcad-host-transport'
+import type { OrcadHostTransport } from './orcad-host-transport'
 import type { OrcadUpdateForce } from './orcad-update-plan'
 import { ORCAD_INSTALL_MODEL } from '../managed-server/install/remote-install-model'
 import {
@@ -31,7 +31,7 @@ import {
 } from '../managed-server/activation/orcad-activation-lock'
 import { activateInstalledOrcad } from './orcad-installed-activation'
 import { orcadActivationFenceRefusal } from '../managed-server/activation/orcad-activation-fence-hold'
-import { requirementPreviewSshRefusal } from '../../fork/requirement-preview/profile'
+import { assertRequirementPreviewRemoteClosed } from '../../fork/requirement-preview/profile'
 
 export type OrcadDeployOptions = {
   conn: OrcadHostTransport
@@ -92,12 +92,7 @@ export async function deployOrcad(
   input: OrcadDeployOptions,
   retryClearedFence = true
 ): Promise<OrcadDeployResult> {
-  const previewRefusal = isWslOrcadHostTarget(input.conn.getTarget())
-    ? null
-    : requirementPreviewSshRefusal()
-  if (previewRefusal) {
-    throw new Error(previewRefusal)
-  }
+  assertRequirementPreviewRemoteClosed()
   const target =
     input.target ??
     (input.localOrcadDir

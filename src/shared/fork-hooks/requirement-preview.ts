@@ -115,3 +115,21 @@ export function registerRequirementOverview(render: () => unknown): void {
 export function requirementOverviewLayer(): unknown {
   return overviewLayer?.() ?? null
 }
+
+let stagePrefixes: (worktreeId: string | null) => readonly string[] = () => []
+
+export function registerRequirementStagePrefixes(
+  read: (worktreeId: string | null) => readonly string[]
+): void {
+  stagePrefixes = read
+}
+
+export function requirementStagePrefixes(worktreeId: string | null): readonly string[] {
+  return stagePrefixes(worktreeId)
+}
+
+export function requirementStagePathBlocked(worktreeId: string | null, filePath: string): boolean {
+  return requirementStagePrefixes(worktreeId).some(
+    (prefix) => filePath === prefix || filePath.startsWith(`${prefix}/`)
+  )
+}

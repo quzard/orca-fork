@@ -10,7 +10,8 @@ import {
   toggleReviewFile
 } from './overview-session'
 import { orderRequirementRows, type RequirementRow } from './requirements'
-import { requirementsForSidebar } from './sidebar-model'
+import { regroupRequirementRows } from './regroup-rows'
+import { openRequirementForSidebar, requirementsForSidebar } from './sidebar-model'
 import { collapseNestedWorktreeEntries } from './scm-collapse'
 
 const row = (id: string, name: string, role: 'root' | 'member' = 'member'): RequirementRow => ({
@@ -130,6 +131,73 @@ describe('requirement overview facts', () => {
     })
     expect(requirements.map((requirement) => requirement.id)).toEqual(['folder:parent'])
     expect(requirements[0]?.rows.map((row) => row.lineage)).toEqual(['root', 'confirmed'])
+  })
+
+  it('opens a folder with no children so dry run is reachable, and does not duplicate nested members', () => {
+    const folders = [
+      {
+        id: 'parent',
+        name: 'requirement-alpha',
+        folderPath: '/srv/requirement-alpha',
+        executionHostId: 'local' as const,
+        isArchived: false
+      }
+    ]
+    const opened = openRequirementForSidebar({
+      worktrees: [],
+      folders,
+      lineageById: {},
+      openId: 'folder:parent'
+    })
+    expect(opened?.rows.map((entry) => entry.role)).toEqual(['root'])
+    const nested = requirementsForSidebar({
+      worktrees: [
+        {
+          id: 'a',
+          path: '/srv/requirement-alpha/a',
+          displayName: 'a',
+          hostId: 'local',
+          instanceId: 'a1'
+        },
+        {
+          id: 'b',
+          path: '/srv/requirement-alpha/b',
+          displayName: 'b',
+          hostId: 'local',
+          instanceId: 'b1'
+        }
+      ],
+      folders,
+      lineageById: {
+        b: { parentWorktreeId: 'a', parentWorktreeInstanceId: 'a1', worktreeInstanceId: 'b1' }
+      },
+      workspaceLineage: [
+        {
+          childWorkspaceKey: 'worktree:a',
+          childInstanceId: 'a1',
+          parentWorkspaceKey: 'folder:parent',
+          parentInstanceId: null
+        }
+      ]
+    })
+    expect(nested.map((requirement) => requirement.id)).toEqual(['folder:parent'])
+    expect(nested[0]?.rows.map((entry) => entry.id)).toEqual(['folder:parent', 'a', 'b'])
+    const loose = {
+      type: 'item' as const,
+      rowKey: 'docs',
+      sectionKey: 'local',
+      depth: 0,
+      groupDepth: 0,
+      repo: undefined,
+      worktree: { id: 'docs', hostId: 'local' as const, displayName: 'docs', path: '/docs' }
+    }
+    const rows = regroupRequirementRows(
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: regroup only reads id, host and folder fields; the rest of Worktree is unused.
+      [loose] as unknown as Parameters<typeof regroupRequirementRows>[0],
+      nested
+    )
+    expect(rows[0]).toMatchObject({ type: 'header', hostId: 'local' })
+    expect(rows.at(-1)).toMatchObject({ type: 'item', worktree: { id: 'docs' } })
   })
 
   it('collapses nested worktree paths and keeps parent docs', () => {

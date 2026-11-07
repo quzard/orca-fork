@@ -1,4 +1,5 @@
 import { app } from 'electron'
+import { isRequirementPreviewBuild } from '../requirement-preview/build-flag'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { guardedSafeStorage } from '../../main/host/safe-storage-availability'
@@ -53,7 +54,7 @@ export function createPackagedMacosSecretStore(): SecretStore | null {
   }
   const store = new MacosFileSecretStore(
     packagedMacosSecretDirectory({
-      preview: process.env.ORCA_REQUIREMENT_PREVIEW === '1',
+      preview: isRequirementPreviewBuild(),
       userDataPath: app.getPath('userData')
     })
   )

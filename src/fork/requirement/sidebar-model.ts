@@ -1,5 +1,10 @@
 import type { ExecutionHostId } from '../../shared/execution-host'
-import type { Requirement, RequirementLink, RequirementWorkspace } from './requirements'
+import type {
+  Requirement,
+  RequirementLink,
+  RequirementRow,
+  RequirementWorkspace
+} from './requirements'
 import { requirementsFromWorkspaces } from './requirements'
 
 type SidebarWorktree = {
@@ -120,4 +125,29 @@ export function requirementsForSidebar(input: {
     })
   }
   return requirementsFromWorkspaces({ workspaces, links })
+}
+
+/** 还没有子成员时也打开概览，这样全新配置能走到 Dry run。 */
+export function openRequirementForSidebar(
+  input: Parameters<typeof requirementsForSidebar>[0] & { openId: string | null }
+): Requirement | null {
+  const found = requirementsForSidebar(input).find((entry) => entry.id === input.openId) ?? null
+  if (found || !input.openId) {
+    return found
+  }
+  const folder = input.folders.find((entry) => `folder:${entry.id}` === input.openId)
+  if (!folder) {
+    return null
+  }
+  const hostId = asHost(folder.executionHostId ?? input.defaultHostId)
+  const root: RequirementWorkspace = {
+    id: input.openId,
+    hostId,
+    name: folder.name,
+    path: folder.folderPath,
+    archived: folder.isArchived === true,
+    kind: 'folder'
+  }
+  const row: RequirementRow = { ...root, role: 'root', lineage: 'root' }
+  return { id: root.id, hostId, name: folder.name, root, rows: [row] }
 }

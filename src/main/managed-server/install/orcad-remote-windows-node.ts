@@ -8,6 +8,7 @@ import {
 } from '../../../shared/orcad-artifacts'
 import { pinnedNodeRuntimeAsset, type NodeRuntimeTarget } from '../../../shared/node-runtime-pin'
 import { randomUUID } from 'node:crypto'
+import { assertRequirementPreviewRemoteClosed } from '../../../fork/requirement-preview/profile'
 import type { OrcadHostTransport } from '../../ssh/orcad-host-transport'
 import {
   execCommand,
@@ -139,6 +140,7 @@ export async function installOrcadWindowsHostScript(
   target: { conn: OrcadHostTransport; host: RemoteHostPlatform; signal?: AbortSignal },
   baseDir: string
 ): Promise<void> {
+  assertRequirementPreviewRemoteClosed()
   const scriptPath = orcadWindowsHostScriptPath(target.host, baseDir)
   const staged = stagedHostScripts.get(target.conn) ?? new Set<string>()
   stagedHostScripts.set(target.conn, staged)

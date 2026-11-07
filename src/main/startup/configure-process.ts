@@ -1,5 +1,6 @@
 import { app } from 'electron'
 import { readRequirementPreviewMarker } from '../../fork/main/requirement-preview-marker'
+import { isRequirementPreviewBuild } from '../../fork/requirement-preview/build-flag'
 import { resolveRequirementPreviewLaunch } from '../../fork/requirement-preview/profile'
 import { guardExternalOpensInE2E } from './e2e-external-open-guard'
 import { quitProcess } from './process-quit-request'
@@ -206,16 +207,15 @@ export function configureDevUserDataPath(isDev: boolean): void {
   }
 
   const preview = resolveRequirementPreviewLaunch({
-    env: process.env,
     appData: app.getPath('appData'),
     productName: app.getName(),
-    packageMarker: readRequirementPreviewMarker(app.getAppPath())
+    packageMarker: readRequirementPreviewMarker(app.getAppPath()),
+    buildFlag: isRequirementPreviewBuild()
   })
   if ('refused' in preview) {
     throw new Error(preview.refused)
   }
   if (preview.enabled) {
-    process.env.ORCA_REQUIREMENT_PREVIEW = '1'
     app.setName(preview.appName)
     app.setPath('userData', preview.userDataPath)
     return

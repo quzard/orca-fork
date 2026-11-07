@@ -16,6 +16,11 @@ readonly OUTPUT_DIR='dist'
 readonly CLEANUP_VERIFIED_BACKUPS='--cleanup-verified-backups'
 readonly APP_BUNDLE_ID='com.stablyai.orca'
 
+if [[ "${ORCA_REQUIREMENT_PREVIEW:-}" == 1 || -f out/requirement-preview-build.json || "$OUTPUT_DIR" == *requirement-preview* ]]; then
+  echo 'requirement preview cannot publish daily Orca' >&2
+  exit 1
+fi
+
 if [[ "$(uname -s)" != 'Darwin' ]]; then
   echo '此脚本仅用于 macOS 本机安装。' >&2
   exit 1

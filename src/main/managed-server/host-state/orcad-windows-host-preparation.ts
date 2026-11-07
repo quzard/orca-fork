@@ -1,5 +1,6 @@
 // Stage pinned Node and a content-addressed host script so Windows operations share verified bytes without replacing running clients' code.
 import { join } from 'node:path'
+import { assertRequirementPreviewRemoteClosed } from '../../../fork/requirement-preview/profile'
 import { getAppEnvironment } from '../../../shared/app-environment'
 import type { NodeRuntimeTarget } from '../../../shared/node-runtime-pin'
 import { ensureRemoteOrcadNodeRuntime } from '../install/orcad-remote-node-runtime'
@@ -18,6 +19,7 @@ export async function prepareWindowsOrcadHost(options: {
   serverTarget: NodeRuntimeTarget
   signal?: AbortSignal
 }): Promise<void> {
+  assertRequirementPreviewRemoteClosed()
   const baseDir = orcadRemoteBaseDir(options.host, options.remoteHome)
   await ensureRemoteOrcadNodeRuntime({
     conn: options.conn,

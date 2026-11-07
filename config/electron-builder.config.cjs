@@ -777,9 +777,22 @@ if (previewPackaging) {
     { name: previewPackaging.protocolName, schemes: [previewPackaging.scheme] }
   ]
   module.exports.publish = null
+  module.exports.directories = {
+    ...module.exports.directories,
+    output: previewPackaging.outputDir
+  }
   module.exports.extraMetadata = {
     ...module.exports.extraMetadata,
-    orcaRequirementPreview: true
+    orcaRequirementPreview: true,
+    main: previewPackaging.main
+  }
+  module.exports.mac = {
+    ...module.exports.mac,
+    artifactName: previewPackaging.macArtifactName
+  }
+  module.exports.dmg = {
+    ...module.exports.dmg,
+    artifactName: previewPackaging.macArtifactName
   }
 }
 

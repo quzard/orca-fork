@@ -16,6 +16,7 @@ const { LOCAL_SECRET_STORAGE } = await import('./macos-file-secret-store')
 const {
   createPackagedMacosSecretStore,
   macosFileSecretDirectory,
+  packagedMacosSecretDirectory,
   routeGuardedSafeStorage,
   usesPackagedMacosFileSecretStore
 } = await import('./desktop-secret-store')
@@ -56,6 +57,12 @@ describe('packaged macOS file secret store', () => {
     expect(macosFileSecretDirectory()).toBe(
       join(homedir(), LOCAL_SECRET_STORAGE.root, LOCAL_SECRET_STORAGE.directory)
     )
+    expect(
+      packagedMacosSecretDirectory({
+        preview: true,
+        userDataPath: '/tmp/Orca Requirement Preview'
+      })
+    ).toBe('/tmp/Orca Requirement Preview/secrets')
   })
 
   it('leaves preflight on the keychain store unless a packaged Mac app registered the file store', () => {

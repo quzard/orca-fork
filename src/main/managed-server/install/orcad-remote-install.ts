@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { assertRequirementPreviewRemoteClosed } from '../../../fork/requirement-preview/profile'
 import { orcadNodePtyNativeArtifacts, orcadRipgrepArtifact } from '../../../shared/orcad-artifacts'
 import { orcadAgentBrowserNativeName } from '../../../shared/orcad-agent-browser-name'
 import type { NodeRuntimeTarget } from '../../../shared/node-runtime-pin'
@@ -44,6 +45,7 @@ export async function installOrcadBundle(
   fullVersion: string,
   remoteDir: string
 ): Promise<'uploaded' | 'reused'> {
+  assertRequirementPreviewRemoteClosed()
   if (options.recordedNodeRuntimeProbe && (await cachedOrcadSlotInstalled(options, remoteDir))) {
     return 'reused'
   }

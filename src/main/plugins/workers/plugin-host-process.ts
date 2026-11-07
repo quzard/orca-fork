@@ -1,5 +1,6 @@
 import { fork, type ChildProcess } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import { resolveRuntimeOutputEntry } from '../../../fork/requirement-preview/output-root'
 import { join } from 'node:path'
 import {
   PLUGIN_WORKER_INVOKE_TIMEOUT_MS,
@@ -42,10 +43,13 @@ export type {
 export function resolvePluginHostEntryPath(appPath: string, isPackaged: boolean): string {
   const basePath = isPackaged ? appPath.replace('app.asar', 'app.asar.unpacked') : appPath
   const directEntryPath = join(basePath, 'plugin-host-entry.js')
-  if (existsSync(directEntryPath)) {
-    return directEntryPath
-  }
-  return join(basePath, 'out', 'main', 'plugin-host-entry.js')
+  return existsSync(directEntryPath)
+    ? directEntryPath
+    : resolveRuntimeOutputEntry({
+        basePath,
+        segments: ['main', 'plugin-host-entry.js'],
+        exists: existsSync
+      })
 }
 
 export async function startPluginWorker(

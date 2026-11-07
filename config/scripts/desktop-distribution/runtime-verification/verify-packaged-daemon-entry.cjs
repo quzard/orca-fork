@@ -13,12 +13,12 @@ const {
 } = require('../../../../src/shared/local-build-compatibility-contract.json')
 
 // Require exact asar-unpacked daemon entry on every platform; missing path indicates layout regression and must not silently skip.
-function assertPackagedDaemonEntryExists(resourcesDir) {
-  const entryPath = join(resourcesDir, 'app.asar.unpacked', 'out', 'main', 'daemon-entry.js')
+function assertPackagedDaemonEntryExists(resourcesDir, outputRoot = 'out') {
+  const entryPath = join(resourcesDir, 'app.asar.unpacked', outputRoot, 'main', 'daemon-entry.js')
   if (!existsSync(entryPath)) {
     throw new Error(
       `[verify-packaged-daemon-entry] missing unpacked daemon entry at ${entryPath} — ` +
-        `asarUnpack expects out/main/daemon-entry.js on every platform, so the packaged ` +
+        `asarUnpack expects ${outputRoot}/main/daemon-entry.js on every platform, so the packaged ` +
         `daemon cannot be forked from this layout`
     )
   }
@@ -29,7 +29,7 @@ function assertPackagedDaemonEntryExists(resourcesDir) {
 // resourcesDir is packaged Resources; default execPath is packaging Node.
 function verifyPackagedDaemonEntryBoots(resourcesDir, options = {}) {
   const execPath = options.execPath || process.execPath
-  const entryPath = assertPackagedDaemonEntryExists(resourcesDir)
+  const entryPath = assertPackagedDaemonEntryExists(resourcesDir, options.outputRoot)
 
   const result = spawnSync(execPath, [entryPath], { encoding: 'utf8', timeout: 10_000 })
   if (result.error) {

@@ -2,6 +2,11 @@ import {
   requireGitStageWorktreeScopeReceipt,
   type GitStageWorktreeScope
 } from '../../../shared/git/paths/git-stage-worktree-scope'
+import {
+  requirementStagePathBlocked,
+  requirementStagePrefixes
+} from '../../../shared/fork-hooks/requirement-preview'
+import { forkTranslate } from '../../../fork/i18n/fork-translate'
 import { resolveLocalWorktreePath, type RuntimeGitContext } from './runtime-git-client-context'
 import type { ConflictResolution } from '../../../shared/source-control/listing/source-control-entry-actions'
 import { translate } from '@/i18n/i18n'
@@ -9,10 +14,26 @@ import { callRuntimeRpc } from './runtime-rpc-client'
 import { RuntimeRpcCallError } from './runtime-rpc-result'
 import { toRuntimeWorktreeSelector } from './runtime-worktree-selector'
 
+function nestedStagePaths(worktreeId: string | null | undefined): string[] {
+  return [...requirementStagePrefixes(worktreeId ?? null)]
+}
+
+function refuseNestedPath(worktreeId: string | null | undefined, filePath: string): void {
+  if (requirementStagePathBlocked(worktreeId ?? null, filePath)) {
+    throw new Error(
+      forkTranslate(
+        'fork.requirement.stageNested',
+        'This path is a nested worktree and was not staged.'
+      )
+    )
+  }
+}
+
 export async function stageRuntimeGitPath(
   context: RuntimeGitContext,
   filePath: string
 ): Promise<void> {
+  refuseNestedPath(context.worktreeId, filePath)
   const target = context.target
   if (target.kind === 'local' || !context.worktreeId) {
     await window.api.git.stage({
@@ -70,18 +91,23 @@ export async function bulkStageRuntimeGitPaths(
   filePaths: string[]
 ): Promise<void> {
   const target = context.target
+  const excludedTreePaths = nestedStagePaths(context.worktreeId)
+  const safePaths = filePaths.filter(
+    (filePath) => !requirementStagePathBlocked(context.worktreeId ?? null, filePath)
+  )
   if (target.kind === 'local' || !context.worktreeId) {
     await window.api.git.bulkStage({
       worktreePath: resolveLocalWorktreePath(context),
-      filePaths,
-      connectionId: context.connectionId
+      filePaths: safePaths,
+      connectionId: context.connectionId,
+      excludedTreePaths
     })
     return
   }
   await callRuntimeRpc(
     target,
     'git.bulkStage',
-    { worktree: toRuntimeWorktreeSelector(context.worktreeId), filePaths },
+    { worktree: toRuntimeWorktreeSelector(context.worktreeId), filePaths: safePaths },
     { timeoutMs: 15_000 }
   )
 }
@@ -92,13 +118,23 @@ export async function stageRuntimeGitWorktreeScope(
   scope: GitStageWorktreeScope
 ): Promise<void> {
   const target = context.target
+  const excludedTreePaths = nestedStagePaths(context.worktreeId)
+  if (excludedTreePaths.length > 0 && target.kind !== 'local') {
+    throw new Error(
+      forkTranslate(
+        'fork.requirement.stageAllRemote',
+        'Stage all is off for this remote workspace because it would record nested gitlinks.'
+      )
+    )
+  }
   // Why no paths: an older host strips `scope` and stages `filePaths`, so an empty list makes that a no-op.
   if (target.kind === 'local' || !context.worktreeId) {
     await window.api.git.bulkStage({
       worktreePath: resolveLocalWorktreePath(context),
       filePaths: [],
       connectionId: context.connectionId,
-      scope
+      scope,
+      excludedTreePaths
     })
     return
   }

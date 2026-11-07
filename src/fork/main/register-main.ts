@@ -14,6 +14,9 @@ import { antigravityAcpIpv6BypassArgs } from './antigravity-acp-ipv6'
 import { keepFolderWorkspacesOnGroupDelete } from './project-group-delete'
 import { registerEgoLiteCookieBrowser } from '../ego-lite-cookie-browser'
 import { registerEgoLiteCookieDetection } from './ego-lite-cookie-detection'
+import { isRequirementPreviewBuild } from '../requirement-preview/build-flag'
+import { applyFolderParentLineage } from './folder-parent-lineage'
+import { registerFolderParentSet } from '../../shared/fork-hooks/requirement-preview'
 
 /** Desktop and orcad. The renderer must not import this file. */
 export function registerForkMainModules(): void {
@@ -30,6 +33,9 @@ export function registerForkMainModules(): void {
   registerReusedPathUnarchive()
   // F052：没有 IPv6 的 Linux 内核不让 1.4.1 的 agy 在初始化时创建 AF_INET6。
   registerAntigravityAcpLinuxArgs(antigravityAcpIpv6BypassArgs())
+  if (isRequirementPreviewBuild()) {
+    registerFolderParentSet(applyFolderParentLineage)
+  }
 }
 
 /** orcad only, before upstream installs its host adapters. */

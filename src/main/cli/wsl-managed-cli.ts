@@ -5,6 +5,7 @@ import { getAppEnvironment } from '../../shared/app-environment'
 import { windowsPowerShellPath } from '@orca/process-host/windows-system-binary'
 import { writeShellWrapperFiles } from '../pty/shell-startup/shell-wrapper-file-writer'
 import { getBundledLauncherPath, LINUX_CLI_COMMAND_NAME } from './bundled-cli-launcher-path'
+import { resolveRuntimeOutputEntry } from '../../fork/requirement-preview/output-root'
 import { DEV_COMMAND_NAME } from './cli-install-constants'
 import { buildColocatedWslLauncher, buildWslBridgeScript } from './wsl-cli-scripts'
 
@@ -23,7 +24,11 @@ export function getManagedWslCliDir(opts: {
 }): string | null {
   const cliEntryPath = opts.isPackaged
     ? undefined
-    : join(getAppEnvironment().getAppPath(), 'out', 'cli', 'index.js')
+    : resolveRuntimeOutputEntry({
+        basePath: getAppEnvironment().getAppPath(),
+        segments: ['cli', 'index.js'],
+        exists: existsSync
+      })
   const launcherPath = opts.isPackaged
     ? opts.resourcesPath && getBundledLauncherPath('win32', opts.resourcesPath)
     : process.execPath

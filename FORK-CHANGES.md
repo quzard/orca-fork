@@ -16,6 +16,14 @@
   - `register-renderer.tsx`（仅界面）：fork 语言包、侧栏行计划和各个插槽、跨组拖放、删除工作区和软删除归档、创建弹窗的种子、导入后的回调、SSH 重连重绘、聊天盖层的画布样式、F046 工作区外的主机文件和大文件分段读、端口 Forward、历史会话的列表呈现和默认主机。
 - 目录约定：只在主进程运行的 fork 代码放 `src/fork/main/`；引用渲染进程的 fork 代码用 `.tsx`；`*.fork.test.ts` 是 node 测试，渲染进程测试用 `.fork.test.tsx`。tsconfig 只按这三条通配：node 工程收 `src/fork/**/*.ts`，web 工程收 `src/fork/**/*.ts` 和 `*.tsx`，排除 `src/fork/main/**` 和 `src/fork/**/*.fork.test.ts`。fork 文件引用了所在工程不包含的文件时 tsc 自己报 TS6307；`src/fork/tsconfig-boundaries.mjs` 只在 fork 测试（`src/fork/tsconfig-boundaries.fork.test.ts`）里跑，不挂在 `pnpm tc` 前面。用到真实 SQLite 的 fork 测试由上游的 `findSqliteRuntimeTests()` 按 import 找到，`config/scripts/vitest-node-runtime-files.mjs` 与上游一致。
 
+## 需求预览
+
+需求是同一主机上的工作区血缘分组，不是项目组，也不扫描目录当仓库列表。侧栏是主机、需求、需求根和成员。需求根沿用已经存在的工作区 id。概览是盖在现有工作区上的一层，不另写终端。审阅只读。父仓库源码管理收起嵌套工作区，不执行 `git submodule`。
+
+`orca worktree set --parent-worktree folder:<id>` 在登记后可以给同一台机器上的文件夹父级写血缘。未登记时仍然拒绝。跨机器的文件夹父级仍然拒绝。
+
+可安装包要用 `ORCA_REQUIREMENT_PREVIEW=1` 走现有 Mac 打包。包名、bundle id、用户数据、更新和 `orca://` 都和日常 Orca 分开。预览不连接 SSH，也不升级远程守护进程。说明在 [docs/fork/requirement-preview.md](docs/fork/requirement-preview.md)。这台机器上的包还没有构建，不能当作已经可以安装。
+
 ## 上游文件规则
 
 每天有机器人把上游 `main` 合并进 `develop`（`fork/scripts/daily-sync.sh`，见 [docs/fork/DAILY.md](docs/fork/DAILY.md)）。fork 在上游文件里改的每一行都是以后可能的合并冲突，所以同步成本是首要要求。上游文件指 `src/fork/`、`src/shared/fork-hooks/`、`fork/`、`docs/fork/` 和本文件以外的所有文件。

@@ -1,4 +1,5 @@
 import { basename, dirname, join } from 'node:path'
+import { runtimeOutputRoot } from '../../fork/requirement-preview/output-root'
 import { getAppEnvironment, hasAppEnvironment } from '../../shared/app-environment'
 
 /** Keep this reachable from plain-Node entries; the build guard rejects Electron imports here. */
@@ -15,7 +16,7 @@ export function resolveWorkerThreadEntryPath(
 ): string {
   // Plain-Node orcad can be packaged without Electron resources; its workers live beside the module.
   if (layout.isPackaged && layout.resourcesPath) {
-    return join(layout.resourcesPath, 'app.asar', 'out', 'main', entryFileName)
+    return join(layout.resourcesPath, 'app.asar', runtimeOutputRoot(), 'main', entryFileName)
   }
   return join(layout.moduleDir, entryFileName)
 }

@@ -53,6 +53,8 @@ import {
   registerStaleKeptHostFileReadOnlyRelease
 } from './terminal/kept-host-file-view'
 import { registerForkModules } from './register'
+import { isRequirementPreviewBuild } from './requirement-preview/build-flag'
+import { registerRequirementSurfaces } from './requirement/requirement-layer'
 
 /** Renderer hooks. Kept out of the node program so it can read the app store. */
 export function registerForkRendererModules(): void {
@@ -99,6 +101,9 @@ export function registerForkRendererModules(): void {
     import('./import/apply-post-import').then((module) => module.applyForkPostImport(details))
   )
   enableWorkspacePortForward()
+  if (isRequirementPreviewBuild()) {
+    registerRequirementSurfaces()
+  }
   registerAiVaultRendererModules()
 }
 

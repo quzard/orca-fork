@@ -185,7 +185,7 @@ if (preflightReady) {
           failure_class: failureClass
         })
       }
-      console.error(`[profile-state] ${message}`)
+      console.error(`[profile-state] userData=${getProfileUserDataPath()} ${message}`)
       if (!state.isServeMode && !isBackgroundLaunch()) {
         try {
           await prepareEarlyMainUiLanguage()

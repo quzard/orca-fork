@@ -38,6 +38,7 @@ import {
   isDefiniteSystemSshHostFailure
 } from '../ssh-reconnect-error-classification'
 import { buildConnectConfig } from './ssh-connect-config'
+import { requirementPreviewSshRefusal } from '../../../fork/requirement-preview/profile'
 import { withSkippedIdentityFileDetail, type SkippedIdentityFiles } from '../ssh-auth-resolution'
 import { createSshOperationAbortError, type SshExecOptions } from './ssh-exec-options'
 import type { SshConnectionCallbacks, SshCredentialKind } from './ssh-connection-callbacks'
@@ -297,6 +298,10 @@ export class SshConnection {
   }
 
   async connect(): Promise<void> {
+    const previewRefusal = requirementPreviewSshRefusal()
+    if (previewRefusal) {
+      throw new Error(previewRefusal)
+    }
     if (this.disposed) {
       throw new Error('Connection disposed')
     }

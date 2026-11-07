@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto'
 import path from 'node:path'
+import { isRequirementPreviewBuild } from '../../fork/requirement-preview/build-flag'
+import { PREVIEW_APP_ID, PREVIEW_PRODUCT_NAME } from '../../fork/requirement-preview/profile'
 import type { AppIdentity } from '../../shared/app-identity'
 
 const BASE_APP_NAME = 'Orca'
@@ -55,16 +57,17 @@ export function getDevInstanceIdentity(
   env: NodeJS.ProcessEnv = process.env
 ): DevInstanceIdentity {
   if (!isDev) {
+    const preview = isRequirementPreviewBuild()
     return {
-      name: BASE_APP_NAME,
-      appName: BASE_APP_NAME,
+      name: preview ? PREVIEW_PRODUCT_NAME : BASE_APP_NAME,
+      appName: preview ? PREVIEW_PRODUCT_NAME : BASE_APP_NAME,
       isDev: false,
       devLabel: null,
       devBranch: null,
       devWorktreeName: null,
       devRepoRoot: null,
       dockBadgeLabel: null,
-      appUserModelId: BASE_APP_USER_MODEL_ID
+      appUserModelId: preview ? PREVIEW_APP_ID : BASE_APP_USER_MODEL_ID
     }
   }
 

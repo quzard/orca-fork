@@ -16,6 +16,10 @@ readonly OUTPUT_DIR='dist'
 readonly CLEANUP_VERIFIED_BACKUPS='--cleanup-verified-backups'
 readonly APP_BUNDLE_ID='com.stablyai.orca'
 
+# shellcheck source=refuse-daily-preview-payload.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/refuse-daily-preview-payload.sh"
+refuse_if_selected_payload_is_preview "$OUTPUT_DIR" "$REPO_ROOT"
+
 if [[ "$(uname -s)" != 'Darwin' ]]; then
   echo '此脚本仅用于 macOS 本机安装。' >&2
   exit 1
@@ -154,6 +158,7 @@ ELECTRON_RUN_AS_NODE=1 pnpm exec electron config/scripts/diagnostics/runtime-wat
 node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON config/scripts/orcad-distribution/prebuilds/pinned-node-downloads.mjs darwin-arm64
 pnpm run ensure:electron-runtime
 node config/scripts/desktop-distribution/macos/build-mac-local.mjs dmg:arm64 zip:arm64
+refuse_if_selected_payload_is_preview "$OUTPUT_DIR" "$REPO_ROOT"
 
 ORCA_LOCAL_BUILD_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$BUILT_APP/Contents/Info.plist")"
 assert_packaged_artifacts

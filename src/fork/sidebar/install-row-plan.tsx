@@ -1,6 +1,8 @@
 // Attaches the renderer row plan. Safe to call more than once.
 import { lookupSidebarGroupMode } from '../../shared/fork-hooks/sidebar-group-mode'
 import { buildHostDirectoryRowPlan } from './host-directory-rows'
+import { buildRequirementSidebarPlan } from '../requirement/sidebar-plan'
+import { isRequirementPreviewBuild } from '../requirement-preview/build-flag'
 import { HOST_DIRECTORY_GROUP_BY } from './section-keys'
 
 export function installHostDirectoryRowPlan(): void {
@@ -8,5 +10,7 @@ export function installHostDirectoryRowPlan(): void {
   if (!mode) {
     return
   }
-  mode.buildRowPlan = buildHostDirectoryRowPlan
+  mode.buildRowPlan = isRequirementPreviewBuild()
+    ? buildRequirementSidebarPlan
+    : buildHostDirectoryRowPlan
 }

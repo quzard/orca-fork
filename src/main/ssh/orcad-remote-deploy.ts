@@ -31,6 +31,7 @@ import {
 } from '../managed-server/activation/orcad-activation-lock'
 import { activateInstalledOrcad } from './orcad-installed-activation'
 import { orcadActivationFenceRefusal } from '../managed-server/activation/orcad-activation-fence-hold'
+import { assertRequirementPreviewRemoteClosed } from '../../fork/requirement-preview/profile'
 
 export type OrcadDeployOptions = {
   conn: OrcadHostTransport
@@ -91,6 +92,7 @@ export async function deployOrcad(
   input: OrcadDeployOptions,
   retryClearedFence = true
 ): Promise<OrcadDeployResult> {
+  assertRequirementPreviewRemoteClosed()
   const target =
     input.target ??
     (input.localOrcadDir

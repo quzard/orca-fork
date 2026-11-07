@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { runtimeOutputRoot } from '../../fork/requirement-preview/output-root'
 import { getAppEnvironment, hasAppEnvironment } from '../../shared/app-environment'
 
 /** Plain-Node entries import this module; the build guard rejects literal Electron requires. */
@@ -17,7 +18,7 @@ export function resolveForkedChildEntryPath(
   if (!usesAsarArchive && pathExists(adjacentBuildEntry)) {
     return adjacentBuildEntry
   }
-  return join(basePath, 'out', 'main', entryFileName)
+  return join(basePath, runtimeOutputRoot(), 'main', entryFileName)
 }
 
 /** For ELECTRON_RUN_AS_NODE, which exposes resourcesPath but no app root. */
@@ -28,7 +29,13 @@ export function resolveForkedChildEntryPathWithoutApp(
   pathExists: (candidate: string) => boolean = existsSync
 ): string {
   if (resourcesPath) {
-    const packagedEntry = join(resourcesPath, 'app.asar.unpacked', 'out', 'main', entryFileName)
+    const packagedEntry = join(
+      resourcesPath,
+      'app.asar.unpacked',
+      runtimeOutputRoot(),
+      'main',
+      entryFileName
+    )
     if (pathExists(packagedEntry)) {
       return packagedEntry
     }

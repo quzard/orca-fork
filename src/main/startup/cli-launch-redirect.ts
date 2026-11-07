@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs'
+import { packagedCliEntryPath } from '../../fork/requirement-preview/output-root'
 import { posix, resolve, win32 } from 'node:path'
 import { runProcessSync } from '@orca/process-host'
 import { CLI_BOOLEAN_FLAGS, findCliCommandIndex } from '../../shared/cli-argument-boundary'
@@ -44,7 +45,7 @@ export function maybeRedirectCliLaunch(
   const execPath = options.execPath ?? process.execPath
   const exists = options.exists ?? existsSync
   const run = options.run ?? runProcessSync
-  const cliEntryPath = buildPackagedCliEntryPath(platform, resourcesPath)
+  const cliEntryPath = packagedCliEntryPath(resourcesPath, platform)
   const cliArgs = getCliLaunchArgs(argv, cliEntryPath, {
     platform,
     isPackaged,
@@ -305,10 +306,6 @@ function takesLaunchValue(token: string, next: string | undefined): boolean {
 function flagName(arg: string): string {
   const equalsIndex = arg.indexOf('=')
   return equalsIndex === -1 ? arg : arg.slice(0, equalsIndex)
-}
-
-function buildPackagedCliEntryPath(platform: NodeJS.Platform, resourcesPath: string): string {
-  return getPathApi(platform).join(resourcesPath, 'app.asar.unpacked', 'out', 'cli', 'index.js')
 }
 
 function normalizePathForPlatform(value: string, platform: NodeJS.Platform): string {

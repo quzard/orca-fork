@@ -1,4 +1,5 @@
 import { app } from 'electron'
+import { isRequirementPreviewBuild } from '../requirement-preview/build-flag'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { guardedSafeStorage } from '../../main/host/safe-storage-availability'
@@ -16,6 +17,17 @@ export function usesPackagedMacosFileSecretStore(input: {
 
 export function macosFileSecretDirectory(home = homedir()): string {
   return join(home, LOCAL_SECRET_STORAGE.root, LOCAL_SECRET_STORAGE.directory)
+}
+
+/** 预览包把密钥放进自己的 userData，不碰日常 Orca 的 ~/.orca/secrets。 */
+export function packagedMacosSecretDirectory(input: {
+  preview: boolean
+  userDataPath: string
+  home?: string
+}): string {
+  return input.preview
+    ? join(input.userDataPath, LOCAL_SECRET_STORAGE.directory)
+    : macosFileSecretDirectory(input.home)
 }
 
 /**
@@ -40,7 +52,12 @@ export function createPackagedMacosSecretStore(): SecretStore | null {
   if (!usesPackagedMacosFileSecretStore(gate)) {
     return null
   }
-  const store = new MacosFileSecretStore(macosFileSecretDirectory())
+  const store = new MacosFileSecretStore(
+    packagedMacosSecretDirectory({
+      preview: isRequirementPreviewBuild(),
+      userDataPath: app.getPath('userData')
+    })
+  )
   routeGuardedSafeStorage(store)
   return store
 }

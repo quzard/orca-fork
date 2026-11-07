@@ -15,6 +15,8 @@ import {
   isConfirmedStaleFolderPathStatus
 } from '../../../../../../shared/folder-workspaces/folder-workspace-path-status'
 import { folderWorkspaceToWorktree } from '../../../../../../shared/folder-workspaces/folder-workspace-worktree'
+import { RequirementFolderEntry } from '../../../../../../fork/requirement/folder-entry'
+import { presentRequirementFolderWorktree } from '../../../../../../fork/requirement/requirements'
 import WorktreeCard from '../../workspace-card/surface/WorktreeCard'
 import type { WorktreeGroupBy } from '../../../../../../shared/sidebar-list/row-types'
 import { getVirtualRowTransform } from '../viewport/virtual-rows'
@@ -63,7 +65,10 @@ export function renderFolderWorkspaceVirtualRow(args: {
   measureVirtualRowElement: (element: HTMLDivElement | null) => void
 }): React.JSX.Element {
   const { ctx, row, vItem } = args
-  const folderWorktree = folderWorkspaceToWorktree(row.folderWorkspace)
+  const folderWorktree = presentRequirementFolderWorktree(
+    row.key,
+    folderWorkspaceToWorktree(row.folderWorkspace)
+  )
   const folderWorktreeIdentity = getWorktreeHostIdentity(folderWorktree)
   const isActiveWorktree = isActiveSidebarWorkspace(folderWorktree, {
     worktreeId: ctx.activeWorktreeId,
@@ -133,7 +138,8 @@ export function renderFolderWorkspaceVirtualRow(args: {
           onContextMenuSelect={ctx.onContextMenuSelect}
           statusPrDisplay={folderPrDisplay}
         />
-        <div className="pointer-events-auto absolute right-3 top-1.5">
+        <div className="pointer-events-auto absolute right-3 top-1.5 flex items-center gap-2">
+          <RequirementFolderEntry folderId={row.folderWorkspace.id} />
           <FolderPathStatusIndicator status={pathStatus} />
         </div>
       </div>

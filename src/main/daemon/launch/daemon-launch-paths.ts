@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs'
+import { resolveRuntimeOutputEntry } from '../../../fork/requirement-preview/output-root'
 import { connect } from 'node:net'
 import { join } from 'node:path'
 import { getAppEnvironment } from '../../../shared/app-environment'
@@ -33,9 +34,14 @@ export function getDaemonEntryPath(): string {
     ? appPath.replace('app.asar', 'app.asar.unpacked')
     : appPath
   const directEntryPath = join(basePath, 'daemon-entry.js')
-  return existsSync(directEntryPath)
-    ? directEntryPath
-    : join(basePath, 'out', 'main', 'daemon-entry.js')
+  if (existsSync(directEntryPath)) {
+    return directEntryPath
+  }
+  return resolveRuntimeOutputEntry({
+    basePath,
+    segments: ['main', 'daemon-entry.js'],
+    exists: existsSync
+  })
 }
 
 /** Recycle drained stale daemons on macOS for TCC; orcad opts in everywhere for code and umask updates. */

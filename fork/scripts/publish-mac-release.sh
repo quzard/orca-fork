@@ -644,6 +644,9 @@ if [[ -z "$DIST" || -z "$SHA_ARG" ]]; then
   ERROR="missing --dist or --sha"
   finish 1
 fi
+# shellcheck source=refuse-daily-preview-payload.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/refuse-daily-preview-payload.sh"
+refuse_if_selected_payload_is_preview "$DIST" "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 if [[ ! -f "${DIST}/${CHANNEL_FILE}" ]]; then
   ERROR="dist/latest-mac.yml is missing"
   finish 1

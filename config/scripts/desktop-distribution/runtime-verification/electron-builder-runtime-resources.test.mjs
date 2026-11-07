@@ -70,6 +70,38 @@ describe('packaged runtime resources', () => {
     }
   })
 
+  it('verifies a preview asar and still rejects a missing preview dependency', async () => {
+    const resourcesDir = await mkdtemp(join(tmpdir(), 'orca-runtime-preview-deps-'))
+    try {
+      await writeFile(join(resourcesDir, 'app.asar'), '', 'utf8')
+      const root = 'out-requirement-preview'
+      const sources = new Map([
+        [`${root}/main/index.js`, 'require("yaml")'],
+        [`${root}/main/agent-hooks/managed-agent-hook-controls.js`, ''],
+        [`${root}/main/chunks/shared.js`, 'require("jsonc-parser")']
+      ])
+      const asar = {
+        listPackage: () => [...sources.keys()].map((entry) => `/${entry}`),
+        extractFile: (_asarPath, internalPath) => {
+          const source = sources.get(internalPath)
+          if (source === undefined) {
+            throw new Error(`missing ${internalPath}`)
+          }
+          return Buffer.from(source, 'utf8')
+        }
+      }
+      expect(() => verifyPackagedMainRuntimeDeps(resourcesDir, asar, root)).toThrow(/jsonc-parser/)
+      await mkdir(join(resourcesDir, 'node_modules', 'yaml'), { recursive: true })
+      await mkdir(join(resourcesDir, 'node_modules', 'jsonc-parser'), { recursive: true })
+      expect(() => verifyPackagedMainRuntimeDeps(resourcesDir, asar, root)).not.toThrow()
+      expect(() => verifyPackagedMainRuntimeDeps(resourcesDir, asar)).toThrow(
+        /out\/main\/index\.js was not found/
+      )
+    } finally {
+      await removeTree(resourcesDir)
+    }
+  })
+
   it('still fails when a required packaged main entry is missing entirely', async () => {
     const resourcesDir = await mkdtemp(join(tmpdir(), 'orca-runtime-missing-entry-'))
     try {

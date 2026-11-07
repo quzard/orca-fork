@@ -15,6 +15,7 @@ import { createViteCacheRetentionPlugin } from './config/build-plugins/vite-cach
 import { MAIN_BUILD_ENTRY_POINTS } from './config/build-plugins/main-build-entry-points'
 import { createPlainNodeEntryGuardPlugin } from './config/build-plugins/plain-node-entry-guard'
 import { forkRendererDefines } from './src/fork/skills-source-commit'
+import { applyRequirementPreviewVite } from './src/fork/requirement-preview/vite-preview'
 import { createDevServeConfig } from './config/build-plugins/dev-serve-config'
 import { resolveBuildSourceCommit } from './config/scripts/build-identity/build-source-commit.mjs'
 
@@ -317,6 +318,8 @@ export const electronViteConfig: UserConfig = {
     }
   }
 }
+
+applyRequirementPreviewVite(electronViteConfig)
 
 export default defineConfig(({ command }) =>
   command === 'serve' ? createDevServeConfig(electronViteConfig) : electronViteConfig

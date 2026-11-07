@@ -16,7 +16,10 @@ import {
 import { getWorktreeSharedLinkPaths } from '../../git/worktrees/content-paths/worktree-shared-directories'
 import { validateGitRelativeFilePath } from './access/filesystem-path-containment'
 import type { FilesystemHandlerContext } from './filesystem-handler-context'
-import { parseGitStageWorktreeScope } from '../../../shared/git/paths/git-stage-worktree-scope'
+import {
+  parseGitStageWorktreeScope,
+  pathUnderStageTree
+} from '../../../shared/git/paths/git-stage-worktree-scope'
 import { requireReachableGitRoute } from '../../providers/execution-host-provider-dispatch'
 import { getConnectionExecutionHostId } from '../../../shared/execution-host'
 import {
@@ -134,12 +137,23 @@ export function registerFilesystemGitIndexHandlers(context: FilesystemHandlerCon
     'git:bulkStage',
     async (
       _event,
-      args: { worktreePath: string; filePaths: string[]; connectionId?: string; scope?: unknown }
+      args: {
+        worktreePath: string
+        filePaths: string[]
+        connectionId?: string
+        scope?: unknown
+        excludedTreePaths?: string[]
+      }
     ): Promise<void> => {
       const scope = parseGitStageWorktreeScope(args.scope)
       requireReachableGitRoute(getConnectionExecutionHostId(args.connectionId))
       const worktreePath = await resolveRegisteredWorktreePath(args.worktreePath, store)
-      const filePaths = args.filePaths.map((p) => validateGitRelativeFilePath(worktreePath, p))
+      const excludedTreePaths = (args.excludedTreePaths ?? []).map((p) =>
+        validateGitRelativeFilePath(worktreePath, p)
+      )
+      const filePaths = args.filePaths
+        .map((p) => validateGitRelativeFilePath(worktreePath, p))
+        .filter((p) => !pathUnderStageTree(p, excludedTreePaths))
       const gitOptions = getLocalGitOptionsForRegisteredWorktree(
         store,
         args.worktreePath,
@@ -150,7 +164,8 @@ export function registerFilesystemGitIndexHandlers(context: FilesystemHandlerCon
         await stageWorktreeChanges(worktreePath, scope, {
           ...gitOptions,
           admissionTier: 'interactive',
-          sharedLinkPaths: repo ? getWorktreeSharedLinkPaths(repo) : []
+          sharedLinkPaths: repo ? getWorktreeSharedLinkPaths(repo) : [],
+          excludedTreePaths
         })
         return
       }

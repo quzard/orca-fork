@@ -1,9 +1,27 @@
 // 预览运行时只解析预览输出树。缺文件就失败，不用日常 out/ 顶上。
-import { join } from 'node:path'
+import { join, posix, win32 } from 'node:path'
 import { isRequirementPreviewBuild } from './build-flag'
 
 export const PREVIEW_OUTPUT_ROOT = 'out-requirement-preview'
 export const DAILY_OUTPUT_ROOT = 'out'
+
+export function packagedCliEntryPath(
+  resourcesPath: string,
+  platform: NodeJS.Platform = process.platform
+): string {
+  const pathApi = platform === 'win32' ? win32 : posix
+  return pathApi.join(resourcesPath, 'app.asar.unpacked', runtimeOutputRoot(), 'cli', 'index.js')
+}
+
+export function keepPreviewUserData(
+  previewPath: string,
+  currentPath: string,
+  setPath: (path: string) => void
+): void {
+  if (isRequirementPreviewBuild() && currentPath !== previewPath) {
+    setPath(previewPath)
+  }
+}
 
 export function runtimeOutputRoot(preview = isRequirementPreviewBuild()): string {
   return preview ? PREVIEW_OUTPUT_ROOT : DAILY_OUTPUT_ROOT

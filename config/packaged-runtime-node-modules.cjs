@@ -74,11 +74,19 @@ const ELECTRON_ARCHITECTURE_BY_ENUM = {
   4: 'universal'
 }
 const PACKAGED_NATIVE_ARCHITECTURES = new Set(['ia32', 'x64', 'arm', 'arm64'])
-const PACKAGED_MAIN_REQUIRED_FILES = [
-  'out/main/index.js',
-  'out/main/agent-hooks/managed-agent-hook-controls.js'
-]
-const PACKAGED_MAIN_SOURCE_RE = /^out\/main\/.+\.js$/
+const DAILY_PACKAGED_OUTPUT_ROOT = 'out'
+
+function packagedMainRequiredFiles(outputRoot = DAILY_PACKAGED_OUTPUT_ROOT) {
+  return [
+    `${outputRoot}/main/index.js`,
+    `${outputRoot}/main/agent-hooks/managed-agent-hook-controls.js`
+  ]
+}
+
+function packagedMainSourceRe(outputRoot = DAILY_PACKAGED_OUTPUT_ROOT) {
+  const escaped = outputRoot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`^${escaped}/main/.+\\.js$`)
+}
 const TYPE_DECLARATION_ARTIFACT_RE = /\.d\.(?:c|m)?ts(?:\.map)?$/
 const JS_SOURCE_MAP_ARTIFACT_RE = /\.(?:c|m)?js\.map$/
 const VERSIONED_ONNXRUNTIME_DYLIB_RE = /^libonnxruntime\.\d[\d.]*\.dylib$/
@@ -286,23 +294,28 @@ function findAsarEntry(entries, expectedPath) {
   return entries.find((entry) => normalizeAsarEntryPath(entry) === expectedPath)
 }
 
-function verifyPackagedMainRuntimeDeps(resourcesDir, asar = require('@electron/asar')) {
+function verifyPackagedMainRuntimeDeps(
+  resourcesDir,
+  asar = require('@electron/asar'),
+  outputRoot = DAILY_PACKAGED_OUTPUT_ROOT
+) {
   const asarPath = join(resourcesDir, 'app.asar')
   if (!existsSync(asarPath)) {
     return
   }
 
   const entries = asar.listPackage(asarPath)
-  for (const file of PACKAGED_MAIN_REQUIRED_FILES) {
+  for (const file of packagedMainRequiredFiles(outputRoot)) {
     if (!findAsarEntry(entries, file)) {
       throw new Error(`Packaged main file ${file} was not found in ${asarPath}`)
     }
   }
 
+  const sourceRe = packagedMainSourceRe(outputRoot)
   const missing = new Set()
   // Scan every emitted main chunk: shared bare imports can move out of entry files during bundling.
   for (const entry of entries) {
-    if (!PACKAGED_MAIN_SOURCE_RE.test(normalizeAsarEntryPath(entry))) {
+    if (!sourceRe.test(normalizeAsarEntryPath(entry))) {
       continue
     }
 

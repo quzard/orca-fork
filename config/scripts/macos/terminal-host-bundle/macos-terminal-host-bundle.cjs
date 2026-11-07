@@ -257,9 +257,15 @@ function lipoArchsToNodeArchs(lipoOutput) {
 }
 
 /** Copies the pinned Node, the daemon JS with its packages, and this slice's node-pty. */
-function assembleMacTerminalHost({ appPath, nodeExecutable, iconPath, info }) {
+function assembleMacTerminalHost({
+  appPath,
+  nodeExecutable,
+  iconPath,
+  info,
+  outputRoot = 'out'
+}) {
   const resourcesDir = join(appPath, 'Contents', 'Resources')
-  const daemonOut = join(resourcesDir, 'app.asar.unpacked', 'out')
+  const daemonOut = join(resourcesDir, 'app.asar.unpacked', outputRoot)
   const nodePty = join(resourcesDir, 'node_modules', 'node-pty')
   for (const required of [join(daemonOut, 'main', 'daemon-entry.js'), nodePty, nodeExecutable]) {
     if (!existsSync(required)) {
@@ -313,10 +319,12 @@ async function buildMacTerminalHost({
   iconPath,
   entitlementsPath,
   usageDescriptions,
-  signCode
+  signCode,
+  outputRoot = 'out'
 }) {
   const { NODE_RUNTIME_DARWIN_MINIMUM_OS } = await loadNodeRuntimePin()
   const paths = assembleMacTerminalHost({
+    outputRoot,
     appPath,
     nodeExecutable: await pinnedDarwinNode(arch),
     iconPath,

@@ -1,4 +1,5 @@
 import { app, session } from 'electron'
+import { keepPreviewUserData } from '../../fork/requirement-preview/output-root'
 import { applyBackgroundActivationPolicy } from '../window/foreground-activation-policy'
 import { applyElectronProxySettings } from '../network/proxy-settings'
 import { installElectronProxyRequestGuard } from '../network/electron-proxy-request-guard'
@@ -113,6 +114,9 @@ export async function initializeReadyFoundation(): Promise<void> {
   }
   // Post-ready naming preserves packaged Keychain identity; dev already renamed before ready.
   app.setName(identity.appName)
+  keepPreviewUserData(canonicalUserDataPath, app.getPath('userData'), (path) =>
+    app.setPath('userData', path)
+  )
   updateGpuAccelerationAboutPanel()
   if (state.isServeMode) {
     // Profile loading can decrypt and hang; fence unreachable keychains first.

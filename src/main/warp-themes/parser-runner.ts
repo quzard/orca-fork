@@ -1,3 +1,4 @@
+import { runtimeOutputRoot } from '../../fork/requirement-preview/output-root'
 import { spawnWorkerThread } from '../worker-threads/worker-thread-spawn'
 import { app } from 'electron'
 import { join } from 'node:path'
@@ -11,7 +12,13 @@ type ParseWarpThemeTimeoutOptions = {
 
 function getParserWorkerPath(): string {
   if (app.isPackaged) {
-    return join(process.resourcesPath, 'app.asar', 'out', 'main', 'warp-theme-parser-worker.js')
+    return join(
+      process.resourcesPath,
+      'app.asar',
+      runtimeOutputRoot(),
+      'main',
+      'warp-theme-parser-worker.js'
+    )
   }
   return join(__dirname, 'warp-theme-parser-worker.js')
 }

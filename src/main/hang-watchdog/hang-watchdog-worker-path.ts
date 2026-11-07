@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { runtimeOutputRoot } from '../../fork/requirement-preview/output-root'
 
 export function resolveHangWatchdogWorkerPath(
   appPath: string,
@@ -10,5 +11,5 @@ export function resolveHangWatchdogWorkerPath(
   if (!isPackaged && pathExists(adjacentBuildEntry)) {
     return adjacentBuildEntry
   }
-  return join(appPath, 'out', 'main', 'main-thread-hang-watchdog-entry.js')
+  return join(appPath, runtimeOutputRoot(), 'main', 'main-thread-hang-watchdog-entry.js')
 }

@@ -82,11 +82,13 @@ function verifyAsar(asarPath) {
   const allEntries = listPackage(asarPath)
   const mainJsEntries = allEntries.filter((p) => {
     const normalized = p.replace(/\\/g, '/').replace(/^\/+/, '')
-    return normalized.startsWith('out/main/') && normalized.endsWith('.js')
+    const outputRoot = process.env.ORCA_PACKAGED_OUTPUT_ROOT || 'out'
+    return normalized.startsWith(`${outputRoot}/main/`) && normalized.endsWith('.js')
   })
 
   if (mainJsEntries.length === 0) {
-    console.error(`::error::no .js files found under out/main/ in ${asarPath}`)
+    const outputRoot = process.env.ORCA_PACKAGED_OUTPUT_ROOT || 'out'
+    console.error(`::error::no .js files found under ${outputRoot}/main/ in ${asarPath}`)
     return null
   }
 

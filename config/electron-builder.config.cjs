@@ -456,7 +456,7 @@ module.exports = {
       finalizePackagedWaylandClipboard(resourcesDir)
       verifyLinuxGlibcFloor(context.appOutDir, { targetArch })
     }
-    verifyPackagedMainRuntimeDeps(resourcesDir)
+    verifyPackagedMainRuntimeDeps(resourcesDir, undefined, packagedOutputRoot)
     // Smoke only host-runnable slices: daemon JS loads target-arch node-pty. Arch enum ia32=0, x64=1, armv7l=2, arm64=3, universal=4.
     const archEnumByNodeArch = { ia32: 0, x64: 1, armv7l: 2, arm64: 3 }
     const hostArchEnum = archEnumByNodeArch[process.arch]
@@ -870,6 +870,7 @@ async function packageMacTerminalHost(appPath, context) {
   await buildMacTerminalHost({
     appPath,
     arch,
+    outputRoot: packagedOutputRoot,
     iconPath: resolve(__dirname, '../resources/build/icon.icns'),
     entitlementsPath: resolve(__dirname, '../resources/build/entitlements.mac.plist'),
     usageDescriptions: macUsageDescriptions,

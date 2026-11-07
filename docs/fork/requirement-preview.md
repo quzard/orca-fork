@@ -33,4 +33,21 @@ The sidebar groups a host, then a requirement, then the requirement root and the
 
 ## What was not launched here
 
-Electron GUI smoke is not part of the happy-dom tests. If a later check launches the app, it must be the preview binary with `ORCA_BACKGROUND_LAUNCH=1`, and it must not install over `/Applications/Orca.app`.
+This environment has no Mac and did not produce a DMG or ZIP. Electron GUI smoke here is not a Mini install.
+
+A packaged preview must keep the name `Orca Requirement Preview` after startup. Resetting that name to `Orca` would aim the process at the daily profile. The dialog whose bold line is “Orca 无法安全地打开此配置文件。” is the existing profile-state guard (`profileState.startupRecovery.message`). It is not Gatekeeper, and it is not the packaging verifier. The smaller detail text, and the terminal line `[profile-state] userData=...`, name the actual failure. Do not delete `~/Library/Application Support/Orca`, `/usr/local/bin/orca`, or LaunchAgents to get past it.
+
+Mini retry, from a clean checkout of the new commit:
+
+```sh
+rm -rf dist-requirement-preview
+node fork/scripts/build-requirement-preview.mjs dmg:arm64 zip:arm64
+```
+
+Install only the new preview `.app` beside daily Orca. If the profile dialog returns, launch from Terminal and keep the `[profile-state]` line:
+
+```sh
+"/Applications/Orca Requirement Preview.app/Contents/MacOS/Orca Requirement Preview"
+```
+
+If that log's `userData=` path is the daily `Orca` folder, stop. If it is the preview folder and the detail says the SQLite file from the earlier half-built launch is unreadable, move only `~/Library/Application Support/Orca Requirement Preview` aside and launch again.

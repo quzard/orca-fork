@@ -116,6 +116,24 @@ export function requirementOverviewLayer(): unknown {
   return overviewLayer?.() ?? null
 }
 
+let openFolder: ((folderId: string) => void) | null = null
+
+export function registerRequirementFolderOpen(open: (folderId: string) => void): void {
+  openFolder = open
+}
+
+export function requirementFolderCanOpen(): boolean {
+  return openFolder !== null
+}
+
+export function requirementFolderOpen(folderId: string): boolean {
+  if (!openFolder) {
+    return false
+  }
+  openFolder(folderId)
+  return true
+}
+
 let stagePrefixes: (worktreeId: string | null) => readonly string[] = () => []
 
 export function registerRequirementStagePrefixes(

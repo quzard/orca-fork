@@ -59,6 +59,7 @@
       "member": "成员",
       "loadRelativeBase": "读取相对基线",
       "members": "成员",
+      "openFolder": "需求",
       "needsMe": "需要我处理",
       "pickTwo": "选择两个文件后再比较。",
       "relativeBaseError": "相对基线比较失败。未提交文件仍然列出。",

@@ -14,6 +14,7 @@ import {
 } from './appimage-extracted-root'
 import { resolveGenerationStableLauncherPath } from './appimage-generation-stable-launcher'
 import { getBundledLauncherPath, LINUX_CLI_COMMAND_NAME } from './bundled-cli-launcher-path'
+import { resolveRuntimeOutputEntry } from '../../fork/requirement-preview/output-root'
 import { DEFAULT_MAC_COMMAND_PATH, DEV_COMMAND_NAME } from './cli-install-constants'
 import { ensureDevLauncher } from './cli-dev-launcher'
 import type { CliInstallerOptions, InstallSpec } from './cli-installer-contracts'
@@ -274,7 +275,11 @@ export abstract class CliInstallLocation {
       platform: this.platform,
       userDataPath: this.userDataPath,
       execPath: this.execPathValue,
-      cliEntryPath: join(this.appPathValue, 'out', 'cli', 'index.js'),
+      cliEntryPath: resolveRuntimeOutputEntry({
+        basePath: this.appPathValue,
+        segments: ['cli', 'index.js'],
+        exists: existsSync
+      }),
       commandName: this.commandName
     })
   }

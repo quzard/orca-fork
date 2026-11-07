@@ -12,8 +12,8 @@ readonly RELEASE_COMPLETE="published"
 readonly RELEASE_DMG_PENDING="published-dmg-pending"
 readonly PUBLISH_DMG_PENDING_EXIT=20
 
-if [[ "${ORCA_REQUIREMENT_PREVIEW:-}" == 1 || -f out/requirement-preview-build.json ]]; then
-  echo 'requirement preview cannot publish daily Orca' >&2
+if [[ "${ORCA_REQUIREMENT_PREVIEW:-}" == 1 ]]; then
+  echo 'requirement preview env cannot publish daily Orca' >&2
   exit 1
 fi
 

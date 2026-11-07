@@ -1,5 +1,7 @@
 import { fork, type ChildProcess } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import { isRequirementPreviewBuild } from '../../fork/requirement-preview/build-flag'
+import { resolveRuntimeOutputEntry } from '../../fork/requirement-preview/output-root'
 import { join } from 'node:path'
 import {
   pickAllowedEnv,
@@ -33,12 +35,20 @@ export function resolveWslTranscriptFsProcessEntryPath(
     }
   }
   if (resourcesPath) {
-    const packaged = join(resourcesPath, 'app.asar.unpacked', 'out', 'main', PROCESS_ENTRY_FILENAME)
-    if (pathExists(packaged)) {
+    const packaged = resolveRuntimeOutputEntry({
+      basePath: join(resourcesPath, 'app.asar.unpacked'),
+      segments: ['main', PROCESS_ENTRY_FILENAME],
+      exists: pathExists
+    })
+    if (pathExists(packaged) || isRequirementPreviewBuild()) {
       return packaged
     }
   }
-  return join(process.cwd(), 'out', 'main', PROCESS_ENTRY_FILENAME)
+  return resolveRuntimeOutputEntry({
+    basePath: process.cwd(),
+    segments: ['main', PROCESS_ENTRY_FILENAME],
+    exists: pathExists
+  })
 }
 
 export function forkWslTranscriptFsProcess(): ChildProcess {

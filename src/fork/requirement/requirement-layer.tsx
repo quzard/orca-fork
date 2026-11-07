@@ -1,9 +1,10 @@
 import { posixRelative } from './posix-path'
 import { useMemo, useState } from 'react'
-import { useAppStore } from '@/store'
-import { getLiveAgentStatusByWorktreeId } from '@/lib/worktree-activity-state'
+import { useAppStore } from '../../renderer/src/store'
+import { getLiveAgentStatusByWorktreeId } from '../../renderer/src/lib/worktree-activity-state'
 import type { Worktree } from '../../shared/worktree/types'
 import {
+  registerRequirementFolderOpen,
   registerRequirementStagePrefixes,
   registerRequirementHeaderOpen,
   registerRequirementHistory,
@@ -75,6 +76,14 @@ function memberRoots(worktreeId: string | null): string[] | null {
 
 export function registerRequirementSurfaces(): void {
   registerRequirementRootLabel(() => forkTranslate('fork.requirement.root', '需求根'))
+  registerRequirementFolderOpen((folderId) => {
+    const requirementId = `folder:${folderId}`
+    updateRequirementSession((current) => openRequirementOverview(current, requirementId))
+    const state = useAppStore.getState()
+    if (!state.isNavigatingHistory) {
+      state.recordWorktreeVisit(requirementHistoryEntry(requirementId))
+    }
+  })
   registerRequirementStagePrefixes((worktreeId) => memberRoots(worktreeId) ?? [])
   registerRequirementHeaderOpen((key) => {
     const parsed = parseRequirementHeaderKey(key)

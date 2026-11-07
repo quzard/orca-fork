@@ -59,6 +59,7 @@
       "member": "Member",
       "loadRelativeBase": "Load relative base",
       "members": "Members",
+      "openFolder": "Requirement",
       "needsMe": "Needs me",
       "pickTwo": "Select two files to compare.",
       "relativeBaseError": "Relative-base compare failed. Uncommitted files are still listed.",

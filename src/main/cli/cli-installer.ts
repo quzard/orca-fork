@@ -1,4 +1,5 @@
 import { mkdir, unlink } from 'node:fs/promises'
+import { isRequirementPreviewBuild } from '../../fork/requirement-preview/build-flag'
 import { dirname } from 'node:path'
 import type { CliInstallStatus } from '../../shared/cli-install-types'
 import {
@@ -104,6 +105,11 @@ export class CliInstaller extends CliPathRegistration {
   }
 
   async install(): Promise<CliInstallStatus> {
+    if (isRequirementPreviewBuild()) {
+      throw new Error(
+        'Requirement preview does not install the orca command or change /usr/local/bin/orca.'
+      )
+    }
     return this.runAppImageRegistrationOperation(() => this.installUnlocked())
   }
 
@@ -161,6 +167,11 @@ export class CliInstaller extends CliPathRegistration {
   }
 
   async remove(): Promise<CliInstallStatus> {
+    if (isRequirementPreviewBuild()) {
+      throw new Error(
+        'Requirement preview does not remove the orca command or change /usr/local/bin/orca.'
+      )
+    }
     return this.runAppImageRegistrationOperation(() => this.removeUnlocked())
   }
 

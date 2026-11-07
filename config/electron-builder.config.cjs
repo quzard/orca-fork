@@ -465,7 +465,7 @@ module.exports = {
       verifyPackagedWindowsNodePty(resourcesDir, context.arch, { canExecuteTargetArch })
       verifyPackagedWindowsAgentHook(resourcesDir, context.arch)
     }
-    verifySkillsCliRuntime(join(resourcesDir, 'app.asar.unpacked', 'out'), resourcesDir, {
+    verifySkillsCliRuntime(join(resourcesDir, 'app.asar.unpacked', packagedOutputRoot), resourcesDir, {
       executeCommands: canExecuteTargetArch
     })
     if (!canExecuteTargetArch) {
@@ -474,13 +474,13 @@ module.exports = {
       )
     }
     if (canExecuteTargetArch) {
-      verifyPackagedDaemonEntryBoots(resourcesDir)
+      verifyPackagedDaemonEntryBoots(resourcesDir, { outputRoot: packagedOutputRoot })
       if (appImageNodeRuntime) {
         await verifyAppImageNodeRuntimeServesPty(resourcesDir, appImageNodeRuntime)
       }
     } else {
       // Cross-arch smoke cannot run, but missing unpacked entry is always a packaging error.
-      assertPackagedDaemonEntryExists(resourcesDir)
+      assertPackagedDaemonEntryExists(resourcesDir, packagedOutputRoot)
       console.log(
         `[verify-packaged-daemon-entry] skipped boot on cross-arch slice (target ${context.arch}, host ${process.arch})`
       )
@@ -768,9 +768,12 @@ module.exports = {
   }
 }
 
-const previewPackaging =
-  require('../src/fork/requirement-preview/packaging.cjs').readPreviewPackaging(process.env)
+const previewPackagingModule = require('../src/fork/requirement-preview/packaging.cjs')
+const previewPackaging = previewPackagingModule.readPreviewPackaging(process.env)
+let packagedOutputRoot = 'out'
 if (previewPackaging) {
+  packagedOutputRoot = previewPackaging.viteOutDir
+  previewPackagingModule.applyPreviewOutputTree(module.exports)
   module.exports.appId = previewPackaging.appId
   module.exports.productName = previewPackaging.productName
   module.exports.protocols = [
@@ -798,7 +801,12 @@ if (previewPackaging) {
 
 // Stamp the effective channel version where node-mode CLI code can read it.
 function stampPackagedCliVersion(resourcesDir, version) {
-  const packageJsonPath = join(resourcesDir, 'app.asar.unpacked', 'out', 'package.json')
+  const packageJsonPath = join(
+    resourcesDir,
+    'app.asar.unpacked',
+    packagedOutputRoot,
+    'package.json'
+  )
   if (!existsSync(packageJsonPath)) {
     throw new Error(`Missing unpacked CLI package boundary: ${packageJsonPath}`)
   }

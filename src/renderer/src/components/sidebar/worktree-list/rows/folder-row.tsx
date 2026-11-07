@@ -15,6 +15,7 @@ import {
   isConfirmedStaleFolderPathStatus
 } from '../../../../../../shared/folder-workspaces/folder-workspace-path-status'
 import { folderWorkspaceToWorktree } from '../../../../../../shared/folder-workspaces/folder-workspace-worktree'
+import { RequirementFolderEntry } from '../../../../../../fork/requirement/folder-entry'
 import { presentRequirementFolderWorktree } from '../../../../../../fork/requirement/requirements'
 import WorktreeCard from '../../workspace-card/surface/WorktreeCard'
 import type { WorktreeGroupBy } from '../../../../../../shared/sidebar-list/row-types'
@@ -137,7 +138,8 @@ export function renderFolderWorkspaceVirtualRow(args: {
           onContextMenuSelect={ctx.onContextMenuSelect}
           statusPrDisplay={folderPrDisplay}
         />
-        <div className="pointer-events-auto absolute right-3 top-1.5">
+        <div className="pointer-events-auto absolute right-3 top-1.5 flex items-center gap-2">
+          <RequirementFolderEntry folderId={row.folderWorkspace.id} />
           <FolderPathStatusIndicator status={pathStatus} />
         </div>
       </div>

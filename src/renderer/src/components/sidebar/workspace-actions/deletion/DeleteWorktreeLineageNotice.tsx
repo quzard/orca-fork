@@ -13,8 +13,12 @@ import type {
   DeleteWorktreeChangeCheckState,
   DeleteWorktreeDirtyChangePreview
 } from './delete-worktree-dirty-change-counts'
+<<<<<<< HEAD
 import { translate } from '@/i18n/i18n'
 import { keptLineageText } from '../../../../../../shared/fork-hooks/workspace-folder-delete'
+=======
+import { useTranslate } from '@/i18n/use-translate'
+>>>>>>> 8781bcb6be31f7c83651d5349fb151e8e29b8e66
 
 type DeleteWorktreeLineageNoticeProps = {
   descendants: readonly Worktree[]
@@ -35,8 +39,12 @@ export function DeleteWorktreeLineageNotice({
   changeCheckStatesByWorktreeId,
   folderKeptNotice
 }: DeleteWorktreeLineageNoticeProps): JSX.Element | null {
+<<<<<<< HEAD
   const title = keptLineageText(translate, folderKeptNotice?.title)
   const body = keptLineageText(translate, folderKeptNotice?.body)
+=======
+  const t = useTranslate()
+>>>>>>> 8781bcb6be31f7c83651d5349fb151e8e29b8e66
   const projects = useAppStore((s) => s.projects)
   const projectHostSetups = useAppStore((s) => s.projectHostSetups)
   const projectIndex = useMemo(
@@ -69,13 +77,21 @@ export function DeleteWorktreeLineageNotice({
         <Workflow className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
           <div className="font-medium text-foreground">
+<<<<<<< HEAD
             {title.t(
+=======
+            {t(
+>>>>>>> 8781bcb6be31f7c83651d5349fb151e8e29b8e66
               'auto.components.sidebar.DeleteWorktreeLineageNotice.a940f3c96e',
               'Child workspaces will be deleted'
             )}
           </div>
           <div className="mt-1 text-muted-foreground">
+<<<<<<< HEAD
             {body.t(
+=======
+            {t(
+>>>>>>> 8781bcb6be31f7c83651d5349fb151e8e29b8e66
               'auto.components.sidebar.DeleteWorktreeLineageNotice.alsoDeletesChildren',
               'Deleting this workspace also deletes {{count}} child workspaces.',
               {
@@ -111,7 +127,7 @@ export function DeleteWorktreeLineageNotice({
             ))}
             {descendants.length > 4 ? (
               <div className="text-muted-foreground">
-                {translate(
+                {t(
                   'auto.components.sidebar.DeleteWorktreeLineageNotice.moreChildren',
                   '+{{count}} more',
                   { count: descendants.length - 4, defaultValue_one: '+{{count}} more' }

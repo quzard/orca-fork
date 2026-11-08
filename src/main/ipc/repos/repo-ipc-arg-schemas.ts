@@ -1,7 +1,11 @@
 import { z } from 'zod'
 import { isTuiAgent } from '../../../shared/agent-launch/catalog/tui-agent-config'
+<<<<<<< HEAD
 import { CLEARABLE_SIDEBAR_FIELDS } from '../../../shared/fork-hooks/sidebar-field-clear'
 import { TaskSourceContextSchema } from '../../../shared/task-source-context-schema'
+=======
+import { TaskSourceContextSchema } from '../../../shared/work-items/task-source-context-schema'
+>>>>>>> 8781bcb6be31f7c83651d5349fb151e8e29b8e66
 import { WorkspaceLinkedItemSchema } from '../../../shared/workspace-attachments/workspace-linked-item-schema'
 import { WorkspaceAttachmentsSchema } from '../../../shared/workspace-attachments/workspace-attachment-schema'
 import { isWorkspaceLinkedItemSourceContextMatch } from '../../../shared/workspace-attachments/workspace-linked-item-source-context'
@@ -22,6 +26,7 @@ export const ProjectGroupUpdateArgs = z.object({
     name: z.string().optional(),
     isCollapsed: z.boolean().optional(),
     tabOrder: z.number().finite().optional(),
+    rootProjectOrder: z.number().finite().nullable().optional(),
     color: z.string().nullable().optional()
   })
 })

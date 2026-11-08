@@ -23,8 +23,12 @@ import {
   resolveNestedRepoSelection
 } from '../../project-groups/nested-repo-import'
 import { createNestedRepoImportTargetResolver } from '../../project-groups/nested-repo-import-target'
+<<<<<<< HEAD
 import type { RuntimeStore } from '../runtime-store-contract'
 import { stampImportedWorktreePath } from '../../../shared/fork-hooks/imported-worktree-path'
+=======
+import type { RuntimeStore } from '../construction/runtime-store-contract'
+>>>>>>> 8781bcb6be31f7c83651d5349fb151e8e29b8e66
 import { refuseWslHostWindowsDrivePath } from '../terminal/launch/wsl-host-windows-drive-guard'
 
 type RuntimeNestedRepoImportDependencies = {

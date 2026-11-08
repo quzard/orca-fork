@@ -1,4 +1,4 @@
-import type { RuntimeFilePreviewResult } from '../../../../../shared/runtime-file-contracts'
+import type { RuntimeFilePreviewResult } from '../../../../../shared/file-content/runtime-file-read'
 import { callRuntimeRpc } from '../../rpc/calls/runtime-rpc-call'
 import type {
   RuntimeFileDownloadResult,
@@ -13,13 +13,18 @@ import {
   hasRemoteRuntimeOwner,
   localAccess
 } from '../runtime-file-routing'
-import { toRuntimeWorktreeSelector } from '../../runtime-worktree-selector'
-import { chatScratchFileAddress } from '../../runtime-chat-scratch-file-address'
+import { toRuntimeWorktreeSelector } from '../../rpc/targets/runtime-worktree-selector'
+import { chatScratchFileAddress } from '../addressing/runtime-chat-scratch-file-address'
 import { readRemoteFileContent } from './runtime-remote-file-content'
 import { isAgentSessionAttachmentStorePath } from '../../../../../shared/agent-session/agent-session-attachments'
+<<<<<<< HEAD
 import { decodeSvgBase64, isSvgFilePath } from '../../../../../shared/svg-document'
 import type { LocalFileAccess } from '../../../../../shared/local-file-access'
 import { readHostDocumentResource } from '../../../../../shared/fork-hooks/host-file-doc-preview'
+=======
+import { decodeSvgBase64, isSvgFilePath } from '../../../../../shared/file-preview/svg-document'
+import type { LocalFileAccess } from '../../../../../shared/file-access/local-file-access'
+>>>>>>> 8781bcb6be31f7c83651d5349fb151e8e29b8e66
 import {
   isHostFileOutsideWorkspaces,
   readHostFilePreview,

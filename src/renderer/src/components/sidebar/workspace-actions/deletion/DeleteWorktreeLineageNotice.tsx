@@ -14,7 +14,11 @@ import type {
   DeleteWorktreeDirtyChangePreview
 } from './delete-worktree-dirty-change-counts'
 import { useTranslate } from '@/i18n/use-translate'
+<<<<<<< HEAD
 import { keptLineageText } from '../../../../../../shared/fork-hooks/workspace-folder-delete'
+=======
+import { Checkbox } from '@/components/ui/checkbox'
+>>>>>>> d291670a01ab9a3023f9220468f5cb2d6dc4f17f
 
 type DeleteWorktreeLineageNoticeProps = {
   descendants: readonly Worktree[]
@@ -23,7 +27,14 @@ type DeleteWorktreeLineageNoticeProps = {
   dirtyChangeCountsByWorktreeId: ReadonlyMap<string, number>
   dirtyChangePreviewsByWorktreeId: ReadonlyMap<string, DeleteWorktreeDirtyChangePreview>
   changeCheckStatesByWorktreeId?: ReadonlyMap<string, DeleteWorktreeChangeCheckState>
+<<<<<<< HEAD
   folderKeptNotice?: { title: string; body: string } | null
+=======
+  preserveChildren: boolean
+  canPreserveChildren: boolean
+  disabled: boolean
+  onPreserveChildrenChange: (preserve: boolean) => void
+>>>>>>> d291670a01ab9a3023f9220468f5cb2d6dc4f17f
 }
 
 export function DeleteWorktreeLineageNotice({
@@ -33,7 +44,14 @@ export function DeleteWorktreeLineageNotice({
   dirtyChangeCountsByWorktreeId,
   dirtyChangePreviewsByWorktreeId,
   changeCheckStatesByWorktreeId,
+<<<<<<< HEAD
   folderKeptNotice
+=======
+  preserveChildren,
+  canPreserveChildren,
+  disabled,
+  onPreserveChildrenChange
+>>>>>>> d291670a01ab9a3023f9220468f5cb2d6dc4f17f
 }: DeleteWorktreeLineageNoticeProps): JSX.Element | null {
   const t = useTranslate()
   const title = keptLineageText(t, folderKeptNotice?.title)
@@ -60,7 +78,7 @@ export function DeleteWorktreeLineageNotice({
   }
   const foreignProjects = [...new Set(projectLabels.values())]
   const childWorkspaceCount = descendants.length
-  if (childWorkspaceCount === 0) {
+  if (childWorkspaceCount === 0 && !preserveChildren) {
     return null
   }
 
@@ -70,6 +88,7 @@ export function DeleteWorktreeLineageNotice({
         <Workflow className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
           <div className="font-medium text-foreground">
+<<<<<<< HEAD
             {title.t(
               'auto.components.sidebar.DeleteWorktreeLineageNotice.a940f3c96e',
               'Child workspaces will be deleted'
@@ -85,41 +104,98 @@ export function DeleteWorktreeLineageNotice({
               }
             )}
             {foreignProjects.length > 0 ? ` (${foreignProjects.join(', ')})` : null}
+=======
+            {preserveChildren && !canPreserveChildren
+              ? t('worktree.delete.childrenCannotBeKeptTitle', 'Child workspaces cannot be kept')
+              : preserveChildren
+                ? t('worktree.delete.childrenPreservedTitle', 'Child workspaces will be kept')
+                : t(
+                    'auto.components.sidebar.DeleteWorktreeLineageNotice.a940f3c96e',
+                    'Child workspaces will be deleted'
+                  )}
+>>>>>>> d291670a01ab9a3023f9220468f5cb2d6dc4f17f
           </div>
+          {(!preserveChildren || canPreserveChildren) && (
+            <div className="mt-1 text-muted-foreground">
+              {preserveChildren
+                ? t(
+                    'worktree.delete.childrenPreservedDescription',
+                    'Direct children will become top-level workspaces. Their files, terminals, and nested children will be kept.'
+                  )
+                : t(
+                    'auto.components.sidebar.DeleteWorktreeLineageNotice.alsoDeletesChildren',
+                    'Deleting this workspace also deletes {{count}} child workspaces.',
+                    {
+                      count: childWorkspaceCount,
+                      defaultValue_one:
+                        'Deleting this workspace also deletes {{count}} child workspace.'
+                    }
+                  )}
+              {foreignProjects.length > 0 ? ` (${foreignProjects.join(', ')})` : null}
+            </div>
+          )}
           {/* Constrain grid min-content width so nowrap paths cannot widen the modal. */}
-          <div className="mt-2 min-w-0 max-w-full space-y-1 overflow-hidden rounded-sm border border-border/60 bg-background/60 px-2 py-1.5">
-            {descendants.slice(0, 4).map((child) => (
-              <div key={child.id} className="min-w-0 overflow-hidden">
-                <div className="truncate font-medium text-foreground">
-                  {child.displayName}
-                  {projectLabels.has(child.id) ? (
-                    <span className="text-muted-foreground"> · {projectLabels.get(child.id)}</span>
-                  ) : null}
+          {childWorkspaceCount > 0 && (
+            <div className="mt-2 min-w-0 max-w-full space-y-1 overflow-hidden rounded-sm border border-border/60 bg-background/60 px-2 py-1.5">
+              {descendants.slice(0, 4).map((child) => (
+                <div key={child.id} className="min-w-0 overflow-hidden">
+                  <div className="truncate font-medium text-foreground">
+                    {child.displayName}
+                    {projectLabels.has(child.id) ? (
+                      <span className="text-muted-foreground">
+                        {' '}
+                        · {projectLabels.get(child.id)}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="truncate text-muted-foreground">{child.path}</div>
+                  {!preserveChildren && (
+                    <DeleteWorktreeDirtyChangeHint
+                      checkState={changeCheckStatesByWorktreeId?.get(
+                        child.hostId ? getWorktreeHostIdentity(child) : child.id
+                      )}
+                      changeCount={dirtyChangeCountsByWorktreeId.get(
+                        child.hostId ? getWorktreeHostIdentity(child) : child.id
+                      )}
+                      preview={dirtyChangePreviewsByWorktreeId.get(
+                        child.hostId ? getWorktreeHostIdentity(child) : child.id
+                      )}
+                    />
+                  )}
                 </div>
-                <div className="truncate text-muted-foreground">{child.path}</div>
-                <DeleteWorktreeDirtyChangeHint
-                  checkState={changeCheckStatesByWorktreeId?.get(
-                    child.hostId ? getWorktreeHostIdentity(child) : child.id
+              ))}
+              {descendants.length > 4 ? (
+                <div className="text-muted-foreground">
+                  {t(
+                    'auto.components.sidebar.DeleteWorktreeLineageNotice.moreChildren',
+                    '+{{count}} more',
+                    { count: descendants.length - 4, defaultValue_one: '+{{count}} more' }
                   )}
-                  changeCount={dirtyChangeCountsByWorktreeId.get(
-                    child.hostId ? getWorktreeHostIdentity(child) : child.id
+                </div>
+              ) : null}
+            </div>
+          )}
+          <label className="mt-3 flex items-center gap-2 text-foreground">
+            <Checkbox
+              checked={preserveChildren}
+              disabled={disabled || (!canPreserveChildren && !preserveChildren)}
+              onCheckedChange={(checked) => onPreserveChildrenChange(checked === true)}
+            />
+            {t('worktree.delete.detachChildren', 'Detach and keep child workspaces')}
+          </label>
+          {!canPreserveChildren && (
+            <p className="mt-1 text-muted-foreground">
+              {childWorkspaceCount === 0 || !parent
+                ? t(
+                    'worktree.delete.childrenChangedClearPreserve',
+                    'Child workspaces changed. Clear this option to review deletion.'
+                  )
+                : t(
+                    'worktree.delete.nestedChildrenCannotBeKept',
+                    'Child workspace folders inside this workspace must be moved outside it before they can be kept.'
                   )}
-                  preview={dirtyChangePreviewsByWorktreeId.get(
-                    child.hostId ? getWorktreeHostIdentity(child) : child.id
-                  )}
-                />
-              </div>
-            ))}
-            {descendants.length > 4 ? (
-              <div className="text-muted-foreground">
-                {t(
-                  'auto.components.sidebar.DeleteWorktreeLineageNotice.moreChildren',
-                  '+{{count}} more',
-                  { count: descendants.length - 4, defaultValue_one: '+{{count}} more' }
-                )}
-              </div>
-            ) : null}
-          </div>
+            </p>
+          )}
         </div>
       </div>
     </div>

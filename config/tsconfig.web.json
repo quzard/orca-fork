@@ -16,10 +16,14 @@
     "../src/renderer/src/lib/agent-session/launch/new-tab/launch-agent-in-new-tab-main-surface.test.ts",
     "../src/renderer/src/components/task-page/linear/task-page-linear-detail-query.test.tsx",
     "../tests/e2e/terminal-agent-pane-launch.unit.test.ts",
+<<<<<<< HEAD
     "../src/renderer/src/components/status-bar/ClaudeSwitcherMenu.owner-lifetime.test.tsx",
     "../src/renderer/src/runtime/provider-accounts/observations/provider-account-observation.test-fixture.ts",
     "../src/fork/main/**",
     "../src/fork/**/*.fork.test.ts"
+=======
+    "../src/renderer/src/runtime/provider-accounts/observations/provider-account-observation.test-fixture.ts"
+>>>>>>> d291670a01ab9a3023f9220468f5cb2d6dc4f17f
   ],
   "compilerOptions": {
     "composite": true,

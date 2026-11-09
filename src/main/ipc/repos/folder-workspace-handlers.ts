@@ -16,8 +16,12 @@ import {
   FolderWorkspaceUpdateArgs,
   parseProjectGroupIpcArgs
 } from './repo-ipc-arg-schemas'
+<<<<<<< HEAD
 import { visibleFolderWorkspaces } from '../../ssh/orcad-retained-source'
 import { applySidebarFieldClears } from '../../../shared/fork-hooks/sidebar-field-clear'
+=======
+import { visibleFolderWorkspaces } from '../../persistence/migrating-orcad-catalog/orcad-source-visibility'
+>>>>>>> d291670a01ab9a3023f9220468f5cb2d6dc4f17f
 import { createFolderWorkspaceWithPluginHooks } from '../../plugins/hooks/workspace-create-plugin-hook'
 import {
   isLocalWslMoveRow,

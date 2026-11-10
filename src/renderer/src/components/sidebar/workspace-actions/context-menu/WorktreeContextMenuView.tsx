@@ -7,8 +7,12 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Bell, BellOff, Pencil, Pin, PinOff, Unlink } from 'lucide-react'
+<<<<<<< HEAD
 import { renderSidebarContextMenu } from '../../../../../../shared/fork-hooks/sidebar-chrome'
 import { cn } from '@/lib/utils'
+=======
+import { cn } from '@/lib/class-names'
+>>>>>>> 21de0ae3f98d034f63f9090cd82f8674217be554
 import { WorktreeRowOpenInSubMenu } from '../open/WorktreeRowOpenInSubMenu'
 import { WorktreeDeveloperMenu } from '../open/WorktreeDeveloperMenu'
 import { WorkspaceSleepMenuItems } from '../sleep/WorkspaceSleepMenuItems'
@@ -31,7 +35,7 @@ import {
   shouldRevealWorktreeDeveloperMenu,
   shouldUseNativeContextMenu
 } from './worktree-context-menu-policy'
-import { CLOSE_ALL_CONTEXT_MENUS_EVENT } from '@/lib/close-all-context-menus'
+import { CLOSE_ALL_CONTEXT_MENUS_EVENT } from '@/lib/overlay-interaction/close-all-context-menus'
 
 export default function WorktreeContextMenuView({ model }: { model: WorktreeContextMenuModel }) {
   const {

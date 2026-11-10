@@ -3,7 +3,11 @@ import type { PluginSurface } from '../frames/plugin-protocol'
 import * as stored from './plugin-host-api-storage-schemas'
 import { PLUGIN_PANEL_BRIDGE_API } from './plugin-host-api-panel-methods'
 import { PLUGIN_WORKER_ACTIONS_API } from './plugin-host-api-worker-actions'
+<<<<<<< HEAD
 import { extraHostMethod, hostMethodsFor } from './plugin-host-api-registry'
+=======
+import { PLUGIN_EDITOR_TYPOGRAPHY_API } from './plugin-host-api-editor-typography'
+>>>>>>> 21de0ae3f98d034f63f9090cd82f8674217be554
 import {
   ALL_SURFACES,
   FRAMES_ONLY,
@@ -59,7 +63,6 @@ export const pluginWorkspaceContextSchema = z
   })
   .strict()
   .nullable()
-const workspaceReadContextResult = pluginWorkspaceContextSchema
 
 const terminalSendTextParams = z.strictObject({
   /** Explicit target prevents delayed writes following focus changes into another pane. */
@@ -143,7 +146,7 @@ export const PLUGIN_HOST_API = {
     mutation: false,
     surfaces: ALL_SURFACES,
     params: workspaceReadContextParams,
-    result: workspaceReadContextResult
+    result: pluginWorkspaceContextSchema
   }),
   'terminal.sendText': spec({
     summary: 'Types text into one terminal named by id, optionally pressing Enter.',
@@ -302,7 +305,8 @@ export const PLUGIN_HOST_API = {
     result: filesSaveAsResult
   }),
   ...PLUGIN_PANEL_BRIDGE_API,
-  ...PLUGIN_WORKER_ACTIONS_API
+  ...PLUGIN_WORKER_ACTIONS_API,
+  ...PLUGIN_EDITOR_TYPOGRAPHY_API
 }
 
 export type PluginHostApi = typeof PLUGIN_HOST_API

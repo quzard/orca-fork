@@ -1,3 +1,4 @@
+import { captureWorkspaceTerminalNoticeRemoval } from '../../../terminals/terminal-notice-removal'
 import type { StateCreator } from 'zustand'
 import { appliedWorktreeCatalogVersionPatch } from './worktree-catalog-version-state'
 import type { AppState } from '../../../types'
@@ -6,9 +7,9 @@ import type { Worktree } from '../../../../../../shared/worktree/types'
 import { routeListingBranchSwitchesThroughGitIdentity } from './worktree-listing-branch-switch'
 import {
   areDetectedWorktreeResultsEqual,
-  areWorktreesEqual,
   worktreesDifferOnlyInSortOrder
 } from './worktree-catalog-visibility'
+import { catalogRowsEqual } from '../../../../lib/catalog-reconciliation/catalog-row-reconciliation'
 import { mergeDetectedWorktreesForHost } from './detected-worktree-host-merge'
 import {
   getRemovedWorktreeIdsAfterAuthoritativeScan,
@@ -29,9 +30,13 @@ import { buildWorktreePurgeState } from '../teardown/worktree-purge-state'
 import { flushPurgedWorkspaceEdits } from '../teardown/removed-workspace-unsaved-files'
 import { hostWorktreeTarget } from '../../../../../../shared/worktree/host-qualified-identity'
 import { isDisplayNamePersistencePending } from '../metadata/worktree-meta-persist'
+<<<<<<< HEAD
 import { preserveRegisteredSidebarGroupIds } from '../../../../../../shared/fork-hooks/sidebar-group-membership'
 import { applyRegisteredDurableWorkspaceArchive } from '../../../../../../shared/fork-hooks/workspace-durable-archive'
 import { branchName } from '@/lib/git-utils'
+=======
+import { branchName } from '@/lib/source-control/branches/branch-name'
+>>>>>>> 21de0ae3f98d034f63f9090cd82f8674217be554
 import {
   forgetAuthoritativelyRemovedWorktrees,
   forgetPersistedWorktreeMetaForRemovals,
@@ -143,18 +148,23 @@ export function mergeFetchedWorktrees(
   get: () => AppState,
   args: FencedWorktreeMergeArgs
 ): WorktreeListingMergeOutcome {
+  let retireNotices: ((after: AppState) => void) | undefined
   if (args.purgeRemovedWorktrees !== false) {
     // Why before the updater: delayed views must commit text the purge may offer back.
     const state = get()
+    const removedIds = getRemovedWorktreeIdsAfterAuthoritativeScan(
+      state,
+      args.repoId,
+      args.refresh.result,
+      args.hostId
+    )
     flushPurgedWorkspaceEdits(
       state,
-      getRemovedWorktreeIdsAfterAuthoritativeScan(
-        state,
-        args.repoId,
-        args.refresh.result,
-        args.hostId
-      ).map((id) => hostWorktreeTarget({ id, hostId: args.hostId }))
+      removedIds.map((id) => hostWorktreeTarget({ id, hostId: args.hostId }))
     )
+    if (removedIds.length > 0) {
+      retireNotices = captureWorkspaceTerminalNoticeRemoval(state, removedIds)
+    }
   }
   // Why a holder: the updater decides the outcome, and a narrowed `let` would hide that assignment.
   const decision: { outcome: WorktreeListingMergeOutcome } = { outcome: 'not-current' }
@@ -202,6 +212,7 @@ export function mergeFetchedWorktrees(
       requestStarted: args.requestStartedWorktrees,
       current: s.worktreesByRepo[args.repoId],
       incoming,
+      refreshHostId: args.hostId,
       matchesRefreshHost: (worktree) => worktreeMatchesHost(worktree, args.hostId, matchOptions),
       hasBranchScopedReviewContext: hasBranchScopedHostedReviewContext,
       updateWorktreeGitIdentity: s.updateWorktreeGitIdentity
@@ -252,7 +263,7 @@ export function mergeFetchedWorktrees(
     if (args.refresh.result.authoritative) {
       authoritativelySeenIds = args.refresh.result.worktrees.map((worktree) => worktree.id)
     }
-    const worktreesChanged = !areWorktreesEqual(s.worktreesByRepo[args.repoId], mergedWorktrees)
+    const worktreesChanged = !catalogRowsEqual(s.worktreesByRepo[args.repoId], mergedWorktrees)
     const detectedChanged = !areDetectedWorktreeResultsEqual(
       s.detectedWorktreesByRepo[args.repoId],
       mergedDetected
@@ -303,6 +314,7 @@ export function mergeFetchedWorktrees(
     }
   })
   if (decision.outcome === 'applied') {
+    retireNotices?.(get())
     // Why: applied outside the updater so a repeated updater call cannot double-apply the removal memory.
     forgetAuthoritativelyRemovedWorktrees(args.hostId, authoritativelySeenIds)
     rememberAuthoritativelyRemovedWorktrees(args.hostId, authoritativelyRemovedIds)

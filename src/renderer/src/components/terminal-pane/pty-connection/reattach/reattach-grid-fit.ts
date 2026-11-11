@@ -1,7 +1,12 @@
 import { isRemoteRuntimePtyId } from '../../../../../../shared/remote-runtime/remote-runtime-pty-id'
+<<<<<<< HEAD
 import { notifyTerminalReconnectFit } from '../../../../../../shared/fork-hooks/terminal-lifecycle'
 import { safeFitAndThen } from '@/lib/pane-manager/pane-fit'
 import { getFitOverrideForPty } from '@/lib/pane-manager/mobile-fit-overrides'
+=======
+import { safeFitAndThen } from '@/lib/pane-manager/terminal-fit/pane-fit'
+import { getFitOverrideForPty } from '@/lib/pane-manager/terminal-fit/mobile-fit-overrides'
+>>>>>>> 3082e4aa2be017a2a87e3604ab78bbf0eaa049bd
 
 import type { ReattachPayloadContext } from './reattach-payload-context'
 import type { ReattachPayloadSession } from './reattach-payload-session'

@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import type SyncDatabase from '../../sqlite/sync-database'
 import { aiVaultSearchSchemaVersion } from '../../../shared/fork-hooks/ai-vault'
 import { openVersionedCacheDatabase } from '../../sqlite/versioned-cache-database'
-import { asRecord } from '../../ai-vault/session-scanner-record-value'
+import { asRecord } from '../../ai-vault/parsing/session-record-fields'
 
 // Cache transcript content verbatim; outbound snippet policy belongs at the transport boundary.
 

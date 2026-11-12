@@ -7,8 +7,13 @@ import { PLUGIN_WORKER_ACTIONS_API } from './plugin-host-api-worker-actions'
 import { extraHostMethod, hostMethodsFor } from './plugin-host-api-registry'
 import { PLUGIN_EDITOR_TYPOGRAPHY_API } from './plugin-host-api-editor-typography'
 import {
+  PLUGIN_TERMINAL_ID_MAX_LENGTH,
+  pluginWorkspaceContextSchema
+} from './plugin-host-api-workspace-context'
+import {
   ALL_SURFACES,
   FRAMES_ONLY,
+  pluginHostMethodOffered,
   pluginHostMethodSinceFor,
   spec,
   WORKER_ONLY,
@@ -16,6 +21,12 @@ import {
 } from './plugin-host-method-spec'
 
 export type { PluginHostMethodSpec } from './plugin-host-method-spec'
+export {
+  PLUGIN_TERMINAL_ID_MAX_LENGTH,
+  PLUGIN_WORKSPACE_LABEL_MAX_LENGTH,
+  PLUGIN_WORKSPACE_TERMINAL_LIMIT,
+  pluginWorkspaceContextSchema
+} from './plugin-host-api-workspace-context'
 
 /**
  * Host API 1 (`pluginApi: 1`) — the separately-versioned public facade plugins call. Every
@@ -35,32 +46,7 @@ export type { PluginHostMethodSpec } from './plugin-host-method-spec'
  */
 
 export const PANEL_ACTION_TEXT_MAX_LENGTH = 4096
-export const PLUGIN_WORKSPACE_TERMINAL_LIMIT = 50
-export const PLUGIN_WORKSPACE_LABEL_MAX_LENGTH = 512
-export const PLUGIN_TERMINAL_ID_MAX_LENGTH = 1024
-
 const workspaceReadContextParams = z.strictObject({}).optional()
-/** What `workspace.readContext` answers and `workspace.changed` carries. */
-export const pluginWorkspaceContextSchema = z
-  .object({
-    branch: z.string().max(PLUGIN_WORKSPACE_LABEL_MAX_LENGTH),
-    displayName: z.string().max(PLUGIN_WORKSPACE_LABEL_MAX_LENGTH),
-    /** Terminals of the focused workspace, so callers can address a specific
-     *  terminal id — the API has no "active terminal" write target. */
-    terminals: z
-      .array(
-        z
-          .object({
-            id: z.string().min(1).max(PLUGIN_TERMINAL_ID_MAX_LENGTH),
-            /** The pane's name, or its terminal title; absent when it has neither. */
-            title: z.string().max(PLUGIN_WORKSPACE_LABEL_MAX_LENGTH).optional()
-          })
-          .strict()
-      )
-      .max(PLUGIN_WORKSPACE_TERMINAL_LIMIT)
-  })
-  .strict()
-  .nullable()
 
 const terminalSendTextParams = z.strictObject({
   /** Explicit target prevents delayed writes following focus changes into another pane. */
@@ -137,7 +123,7 @@ export function isPluginExternalUrl(url: string): boolean {
 export const PLUGIN_HOST_API = {
   'workspace.readContext': spec({
     summary:
-      'Branch, name and terminal ids of the focused workspace, or null when none is focused.',
+      'Id, branch, name and terminal ids of the focused workspace, or null when none is focused.',
     since: 0,
     scope: 'active-workspace',
     capability: 'workspace:read',
@@ -314,6 +300,10 @@ export type PluginHostParams<M extends PluginHostMethodName> = z.input<PluginHos
 export type PluginHostResult<M extends PluginHostMethodName> = z.output<PluginHostApi[M]['result']>
 
 export const PLUGIN_HOST_METHOD_NAMES = Object.keys(PLUGIN_HOST_API).filter(isPluginHostMethodName)
+/** The frozen methods: what the minor, method lists, typings and reference count. */
+export const PLUGIN_STABLE_HOST_METHOD_NAMES = PLUGIN_HOST_METHOD_NAMES.filter((name) =>
+  pluginHostMethodOffered(PLUGIN_HOST_API[name], false)
+)
 
 export function isPluginHostMethodName(name: string): name is PluginHostMethodName {
   return Object.hasOwn(PLUGIN_HOST_API, name)
@@ -323,14 +313,23 @@ export function getPluginHostMethodSpec(name: string): PluginHostMethodSpec | nu
   return isPluginHostMethodName(name) ? PLUGIN_HOST_API[name] : extraHostMethod(name)
 }
 
-/** The minor this host implements: the newest `since` in the table. */
+/** The minor this host implements: the newest `since` among frozen methods. */
 export const PLUGIN_HOST_API_MINOR = Math.max(
-  ...PLUGIN_HOST_METHOD_NAMES.map((name) => PLUGIN_HOST_API[name].since)
+  ...PLUGIN_STABLE_HOST_METHOD_NAMES.map((name) => PLUGIN_HOST_API[name].since)
 )
 
+<<<<<<< HEAD
 /** Methods a surface may call, for `hello` and `host.has`. */
 export function pluginHostMethodsFor(surface: PluginSurface): PluginHostMethodName[] {
   return hostMethodsFor(surface, PLUGIN_HOST_METHOD_NAMES, (name) => PLUGIN_HOST_API[name].surfaces)
+=======
+/** Methods a surface may call, for `hello` and `host.has`; proposed ones only when allowed. */
+export function pluginHostMethodsFor(surface: PluginSurface, allowProposed = false) {
+  return PLUGIN_HOST_METHOD_NAMES.filter((name) => {
+    const entry = PLUGIN_HOST_API[name]
+    return entry.surfaces.includes(surface) && pluginHostMethodOffered(entry, allowProposed)
+  })
+>>>>>>> c1f3309c1eec690cf93688b4edbe412ca2dcb175
 }
 
 /** A frame's methods: user-gesture methods only where Orca can verify the gesture (a guest). */

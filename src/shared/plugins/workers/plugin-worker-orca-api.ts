@@ -96,6 +96,12 @@ function addTo<T>(set: Set<T>, entry: T): PluginDisposable {
   return { dispose: () => void set.delete(entry) }
 }
 
+<<<<<<< HEAD
+=======
+const WORKER_METHOD_NAMES: ReadonlySet<string> = new Set(pluginHostMethodsFor('worker'))
+const DEV_WORKER_METHOD_NAMES: ReadonlySet<string> = new Set(pluginHostMethodsFor('worker', true))
+
+>>>>>>> c1f3309c1eec690cf93688b4edbe412ca2dcb175
 /** The tables the runtime dispatches from; this module only fills them. */
 export type PluginWorkerApiTables = {
   commands: Map<string, (args: unknown, context: { signal: AbortSignal }) => unknown>
@@ -121,8 +127,11 @@ export function createPluginWorkerOrcaApi(input: {
   postToPanels: (post: PluginWorkerPanelPost) => void
   log: (message: string) => void
   grantedCapabilities: readonly string[]
+  /** A development plugin: `host.has` also answers for proposed methods. */
+  allowProposed?: boolean
 }): PluginWorkerOrcaApi {
   const { tables, hostCall } = input
+  const methodNames = input.allowProposed ? DEV_WORKER_METHOD_NAMES : WORKER_METHOD_NAMES
   const ok = async (method: string, params: unknown): Promise<void> => {
     await hostCall(method, params)
   }
@@ -179,8 +188,12 @@ export function createPluginWorkerOrcaApi(input: {
     host: Object.freeze({
       call: (method: string, params?: unknown, options?: { signal?: AbortSignal }) =>
         hostCall(method, params, options),
+<<<<<<< HEAD
       // 每次查：fork.* 在本模块求值之后才登记。Set 接受任意字符串。
       has: (method: string) => new Set<string>(pluginHostMethodsFor('worker')).has(method)
+=======
+      has: (method: string) => methodNames.has(method)
+>>>>>>> c1f3309c1eec690cf93688b4edbe412ca2dcb175
     }),
     panels: Object.freeze({
       handle(name: string, handler: PluginPanelRequestHandler) {

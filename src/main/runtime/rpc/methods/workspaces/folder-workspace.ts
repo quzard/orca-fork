@@ -1,6 +1,10 @@
 import { defineMethod } from '../../core'
+<<<<<<< HEAD
 import { resolveRpcWorkspaceCreatorProvenance } from '../../workspace-creator-context'
 import { decodeSidebarFieldClears } from '../../../../../shared/fork-hooks/sidebar-field-clear'
+=======
+import { resolveRpcWorkspaceCreatorProvenance } from '../../callers/workspace-creator-context'
+>>>>>>> c1f3309c1eec690cf93688b4edbe412ca2dcb175
 import {
   FolderWorkspaceCreate,
   FolderWorkspaceDelete,

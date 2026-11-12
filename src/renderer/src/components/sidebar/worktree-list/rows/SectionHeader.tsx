@@ -386,6 +386,7 @@ export function renderWorktreeSectionHeaderRow(
             {row.repo && hasProjectHeaderChrome(ctx.groupBy) ? (
               <RepoHeaderProjectActionsMenu
                 repo={row.repo}
+                hostRepos={row.hostRepos}
                 label={label}
                 projectGroups={ctx.projectGroups}
                 actions={ctx.projectActions}

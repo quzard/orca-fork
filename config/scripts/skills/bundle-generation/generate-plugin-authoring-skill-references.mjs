@@ -208,6 +208,7 @@ function hookLines({ hooks, hookContribution, typeText }) {
 
 function renderHostApi(sources, { frame, worker }) {
   const { hostApi, hostDoc, capabilities } = sources
+<<<<<<< HEAD
   const names = hostApi.PLUGIN_HOST_METHOD_NAMES.filter((name) => !String(name).startsWith('fork.'))
   const methodsFor = (surface) =>
     hostApi
@@ -215,10 +216,17 @@ function renderHostApi(sources, { frame, worker }) {
       .filter((name) => !String(name).startsWith('fork.'))
       .map(code)
       .join(', ')
+=======
+  const names = hostApi.PLUGIN_STABLE_HOST_METHOD_NAMES
+  const methodsFor = (surface) => hostApi.pluginHostMethodsFor(surface).map(code).join(', ')
+>>>>>>> c1f3309c1eec690cf93688b4edbe412ca2dcb175
   const methods = names.map((name) => {
     const spec = hostApi.PLUGIN_HOST_API[name]
     const facts = [
       spec.capability ? `capability ${code(spec.capability)}` : 'no capability',
+      ...Object.entries(spec.paramCapabilities ?? {}).map(
+        ([param, kind]) => `${code(param)} also needs ${code(kind)}`
+      ),
       spec.surfaces.join(', '),
       `since ${hostVersion(sources, spec.since)}`,
       ...(spec.deprecatedSince === undefined

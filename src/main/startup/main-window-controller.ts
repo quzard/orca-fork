@@ -9,11 +9,11 @@ import { shouldRecoverRendererAfterProcessGone } from '../crash-reporting/proces
 import { resolveConsent } from '../telemetry/consent'
 import { trackAppOpenedOnce } from '../telemetry/client'
 import { ensureWindowsUserDataAclGrant } from './windows-user-data-acl'
-import { probeWindowsInstallDirAcl } from './windows-install-dir-acl-probe'
+import { probeWindowsInstallDirAcl } from './windows-install-permissions/windows-install-dir-acl-probe'
 import {
   noteWindowsInstallDirAclProbePending,
   startWindowsInstallDirAclRepairIfPoisoned
-} from './windows-install-dir-acl-recovery'
+} from './windows-install-permissions/windows-install-dir-acl-recovery'
 import { logStartupMilestone } from './startup-diagnostics'
 import { notifyMainWindowBecameVisible } from '../window/main-window-visibility'
 import { setTrayAttention } from '../tray/system-tray'
@@ -31,7 +31,7 @@ import {
   getExpectedTeardownScope,
   recordProcessGoneCrash
 } from './main-window-lifecycle-flags'
-import { presentGpuFallbackRecoveredLaunchPrompt } from './gpu-lifecycle'
+import { presentGpuFallbackRecoveredLaunchPrompt } from './gpu-recovery/gpu-lifecycle'
 import {
   resumeSyntheticTitleSpinnerTimer,
   stopSyntheticTitleSpinnerTimer
@@ -55,10 +55,6 @@ export function openMainWindow(options: { revealOnDidFinishLoad?: boolean } = {}
     store: state.store,
     runtime: state.runtime,
     stats: state.stats,
-    claudeUsage: state.claudeUsage,
-    codexUsage: state.codexUsage,
-    openCodeUsage: state.openCodeUsage,
-    museUsage: state.museUsage,
     rateLimits: state.rateLimits,
     automations: state.automations,
     codexAccounts: state.codexAccounts,

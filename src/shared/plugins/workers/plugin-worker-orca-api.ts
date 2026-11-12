@@ -121,8 +121,11 @@ export function createPluginWorkerOrcaApi(input: {
   postToPanels: (post: PluginWorkerPanelPost) => void
   log: (message: string) => void
   grantedCapabilities: readonly string[]
+  /** A development plugin: `host.has` also answers for proposed methods. */
+  allowProposed?: boolean
 }): PluginWorkerOrcaApi {
   const { tables, hostCall } = input
+  const allowProposed = input.allowProposed === true
   const ok = async (method: string, params: unknown): Promise<void> => {
     await hostCall(method, params)
   }
@@ -180,7 +183,8 @@ export function createPluginWorkerOrcaApi(input: {
       call: (method: string, params?: unknown, options?: { signal?: AbortSignal }) =>
         hostCall(method, params, options),
       // 每次查：fork.* 在本模块求值之后才登记。Set 接受任意字符串。
-      has: (method: string) => new Set<string>(pluginHostMethodsFor('worker')).has(method)
+      has: (method: string) =>
+        new Set<string>(pluginHostMethodsFor('worker', allowProposed)).has(method)
     }),
     panels: Object.freeze({
       handle(name: string, handler: PluginPanelRequestHandler) {

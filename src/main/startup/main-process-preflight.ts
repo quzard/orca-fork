@@ -1,11 +1,12 @@
+import { captureBackendBootstrap } from '../backend-desktop/backend-supervisor'
 import { antigravityHookService } from '../antigravity/hook-service'
 import { getRelocatedDaemonHost } from '../daemon/executable-host/windows/daemon-host-relocation'
 import { app, ipcMain, powerMonitor, session } from 'electron'
 import os from 'node:os'
 import { join } from 'node:path'
-import { maybeRedirectCliLaunch } from './cli-launch-redirect'
+import { maybeRedirectCliLaunch } from './cli-launch/cli-launch-redirect'
 import { runProfileStateRecoveryPreflight } from './profile-state-recovery-preflight'
-import { argvRequestsServeMode, normalizeServeModeArgv } from './serve-mode-argv'
+import { argvRequestsServeMode, normalizeServeModeArgv } from './serve-launch/serve-mode-argv'
 import {
   configureDevUserDataPath,
   configureElectronNetworkCompatibility,
@@ -23,7 +24,7 @@ import {
   installUncaughtPipeErrorGuard,
   installUnhandledRejectionLogging
 } from './main-process-error-guards'
-import { hydrateShellPath, mergePathSegments } from './hydrate-shell-path'
+import { hydrateShellPath, mergePathSegments } from './shell-environment/hydrate-shell-path'
 import { configureRemoteServerUpdater } from '../runtime/hosts/management/remote-server-updater'
 import {
   getRemoteServerUpdaterSnapshot,
@@ -46,7 +47,7 @@ import {
 import { setSpawnObserver } from '@orca/process-host/spawn-observer'
 import { settledDiffCache } from '../git/source-control/git-read-cache-invalidation'
 import { reserveServeStdoutForReadiness } from '../server/serve-stdout-boundary'
-import { createServeDesktopActivationGate } from './serve-desktop-activation'
+import { createServeDesktopActivationGate } from './serve-launch/serve-desktop-activation'
 import {
   shouldBypassSingleInstanceLock,
   shouldSkipSingleInstanceLock,
@@ -81,10 +82,6 @@ import '../orca-profiles/profile-index-store'
 import { getProfileUserDataPath, initOrcaProfilePaths } from '../orca-profiles/profile-storage-paths'
 import { recoverPendingProfileProjectMoves } from '../orca-profiles/project-transfer/profile-project-move-intent'
 import { initStatsPath } from '../stats/collector'
-import { initClaudeUsagePath } from '../claude-usage/store'
-import { initCodexUsagePath } from '../codex-usage/store'
-import { initOpenCodeUsagePath } from '../opencode-usage/store'
-import { initMuseUsagePath } from '../muse-usage/store'
 import { registerDocPreviewSchemePrivileges } from '../browser/document-preview/doc-preview-protocol'
 import { PRIVILEGED_CUSTOM_SCHEMES } from './privileged-custom-schemes'
 import { startCrashpadCapture } from '../crash-reporting/capture/crashpad-capture'
@@ -95,12 +92,12 @@ import {
   ensureVirtualDisplayForHeadlessServe,
   hasUsableLinuxDisplay,
   missingLinuxDisplayMessage
-} from './ensure-virtual-display'
+} from './linux-display/ensure-virtual-display'
 import {
   createGpuCrashDiagnosticsRecorder,
   maybeApplyGpuFallbackForThisLaunch,
   registerGpuLifecycleHandlers
-} from './gpu-lifecycle'
+} from './gpu-recovery/gpu-lifecycle'
 import { mainProcessState as state } from './main-process-state'
 import { initializeSyntheticTitleRuntime } from './synthetic-title-runtime'
 import { initializeBrowserProcessUserAgent } from '../browser/identity/browser-process-user-agent'
@@ -305,10 +302,7 @@ function initializeMainProcessPreflight(options: MainProcessPreflightOptions): b
   )
   // Capture stats/usage paths before app naming can shift userData.
   initStatsPath()
-  initClaudeUsagePath()
-  initCodexUsagePath()
-  initOpenCodeUsagePath()
-  initMuseUsagePath()
+  captureBackendBootstrap()
   // Register preview privileges before ready freezes the table or webviews lose fetch/secure-origin access.
   registerDocPreviewSchemePrivileges(PRIVILEGED_CUSTOM_SCHEMES)
   // Install Crashpad before first renderer; earlier CHECK failures have exit-code evidence only.

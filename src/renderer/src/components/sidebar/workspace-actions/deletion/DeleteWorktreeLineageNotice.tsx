@@ -9,6 +9,8 @@ import {
 import type { Worktree } from '../../../../../../shared/worktree/types'
 import { getWorktreeHostIdentity } from '../../../../../../shared/worktree/host-qualified-identity'
 import { DeleteWorktreeDirtyChangeHint } from './DeleteWorktreeDirtyChangeHint'
+import { DeleteWorktreeLocalFilesHint } from './DeleteWorktreeLocalFilesHint'
+import type { WorktreeAtRiskLocalFiles } from '../../../../../../shared/worktree/at-risk-local-files'
 import type {
   DeleteWorktreeChangeCheckState,
   DeleteWorktreeDirtyChangePreview
@@ -25,6 +27,7 @@ type DeleteWorktreeLineageNoticeProps = {
   dirtyChangePreviewsByWorktreeId: ReadonlyMap<string, DeleteWorktreeDirtyChangePreview>
   changeCheckStatesByWorktreeId?: ReadonlyMap<string, DeleteWorktreeChangeCheckState>
   folderKeptNotice?: { title: string; body: string } | null
+  atRiskLocalFilesByIdentity?: ReadonlyMap<string, WorktreeAtRiskLocalFiles>
   preserveChildren: boolean
   canPreserveChildren: boolean
   disabled: boolean
@@ -39,6 +42,7 @@ export function DeleteWorktreeLineageNotice({
   dirtyChangePreviewsByWorktreeId,
   changeCheckStatesByWorktreeId,
   folderKeptNotice,
+  atRiskLocalFilesByIdentity,
   preserveChildren,
   canPreserveChildren,
   disabled,
@@ -123,17 +127,22 @@ export function DeleteWorktreeLineageNotice({
                   </div>
                   <div className="truncate text-muted-foreground">{child.path}</div>
                   {!preserveChildren && (
-                    <DeleteWorktreeDirtyChangeHint
-                      checkState={changeCheckStatesByWorktreeId?.get(
-                        child.hostId ? getWorktreeHostIdentity(child) : child.id
-                      )}
-                      changeCount={dirtyChangeCountsByWorktreeId.get(
-                        child.hostId ? getWorktreeHostIdentity(child) : child.id
-                      )}
-                      preview={dirtyChangePreviewsByWorktreeId.get(
-                        child.hostId ? getWorktreeHostIdentity(child) : child.id
-                      )}
-                    />
+                    <>
+                      <DeleteWorktreeDirtyChangeHint
+                        checkState={changeCheckStatesByWorktreeId?.get(
+                          child.hostId ? getWorktreeHostIdentity(child) : child.id
+                        )}
+                        changeCount={dirtyChangeCountsByWorktreeId.get(
+                          child.hostId ? getWorktreeHostIdentity(child) : child.id
+                        )}
+                        preview={dirtyChangePreviewsByWorktreeId.get(
+                          child.hostId ? getWorktreeHostIdentity(child) : child.id
+                        )}
+                      />
+                      <DeleteWorktreeLocalFilesHint
+                        files={atRiskLocalFilesByIdentity?.get(getWorktreeHostIdentity(child))}
+                      />
+                    </>
                   )}
                 </div>
               ))}

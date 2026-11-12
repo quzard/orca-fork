@@ -1,6 +1,6 @@
 /* oxlint-disable max-lines -- fork: hook call only */
 import { selectWslHostsServing } from '../../use-wsl-hosts-enabled'
-import { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { shallow } from 'zustand/shallow'
 import { persistedUIValuesEqual } from '../../../../../../shared/persisted-ui-equality'
 import { useShallow } from 'zustand/react/shallow'
@@ -21,11 +21,7 @@ import { useEffectiveCollapsedGroups } from './use-collapsed-groups'
 import type { Row } from '../../../../../../shared/sidebar-list/row-types'
 import type { SectionRowsArgs } from './sidebar-list-model'
 import { getLogicalRepoOrderRankById } from '../../../../../../shared/project-section-order'
-import {
-  readHiddenVmCheckouts,
-  subscribeHiddenVmCheckouts
-} from '@/runtime/ephemeral-vm/vm-create-hidden-checkouts'
-import { getEmptyProjectPlaceholderRepoIds } from '../../../../../../shared/sidebar-list/empty-project-placeholder-repos'
+import { useEmptyProjectPlaceholderRepoIds } from './use-empty-project-placeholders'
 import {
   deferHostSectionCollapse,
   scopeHostSectionCollapse
@@ -46,7 +42,6 @@ import {
 import { selectPendingWorktreeCreationKeys } from './pending-worktree-creation-keys'
 import { sidebarModeRetainsHostHeaders } from '../../../../../../shared/fork-hooks/sidebar-group-mode'
 import { useSidebarGroupModeLabelsVersion } from '../../../../../../fork/sidebar/mode-labels'
-import { selectWorktreesByRepo } from '@/store/workspaces/catalog/workspace-record-fields'
 import { selectEphemeralVmHostLifecycles } from '@/store/slices/ephemeral-vm/ephemeral-vm-lifecycle'
 
 function createSidebarHostOptionsSelector() {
@@ -97,7 +92,6 @@ function createSidebarHostOptionsSelector() {
 
 export function useSidebarSectionRows(args: SectionRowsArgs) {
   const { repos, worktrees, repoMap, defaultHostId } = args
-  const worktreesByRepo = useAppStore((s) => selectWorktreesByRepo(s))
   const lineageParentIdentities = useAppStore(selectSidebarLineageParentIdentities)
   const workspaceHostOrder = useAppStore((s) => s.workspaceHostOrder)
   const setWorkspaceHostOrder = useAppStore((s) => s.setWorkspaceHostOrder)
@@ -108,30 +102,14 @@ export function useSidebarSectionRows(args: SectionRowsArgs) {
     [repos]
   )
   const allRepoIds = useMemo(() => repos.map((r) => r.id), [repos])
-  const hiddenVmCheckouts = useSyncExternalStore(
-    subscribeHiddenVmCheckouts,
-    readHiddenVmCheckouts,
-    readHiddenVmCheckouts
-  )
-  const placeholderRepoIds = useMemo(
-    () =>
-      getEmptyProjectPlaceholderRepoIds({
-        groupBy: args.groupBy,
-        repos: args.visibleReposForRows,
-        worktreesByRepo,
-        visibleWorktrees: worktrees,
-        filterRepoIds: args.filterRepoIds,
-        pendingVmRepoIds: hiddenVmCheckouts.repoIds
-      }),
-    [
-      args.filterRepoIds,
-      args.groupBy,
-      args.visibleReposForRows,
-      worktrees,
-      worktreesByRepo,
-      hiddenVmCheckouts
-    ]
-  )
+  const placeholderRepoIds = useEmptyProjectPlaceholderRepoIds({
+    groupBy: args.groupBy,
+    repos,
+    visibleRepos: args.visibleReposForRows,
+    visibleWorktrees: worktrees,
+    filterRepoIds: args.filterRepoIds,
+    defaultHostId
+  })
 
   // Why: subscribe on a flat key array (useShallow) so progress ticks don't rebuild the whole row model.
   const pendingCreationKeys = useAppStore(

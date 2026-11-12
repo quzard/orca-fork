@@ -1,10 +1,8 @@
+import type { BackendSupervisor } from '../backend-desktop/backend-supervisor'
+import type { AutomationUsageClient } from '../../shared/backend-service-contract'
 import { type BrowserWindow, type Tray, app } from 'electron'
 import type { Store } from '../persistence/loading-store/store'
 import type { StatsCollector } from '../stats/collector'
-import type { ClaudeUsageStore } from '../claude-usage/store'
-import type { CodexUsageStore } from '../codex-usage/store'
-import type { OpenCodeUsageStore } from '../opencode-usage/store'
-import type { MuseUsageStore } from '../muse-usage/store'
 import type { UsageWorktreeHistory } from '../usage/worktree-attribution/usage-worktree-history'
 import type { CodexAccountService } from '../codex-accounts/service'
 import type { CodexRuntimeHomeService } from '../codex-accounts/runtime-home-service'
@@ -31,13 +29,13 @@ import type { KeybindingService } from '../keybindings/keybinding-service'
 import type { MobileRelayStatusDetail } from '../../shared/remote-runtime/relay/mobile-relay-status'
 import type { AgentBrowserBridge } from '../browser/agent-browser/agent-browser-bridge'
 import type { EmulatorBridge } from '../emulator/emulator-bridge'
-import type { GpuFallbackMarker, GpuFallbackEnvironment } from './gpu-fallback-marker'
+import type { GpuFallbackMarker, GpuFallbackEnvironment } from './gpu-recovery/gpu-fallback-marker'
 import type { createCodexSessionMigrationScheduler } from '../codex/history/backfill/codex-session-migration-scheduler'
 import type { getDevInstanceIdentity } from './dev-instance-identity'
-import type { createServeDesktopActivationGate } from './serve-desktop-activation'
+import type { createServeDesktopActivationGate } from './serve-launch/serve-desktop-activation'
 import type { ensureActiveOrcaProfile } from '../orca-profiles/profile-index-store'
-import type { createWindowsShellPathHydration } from './windows-shell-path-hydration'
-import type { ServeOptions } from './main-process-serve'
+import type { createWindowsShellPathHydration } from './shell-environment/windows-shell-path-hydration'
+import type { ServeOptions } from './serve-launch/serve-options'
 import type { HangDetectionMarker } from '../hang-watchdog/hang-detection-marker'
 import { ServeReadinessPublisher } from '../server/serve-readiness'
 import { PluginInstallLinkState, SkillShareDeepLinkState } from './skill-share-deep-link-state'
@@ -67,6 +65,14 @@ function createInitialProfileStateAdmission(): ProfileStateRuntimeAdmission | un
   return undefined
 }
 
+function createInitialBackendServices(): {
+  backend: BackendSupervisor | null
+  claudeUsage: AutomationUsageClient | null
+  codexUsage: AutomationUsageClient | null
+} {
+  return { backend: null, claudeUsage: null, codexUsage: null }
+}
+
 /** Mutable composition-root state shared by startup, window, serve, and quit phases. */
 const desktopRelayStatus: MobileRelayStatusDetail = { status: 'offline' }
 
@@ -80,12 +86,8 @@ export const mainProcessState = {
   profileStateStartup: createInitialProfileStateStartup(),
   profileStateAdmission: createInitialProfileStateAdmission(),
   stats: null as StatsCollector | null,
-  claudeUsage: null as ClaudeUsageStore | null,
-  codexUsage: null as CodexUsageStore | null,
-  openCodeUsage: null as OpenCodeUsageStore | null,
-  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: widens the null slot to the store type assigned by main-process-observers.
-  museUsage: null as MuseUsageStore | null,
-  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: widens the null slot to the history assigned by main-process-observers.
+  ...createInitialBackendServices(),
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: widens the null slot assigned by main-process-observers.
   usageWorktreeHistory: null as UsageWorktreeHistory | null,
   codexAccounts: null as CodexAccountService | null,
   codexRuntimeHome: null as CodexRuntimeHomeService | null,

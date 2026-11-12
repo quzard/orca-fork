@@ -2,9 +2,10 @@
 import {
   bind,
   type BoundPluginHostMethod
-} from '../../main/plugins/workers/plugin-host-method-bind'
-import { PluginHostCallError } from '../../main/plugins/workers/plugin-host-call-scope'
-import type { PluginHostMethodContext } from '../../main/plugins/workers/plugin-host-method-bind'
+} from '../../main/plugins/workers/host-api/plugin-host-method-bind'
+import { PluginHostCallError } from '../../main/plugins/workers/host-api/plugin-host-call-scope'
+import { ForkPluginHostCallError } from './plugin-host-call-error'
+import type { PluginHostMethodContext } from '../../main/plugins/workers/host-api/plugin-host-method-bind'
 import { PluginRuntimeRpcError } from '../../main/plugins/plugin-runtime-rpc'
 import { parseExecutionHostId } from '../../shared/execution-host'
 import {
@@ -93,20 +94,18 @@ function refuseRpc(error: unknown, envId?: string): never {
     if (envId) {
       execUnavailableEnvIds.add(envId)
     }
-    throw new PluginHostCallError(
+    throw new ForkPluginHostCallError(
       'unavailable',
       'This Orca server does not implement fork.workspace.exec. Update the Orca server on this host.',
-      undefined,
       FORK_HOST_ERROR_SERVER_METHOD_MISSING
     )
   }
   if (coded.code === 'invalid_argument') {
     const marker = 'not_permitted:'
     if (coded.message.startsWith(marker)) {
-      throw new PluginHostCallError(
+      throw new ForkPluginHostCallError(
         'not_permitted',
         'This host cannot run fork.host.exec.',
-        undefined,
         coded.message.slice(marker.length)
       )
     }
@@ -115,10 +114,9 @@ function refuseRpc(error: unknown, envId?: string): never {
   if (coded.code === 'selector_not_found') {
     throw new PluginHostCallError('invalid_params', coded.message)
   }
-  throw new PluginHostCallError(
+  throw new ForkPluginHostCallError(
     'unavailable',
     coded.message,
-    undefined,
     FORK_HOST_ERROR_HOST_UNREACHABLE
   )
 }
@@ -130,10 +128,9 @@ async function callLocal(
 ): Promise<unknown> {
   const call = ctx.services.runtimeRpc
   if (!call) {
-    throw new PluginHostCallError(
+    throw new ForkPluginHostCallError(
       'unavailable',
       'this Orca host cannot run workspace actions',
-      undefined,
       FORK_HOST_ERROR_HOST_UNREACHABLE
     )
   }
@@ -186,10 +183,9 @@ const handlers = {
       throw new PluginHostCallError('invalid_params', 'unknown hostId')
     }
     if (parsed.kind === 'ssh') {
-      throw new PluginHostCallError(
+      throw new ForkPluginHostCallError(
         'not_permitted',
         'SSH hosts are not served here. Call fork.host.exec with the runtime host.',
-        undefined,
         FORK_HOST_ERROR_SSH_NOT_SERVED
       )
     }
@@ -245,3 +241,5 @@ export function summarizeForkPluginHostCall(
   const argv0 = typeof argv[0] === 'string' ? argv[0] : ''
   return `host=${String(record.hostId)} workspace=${String(record.workspaceId)} argv0=${argv0}`
 }
+
+export { forkPluginHostErrorReason } from './plugin-host-call-error'

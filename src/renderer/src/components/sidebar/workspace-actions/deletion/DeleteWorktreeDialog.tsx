@@ -34,6 +34,7 @@ import { useTranslate } from '@/i18n/use-translate'
 import { useUiLanguageRevision } from '@/i18n/use-ui-language-revision'
 import type { WorktreeRemovalTarget } from '../../../../../../shared/worktree/removal'
 import { useDeleteWorktreeStatusHydration } from './use-delete-worktree-status-hydration'
+import { useDeleteWorktreeAtRiskLocalFiles } from './use-delete-worktree-at-risk-local-files'
 import { useConfirmedWorktreeDeleteTargets } from './use-confirmed-worktree-delete-targets'
 import { runLineageDeleteAll } from './delete-worktree-lineage-delete-all'
 import { runDialogForceDelete } from './delete-worktree-dialog-force-delete'
@@ -193,6 +194,11 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
     isOpen,
     deleteTargets,
     visibleTargets: worktrees,
+    repoMap
+  })
+  const atRiskLocalFilesByIdentity = useDeleteWorktreeAtRiskLocalFiles({
+    isOpen,
+    deleteTargets,
     repoMap
   })
   const dirtyChanges = useMemo(() => {
@@ -371,6 +377,7 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
             changeCheckStatesByWorktreeId={dirtyChanges.checkStates}
             dirtyChangeCountsByWorktreeId={dirtyChanges.counts}
             dirtyChangePreviewsByWorktreeId={dirtyChanges.previews}
+            atRiskLocalFilesByIdentity={atRiskLocalFilesByIdentity}
           />
 
           <RemovalUnsavedFilesNotice
@@ -387,6 +394,7 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
               changeCheckStatesByWorktreeId={dirtyChanges.checkStates}
               dirtyChangeCountsByWorktreeId={dirtyChanges.counts}
               dirtyChangePreviewsByWorktreeId={dirtyChanges.previews}
+              atRiskLocalFilesByIdentity={atRiskLocalFilesByIdentity}
               preserveChildren={preserveChildrenSelected}
               canPreserveChildren={canPreserveChildren}
               disabled={isDeleting}

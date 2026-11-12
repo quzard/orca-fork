@@ -1,4 +1,7 @@
-import { resolveRegisteredMissingRepoWorktreeScan } from '../../../../shared/fork-hooks/missing-worktree-metadata'
+import {
+  resolveRegisteredMissingRepoWorktreeScan,
+  resolveRegisteredTrueEmptyRepoScan
+} from '../../../../shared/fork-hooks/missing-worktree-metadata'
 import type { GitWorktreeInfo } from '../../../../shared/worktree/types'
 import { listWorktreesSharedStrictAllowingTrueEmpty } from '../../../git/worktrees/catalog/worktree-scan-cache'
 import type { LocalProjectWorktreeGitOptions } from '../../../workspaces/execution-host/project-runtime-git-options'
@@ -19,7 +22,7 @@ export async function scanLocalRepoWorktreesForResolution(
       : await listWorktreesSharedStrictAllowingTrueEmpty(repoPath)
     return worktrees.length > 0
       ? { ok: true, worktrees }
-      : { ok: false, worktrees: [], trueEmpty: true }
+      : (resolveRegisteredTrueEmptyRepoScan() ?? { ok: false, worktrees: [], trueEmpty: true })
   } catch (err) {
     return (
       (await resolveRegisteredMissingRepoWorktreeScan(repoPath, err)) ?? {

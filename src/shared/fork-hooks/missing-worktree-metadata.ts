@@ -34,6 +34,14 @@ export async function resolveRegisteredMissingRepoWorktreeScan(
   return registeredHooks ? await registeredHooks.resolveMissingRepoScan(repoPath, error) : null
 }
 
+/** 上游确认仓库目录不在或已不是仓库时只报 trueEmpty（不算权威）。登记后按权威空列表处理，残留元数据才会清掉。 */
+export function resolveRegisteredTrueEmptyRepoScan(): {
+  ok: true
+  worktrees: GitWorktreeInfo[]
+} | null {
+  return registeredHooks ? { ok: true, worktrees: [] } : null
+}
+
 export function filterRegisteredLiveGitWorktrees<T extends readonly GitWorktreeInfo[]>(
   gitWorktrees: T
 ): T {

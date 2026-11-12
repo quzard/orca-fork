@@ -69,7 +69,7 @@ describe('missing worktree directory metadata cleanup', () => {
   it('keeps upstream behavior when unregistered', async () => {
     const goneRepoPath = join(testState.dir, 'gone-repo')
     const scan = await scanLocalRepoWorktreesForResolution(goneRepoPath, {})
-    expect(scan).toEqual({ ok: false, worktrees: [] })
+    expect(scan).toEqual({ ok: false, worktrees: [], trueEmpty: true })
 
     const store = createStore()
     const repo = makeRepo({ id: 'repo-1', path: repoPath })

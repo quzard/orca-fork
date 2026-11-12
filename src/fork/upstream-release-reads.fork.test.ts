@@ -1,3 +1,4 @@
+// @orca-isolated-worker: 这里测未登记时的上游行为；共享 worker 里别的文件登记的 fork 钩子不会撤销。
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -25,7 +26,10 @@ import { AgentStateRulesLiveUpdater } from '../main/runtime/agent-state-rules/ag
 import { fetchChangelog } from '../main/updater/releases/updater-changelog'
 import { fetchNudge } from '../main/updater/nudges/nudge-campaign'
 import { fetchNewerReleaseTagsWithReadiness } from '../main/updater/releases/updater-prerelease-feed'
-import { listReleaseBuilds, resolveTargetBuild } from '../main/updater/releases/updater-release-builds'
+import {
+  listReleaseBuilds,
+  resolveTargetBuild
+} from '../main/updater/releases/updater-release-builds'
 import { FORK_UPSTREAM_RELEASE_BLOCKED, registerForkBuild } from '../shared/fork-hooks/update-feed'
 import { getReleaseNotesUrlForVersion } from '../shared/release-channel'
 
@@ -50,7 +54,7 @@ async function agentRulesFetches(): Promise<ReturnType<typeof vi.fn>> {
   return fetch
 }
 
-describe('fork builds never read upstream releases or onorca.dev', () => {
+describe('fork builds never read upstream releases or orca.dev', () => {
   afterEach(() => {
     registerForkBuild(false)
     netFetch.mockReset()
@@ -62,7 +66,7 @@ describe('fork builds never read upstream releases or onorca.dev', () => {
     expect(getReleaseNotesUrlForVersion('1.4.228')).toContain('github.com/stablyai/orca')
     netFetch.mockResolvedValue(new Response('[]', { status: 200 }))
     await fetchChangelog('1.4.229', '1.4.228')
-    expect(String(netFetch.mock.calls[0]?.[0])).toContain('onorca.dev')
+    expect(String(netFetch.mock.calls[0]?.[0])).toContain('orca.dev/whats-new')
     const upstreamRules = await agentRulesFetches()
     expect(String(upstreamRules.mock.calls[0]?.[0])).toMatch(
       /^https:\/\/github\.com\/stablyai\/orca\/releases\/download\/agent-state-rules-engine-/

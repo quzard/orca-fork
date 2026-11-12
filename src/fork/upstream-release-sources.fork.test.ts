@@ -17,7 +17,7 @@ const GATED_SOURCES = [
 ]
 
 const UPSTREAM_RELEASE_SOURCE =
-  /stablyai\/orca[\w-]*\/releases|stablyai\\\/orca\\\/releases|onorca\.dev\/whats-new|\b\w*RELEASE_REPO\b|getReleaseRepoForChannel\(/
+  /stablyai\/orca[\w-]*\/releases|stablyai\\\/orca\\\/releases|(?:on)?orca\.dev\/whats-new|\b\w*RELEASE_REPO\b|getReleaseRepoForChannel\(/
 
 const ROOTS = ['src/main', 'src/shared', 'src/renderer/src', 'src/preload', 'src/cli', 'src/fork']
 const SKIP = /\.(test|spec)\.tsx?$|__fixtures__|\/i18n\/locales\/|updater-test-harness\.ts$/

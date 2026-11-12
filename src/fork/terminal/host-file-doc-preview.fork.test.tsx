@@ -1,3 +1,4 @@
+// @orca-isolated-worker: 这里测未登记时的上游行为；共享 worker 里别的文件登记的 fork 钩子不会撤销。
 // F046: a server document outside the clicked workspace is previewable: outside every workspace its
 // grant is rooted at the host's filesystem root, so the page resolves paths as from file://; inside
 // another workspace at that workspace. Images it names are read from the host through grants.

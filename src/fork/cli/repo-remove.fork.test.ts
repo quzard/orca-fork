@@ -1,6 +1,7 @@
 // F055 `orca repo rm`：命令本身，以及上游 CLI 的 spec、handler 清单和总帮助里的展开行。
 import { describe, expect, it, vi } from 'vitest'
 import type { RuntimeRpcSuccess } from '../../shared/runtime-rpc-envelope'
+import { CLI_GLOBAL_FLAGS } from '../../shared/cli-argument-boundary'
 import {
   FORK_REPO_HELP_SUMMARY,
   FORK_REPO_HELP_USAGE,
@@ -12,11 +13,10 @@ type CliSpec = ReturnType<typeof forkRepoCommandSpecs>[number]
 type RepoRmHandler = ReturnType<typeof forkRepoHandlers>[string]
 type CliModules = {
   args: {
-    GLOBAL_FLAGS: readonly string[]
     parseArgs: (argv: string[], paths: string[][], specs: CliSpec[]) => unknown
-    specPaths: (spec: CliSpec) => string[][]
     validateCommandAndFlags: (specs: CliSpec[], parsed: unknown) => void
   }
+  commandSpec: { specPaths: (spec: CliSpec) => string[][] }
   specs: { COMMAND_SPECS: CliSpec[] }
   manifest: {
     HANDLER_GROUPS: readonly {
@@ -38,20 +38,32 @@ type CliModules = {
 // 路径在运行时拼出来，tsc 不跟进去，vitest 照常转译。
 async function loadCli(): Promise<CliModules> {
   const load = (path: string): Promise<unknown> => import(/* @vite-ignore */ `../../cli/${path}`)
-  const [args, specs, manifest, help, primary, secondary, agentContext, flags] = await Promise.all(
-    [
-      'args.ts',
-      'specs/index.ts',
-      'handler-group-manifest.ts',
-      'help.ts',
-      'root-help-text-primary.ts',
-      'root-help-text-secondary.ts',
-      'agent-context.ts',
-      'flags.ts'
-    ].map(load)
-  )
+  const [args, commandSpec, specs, manifest, help, primary, secondary, agentContext, flags] =
+    await Promise.all(
+      [
+        'arguments/args.ts',
+        'discovery/command-spec.ts',
+        'specs/index.ts',
+        'dispatch/handler-group-manifest.ts',
+        'discovery/help.ts',
+        'discovery/root-help-text-primary.ts',
+        'discovery/root-help-text-secondary.ts',
+        'discovery/agent-context.ts',
+        'arguments/flags.ts'
+      ].map(load)
+    )
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: 这些是上面路径的真实模块，CliModules 只列出本测试读到的导出；读错名字时下面的断言会失败。
-  return { args, specs, manifest, help, primary, secondary, agentContext, flags } as CliModules
+  return {
+    args,
+    commandSpec,
+    specs,
+    manifest,
+    help,
+    primary,
+    secondary,
+    agentContext,
+    flags
+  } as CliModules
 }
 
 // 返回值类型交给推断：vi.fn 的通用 Mock 类型对不上 handler 要的 call 签名。
@@ -105,8 +117,8 @@ describe('orca repo rm', () => {
   })
 
   it('is wired into the CLI registry, handler manifest, root help and agent-context', async () => {
-    const { args, specs, manifest, primary, secondary, agentContext } = await loadCli()
-    expect(specs.COMMAND_SPECS).toContainEqual(forkRepoCommandSpecs(args.GLOBAL_FLAGS)[0])
+    const { args, commandSpec, specs, manifest, primary, secondary, agentContext } = await loadCli()
+    expect(specs.COMMAND_SPECS).toContainEqual(forkRepoCommandSpecs(CLI_GLOBAL_FLAGS)[0])
 
     const repoGroup = manifest.HANDLER_GROUPS.find((group) => group.name === 'repo')
     expect(repoGroup?.keys).toContain('repo rm')
@@ -125,7 +137,7 @@ describe('orca repo rm', () => {
 
     const parsed = args.parseArgs(
       ['repo', 'rm', '--repo', 'id:repo-1', '--json'],
-      specs.COMMAND_SPECS.flatMap(args.specPaths),
+      specs.COMMAND_SPECS.flatMap(commandSpec.specPaths),
       specs.COMMAND_SPECS
     )
     expect(() => args.validateCommandAndFlags(specs.COMMAND_SPECS, parsed)).not.toThrow()

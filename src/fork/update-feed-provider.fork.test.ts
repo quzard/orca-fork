@@ -1,3 +1,4 @@
+// @orca-isolated-worker: 这里测未登记时的上游行为；共享 worker 里别的文件登记的 fork 钩子不会撤销。
 import { afterEach, describe, expect, it } from 'vitest'
 import { createClient } from 'electron-updater/out/providerFactory'
 import { forkUpdateFeed, registerForkBuild } from '../shared/fork-hooks/update-feed'
@@ -99,6 +100,6 @@ describe('fork update feed provider', () => {
         /^https:\/\/github\.com\/quzard\/orca-fork\/releases\/download\//
       )
     }
-    expect(JSON.stringify(seen)).not.toMatch(/stablyai|onorca|api\.github\.com/)
+    expect(JSON.stringify(seen)).not.toMatch(/stablyai|orca\.dev|api\.github\.com/)
   })
 })

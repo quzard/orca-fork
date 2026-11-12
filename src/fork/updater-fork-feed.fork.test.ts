@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { loadUpdaterModule, warmUpdaterModule } from '../main/updater/testing/updater-test-module-loader'
+import {
+  loadUpdaterModule,
+  warmUpdaterModule
+} from '../main/updater/testing/updater-test-module-loader'
 
 const {
   appMock,
@@ -16,14 +19,20 @@ vi.mock('electron', () => moduleFactories.electron())
 vi.mock('electron-updater', () => moduleFactories.electronUpdater())
 vi.mock('../main/updater/electron-updater-loader', () => moduleFactories.electronUpdaterLoader())
 vi.mock('../main/ipc/pty/kill-all', () => moduleFactories.ptyKillAll())
-vi.mock('../main/updater/linux-package/linux-update-package-type', () => moduleFactories.linuxUpdatePackageType())
+vi.mock('../main/updater/linux-package/linux-update-package-type', () =>
+  moduleFactories.linuxUpdatePackageType()
+)
 vi.mock('../main/updater/updater-lifecycle-diagnostics', () =>
   moduleFactories.updaterLifecycleDiagnostics()
 )
 vi.mock('../main/updater/releases/updater-changelog', () => moduleFactories.updaterChangelog())
 vi.mock('../main/updater/nudges/nudge-campaign', () => moduleFactories.updaterNudge())
-vi.mock('../main/updater/update-install-exit-watchdog', () => moduleFactories.updateInstallExitWatchdog())
-vi.mock('../main/updater/releases/updater-prerelease-feed', () => moduleFactories.updaterPrereleaseFeed())
+vi.mock('../main/updater/update-install-exit-watchdog', () =>
+  moduleFactories.updateInstallExitWatchdog()
+)
+vi.mock('../main/updater/releases/updater-prerelease-feed', () =>
+  moduleFactories.updaterPrereleaseFeed()
+)
 vi.mock('../main/local-builds/local-build-switch', () => moduleFactories.localBuildSwitch())
 vi.mock('../main/local-builds/local-build-feed-server', () =>
   moduleFactories.localBuildFeedServer()
@@ -31,7 +40,7 @@ vi.mock('../main/local-builds/local-build-feed-server', () =>
 
 warmUpdaterModule()
 
-const UPSTREAM_RELEASE_URL = /stablyai|onorca/i
+const UPSTREAM_RELEASE_URL = /stablyai|orca\.dev/i
 
 function feedUrls(): string[] {
   return autoUpdaterMock.setFeedURL.mock.calls.map((call: unknown[]) => JSON.stringify(call[0]))

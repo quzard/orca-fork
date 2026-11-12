@@ -53,10 +53,20 @@ vi.mock('../../main/git/command-runner/git-exec-file', async (importOriginal) =>
 vi.mock('../../main/git/runner', async () =>
   (await import('../../main/ipc/worktrees-test-module-mocks')).gitRunnerModuleMock()
 )
-vi.mock('../../main/git/repo', async () =>
-  (await import('../../main/ipc/worktrees-test-module-mocks')).gitRepoModuleMock()
+vi.mock('../../main/git/remotes/repo-remote-queries', async () => ({
+  getDefaultRemote: (await import('../../main/ipc/worktrees-test-module-mocks')).getDefaultRemoteMock
+}))
+vi.mock('../../main/git/refs/resolution/repo-branch-conflict', async () =>
+  (await import('../../main/ipc/worktrees-test-module-mocks')).gitBranchConflictModuleMock()
 )
-vi.mock('../../main/git/git-username', async (importOriginal) => ({
+vi.mock('../../main/git/refs/resolution/repo-default-base-ref', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  getDefaultBaseRefAsync: (await import('../../main/ipc/worktrees-test-module-mocks'))
+    .getBaseRefDefaultMock,
+  resolveDefaultBaseRefWithLocalGit: (await import('../../main/ipc/worktrees-test-module-mocks'))
+    .resolveDefaultBaseRefWithLocalGitMock
+}))
+vi.mock('../../main/git/repositories/git-username', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   resolveLocalGitUsername: (await import('../../main/ipc/worktrees-test-module-mocks'))
     .resolveLocalGitUsernameMock

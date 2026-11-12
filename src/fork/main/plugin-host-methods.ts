@@ -114,11 +114,7 @@ function refuseRpc(error: unknown, envId?: string): never {
   if (coded.code === 'selector_not_found') {
     throw new PluginHostCallError('invalid_params', coded.message)
   }
-  throw new ForkPluginHostCallError(
-    'unavailable',
-    coded.message,
-    FORK_HOST_ERROR_HOST_UNREACHABLE
-  )
+  throw new ForkPluginHostCallError('unavailable', coded.message, FORK_HOST_ERROR_HOST_UNREACHABLE)
 }
 
 async function callLocal(

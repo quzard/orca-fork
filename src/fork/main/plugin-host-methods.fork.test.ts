@@ -4,8 +4,8 @@ import {
   toRuntimeExecutionHostId,
   toSshExecutionHostId
 } from '../../shared/execution-host'
-import { executePluginHostCall } from '../../main/plugins/workers/plugin-host-methods'
-import type { PluginHostServices } from '../../main/plugins/workers/plugin-host-method-bindings'
+import { executePluginHostCall } from '../../main/plugins/workers/host-api/plugin-host-methods'
+import type { PluginHostServices } from '../../main/plugins/workers/host-api/plugin-host-method-bindings'
 import {
   PLUGIN_HOST_API_MINOR,
   pluginHostMethodsFor

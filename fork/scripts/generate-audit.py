@@ -39,7 +39,7 @@ FEATURES = [
     ('src/fork/cli/', 'F055 orca repo rm'),
     ('src/cli/dispatch/handler-group-manifest.ts', 'F055 orca repo rm'),
     ('src/cli/projects/repo.ts', 'F055 orca repo rm'),
-    ('src/cli/root-help-text-', 'F055 orca repo rm'),
+    ('src/cli/discovery/root-help-text-', 'F055 orca repo rm'),
     ('src/cli/specs/repo.ts', 'F055 orca repo rm'),
     ('antigravity-acp', 'F052 无 IPv6 的 Antigravity'),
     ('acp-launch-specs.ts', 'F052 无 IPv6 的 Antigravity'),

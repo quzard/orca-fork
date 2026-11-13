@@ -35,12 +35,16 @@ import {
   effectiveCustomWorktreeSourceVisibility,
   normalizeCustomWorktreeVisibilitySources,
   normalizeWorktreeVisibilitySourcePreferences
-} from '../../../../../../shared/worktree/visibility-sources'
+} from '../../../../../../shared/worktree/visibility/visibility-sources'
 import {
   buildWorktreeSourcePreferenceUpdate,
   removeCustomWorktreeSourcePreference
+<<<<<<< HEAD
 } from '../../../../../../shared/worktree/visibility-source-preferences'
 import { renderVisibilityArchivedSlot } from '../../../../../../shared/fork-hooks/sidebar-chrome'
+=======
+} from '../../../../../../shared/worktree/visibility/visibility-source-preferences'
+>>>>>>> 17a1dc373b0ac7c5b1710490815d478f2ae76f56
 import HiddenWorktreeRecoveryList from './HiddenWorktreeRecoveryList'
 import { worktreeVisibilityUpdateError } from './worktree-visibility-update-error'
 import { useRepoOwnerVisibilityDefaults } from '../sources/use-repo-owner-visibility-defaults'

@@ -13,10 +13,14 @@
     "../src/fork/**/*.tsx"
   ],
   "exclude": [
+<<<<<<< HEAD
     "../src/renderer/src/components/task-page/linear/task-page-linear-detail-query.test.tsx",
     "../src/renderer/src/runtime/provider-accounts/observations/provider-account-observation.test-fixture.ts",
     "../src/fork/main/**",
     "../src/fork/**/*.fork.test.ts"
+=======
+    "../src/renderer/src/runtime/provider-accounts/observations/provider-account-observation.test-fixture.ts"
+>>>>>>> 17a1dc373b0ac7c5b1710490815d478f2ae76f56
   ],
   "compilerOptions": {
     "composite": true,

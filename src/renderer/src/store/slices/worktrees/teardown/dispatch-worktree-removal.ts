@@ -10,8 +10,12 @@ import {
   isWorktreeRemovalReplyLost,
   settleLostWorktreeRemovalReply
 } from './host-worktree-removal-state'
+<<<<<<< HEAD
 import { worktreeRemovalReplyTimeoutMs } from '../../../../../../shared/worktree/archive-hook-removal-gate'
 import { releaseRegisteredRemovedWorkspaceArchive } from '../../../../../../shared/fork-hooks/workspace-durable-archive'
+=======
+import { worktreeRemovalReplyTimeoutMs } from '../../../../../../shared/worktree/removal/archive-hook-removal-gate'
+>>>>>>> 17a1dc373b0ac7c5b1710490815d478f2ae76f56
 
 /** Carry hostId across every removal transport: repoId::path alone repeats across hosts and cannot identify the confirmed copy (STA-4343). */
 export async function dispatchWorktreeRemoval(args: {

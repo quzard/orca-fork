@@ -3,10 +3,15 @@ import { replayPendingRuntimeRepoRemovalsForReadyServers } from '@/store/repos/p
 import {
   DEFAULT_HIDE_SLEEPING_WORKSPACES,
   DEFAULT_SHOW_SLEEPING_WORKSPACES,
+<<<<<<< HEAD
   DEFAULT_STATUS_BAR_ITEMS,
   DEFAULT_WORKTREE_CARD_PROPERTIES,
   getDefaultUIState
+=======
+  DEFAULT_STATUS_BAR_ITEMS
+>>>>>>> 17a1dc373b0ac7c5b1710490815d478f2ae76f56
 } from '../../../../shared/constants'
+import { DEFAULT_WORKTREE_CARD_PROPERTIES } from '../../../../shared/worktree/row-display/card-properties'
 import type { PersistedUIState } from '../../../../shared/persisted-ui-state-types'
 
 export function hydratePersistedUIAfterStartupRead({

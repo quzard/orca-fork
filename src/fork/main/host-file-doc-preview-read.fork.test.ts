@@ -5,10 +5,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({ callRuntimeEnvironment: vi.fn() }))
 
-vi.mock('../../main/ipc/runtime-environments/runtime-environment-transport-routing', () => ({
+vi.mock('../../main/ipc/runtime-environments/requests/runtime-environment-transport-routing', () => ({
   callRuntimeEnvironment: mocks.callRuntimeEnvironment
 }))
-vi.mock('../../main/ipc/runtime-environments/runtime-environment-registry-root', () => ({
+vi.mock('../../main/ipc/runtime-environments/catalog/runtime-environment-registry-root', () => ({
   getRuntimeEnvironmentRegistryRoot: () => '/user-data'
 }))
 

@@ -189,6 +189,7 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
       'computer permissions',
       'computer list-windows',
       'computer get-app-state',
+      'computer wait',
       'computer click',
       'computer perform-secondary-action',
       'computer scroll',

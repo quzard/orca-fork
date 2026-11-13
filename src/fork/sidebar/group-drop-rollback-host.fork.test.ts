@@ -6,7 +6,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { WorktreeMeta } from '../../shared/worktree/meta-types'
 import type { Worktree } from '../../shared/worktree/types'
-import { WorktreeSet } from '../../shared/rpc-contract/worktree-params'
+import { WorktreeSet } from '../../shared/rpc-contract/workspaces/worktree-params'
 import { mergeWorktreeMetaForWrite } from '../../main/persistence/loading-store/worktree-metadata/worktree-meta-write-normalization'
 import { updateRuntimeManagedWorktreeMetadata } from '../../main/runtime/workspaces/metadata/runtime-managed-worktree-metadata'
 import type { RuntimeStore } from '../../main/runtime/construction/runtime-store-contract'

@@ -1,8 +1,8 @@
 // F046: one call to the host that owns a doc preview outside its worktree, and how the host's reply
 // becomes the preview's outcome.
 import type { HostFileDocPreviewOutcome } from '../../shared/fork-hooks/host-file-doc-preview'
-import { callRuntimeEnvironment } from '../../main/ipc/runtime-environments/runtime-environment-transport-routing'
-import { getRuntimeEnvironmentRegistryRoot } from '../../main/ipc/runtime-environments/runtime-environment-registry-root'
+import { callRuntimeEnvironment } from '../../main/ipc/runtime-environments/requests/runtime-environment-transport-routing'
+import { getRuntimeEnvironmentRegistryRoot } from '../../main/ipc/runtime-environments/catalog/runtime-environment-registry-root'
 import type { DocPreviewGrant } from '../../main/browser/document-preview/doc-preview-grant-registry'
 import type { HostDocPreviewReadParams } from './host-file-methods'
 

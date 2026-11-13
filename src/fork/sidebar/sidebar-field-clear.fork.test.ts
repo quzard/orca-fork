@@ -9,8 +9,8 @@ import {
   folderSidebarFieldsNotApplied,
   parseClearableSidebarFields
 } from '../../shared/fork-hooks/sidebar-field-clear'
-import { FolderWorkspaceUpdate } from '../../shared/rpc-contract/folder-workspace-params'
-import { WorktreeSet } from '../../shared/rpc-contract/worktree-params'
+import { FolderWorkspaceUpdate } from '../../shared/rpc-contract/workspaces/folder-workspace-params'
+import { WorktreeSet } from '../../shared/rpc-contract/workspaces/worktree-params'
 import { FolderWorkspaceUpdateArgs } from '../../main/ipc/repos/repo-ipc-arg-schemas'
 import { updateRuntimeManagedWorktreeMetadata } from '../../main/runtime/workspaces/metadata/runtime-managed-worktree-metadata'
 import { mergeRuntimeFolderWorkspace } from '../../main/runtime/workspaces/catalog/runtime-folder-workspace'

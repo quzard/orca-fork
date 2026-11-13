@@ -1,7 +1,7 @@
 // 桌面进程才有的配对服务器目录。orcad 不加载这个文件。
 import { app } from 'electron'
-import { callRuntimeEnvironment } from '../../main/ipc/runtime-environments/runtime-environment-transport-routing'
-import { getRuntimeEnvironmentStatusSnapshot } from '../../main/ipc/runtime-environments/runtime-environment-request-connections'
+import { callRuntimeEnvironment } from '../../main/ipc/runtime-environments/requests/runtime-environment-transport-routing'
+import { getRuntimeEnvironmentStatusSnapshot } from '../../main/ipc/runtime-environments/connections/runtime-environment-request-connections'
 import { mainProcessState } from '../../main/startup/main-process-state'
 import { getSshConnectionManager } from '../../main/ssh/targets/ssh-target-registry'
 import { isOwnedSshTargetId } from '../../shared/execution-host'

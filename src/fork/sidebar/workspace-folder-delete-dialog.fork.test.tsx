@@ -251,7 +251,7 @@ describe('workspace folder delete before registration', () => {
     expect(screen.queryByRole('checkbox', { name: 'Also delete folder' })).toBeNull()
     expect(text()).toContain(HARD_ONE)
 
-    clickDelete('Delete Workspace')
+    clickDelete('Delete')
 
     expect(runWorktreeDeletesInParallel).toHaveBeenCalledWith([workspace], {
       force: true,
@@ -315,7 +315,7 @@ describe('workspace folder delete dialog', () => {
     showWorktrees([workspace])
     render(<DeleteWorktreeDialog />)
 
-    clickDelete('Delete Workspace')
+    clickDelete('Delete')
 
     await vi.waitFor(() => {
       expect(mocks.state.updateWorktreeMeta).toHaveBeenCalledWith(
@@ -341,7 +341,7 @@ describe('workspace folder delete dialog', () => {
     render(<DeleteWorktreeDialog />)
     fireEvent.click(screen.getByRole('checkbox', { name: 'Also delete folder' }))
 
-    clickDelete('Delete Workspace')
+    clickDelete('Delete')
 
     expect(runWorktreeDeletesInParallel).toHaveBeenCalledWith([workspace], {
       force: true,
@@ -362,7 +362,7 @@ describe('workspace folder delete dialog', () => {
     expect(text()).toContain(FOLDER_COPY)
     expect(text()).not.toContain(HARD_ONE)
 
-    clickDelete('Delete Workspace')
+    clickDelete('Delete')
 
     expect(runWorktreeDeletesInParallel).toHaveBeenCalledWith([workspace], {
       force: true,
@@ -381,7 +381,7 @@ describe('workspace folder delete dialog', () => {
     expect(text()).toContain(SOFT_MANY)
     expect(text()).not.toContain(HARD_MANY)
 
-    clickDelete('Delete 2 Workspaces')
+    clickDelete('Delete')
 
     await vi.waitFor(() => {
       expect(mocks.state.updateWorktreeMeta).toHaveBeenCalledTimes(2)
@@ -400,7 +400,7 @@ describe('workspace folder delete dialog', () => {
     showWorktrees([git, folder], { worktreeIds: [git.id, folder.id] })
     render(<DeleteWorktreeDialog />)
 
-    clickDelete('Delete 2 Workspaces')
+    clickDelete('Delete')
 
     await vi.waitFor(() => {
       expect(mocks.state.updateWorktreeMeta).toHaveBeenCalledWith(
@@ -445,7 +445,7 @@ describe('workspace folder delete dialog', () => {
     expect(text()).not.toContain('Child workspaces will be deleted')
     expect(text()).not.toContain(HARD_MANY)
 
-    clickDelete('Delete 2 Workspaces')
+    clickDelete('Delete')
 
     await vi.waitFor(() => {
       expect(mocks.state.updateWorktreeMeta).toHaveBeenCalledTimes(2)
@@ -464,7 +464,7 @@ describe('workspace folder delete dialog', () => {
     expect(screen.queryByRole('checkbox', { name: 'Also delete folder' })).toBeNull()
     expect(text()).toContain(HARD_ONE)
     expect(text()).not.toContain(SOFT_ONE)
-    expect(screen.getByRole('button', { name: 'Force Delete' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeTruthy()
   })
 
   it('does not warn that unsaved edits will be discarded until the folder checkbox is checked', () => {

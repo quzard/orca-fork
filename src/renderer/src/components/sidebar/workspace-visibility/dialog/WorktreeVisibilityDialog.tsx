@@ -35,11 +35,11 @@ import {
   effectiveCustomWorktreeSourceVisibility,
   normalizeCustomWorktreeVisibilitySources,
   normalizeWorktreeVisibilitySourcePreferences
-} from '../../../../../../shared/worktree/visibility-sources'
+} from '../../../../../../shared/worktree/visibility/visibility-sources'
 import {
   buildWorktreeSourcePreferenceUpdate,
   removeCustomWorktreeSourcePreference
-} from '../../../../../../shared/worktree/visibility-source-preferences'
+} from '../../../../../../shared/worktree/visibility/visibility-source-preferences'
 import { renderVisibilityArchivedSlot } from '../../../../../../shared/fork-hooks/sidebar-chrome'
 import HiddenWorktreeRecoveryList from './HiddenWorktreeRecoveryList'
 import { worktreeVisibilityUpdateError } from './worktree-visibility-update-error'

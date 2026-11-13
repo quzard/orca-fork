@@ -21,7 +21,7 @@ import {
   readAuthorizedDocPreviewFile,
   readAuthorizedDocPreviewFileChunk
 } from '../../shared/document-preview/doc-preview-file-access'
-import { WorktreeSelector } from '../../shared/rpc-contract/files-target-params'
+import { WorktreeSelector } from '../../shared/rpc-contract/filesystem/files-target-params'
 import {
   HOST_DOC_PREVIEW_READ_CHUNK_METHOD,
   HOST_DOC_PREVIEW_READ_METHOD,

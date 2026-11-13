@@ -146,7 +146,7 @@ FEATURES = [
 
 # Optional notes for rows whose generic reason says too little. Keys must differ from the base.
 REASONS = {
-    'src/main/orcad/orcad-entry.ts': '一行 installForkOrcadHost()（在上游 host adapters 之前）；为这行加了文件首行的 max-lines 豁免',
+    'src/main/orcad/host-runtime/orcad-entry.ts': '一行 installForkOrcadHost()（在上游 host adapters 之前）；为这行加了文件首行的 max-lines 豁免',
     'src/main/startup/main-process-preflight.ts': 'F038：setSecretStore 先问登记的文件密钥库，没有才 new ElectronSecretStore；未登记时与上游一致',
     'src/main/updater/lifecycle/updater-setup.ts': 'UPD：类继承 fork 的 ForkBackgroundUpdates；不先钉上游地址；退出即装 ||= fork 判断；三条 fork 回调',
     'src/main/updater/updater-events.ts': 'UPD：后台下载适配器挂在上游事件上；checking 时的两次清理由适配器决定是否保留已下载版本',

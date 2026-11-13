@@ -19,7 +19,7 @@ import {
   decodeSidebarFieldClears,
   parseClearableSidebarFields
 } from '../../shared/fork-hooks/sidebar-field-clear'
-import { WorktreeSet } from '../../shared/rpc-contract/worktree-params'
+import { WorktreeSet } from '../../shared/rpc-contract/workspaces/worktree-params'
 import { commitGroupDrop, planGroupDropItems } from './workspace-group-drop-plan'
 
 vi.mock('sonner', () => ({

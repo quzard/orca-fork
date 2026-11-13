@@ -1,7 +1,7 @@
 // fork: 删除工作区默认只从 Orca 移除（F048）。未登记时对话框没有勾选，跳过确认仍走上游的硬删除。
 
 import type { Worktree } from '../worktree/types'
-import type { WorktreeRemovalTarget } from '../worktree/removal'
+import type { WorktreeRemovalTarget } from '../worktree/removal/removal'
 
 type SkipConfirmDelete = <T extends Worktree>(
   targets: readonly T[],

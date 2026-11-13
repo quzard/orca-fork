@@ -10,11 +10,11 @@
 
 依据：
 
-- `src/main/orcad/orcad-app-paths.ts` 的 `resolveUserDataPath()`：没有 `XDG_DATA_HOME` 时用 `~/.orca`。
-- `src/main/orcad/orcad-cli-launcher.ts` 的 `prepareOrcadCliLauncher()` 把启动脚本写到 `<userData>/cli/bin/orca`。
-- `src/main/orcad/orcad-host-adapters.ts` 把该路径交给 `getCliLauncherPath`。
-- `src/main/cli/orca-cli-child-path.ts` 的 `prependOrcaCliDirToChildPath()` 在拿到这个路径后写入 `ORCA_CLI_COMMAND`。
+- `src/main/orcad/host-runtime/orcad-app-paths.ts` 的 `resolveUserDataPath()`：没有 `XDG_DATA_HOME` 时用 `~/.orca`。
+- `src/main/orcad/serve-startup/orcad-cli-launcher.ts` 的 `prepareOrcadCliLauncher()` 把启动脚本写到 `<userData>/cli/bin/orca`。
+- `src/main/orcad/host-runtime/orcad-host-adapters.ts` 把该路径交给 `getCliLauncherPath`。
+- `src/main/cli/launchers/orca-cli-child-path.ts` 的 `prependOrcaCliDirToChildPath()` 在拿到这个路径后写入 `ORCA_CLI_COMMAND`。
 - `src/main/ipc/pty/host-env/assembly.ts` 的 `buildPtyHostEnv()` 给终端调用上面的函数。SSH 主机上的 orcad 走同一条终端环境。
-- `src/main/runtime/structured-session-child-env.ts` 的 `applyThisAppCli()` 给结构化会话的子进程写入同一个变量。
+- `src/main/runtime/agent-session/environment/structured-session-child-env.ts` 的 `applyThisAppCli()` 给结构化会话的子进程写入同一个变量。
 
 因此不需要再改技能 stub 里的 CLI 解析段。

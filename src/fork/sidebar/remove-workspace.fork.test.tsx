@@ -57,7 +57,7 @@ vi.mock('../../renderer/src/components/sidebar/worktree-list/listing/stale-works
   showWorkspaceListChangedToast: vi.fn()
 }))
 
-vi.mock('../../renderer/src/lib/worktree-sleep-intent', () => ({
+vi.mock('../../renderer/src/lib/workspace/sleep/worktree-sleep-intent', () => ({
   markWorktreeSleepIntent: vi.fn(),
   clearWorktreeSleepIntent: vi.fn()
 }))

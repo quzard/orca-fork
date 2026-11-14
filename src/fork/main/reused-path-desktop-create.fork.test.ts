@@ -16,7 +16,7 @@ vi.mock('../../main/text-generation/commit-message-text-generation', () => ({
   }),
   generateBranchNameFromContext: async () => ({ success: true, slug: 'fix-auth' })
 }))
-vi.mock('../../main/text-generation/commit-message-agent-environment', () => ({
+vi.mock('../../main/text-generation/execution/commit-message-agent-environment', () => ({
   prepareLocalCommitMessageAgentEnv: async () => ({ ok: true })
 }))
 

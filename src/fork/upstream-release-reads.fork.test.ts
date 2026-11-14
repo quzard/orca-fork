@@ -17,7 +17,7 @@ vi.mock('../main/updater/releases/updater-release-api-token', () => ({
   rejectReleaseApiToken: () => undefined
 }))
 
-vi.mock('../main/git/gh-rate-limit-breaker', () => ({
+vi.mock('../main/git/command-runner/hosted-cli/gh-rate-limit-breaker', () => ({
   getGhRateLimitBlockedUntilMs: () => null,
   recordGhPrimaryRateLimit: () => undefined
 }))

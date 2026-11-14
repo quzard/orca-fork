@@ -194,7 +194,7 @@ HISTORY = {
     'src/renderer/src/components/browser-pane/workspace-doc/HtmlDocPreview.tsx': ('revert-to-upstream', 'F051 之后文件夹提示不再出现，提示里的目录标签钩子已删'),
     'config/scripts/compact-packaged-orcad-ripgrep.cjs': ('revert-to-upstream', 'F036 在上游校验函数的默认参数里收窄目标'),
     'config/scripts/packaged-orcad-browser.cjs': ('revert-to-upstream', 'F036 同上'),
-    'src/renderer/src/components/right-sidebar/local-port-section.tsx': ('revert-to-upstream', 'F021/F043 的 Forward 不再穿过分区传参'),
+    'src/renderer/src/components/right-sidebar/ports/local-port-section.tsx': ('revert-to-upstream', 'F021/F043 的 Forward 不再穿过分区传参'),
     'src/main/updater-fork-background.ts': ('delete', 'UPD 接线移到 src/fork/main/updater-background-wiring.ts'),
     'src/cli/skills-source-commit.ts': ('delete', 'SKL pin 移到 src/fork/skills-source-commit.ts'),
     'src/fork/ssh/ssh-status-labels.tsx': ('delete', '没有调用方；SSH 状态名用上游 settings.ssh.status.*'),
@@ -202,7 +202,7 @@ HISTORY = {
     'src/fork/main/sandboxed-preload-runtime.fork.test.ts': ('delete', '上游 createSandboxedScriptBundlesPlugin 单独打包沙箱 preload，主包里不再有这两个入口'),
     'src/fork/main/sandboxed-preload-runtime.ts': ('delete', '上游 createSandboxedScriptBundlesPlugin 单独打包沙箱 preload，主包里不再有这两个入口'),
     'fork/scripts/release-personal-orca.mjs': ('delete', 'Mac 上从未使用'),
-    'src/renderer/src/components/editor/useEditorPanelDiffContentLoader.ts': ('revert-to-upstream', 'F047 已删除，diff 读取回到上游'),
+    'src/renderer/src/components/editor/loading/useEditorPanelDiffContentLoader.ts': ('revert-to-upstream', 'F047 已删除，diff 读取回到上游'),
     'src/renderer/src/components/right-sidebar/source-control/panel/panel.tsx': ('revert-to-upstream', 'F047 已删除，源代码管理回到上游单仓库'),
     'src/shared/protocol-version.ts': ('revert-to-upstream', 'F047 已删除，不再广播工作区仓库能力'),
     'src/fork/git-workspace/constants.ts': ('delete', 'F047 工作区仓库已删除'),
@@ -244,7 +244,7 @@ HISTORY = {
     'src/shared/fork-hooks/source-control-scope.ts': ('delete', 'F047 工作区仓库已删除'),
     'src/shared/fork-hooks/workspace-repository-diff.ts': ('delete', 'F047 工作区仓库已删除'),
     'tests/e2e/fork-f047-workspace-repos.spec.ts': ('delete', 'F047 工作区仓库已删除'),
-    'src/renderer/src/components/editor/useEditorPanelFileContentLoader.ts': (
+    'src/renderer/src/components/editor/loading/useEditorPanelFileContentLoader.ts': (
         'revert-to-upstream',
         'F046 不再挡住跨工作区标签重挂；旧的只读标记在 fork 里清掉',
     ),

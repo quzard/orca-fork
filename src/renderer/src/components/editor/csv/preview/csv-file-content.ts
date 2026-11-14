@@ -4,8 +4,12 @@ import {
   statRuntimeReadTarget,
   type RuntimeFileSnapshot
 } from '@/runtime/files/reads/runtime-file-range-client'
+<<<<<<< HEAD
 import type { FileContent } from '../../editor-panel-content-types'
 import { readHostCsv } from '../../../../../../shared/fork-hooks/host-file-ranges'
+=======
+import type { FileContent } from '../../loading/editor-panel-content-types'
+>>>>>>> abcf0a559f8f5ffa4da4aff550920f2587b56ad3
 
 import { CSV_PAGED_PREVIEW_BYTES } from '../csv-file-limits'
 

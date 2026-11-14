@@ -13,9 +13,15 @@
     "../src/fork/**/*.tsx"
   ],
   "exclude": [
+<<<<<<< HEAD
     "../src/renderer/src/runtime/provider-accounts/observations/provider-account-observation.test-fixture.ts",
     "../src/fork/main/**",
     "../src/fork/**/*.fork.test.ts"
+=======
+    "../src/renderer/src/components/sidebar/workspace-creation/folder/folder-workspace-composer-submit-host-platform.test.ts",
+    "../src/renderer/src/components/browser-pane/ClientHostedBrowserPagePane.test.tsx",
+    "../src/renderer/src/runtime/provider-accounts/observations/provider-account-observation.test-fixture.ts"
+>>>>>>> abcf0a559f8f5ffa4da4aff550920f2587b56ad3
   ],
   "compilerOptions": {
     "composite": true,

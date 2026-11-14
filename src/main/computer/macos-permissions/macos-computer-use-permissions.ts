@@ -2,6 +2,10 @@ import { spawn } from 'node:child_process'
 import { runProcess } from '@orca/process-host'
 import { computerUsePermissionHelperArgs } from '../../../shared/fork-hooks/computer-use-permission'
 import { RuntimeClientError } from '../runtime-client-error'
+import {
+  COMPUTER_ERROR_CODES,
+  COMPUTER_SCREEN_LOCKED_MESSAGE
+} from '../../../shared/computer-use-runtime-types'
 import { isHostShuttingDown } from '../../startup/quit/host-shutdown-state'
 import { readMacosBundleId, resetMacosTccPermission } from '../../macos-permissions/macos-tcc-reset'
 import { resolveMacOSComputerUseAppPath } from '../macos-native/macos-native-provider-paths'
@@ -34,9 +38,9 @@ let resetInProgress: Promise<ComputerUsePermissionResetResult> | null = null
 /** `locale` comes from the desktop caller; orcad and CLI opens leave the helper on its default copy. */
 export function openComputerUsePermissions(
   permissionId?: ComputerUsePermissionId,
-  locale?: string
+  options: { locale?: string; skipGranted?: boolean } = {}
 ): Promise<ComputerUsePermissionSetupResult> {
-  return openComputerUsePermissionsAsync(permissionId, locale, ++setupRequestSeq, setupGeneration)
+  return openComputerUsePermissionsAsync(permissionId, options, ++setupRequestSeq, setupGeneration)
 }
 
 function cancelPendingSetupLaunches(): void {
@@ -152,7 +156,7 @@ async function launchSetupHelper(
 
 async function openComputerUsePermissionsAsync(
   permissionId: ComputerUsePermissionId | undefined,
-  locale: string | undefined,
+  { locale, skipGranted }: { locale?: string; skipGranted?: boolean },
   seq: number,
   generation: number
 ): Promise<ComputerUsePermissionSetupResult> {
@@ -183,6 +187,10 @@ async function openComputerUsePermissionsAsync(
   if (status.helperUnavailableReason) {
     throw new RuntimeClientError('accessibility_error', status.helperUnavailableReason)
   }
+  // Why: behind the lock screen macOS reports Accessibility as untrusted, so setup would open Settings for nothing.
+  if (status.sessionLocked) {
+    throw new RuntimeClientError(COMPUTER_ERROR_CODES.screen_locked, COMPUTER_SCREEN_LOCKED_MESSAGE)
+  }
   const nextStep = nextPermissionStep(status.permissions)
   if (generation !== setupGeneration || isHostShuttingDown()) {
     // An error rather than launchedHelper: false, which clients render as "setup complete".
@@ -192,7 +200,13 @@ async function openComputerUsePermissionsAsync(
     )
   }
 
-  if (!permissionId && !nextStep) {
+  const alreadyGranted = permissionId
+    ? skipGranted === true &&
+      status.permissions.some(
+        (permission) => permission.id === permissionId && permission.status === 'granted'
+      )
+    : !nextStep
+  if (alreadyGranted) {
     return {
       platform: process.platform,
       helperAppPath,

@@ -12,13 +12,16 @@ import { notifyReposChanged } from './repos-changed-notification'
 import {
   FolderWorkspaceCreateArgs,
   FolderWorkspacePathStatusArgs,
-  FolderWorkspaceSelectorArgs,
+  FolderWorkspaceDeleteArgs,
   FolderWorkspaceUpdateArgs,
   parseProjectGroupIpcArgs
 } from './repo-ipc-arg-schemas'
 import { visibleFolderWorkspaces } from '../../persistence/migrating-orcad-catalog/source/catalog/orcad-source-visibility'
+<<<<<<< HEAD
 import { applySidebarFieldClears } from '../../../shared/fork-hooks/sidebar-field-clear'
 import { createFolderWorkspaceWithPluginHooks } from '../../plugins/hooks/workspace-create-plugin-hook'
+=======
+>>>>>>> abcf0a559f8f5ffa4da4aff550920f2587b56ad3
 import {
   isLocalWslMoveRow,
   shouldDropWslMoveProjectUpdate
@@ -27,7 +30,7 @@ import {
 export function registerFolderWorkspaceHandlers(
   mainWindow: BrowserWindow,
   store: Store,
-  runtime: Pick<OrcaRuntimeService, 'deleteFolderWorkspace'>
+  runtime: Pick<OrcaRuntimeService, 'deleteFolderWorkspace' | 'createFolderWorkspace'>
 ): void {
   ipcMain.handle('folderWorkspaces:list', (): FolderWorkspace[] => visibleFolderWorkspaces(store))
 
@@ -40,38 +43,18 @@ export function registerFolderWorkspaceHandlers(
     return getFolderWorkspacePathStatus(store, args)
   })
 
-  ipcMain.handle(
-    'folderWorkspaces:create',
-    async (_event, rawArgs: unknown): Promise<FolderWorkspace> => {
-      const args = parseProjectGroupIpcArgs(
-        FolderWorkspaceCreateArgs,
-        rawArgs,
-        'invalid_folder_workspace_create_args'
-      )
-      const projectGroups = store.getProjectGroups()
-      const group = projectGroups.find((entry) => entry.id === args.projectGroupId)
-      const folderPath =
-        typeof args.folderPath === 'string' && args.folderPath.trim().length > 0
-          ? args.folderPath
-          : group?.parentPath
-      if (!group || !folderPath) {
-        throw new Error('folder_workspace_project_group_not_found')
-      }
-      const status = await getFolderWorkspacePathStatusForPath({
-        folderPath,
-        projectGroupId: group.id,
-        connectionId: args.connectionId ?? group.connectionId ?? null,
-        projectGroups,
-        repos: store.getRepos()
-      })
-      assertFolderWorkspacePathUsable(status)
-      const workspace = await createFolderWorkspaceWithPluginHooks(args, (request) =>
-        store.createFolderWorkspace({ ...request, creatorProvenance: { kind: 'host' } })
-      )
-      notifyReposChanged(mainWindow)
-      return workspace
-    }
-  )
+  ipcMain.handle('folderWorkspaces:create', async (_event, rawArgs: unknown) => {
+    const args = parseProjectGroupIpcArgs(
+      FolderWorkspaceCreateArgs,
+      rawArgs,
+      'invalid_folder_workspace_create_args'
+    )
+    return runtime.createFolderWorkspace({
+      ...args,
+      rendererOwnsSetup: true,
+      creatorProvenance: { kind: 'host' }
+    })
+  })
 
   ipcMain.handle(
     'folderWorkspaces:update',
@@ -122,11 +105,11 @@ export function registerFolderWorkspaceHandlers(
 
   ipcMain.handle('folderWorkspaces:delete', async (_event, rawArgs: unknown): Promise<boolean> => {
     const args = parseProjectGroupIpcArgs(
-      FolderWorkspaceSelectorArgs,
+      FolderWorkspaceDeleteArgs,
       rawArgs,
       'invalid_folder_workspace_delete_args'
     )
     // Runtime owns teardown of PTYs, browsers and sessions, plus success notifications.
-    return (await runtime.deleteFolderWorkspace(args.folderWorkspaceId)).deleted
+    return (await runtime.deleteFolderWorkspace(args.folderWorkspaceId, args)).deleted
   })
 }

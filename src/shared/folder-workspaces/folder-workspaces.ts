@@ -6,8 +6,12 @@ import { normalizeWorkspaceLinkedItem } from '../workspace-attachments/workspace
 import { isWorkspaceLinkedItemSourceContextMatch } from '../workspace-attachments/workspace-linked-item-source-context'
 import { normalizeWorkspaceCreatorProvenance } from '../workspace-creator-provenance'
 import { getWorkspaceAttachments } from '../workspace-attachments/workspace-attachments'
+<<<<<<< HEAD
 import { isSmartTier } from '../sidebar-list/sort-stamps'
 import { folderWorkspacesMayOutliveTheirGroup } from '../fork-hooks/project-group-delete'
+=======
+import { isSmartTier } from '../sidebar-list/sorting/sort-stamps'
+>>>>>>> abcf0a559f8f5ffa4da4aff550920f2587b56ad3
 import { normalizeOrcadRetainedMarker } from '../orcad-retained-marker'
 
 export function normalizeFolderWorkspaceName(

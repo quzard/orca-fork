@@ -18,9 +18,13 @@ import {
   isSingleHostProjectHeader,
   type GroupHeaderRow
 } from '../../../../../../shared/sidebar-list/row-types'
+<<<<<<< HEAD
 import { hasProjectHeaderChrome } from '../../../../../../shared/fork-hooks/sidebar-group-mode'
 import { workspaceDropGroupKey } from '../../../../../../shared/fork-hooks/sidebar-chrome'
 import { PINNED_GROUP_KEY } from '../../../../../../shared/sidebar-list/group-keys'
+=======
+import { PINNED_GROUP_KEY } from '../../../../../../shared/sidebar-list/sections/group-keys'
+>>>>>>> abcf0a559f8f5ffa4da4aff550920f2587b56ad3
 import '../../workspace-status/presentation/workspace-status'
 import { getWorkspaceStatusFromGroupKey } from '../../../../../../shared/workspace-statuses'
 import { translateWorkspaceStatusHeaderLabel } from '../../workspace-board-status-label'

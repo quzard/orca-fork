@@ -1,5 +1,9 @@
+<<<<<<< HEAD
 /* oxlint-disable max-lines -- fork: hook call only */
 import { captureWorkspaceTerminalNoticeRemoval } from '../../../terminals/terminal-notice-removal'
+=======
+import { captureWorkspaceTerminalNoticeRemoval } from '../../../terminals/retirement/terminal-notice-removal'
+>>>>>>> abcf0a559f8f5ffa4da4aff550920f2587b56ad3
 import type { StateCreator } from 'zustand'
 import { appliedWorktreeCatalogVersionPatch } from './worktree-catalog-version-state'
 import type { AppState } from '../../../types'

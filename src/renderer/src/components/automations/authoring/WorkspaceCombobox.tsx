@@ -31,11 +31,14 @@ function filterWorkspaces(worktrees: readonly Worktree[], query: string): readon
     return worktrees
   }
   return worktrees
-    .map((worktree) => ({ worktree, score: defaultFilter(
+    .map((worktree) => ({
+      worktree,
+      score: defaultFilter(
         (formatRegisteredWorkspaceChoice(worktree)?.value ?? worktree.displayName).trim(),
         query,
         []
-      ) }))
+      )
+    }))
     .filter((scored) => scored.score > 0)
     .sort((a, b) => b.score - a.score)
     .map((scored) => scored.worktree)

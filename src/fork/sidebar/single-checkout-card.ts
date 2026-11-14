@@ -114,8 +114,8 @@ export function singleCheckoutCardTemplate(template: CardTemplate): CardTemplate
     return cached
   }
   if (
-    template.vars?.metaIndicators !== 'vars.classic && vars.indicators' ||
-    template.vars?.titleIndicators !== '!vars.classic && vars.indicators'
+    template.vars?.metaIndicators !== '!vars.compact && vars.metaRow && vars.indicators' ||
+    template.vars?.titleIndicators !== '!vars.metaRow && vars.indicators'
   ) {
     return template
   }
@@ -124,7 +124,7 @@ export function singleCheckoutCardTemplate(template: CardTemplate): CardTemplate
     ...template,
     vars: {
       ...template.vars,
-      metaIndicators: `vars.classic && (${META_CONTENT_EXPR}) && vars.indicators`,
+      metaIndicators: `!vars.compact && vars.metaRow && (!vars.classic || ${META_CONTENT_EXPR}) && vars.indicators`,
       titleIndicators: '!vars.metaIndicators && vars.indicators'
     },
     ...(identityBlock

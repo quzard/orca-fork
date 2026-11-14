@@ -18,3 +18,4 @@ inline src/renderer/src/components/sidebar/worktree-list/listing/use-section-row
 inline src/main/startup/main-process-ready-foundation.ts
 inline src/renderer/src/store/slices/worktrees/listing/fetched-worktree-merge.ts
 inline src/shared/plugins/workers/plugin-host-api.ts
+inline src/renderer/src/store/slices/ui/ui-slice-hydration-actions.ts

@@ -1,3 +1,4 @@
+/* oxlint-disable max-lines -- fork: hook call only */
 import { normalizeStatusBarUsageFormat } from '../../../../../shared/status-bar-usage-format'
 import type { UISlice, UISliceGet, UISliceSet } from './ui-slice-contract'
 import type { AppState } from '../../types'

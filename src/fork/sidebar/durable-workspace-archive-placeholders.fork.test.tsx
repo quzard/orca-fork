@@ -4,8 +4,8 @@ import type { Repo } from '../../shared/repo-types'
 import type { Worktree } from '../../shared/worktree/types'
 import { DEFAULT_REPO_BADGE_COLOR } from '../../shared/constants'
 import { registerDurableWorkspaceArchive } from '../../shared/fork-hooks/workspace-durable-archive'
-import { buildRuntimeSessionPlaceholders } from '../../renderer/src/store/terminals/workspace-terminal-placeholders'
-import { addHydratedSshWorktreePlaceholders } from '../../renderer/src/store/terminals/workspace-terminal-ssh-placeholders'
+import { buildRuntimeSessionPlaceholders } from '../../renderer/src/store/terminals/hydration/workspace-terminal-placeholders'
+import { addHydratedSshWorktreePlaceholders } from '../../renderer/src/store/terminals/hydration/workspace-terminal-ssh-placeholders'
 import { runKnownSshWorktreeFetch } from '../../renderer/src/store/slices/worktrees/listing/known-ssh-worktree-fetch'
 import {
   DURABLE_WORKSPACE_ARCHIVE_STORAGE_KEY,

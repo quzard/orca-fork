@@ -5,7 +5,7 @@
 // sort label, then the host-qualified identity.
 import type { FolderWorkspace } from '../../shared/folder-workspaces/folder-workspace-types'
 import { folderWorkspaceToWorktree } from '../../shared/folder-workspaces/folder-workspace-worktree'
-import { compareWorktreeSortLabel } from '../../shared/sidebar-list/smart-sort'
+import { compareWorktreeSortLabel } from '../../shared/sidebar-list/sorting/smart-sort'
 import { getWorktreeHostIdentity } from '../../shared/worktree/host-qualified-identity'
 import type { Worktree } from '../../shared/worktree/types'
 

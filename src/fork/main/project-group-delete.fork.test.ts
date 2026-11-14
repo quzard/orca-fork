@@ -18,7 +18,7 @@ import { getDefaultPersistedState, getDefaultWorkspaceSession } from '../../shar
 import type { FolderWorkspace } from '../../shared/folder-workspaces/folder-workspace-types'
 import type { PersistedState } from '../../shared/persisted-state-types'
 import type { ProjectGroup } from '../../shared/project-group-types'
-import { getRenderableFolderWorkspaces } from '../../shared/sidebar-list/folder-workspace-lanes'
+import { getRenderableFolderWorkspaces } from '../../shared/sidebar-list/folders/folder-workspace-lanes'
 import { folderWorkspaceKey } from '../../shared/workspace-scope'
 import { registerKeepFolderWorkspacesOnGroupDeleteInMain } from '../../shared/fork-hooks/project-group-delete'
 import { keepFolderWorkspacesOnGroupDelete } from './project-group-delete'

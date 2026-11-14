@@ -12,7 +12,7 @@ import {
 } from '../../shared/fork-hooks/project-group-delete'
 import { applyProjectGroupDeleteCascade } from '../../renderer/src/store/project-groups/project-group-removal-state'
 import { buildRows } from '../../renderer/src/components/sidebar/worktree-list/grouping/build-rows.test-fixture'
-import { addHostSectionRows } from '../../shared/sidebar-list/host-section-rows'
+import { addHostSectionRows } from '../../shared/sidebar-list/hosts/host-section-rows'
 import type { WorktreeGroupBy } from '../../shared/sidebar-list/row-types'
 import { registerForkModules } from '../register'
 import { installHostDirectoryRowPlan } from './install-row-plan'

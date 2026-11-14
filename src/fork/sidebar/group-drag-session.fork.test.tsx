@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { HostSectionRow } from '../../shared/sidebar-list/host-section-rows'
+import type { HostSectionRow } from '../../shared/sidebar-list/hosts/host-section-rows'
 import {
   getWorktreeDragGroups,
   getWorktreeDragIndexes

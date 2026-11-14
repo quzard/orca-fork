@@ -1,6 +1,6 @@
 // Row plan for the host-directory sidebar. Built-in group modes never call this.
 import type { SidebarPlanArgs, SidebarRowPlan } from '../../shared/fork-hooks/sidebar-group-mode'
-import type { WorktreeGroupEntry } from '../../shared/sidebar-list/worktree-group-entry'
+import type { WorktreeGroupEntry } from '../../shared/sidebar-list/sections/worktree-group-entry'
 import type { ExecutionHostId } from '../../shared/execution-host'
 import type { FolderWorkspace } from '../../shared/folder-workspaces/folder-workspace-types'
 import type { ProjectGroup } from '../../shared/project-group-types'
@@ -10,7 +10,7 @@ import type { WorktreeLineage } from '../../shared/worktree/lineage-types'
 import type { Worktree } from '../../shared/worktree/types'
 import { buildWorktreeOccurrencePlan } from '../../shared/worktree-occurrence-plan'
 import type { WorkspaceSortBy } from '../../shared/workspace-view/workspace-row-sort'
-import { getSidebarLineageChildren } from '../../shared/sidebar-list/pinned-section-worktrees'
+import { getSidebarLineageChildren } from '../../shared/sidebar-list/lineage/pinned-section-worktrees'
 import type { Row } from '../../shared/sidebar-list/row-types'
 import { sectionKeyForWorkspace } from './membership'
 import {

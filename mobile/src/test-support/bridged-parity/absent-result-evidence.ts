@@ -1,15 +1,15 @@
-import { BridgeReplyRefusedError } from '../../mobile-web-shell/bridge/bridge-rpc-client'
-import { readBridgeHostMessage } from '../../mobile-web-shell/bridge/bridge-envelope'
-import type { BridgePortPair } from '../../mobile-web-shell/bridge/bridge-port-pair-test-harness'
+import { BridgeReplyRefusedError } from '../../mobile-web-shell/bridge/client-state/bridge-client-errors'
+import { readBridgeHostMessage } from '../../mobile-web-shell/bridge/protocol/bridge-envelope'
+import type { BridgePortPair } from '../../mobile-web-shell/bridge/test-support/bridge-port-pair-contract'
 import type { RpcClient } from '../../transport/rpc/rpc-client-contract'
 import { projectMobileRpcRequestParams } from '../../transport/rpc/mobile-rpc-request-projection'
 import {
   checkpointKeys,
   checkpointListDifference,
   recordingDifferences
-} from '../rpc-recording/golden-difference'
-import type { Recording, RecordingScenario } from '../rpc-recording/recording-scenario'
-import { captureError, captureValue } from '../rpc-recording/recording-values'
+} from '../rpc-recording/goldens/golden-difference'
+import type { Recording, RecordingScenario } from '../rpc-recording/scenarios/recording-scenario'
+import { captureError, captureValue } from '../rpc-recording/goldens/recording-values'
 import { ordinalField } from './divergence-classes'
 import { isKeyedObject, sameParams } from './divergence-evidence'
 

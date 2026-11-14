@@ -5,8 +5,8 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { OpenFile } from '@/store/slices/editor/types/open-file'
-import { useEditorPanelFileContentLoader } from '@/components/editor/useEditorPanelFileContentLoader'
-import type { EditorPanelFileContentLoader } from '@/components/editor/editor-panel-content-types'
+import { useEditorPanelFileContentLoader } from '@/components/editor/loading/useEditorPanelFileContentLoader'
+import type { EditorPanelFileContentLoader } from '@/components/editor/loading/editor-panel-content-types'
 import {
   registerKeptHostFileViewHooks,
   releaseStaleKeptHostFileReadOnly
@@ -49,10 +49,10 @@ vi.mock('@/lib/file-owner-runtime-target', () => {
 vi.mock('@/lib/files/access/runtime-workspace-file-route', () => ({
   findWorkspaceFileRoute: mocks.findWorkspaceFileRoute
 }))
-vi.mock('@/components/editor/migrate-restored-editor-file-owner', () => ({
+vi.mock('@/components/editor/file-ownership/migrate-restored-editor-file-owner', () => ({
   migrateRestoredEditorFileOwner: mocks.migrateRestoredEditorFileOwner
 }))
-vi.mock('@/components/editor/restored-editor-workspace-runtime-owner', () => ({
+vi.mock('@/components/editor/file-ownership/restored-editor-workspace-runtime-owner', () => ({
   findRestoredEditorWorkspaceRuntimeOwner: () => null
 }))
 vi.mock('@/components/editor/csv/preview/csv-file-content', () => ({

@@ -20,7 +20,7 @@ import {
 } from '../../../../../../shared/sidebar-list/row-types'
 import { hasProjectHeaderChrome } from '../../../../../../shared/fork-hooks/sidebar-group-mode'
 import { workspaceDropGroupKey } from '../../../../../../shared/fork-hooks/sidebar-chrome'
-import { PINNED_GROUP_KEY } from '../../../../../../shared/sidebar-list/group-keys'
+import { PINNED_GROUP_KEY } from '../../../../../../shared/sidebar-list/sections/group-keys'
 import '../../workspace-status/presentation/workspace-status'
 import { getWorkspaceStatusFromGroupKey } from '../../../../../../shared/workspace-statuses'
 import { translateWorkspaceStatusHeaderLabel } from '../../workspace-board-status-label'

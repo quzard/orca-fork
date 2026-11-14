@@ -10,7 +10,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import {
   SshPortForwardDialog,
   type PortForwardDialogState
-} from '@/components/right-sidebar/ssh-port-forward-dialog'
+} from '@/components/right-sidebar/ports/ssh-port-forward-dialog'
 import { forkTranslate } from '../i18n/fork-translate'
 import { workspacePortForwardEnabled } from './workspace-port-forward-flag'
 

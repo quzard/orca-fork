@@ -44,7 +44,7 @@ export function desktopForkPluginHostBridge(): ForkPluginHostBridge {
   }
 }
 
-function loadSources(): ForkHostSources {
+async function loadSources(): Promise<ForkHostSources> {
   const localPlatform = process.platform
   try {
     const userDataPath = app.getPath('userData')
@@ -61,7 +61,7 @@ function loadSources(): ForkHostSources {
           platform: state?.remotePlatform ?? null
         }
       })
-    const runtimes = listEnvironments(userDataPath).map((environment) => {
+    const runtimes = (await listEnvironments(userDataPath)).map((environment) => {
       const snapshot = getRuntimeEnvironmentStatusSnapshot(environment.id)
       return {
         id: environment.id,

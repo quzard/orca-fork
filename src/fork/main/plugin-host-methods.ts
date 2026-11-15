@@ -30,7 +30,10 @@ import {
   type ForkWorkspaceRow
 } from './plugin-host-catalog'
 import { FORK_WORKSPACE_EXEC_METHOD } from './workspace-exec-method'
-import { PLUGIN_HOST_API } from '../../shared/plugins/workers/plugin-host-api'
+import {
+  getPluginHostMethodSpec,
+  PLUGIN_HOST_API
+} from '../../shared/plugins/workers/plugin-host-api'
 import { registerPluginHostApiMethods } from '../../shared/plugins/workers/plugin-host-api-registry'
 
 // 主进程的 capability gate 和 dispatch 读登记表。worker 进程各自再登记一次。
@@ -50,7 +53,8 @@ export class ForkRuntimeCallError extends Error {
 }
 
 export type ForkPluginHostBridge = {
-  loadSources(): ForkHostSources
+  /** 上游 #42253 起已保存服务器在 worker 里读，桌面实现是异步的。 */
+  loadSources(): ForkHostSources | Promise<ForkHostSources>
   /** 对一台已保存的 Orca 服务器发运行时 RPC。超时是整次调用的预算。 */
   callRuntime(
     envId: string,
@@ -73,12 +77,18 @@ export function resetForkPluginHostForTests(): void {
   execUnavailableEnvIds.clear()
 }
 
-function sources(): ForkHostSources {
-  return bridge?.loadSources() ?? { localPlatform: process.platform, runtimes: [], sshTargets: [] }
+async function sources(): Promise<ForkHostSources> {
+  return (
+    (await bridge?.loadSources()) ?? {
+      localPlatform: process.platform,
+      runtimes: [],
+      sshTargets: []
+    }
+  )
 }
 
-function hosts(): ForkHostRow[] {
-  return listForkHosts(sources(), execUnavailableEnvIds)
+async function hosts(): Promise<ForkHostRow[]> {
+  return listForkHosts(await sources(), execUnavailableEnvIds)
 }
 
 function refuseRpc(error: unknown, envId?: string): never {
@@ -163,9 +173,9 @@ async function listOnHost(
 }
 
 const handlers = {
-  'fork.hosts.list': bind(api['fork.hosts.list'], async () => ({ hosts: hosts() })),
+  'fork.hosts.list': bind(api['fork.hosts.list'], async () => ({ hosts: await hosts() })),
   'fork.workspaces.list': bind(api['fork.workspaces.list'], async (params, ctx) => {
-    const known = hosts()
+    const known = await hosts()
     return collectForkWorkspaces({
       hostId: params?.hostId,
       hosts: known,
@@ -224,6 +234,26 @@ const handlers = {
 } satisfies Record<keyof typeof FORK_PLUGIN_HOST_API, BoundPluginHostMethod>
 
 export const FORK_PLUGIN_HOST_HANDLERS = handlers
+
+// 规格在登记表里，和 handler 必须是同一个对象。
+for (const [name, handler] of Object.entries(FORK_PLUGIN_HOST_HANDLERS)) {
+  if (handler.spec !== getPluginHostMethodSpec(name)) {
+    throw new Error(`plugin host API binding for ${name} uses another method's spec`)
+  }
+}
+
+/** 上游方法表之外、已登记规格的 fork 方法；没有就是 null。 */
+export function forkBoundPluginHostMethod(name: string): BoundPluginHostMethod | null {
+  if (!getPluginHostMethodSpec(name)) {
+    return null
+  }
+  for (const [method, handler] of Object.entries(FORK_PLUGIN_HOST_HANDLERS)) {
+    if (method === name) {
+      return handler
+    }
+  }
+  return null
+}
 
 /** 审计日志只记目标，不记 stdin 和环境。 */
 export function summarizeForkPluginHostCall(

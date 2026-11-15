@@ -1,6 +1,5 @@
 import { z } from 'zod'
 import {
-  getPluginHostMethodSpec,
   isPluginHostMethodName,
   PLUGIN_HOST_API,
   PLUGIN_HOST_METHOD_NAMES,
@@ -44,7 +43,7 @@ import type {
   PluginActionConfirmation,
   PluginConfirmationSubject
 } from '../../consent/plugin-confirmation-subject'
-import { FORK_PLUGIN_HOST_HANDLERS } from '../../../../fork/main/plugin-host-methods'
+import { forkBoundPluginHostMethod } from '../../../../fork/main/plugin-host-methods'
 
 export type PluginWorktreeContext = {
   worktreeId: string
@@ -316,25 +315,7 @@ for (const name of PLUGIN_HOST_METHOD_NAMES) {
     throw new Error(`plugin host API binding for ${name} uses another method's spec`)
   }
 }
-// fork: 规格在登记表里，和 handler 必须是同一个对象。
-for (const [name, handler] of Object.entries(FORK_PLUGIN_HOST_HANDLERS)) {
-  if (handler.spec !== getPluginHostMethodSpec(name)) {
-    throw new Error(`plugin host API binding for ${name} uses another method's spec`)
-  }
-}
-
-function forkPluginHostHandler(name: string): BoundPluginHostMethod | null {
-  for (const [method, handler] of Object.entries(FORK_PLUGIN_HOST_HANDLERS)) {
-    if (method === name) {
-      return handler
-    }
-  }
-  return null
-}
 
 export function getBoundPluginHostMethod(name: string): BoundPluginHostMethod | null {
-  if (isPluginHostMethodName(name)) {
-    return HANDLERS[name]
-  }
-  return getPluginHostMethodSpec(name) ? forkPluginHostHandler(name) : null
+  return isPluginHostMethodName(name) ? HANDLERS[name] : forkBoundPluginHostMethod(name)
 }

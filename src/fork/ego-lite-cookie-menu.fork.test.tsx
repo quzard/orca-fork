@@ -26,6 +26,10 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock('@/lib/browser/cookies/browser-cookie-import-toast', () => ({
   emitBrowserCookieImportToast: vi.fn()
 }))
+// 上游 #15044 起这一行要确认弹窗；这里只测导入菜单，不需要真的 provider。
+vi.mock('@/components/confirmation-dialog-context', () => ({
+  useConfirmationDialog: () => vi.fn(async () => true)
+}))
 
 import { BrowserProfileRow } from '../renderer/src/components/settings/browser/profiles/BrowserProfileRow'
 import { registerEgoLiteCookieBrowser } from './ego-lite-cookie-browser'

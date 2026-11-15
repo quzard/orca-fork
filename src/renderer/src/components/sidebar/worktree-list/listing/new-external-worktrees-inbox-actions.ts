@@ -1,5 +1,5 @@
-import type { Repo } from '../../../../../../shared/repo-types'
-import { mergeExternalWorktreeInboxPaths } from '../../../../../../shared/external-worktree-inbox'
+import type { Repo } from '../../../../../../shared/repository/repo-types'
+import { mergeExternalWorktreeInboxPaths } from '../../../../../../shared/worktree/visibility/external-worktree-inbox'
 import { reactivateRegisteredImportedWorktrees } from '../../../../../../shared/fork-hooks/workspace-durable-archive'
 import { translate } from '@/i18n/i18n'
 

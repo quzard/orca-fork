@@ -12,7 +12,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger
 } from '@/components/ui/context-menu'
-import type { WorkspacePort } from '../../../../../shared/workspace-ports'
+import type { WorkspacePort } from '../../../../../shared/workspace/ports/workspace-ports'
 import { useTranslate } from '@/i18n/use-translate'
 import { ForkPortForward } from '../../../../../fork/ports/workspace-port-forward'
 

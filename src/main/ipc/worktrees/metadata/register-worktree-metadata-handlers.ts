@@ -16,7 +16,7 @@ import { applySidebarFieldClearsFromIpcArgs } from '../../../../shared/fork-hook
 import { isRemovedFolderWorkspaceInstance } from '../../../workspaces/catalog/folder-workspace-meta-presence'
 import { resolveWorktreeMetaOwner } from '../../../persistence/host-qualified-worktree-meta'
 import { hostWorktreeTarget } from '../../../../shared/worktree/host-qualified-identity'
-import { worktreeWorkspaceKey } from '../../../../shared/workspace-scope'
+import { worktreeWorkspaceKey } from '../../../../shared/workspace/identity/workspace-scope'
 import type { WorktreeIpcContext } from '../worktree-ipc-context'
 import {
   isWslMoveSourceHost,

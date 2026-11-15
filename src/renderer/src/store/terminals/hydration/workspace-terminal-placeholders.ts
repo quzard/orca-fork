@@ -1,15 +1,15 @@
-import type { Repo } from '../../../../../shared/repo-types'
+import type { Repo } from '../../../../../shared/repository/repo-types'
 import type { Worktree } from '../../../../../shared/worktree/types'
 import '../../../../../shared/constants'
-import { DEFAULT_REPO_BADGE_COLOR } from '../../../../../shared/repo-badge-color'
+import { DEFAULT_REPO_BADGE_COLOR } from '../../../../../shared/repository/appearance/repo-badge-color'
 import {
   getRepoExecutionHostId,
   parseExecutionHostId,
   type ExecutionHostId
 } from '../../../../../shared/execution-host'
 import { repoRowOwnerStamp } from './workspace-terminal-ssh-placeholders'
+import { parseWorkspaceKey } from '../../../../../shared/workspace/identity/workspace-scope'
 import { applyRegisteredDurableArchiveToRow } from '../../../../../shared/fork-hooks/workspace-durable-archive'
-import { parseWorkspaceKey } from '../../../../../shared/workspace-scope'
 import { splitWorktreeIdForFilesystem } from '../../../../../shared/worktree/id'
 
 export function getPathDisplayName(path: string, fallback: string): string {

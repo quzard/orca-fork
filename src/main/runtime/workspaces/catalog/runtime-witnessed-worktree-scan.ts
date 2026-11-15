@@ -1,5 +1,5 @@
+import type { Repo } from '../../../../shared/repository/repo-types'
 import { filterRegisteredLiveGitWorktrees } from '../../../../shared/fork-hooks/missing-worktree-metadata'
-import type { Repo } from '../../../../shared/repo-types'
 import { scanUntilNotOvertaken } from '../../../ipc/worktrees/listing/overtaken-scan-rerun'
 import type { NativeLocalWorktreeMetadataScanExpectation } from '../../../persistence/tracking-repos/local-worktree-metadata-scan-expectation'
 import {

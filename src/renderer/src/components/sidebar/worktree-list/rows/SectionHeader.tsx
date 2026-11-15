@@ -22,7 +22,7 @@ import { hasProjectHeaderChrome } from '../../../../../../shared/fork-hooks/side
 import { workspaceDropGroupKey } from '../../../../../../shared/fork-hooks/sidebar-chrome'
 import { PINNED_GROUP_KEY } from '../../../../../../shared/sidebar-list/sections/group-keys'
 import '../../workspace-status/presentation/workspace-status'
-import { getWorkspaceStatusFromGroupKey } from '../../../../../../shared/workspace-statuses'
+import { getWorkspaceStatusFromGroupKey } from '../../../../../../shared/workspace/status/workspace-statuses'
 import { translateWorkspaceStatusHeaderLabel } from '../../workspace-board-status-label'
 import { getVirtualRowTransform } from '../viewport/virtual-rows'
 import { getSidebarHeaderVisual } from './header-visuals'

@@ -3,8 +3,8 @@ import {
   normalizeRuntimePathForComparison,
   normalizeRuntimePathSeparators
 } from '../../cross-platform-path'
+import { isClipboardTextByteLengthOverLimit } from '../../clipboard/clipboard-text'
 import { readAiVaultFolderLabel } from '../../fork-hooks/ai-vault'
-import { isClipboardTextByteLengthOverLimit } from '../../clipboard-text'
 import { splitAiVaultSearchQuery } from '../search/ai-vault-search-query-operators'
 import {
   aiVaultSessionInScope,

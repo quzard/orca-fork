@@ -1,8 +1,8 @@
 // fork: the "Move to group" / "Remove from group" entries of the workspace context menu.
 // Unregistered, it returns upstream's own values: every group, the project's group, and the
 // project-level handlers.
-import type { ProjectGroup } from '../project-group-types'
-import type { Repo } from '../repo-types'
+import type { ProjectGroup } from '../project/groups/project-group-types'
+import type { Repo } from '../repository/repo-types'
 import type { Worktree } from '../worktree/types'
 
 export type WorktreeMenuGroups = {

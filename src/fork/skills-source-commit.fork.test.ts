@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { electronViteConfig } from '../../electron.vite.config'
-import { buildAgentFeatureSkillInstallCommand } from '../shared/agent-feature-install-commands'
+import { buildAgentFeatureSkillInstallCommand } from '../shared/skills/installation/agent-feature-install-commands'
 import { FORK_SKILLS_SOURCE_COMMIT } from './skills-source-commit'
 import {
   readCheckedInSkillsSourceCommit,

@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { useAppStore } from '../../renderer/src/store'
 import { findRepoForHost } from '../../renderer/src/store/repos/repo-host-identity'
-import { isFolderRepo } from '../../shared/repo-kind'
+import { isFolderRepo } from '../../shared/repository/repo-kind'
 import type { Worktree } from '../../shared/worktree/types'
 import { toWorktreeRemovalTarget, type WorktreeRemovalTarget } from '../../shared/worktree/removal/removal'
 import {

@@ -3,7 +3,7 @@
 // so the rows and sections take no new props. Unregistered, every slot renders nothing.
 import React, { useLayoutEffect, useState, useSyncExternalStore } from 'react'
 import { Cable } from 'lucide-react'
-import type { WorkspacePort } from '../../shared/workspace-ports'
+import type { WorkspacePort } from '../../shared/workspace/ports/workspace-ports'
 import { Button } from '@/components/ui/button'
 import { ContextMenuItem } from '@/components/ui/context-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'

@@ -1,5 +1,5 @@
 import { normalizeRuntimePathForComparison } from '../../shared/cross-platform-path'
-import { mergeExternalWorktreeInboxPaths } from '../../shared/external-worktree-inbox'
+import { mergeExternalWorktreeInboxPaths } from '../../shared/worktree/visibility/external-worktree-inbox'
 
 /** Selected directories that are not the repo's own checkout. */
 function selectedLinkedWorktreePaths(repoPath: string, selectedPaths: readonly string[]): string[] {

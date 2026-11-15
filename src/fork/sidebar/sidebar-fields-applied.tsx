@@ -1,7 +1,7 @@
 // fork: an older remote host parses worktree.set in strip mode. It drops sidebarGroupId and
 // clearFields but applies the rest, so a group move would land half-way without a word.
 import { forkTranslate } from '../i18n/fork-translate'
-import { hasRuntimeRpcErrorCode } from '../../shared/runtime-rpc-error-code'
+import { hasRuntimeRpcErrorCode } from '../../shared/remote-runtime/rpc/runtime-rpc-error-code'
 import {
   folderSidebarFieldsNotApplied,
   sidebarFieldsToClear,

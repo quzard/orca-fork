@@ -1,4 +1,4 @@
-import { forkCookieImportSourceLabels } from './fork-hooks/chromium-cookie-browsers'
+import { forkCookieImportSourceLabels } from '../../fork-hooks/chromium-cookie-browsers'
 /** Human-readable import sources aligned with CHROMIUM_BROWSERS in
  *  browser-cookie-source-profiles.ts plus Firefox/Safari detection. */
 const CHROMIUM_COOKIE_IMPORT_SOURCES = [

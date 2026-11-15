@@ -2,7 +2,7 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { Repo } from '../../shared/repo-types'
+import type { Repo } from '../../shared/repository/repo-types'
 import type { Worktree } from '../../shared/worktree/types'
 
 const mocks = vi.hoisted(() => ({

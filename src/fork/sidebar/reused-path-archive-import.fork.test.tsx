@@ -1,7 +1,7 @@
 // 导入和外部收件箱走渲染进程。node 工程只收 src/fork/**/*.ts，
 // 这个测试改成 tsx，由 web 工程类型检查；同路径扫描仍留在 .fork.test.ts。
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Repo } from '../../shared/repo-types'
+import type { Repo } from '../../shared/repository/repo-types'
 import type { WorktreeMeta } from '../../shared/worktree/meta-types'
 
 const mocks = vi.hoisted(() => ({

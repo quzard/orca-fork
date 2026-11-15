@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { RuntimeClientTarget } from '../../shared/runtime-client-target'
+import type { RuntimeClientTarget } from '../../shared/remote-runtime/host-catalog/runtime-client-target'
 import { persistWorktreeMeta } from '../../renderer/src/store/slices/worktrees/metadata/worktree-meta-persist'
 import {
   isSidebarFieldsNotAppliedError,

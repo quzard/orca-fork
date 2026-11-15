@@ -5,7 +5,7 @@ import {
   parseExecutionHostId,
   type ExecutionHostId
 } from '../../shared/execution-host'
-import { folderWorkspaceKey } from '../../shared/workspace-scope'
+import { folderWorkspaceKey } from '../../shared/workspace/identity/workspace-scope'
 import { FORK_WORKSPACE_LIST_LIMIT } from '../plugins/host-api-spec'
 import type { ForkHostRow, ForkWorkspaceRow } from './plugin-host-catalog'
 

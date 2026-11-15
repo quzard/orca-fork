@@ -1,8 +1,8 @@
 // Test fixture: draws the real host-directory rows under manual sort, drops through the real drag
 // groups and buildGroupDropOrder, applies the writes, and draws again.
 import type { FolderWorkspace } from '../../shared/folder-workspaces/folder-workspace-types'
-import type { ProjectGroup } from '../../shared/project-group-types'
-import type { Repo } from '../../shared/repo-types'
+import type { ProjectGroup } from '../../shared/project/groups/project-group-types'
+import type { Repo } from '../../shared/repository/repo-types'
 import type { WorktreeLineage } from '../../shared/worktree/lineage-types'
 import type { Worktree } from '../../shared/worktree/types'
 import type { Row } from '../../shared/sidebar-list/row-types'

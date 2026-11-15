@@ -1,9 +1,9 @@
 import type { ExecutionHostId } from '../../shared/execution-host'
 import type { FolderWorkspace } from '../../shared/folder-workspaces/folder-workspace-types'
-import type { ProjectGroup } from '../../shared/project-group-types'
-import type { Repo } from '../../shared/repo-types'
+import type { ProjectGroup } from '../../shared/project/groups/project-group-types'
+import type { Repo } from '../../shared/repository/repo-types'
 import type { Worktree } from '../../shared/worktree/types'
-import type { WorktreeOccurrencePlan } from '../../shared/worktree-occurrence-plan'
+import type { WorktreeOccurrencePlan } from '../../shared/sidebar-list/lineage/worktree-occurrence-plan'
 import type { WorkspaceSortBy } from '../../shared/workspace-view/workspace-row-sort'
 import type { OrderedWorkspace } from './workspace-order'
 

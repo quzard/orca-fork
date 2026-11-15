@@ -8,7 +8,7 @@ import { isOwnedSshTargetId } from '../../shared/execution-host'
 import { getManagedOrcadSshTargetId } from '../../shared/execution-host/managed-orcad-execution-host'
 import type { RuntimeHostStatusSnapshot } from '../../shared/remote-runtime/host-status/runtime-host-status'
 import { listEnvironments } from '../../shared/remote-runtime/host-store/runtime-environment-store'
-import type { SshConnectionStatus } from '../../shared/ssh-types'
+import type { SshConnectionStatus } from '../../shared/remote-runtime/ssh/ssh-types'
 import type { ForkHostSources, ForkHostState } from './plugin-host-catalog'
 import { ForkRuntimeCallError, type ForkPluginHostBridge } from './plugin-host-methods'
 

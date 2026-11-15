@@ -1,12 +1,12 @@
 // Turns a host-directory occurrence plan into sidebar rows.
 import type { ExecutionHostId } from '../../shared/execution-host'
-import type { ProjectGroup } from '../../shared/project-group-types'
+import type { ProjectGroup } from '../../shared/project/groups/project-group-types'
 import { getWorktreeHostIdentity } from '../../shared/worktree/host-qualified-identity'
 import type { Worktree } from '../../shared/worktree/types'
 import {
   getExpandedWorktreeOccurrences,
   type WorktreeOccurrence
-} from '../../shared/worktree-occurrence-plan'
+} from '../../shared/sidebar-list/lineage/worktree-occurrence-plan'
 import type { Row } from '../../shared/sidebar-list/row-types'
 import { directoryLabelsForHost, groupedCardDirectoryLabel } from './directory-label'
 import type { HostDirectoryRenderArgs } from './host-directory-render-args'

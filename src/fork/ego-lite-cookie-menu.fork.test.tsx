@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import type { BrowserSessionProfile } from '../shared/browser-workspace-types'
+import type { BrowserSessionProfile } from '../shared/browser/workspaces/browser-workspace-types'
 
 const { importCookiesFromBrowser } = vi.hoisted(() => ({
   importCookiesFromBrowser: vi.fn(async () => ({

@@ -6,7 +6,7 @@ import {
   getWorktreeIdFromHostIdentity
 } from '../../shared/worktree/host-qualified-identity'
 import type { Worktree } from '../../shared/worktree/types'
-import { folderWorkspaceKey } from '../../shared/workspace-scope'
+import { folderWorkspaceKey } from '../../shared/workspace/identity/workspace-scope'
 import type { WorktreeDragGroup } from '../../renderer/src/components/sidebar/worktree-list/drag/worktree-manual-order'
 import { manualOrderKey, manualOrderedRows } from './manual-order'
 import { parseHostDirectorySectionKey } from './section-keys'

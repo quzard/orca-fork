@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react'
 import type { FolderWorkspace } from '../folder-workspaces/folder-workspace-types'
 import type { PersistedState } from '../persisted-state-types'
-import type { ProjectGroup } from '../project-group-types'
+import type { ProjectGroup } from '../project/groups/project-group-types'
 
 export type DeleteProjectGroupDialogOption = {
   id: string

@@ -4,8 +4,8 @@ import type { ExecutionHostId } from '../../shared/execution-host'
 import {
   getRepoDisplayLabelKey,
   getRepoDisplayLabelsByPath
-} from '../../shared/repo-display-labels'
-import type { Repo } from '../../shared/repo-types'
+} from '../../shared/repository/appearance/repo-display-labels'
+import type { Repo } from '../../shared/repository/repo-types'
 
 export function directoryLabelsForHost(
   repos: readonly Repo[],

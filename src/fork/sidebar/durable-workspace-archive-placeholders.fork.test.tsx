@@ -1,6 +1,6 @@
 // 这个文件要 import 渲染进程的占位模块。node 工程只收 src/fork/**/*.ts，所以用 tsx，让 web 工程类型检查它。
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { Repo } from '../../shared/repo-types'
+import type { Repo } from '../../shared/repository/repo-types'
 import type { Worktree } from '../../shared/worktree/types'
 import { DEFAULT_REPO_BADGE_COLOR } from '../../shared/constants'
 import { registerDurableWorkspaceArchive } from '../../shared/fork-hooks/workspace-durable-archive'

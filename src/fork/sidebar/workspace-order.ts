@@ -5,7 +5,7 @@ import {
   getFolderWorkspaceHostIdentity
 } from '../../shared/folder-workspaces/folder-workspace-worktree'
 import type { FolderWorkspace } from '../../shared/folder-workspaces/folder-workspace-types'
-import type { Repo } from '../../shared/repo-types'
+import type { Repo } from '../../shared/repository/repo-types'
 import { getWorktreeHostIdentity } from '../../shared/worktree/host-qualified-identity'
 import type { Worktree } from '../../shared/worktree/types'
 import {

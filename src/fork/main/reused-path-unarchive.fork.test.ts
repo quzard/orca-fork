@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { HostWorktreeTarget } from '../../shared/worktree/host-qualified-identity'
 import type { WorktreeMeta } from '../../shared/worktree/meta-types'
-import type { Repo } from '../../shared/repo-types'
+import type { Repo } from '../../shared/repository/repo-types'
 
 vi.mock('../../main/ipc/worktree-symlinks', () => ({
   createWorktreeCopiedPaths: vi.fn(),

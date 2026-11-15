@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { WorkspacePort } from '../../shared/workspace-ports'
+import type { WorkspacePort } from '../../shared/workspace/ports/workspace-ports'
 import { LocalPortRow } from '../../renderer/src/components/right-sidebar/ports/local-port-row'
 import { ForkPortForward } from './workspace-port-forward'
 import { enableWorkspacePortForward } from './workspace-port-forward-flag'

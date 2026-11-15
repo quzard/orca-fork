@@ -7,7 +7,7 @@ import {
   getFolderWorkspaceWorktreeHostId,
   folderWorkspaceRepoId
 } from '../../shared/folder-workspaces/folder-workspace-worktree'
-import { folderWorkspaceKey } from '../../shared/workspace-scope'
+import { folderWorkspaceKey } from '../../shared/workspace/identity/workspace-scope'
 import type {
   DurableArchiveRow,
   DurableArchiveWorkspace

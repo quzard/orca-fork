@@ -1,6 +1,6 @@
 // fork: sidebar chrome slots. Unregistered renderers return null and drops fall through.
 import type { ReactNode } from 'react'
-import type { Repo } from '../repo-types'
+import type { Repo } from '../repository/repo-types'
 import type { Worktree } from '../worktree/types'
 
 type WorktreeMenuTarget = Pick<Worktree, 'id' | 'instanceId' | 'hostId' | 'repoId'>

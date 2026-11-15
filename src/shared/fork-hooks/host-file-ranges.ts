@@ -1,7 +1,7 @@
 // fork: F046. A CSV or TSV outside every workspace past upstream's paging threshold opens in upstream's
 // paged preview; the preview's stat and range reads go to the host by absolute path. Unregistered, a
 // host file keeps upstream's reads.
-import type { RuntimeClientTarget } from '../runtime-client-target'
+import type { RuntimeClientTarget } from '../remote-runtime/host-catalog/runtime-client-target'
 
 /** The fields of the renderer's file read args that name a host file. */
 export type HostFileReadArgs = {

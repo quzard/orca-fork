@@ -1,6 +1,6 @@
 // fork: `orca repo rm`（F055）。打包的 CLI 只带 out/cli 和 out/shared，所以命令写在这里而不是 src/fork；
 // 上游的 repo spec、handler、handler 清单和总帮助各展开一次。这里不引用 src/cli，CLI 的依赖由调用方传入。
-import type { RuntimeRpcSuccess } from '../runtime-rpc-envelope'
+import type { RuntimeRpcSuccess } from '../remote-runtime/rpc/runtime-rpc-envelope'
 
 type CliFlags = Map<string, string | boolean>
 

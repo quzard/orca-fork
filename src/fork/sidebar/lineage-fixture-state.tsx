@@ -1,9 +1,9 @@
 // 上游删掉了侧栏血统夹具。host-directory 列表测试仍要同一份初始状态，所以夹具留在 fork。
 import { vi } from 'vitest'
-import type { ProjectGroup } from '../../shared/project-group-types'
+import type { ProjectGroup } from '../../shared/project/groups/project-group-types'
 import type { WorktreeLineage } from '../../shared/worktree/lineage-types'
 import type { Worktree } from '../../shared/worktree/types'
-import { cloneDefaultWorkspaceStatuses } from '../../shared/workspace-statuses'
+import { cloneDefaultWorkspaceStatuses } from '../../shared/workspace/status/workspace-statuses'
 import { mockStore } from '../../renderer/src/components/sidebar/worktree-list/listing/worktree-list-lineage-card-test-harness'
 import {
   makeFolderWorkspacePathStatusMockState,

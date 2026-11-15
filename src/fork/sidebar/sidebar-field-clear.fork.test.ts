@@ -15,7 +15,7 @@ import { FolderWorkspaceUpdateArgs } from '../../main/ipc/repos/repo-ipc-arg-sch
 import { updateRuntimeManagedWorktreeMetadata } from '../../main/runtime/workspaces/metadata/runtime-managed-worktree-metadata'
 import { mergeRuntimeFolderWorkspace } from '../../main/runtime/workspaces/catalog/runtime-folder-workspace'
 import { folderWorkspaceToWorktree } from '../../shared/folder-workspaces/folder-workspace-worktree'
-import type { Repo } from '../../shared/repo-types'
+import type { Repo } from '../../shared/repository/repo-types'
 import type { FolderWorkspace } from '../../shared/folder-workspaces/folder-workspace-types'
 import type { RuntimeStore } from '../../main/runtime/construction/runtime-store-contract'
 import type { ResolvedWorktree } from '../../main/runtime/workspaces/catalog/runtime-worktree-path-identity'

@@ -1,8 +1,8 @@
 // 登记 host-directory 后渲染整份 WorktreeList。上游对每个分区读 group.repoIds；
 // 分区没有 group 时，这里抛 TypeError: Cannot read properties of undefined (reading 'repoIds')。
 import { beforeAll, describe, expect, it, vi } from 'vitest'
-import type { ProjectGroup } from '../../shared/project-group-types'
-import type { Repo } from '../../shared/repo-types'
+import type { ProjectGroup } from '../../shared/project/groups/project-group-types'
+import type { Repo } from '../../shared/repository/repo-types'
 import type { Worktree } from '../../shared/worktree/types'
 import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
 import {
@@ -29,7 +29,7 @@ import {
   PINNED_SECTION_KEY,
   hostDirectorySectionKey
 } from './section-keys'
-import { EMPTY_PENDING_VM_CHECKOUT_INDEX } from '../../shared/pending-vm-checkouts'
+import { EMPTY_PENDING_VM_CHECKOUT_INDEX } from '../../shared/remote-runtime/ephemeral-vm-store/pending-vm-checkouts'
 import { registerHostSectionMenuExtra } from '../../shared/fork-hooks/sidebar-chrome'
 import type * as VmCreateHiddenCheckouts from '@/runtime/ephemeral-vm/vm-create-hidden-checkouts'
 

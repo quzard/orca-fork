@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { normalizeExecutionHostId, type ExecutionHostId } from '../../shared/execution-host'
-import type { ProjectGroup } from '../../shared/project-group-types'
-import type { Repo } from '../../shared/repo-types'
+import type { ProjectGroup } from '../../shared/project/groups/project-group-types'
+import type { Repo } from '../../shared/repository/repo-types'
 import type { Worktree } from '../../shared/worktree/types'
 import {
   registerWorktreeMenuGroups,

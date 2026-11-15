@@ -2,7 +2,7 @@ import { pbkdf2Sync } from 'node:crypto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CHROMIUM_BROWSERS } from '../main/browser/cookies/sources/browser-cookie-source-profiles'
 import { BROWSER_FAMILY_LABELS } from '../shared/browser/browser-family-labels'
-import { getBrowserCookieImportSourceLabels } from '../shared/browser-cookie-import-sources'
+import { getBrowserCookieImportSourceLabels } from '../shared/browser/cookies/browser-cookie-import-sources'
 import { registerForkCookieImportSources } from '../shared/fork-hooks/chromium-cookie-browsers'
 import { appendChromiumCookieBrowser } from './main/ego-lite-cookie-detection'
 import {

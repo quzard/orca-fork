@@ -146,7 +146,7 @@ FEATURES = [
 
 # Optional notes for rows whose generic reason says too little. Keys must differ from the base.
 REASONS = {
-    'src/main/orcad/host-runtime/orcad-entry.ts': '一行 installForkOrcadHost()（在上游 host adapters 之前）；为这行加了文件首行的 max-lines 豁免',
+    'src/main/orcad/host-runtime/orcad-entry.ts': '一行 installForkOrcadHost()（在上游 host adapters 之前）；上游 #42537 拆分后文件变短，不再需要 max-lines 豁免',
     'src/main/startup/main-process-preflight.ts': 'F038：setSecretStore 先问登记的文件密钥库，没有才 new ElectronSecretStore；未登记时与上游一致',
     'src/main/updater/lifecycle/updater-setup.ts': 'UPD：类继承 fork 的 ForkBackgroundUpdates；不先钉上游地址；退出即装 ||= fork 判断；三条 fork 回调',
     'src/main/updater/updater-events.ts': 'UPD：后台下载适配器挂在上游事件上；checking 时的两次清理由适配器决定是否保留已下载版本',
@@ -165,7 +165,7 @@ REASONS = {
     'src/main/ipc/doc-preview-grant-ipc.ts': 'F051：铸 grant 后一行 openDocPreviewAccess，整个请求根放行，不弹文件夹提示',
     'src/main/antigravity/antigravity-acp-runtime-probe.ts': 'F052：Linux 安装校验在 --uid= 后展开 antigravityAcpLinuxArgs()；未登记时仍只有 --uid=',
     'src/main/antigravity/antigravity-acp-launch-spec.ts': 'F052：Linux 会话启动（含登录）在 --uid= 后展开 antigravityAcpLinuxArgs()；未登记时仍只有 --uid=',
-    'src/shared/runtime-rpc-call-queue.ts': 'F046：分段读 files.hostDocPreview.readChunk、files.hostFile.readChunk 和上游 files.readDocPreviewChunk 一样走 bulk 通道',
+    'src/shared/remote-runtime/rpc/runtime-rpc-call-queue.ts': 'F046：分段读 files.hostDocPreview.readChunk、files.hostFile.readChunk 和上游 files.readDocPreviewChunk 一样走 bulk 通道',
     'src/renderer/src/runtime/files/reads/runtime-remote-file-content.ts': 'F046：授权因文件仍在写入而失效（terminal_file_grant_stale）时交给 readLargeGrantedHostFile；file_too_large / truncated 走上游 #38742 分页，读完后 keepLargeGrantedHostFileReadOnly 把超过 512 KiB 的标签标成只读；对话图片等未开 pageOversizedBinary 的预览仍用 pageLargeGrantedHostPreview',
     'src/renderer/src/components/editor/csv/preview/csv-file-content.ts': 'F046：开头先问 readHostCsv，工作区外的主机 CSV 过了分页阈值用上游的分页预览，否则整份读',
     'src/renderer/src/runtime/files/reads/runtime-file-range-client.ts': 'F046：分页 CSV 预览的 stat 和按段读各在开头一行，工作区外的主机文件按绝对路径读（files.hostFile.*）',

@@ -72,7 +72,7 @@ describe('Antigravity ACP on a Linux host without IPv6', () => {
 async function spawnProbe(signal: AbortSignal): Promise<unknown> {
   // 上游 #42521 删了录制文件；这里只留它第一行的 initialize 结果。
   const initialize = JSON.parse(
-    await readFile(new URL('./fixtures/antigravity-v1-initialize.json', import.meta.url), 'utf8')
+    await readFile(new URL('./fixtures/antigravity-acp-initialize.json', import.meta.url), 'utf8')
   )
   const folder = await mkdtemp(join(tmpdir(), 'orca-antigravity-ipv6-'))
   folders.push(folder)

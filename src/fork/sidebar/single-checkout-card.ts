@@ -82,9 +82,6 @@ function folderCardIdentity(
   }
 }
 
-const META_CONTENT_EXPR =
-  'vars.metaRepo || vars.hostBadge || vars.folderInMeta || vars.branch || vars.identityInMeta || vars.detachedInMeta || vars.conflict || git.cacheTimerActive'
-
 const transformedTemplates = new WeakMap<CardTemplate, CardTemplate>()
 
 function patchTitleIndicatorsNode(node: CardTemplateNode): CardTemplateNode {
@@ -107,6 +104,7 @@ function patchTitleIndicatorsNode(node: CardTemplateNode): CardTemplateNode {
  * 经典样式下若第二行（meta-row）左侧没有任何徽标、分支或路径内容，
  * 不应仅因为右侧有端口/PR 等指示器而撑出一整行空白：
  * 将指示器上移到标题行右侧（titleIndicators），并收起 meta-row。
+ * 上游 #42867 已对新样式这样做（vars.metaLead），这里只把同一条件扩到经典样式。
  */
 export function singleCheckoutCardTemplate(template: CardTemplate): CardTemplate {
   const cached = transformedTemplates.get(template)
@@ -114,8 +112,9 @@ export function singleCheckoutCardTemplate(template: CardTemplate): CardTemplate
     return cached
   }
   if (
-    template.vars?.metaIndicators !== '!vars.compact && vars.metaRow && vars.indicators' ||
-    template.vars?.titleIndicators !== '!vars.metaRow && vars.indicators'
+    template.vars?.metaIndicators !==
+      'vars.metaRow && vars.indicators && (vars.classic || vars.metaLead)' ||
+    template.vars?.titleIndicators !== 'vars.indicators && !vars.metaIndicators'
   ) {
     return template
   }
@@ -124,8 +123,7 @@ export function singleCheckoutCardTemplate(template: CardTemplate): CardTemplate
     ...template,
     vars: {
       ...template.vars,
-      metaIndicators: `!vars.compact && vars.metaRow && (!vars.classic || ${META_CONTENT_EXPR}) && vars.indicators`,
-      titleIndicators: '!vars.metaIndicators && vars.indicators'
+      metaIndicators: 'vars.metaRow && vars.indicators && vars.metaLead'
     },
     ...(identityBlock
       ? {

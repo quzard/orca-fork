@@ -12,7 +12,7 @@ import {
 } from './helpers/orcad-managed-workspace'
 import { quotePosixShell } from '../../src/shared/shell/launch/shell-argument-quoting'
 import { createPdfFindFixture } from './helpers/pdf-find-fixture'
-import { toRuntimeExecutionHostId } from '../../src/shared/execution-host'
+import { toRuntimeExecutionHostId } from '../../src/shared/execution-host/execution-host'
 import { folderWorkspaceKey } from '../../src/shared/workspace/identity/workspace-scope'
 import {
   clickPrintedHostPath,

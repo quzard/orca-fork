@@ -220,11 +220,11 @@ use_node24() {
 }
 
 # glibc 2.17 的 Node 来自 unofficial-builds，这台 Mac 可能连不上。文件名、版本和 sha256 读上游的
-# src/shared/node-runtime-pin.ts，不在脚本里另写一份；构建时上游脚本按同一个 pin 复用缓存。
+# src/shared/node-runtime/node-runtime-pin.ts，不在脚本里另写一份；构建时上游脚本按同一个 pin 复用缓存。
 seed_glibc217() {
   local pin archive sha version
   pin="$(node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --input-type=module -e '
-    import { NODE_RUNTIME_PIN, nodeRuntimeAsset } from "./src/shared/node-runtime-pin.ts"
+    import { NODE_RUNTIME_PIN, nodeRuntimeAsset } from "./src/shared/node-runtime/node-runtime-pin.ts"
     const asset = nodeRuntimeAsset("linux-x64-glibc217")
     console.log([asset.archive, asset.archiveSha256, NODE_RUNTIME_PIN.version].join(" "))
   ')" || {

@@ -5,8 +5,11 @@ import { findWorkspaceFileRoute } from '@/lib/files/access/runtime-workspace-fil
 import { readHostFilePreview } from '@/runtime/files/grants/runtime-terminal-artifact-read'
 import { toRuntimeWorktreeSelector } from '@/runtime/rpc/targets/runtime-worktree-selector'
 import { useAppStore } from '@/store'
-import { toRuntimeExecutionHostId } from '../../shared/execution-host'
-import { isWindowsAbsolutePathLike, normalizeRelativePath } from '../../shared/cross-platform-path'
+import { toRuntimeExecutionHostId } from '../../shared/execution-host/execution-host'
+import {
+  isWindowsAbsolutePathLike,
+  normalizeRelativePath
+} from '../../shared/file-access/cross-platform-path'
 import {
   registerHostFileDocPreview,
   type HostFileDocLocation

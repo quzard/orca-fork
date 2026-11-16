@@ -1,12 +1,12 @@
 import { toast } from 'sonner'
 import { useAppStore } from '@/store'
 import { forkTranslate } from '../i18n/fork-translate'
-import { normalizeRuntimePathForComparison } from '../../shared/cross-platform-path'
+import { normalizeRuntimePathForComparison } from '../../shared/file-access/cross-platform-path'
 import {
   getRepoExecutionHostId,
   LOCAL_EXECUTION_HOST_ID,
   type ExecutionHostId
-} from '../../shared/execution-host'
+} from '../../shared/execution-host/execution-host'
 import { composeWorktreeId } from '../../shared/worktree/id'
 import type { ForkPostImportDetails } from '../../shared/fork-hooks/post-import'
 // 文件夹主机解析在 folder-workspace-host-id，签名仍是工作区加项目组列表。

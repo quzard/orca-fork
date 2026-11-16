@@ -3,7 +3,7 @@ import {
   ALL_EXECUTION_HOSTS_SCOPE,
   LOCAL_EXECUTION_HOST_ID,
   toRuntimeExecutionHostId
-} from '../../shared/execution-host'
+} from '../../shared/execution-host/execution-host'
 import { otherVaultHosts, splitVaultHostMenu } from './host-menu'
 
 const [withSessions, active, connected, idle, picked] = ['a', 'b', 'c', 'd', 'e'].map((id) =>

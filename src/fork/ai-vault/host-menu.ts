@@ -3,7 +3,7 @@ import {
   ALL_EXECUTION_HOSTS_SCOPE,
   LOCAL_EXECUTION_HOST_ID,
   normalizeExecutionHostId
-} from '../../shared/execution-host'
+} from '../../shared/execution-host/execution-host'
 
 type VaultHostMenuOption = { id: string; label: string }
 export type VaultHostMenu = readonly VaultHostMenuOption[]

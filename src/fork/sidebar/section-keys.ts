@@ -1,6 +1,6 @@
 // Host -> directory sidebar keys. Host ids contain colons, so the payload is JSON.
-import type { ExecutionHostId } from '../../shared/execution-host'
-import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
+import type { ExecutionHostId } from '../../shared/execution-host/execution-host'
+import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host/execution-host'
 import type { WorkspaceSortBy } from '../../shared/workspace-view/workspace-row-sort'
 
 export const HOST_DIRECTORY_GROUP_BY = 'host-directory'

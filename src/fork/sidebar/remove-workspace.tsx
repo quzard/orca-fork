@@ -1,7 +1,7 @@
 // Archive one workspace in Orca. The directory and git branch stay on the host.
 import { toast } from 'sonner'
 import { forkTranslate } from '../i18n/fork-translate'
-import { getWorktreeExecutionHostId } from '../../shared/execution-host'
+import { getWorktreeExecutionHostId } from '../../shared/execution-host/execution-host'
 import { getWorktreeOperationOwnerHostIds } from '../../renderer/src/lib/workspace/ownership/worktree-operation-route'
 import { findRepoForHost } from '../../renderer/src/store/repos/repo-host-identity'
 import {
@@ -12,7 +12,7 @@ import { showWorkspaceListChangedToast } from '../../renderer/src/components/sid
 import type { WorktreeDeleteIdentity } from '../../renderer/src/components/sidebar/workspace-actions/deletion/worktree-delete-request'
 import { useAppStore } from '../../renderer/src/store'
 import type { Worktree } from '../../shared/worktree/types'
-import type { ExecutionHostId } from '../../shared/execution-host'
+import type { ExecutionHostId } from '../../shared/execution-host/execution-host'
 import { forgetWorkspaceArchive, rememberWorkspaceArchive } from './durable-workspace-archive'
 
 export const workspaceRemovalLabels = {

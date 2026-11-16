@@ -2,7 +2,7 @@
 import {
   normalizeRuntimePathForComparison,
   normalizeRuntimePathSeparators
-} from '../../cross-platform-path'
+} from '../../file-access/cross-platform-path'
 import { isClipboardTextByteLengthOverLimit } from '../../clipboard/clipboard-text'
 import { readAiVaultFolderLabel } from '../../fork-hooks/ai-vault'
 import { splitAiVaultSearchQuery } from '../search/ai-vault-search-query-operators'
@@ -21,7 +21,7 @@ import {
   isAiVaultSessionRecoverableEmpty,
   isAiVaultSessionResumableContent
 } from '../contracts/ai-vault-types'
-import type { ExecutionHostId } from '../../execution-host'
+import type { ExecutionHostId } from '../../execution-host/execution-host'
 import { sessionPreviewSearchText } from './ai-vault-session-display'
 
 // Move the plain descriptor type without importing renderer project-attribution runtime.

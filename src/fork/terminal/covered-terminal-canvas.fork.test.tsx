@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { ManagedPane } from '@/lib/pane-manager/pane-manager-types'
 import { NativeChatPaneCover } from '../../renderer/src/components/terminal-pane/chat/NativeChatPaneCover'
-import { RetainedPaneHost } from '../../renderer/src/components/tab-group/RetainedPaneHost'
+import { RetainedPaneHost } from '../../renderer/src/components/tab-group/retained-pane/RetainedPaneHost'
 import {
   RETAINED_PANE_GROUP_ATTRIBUTE,
   resetCoveredTerminalGroupsForTests

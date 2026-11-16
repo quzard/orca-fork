@@ -4,7 +4,7 @@ import { callRuntimeEnvironment } from '../../main/ipc/runtime-environments/requ
 import { getRuntimeEnvironmentStatusSnapshot } from '../../main/ipc/runtime-environments/connections/runtime-environment-request-connections'
 import { mainProcessState } from '../../main/startup/main-process-state'
 import { getSshConnectionManager } from '../../main/ssh/targets/ssh-target-registry'
-import { isOwnedSshTargetId } from '../../shared/execution-host'
+import { isOwnedSshTargetId } from '../../shared/execution-host/execution-host'
 import { getManagedOrcadSshTargetId } from '../../shared/execution-host/managed-orcad-execution-host'
 import type { RuntimeHostStatusSnapshot } from '../../shared/remote-runtime/host-status/runtime-host-status'
 import { listEnvironments } from '../../shared/remote-runtime/host-store/runtime-environment-store'

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { UpdateStatus } from '../../shared/update-status-types'
+import type { UpdateStatus } from '../../shared/updater/update-status-types'
 import type { registerAutoUpdaterHandlers } from '../../main/updater/updater-events'
 import { beginMacUpdateDownload } from '../../main/updater/mac-install/updater-mac-install'
 

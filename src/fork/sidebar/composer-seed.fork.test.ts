@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { LOCAL_EXECUTION_HOST_ID, toSshExecutionHostId } from '../../shared/execution-host'
+import {
+  LOCAL_EXECUTION_HOST_ID,
+  toSshExecutionHostId
+} from '../../shared/execution-host/execution-host'
 import { composerSeedForOpen } from '../../shared/fork-hooks/workspace-composer-seed'
 
 const DEVBOX = toSshExecutionHostId('devbox')

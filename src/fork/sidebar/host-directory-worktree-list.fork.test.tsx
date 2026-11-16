@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest'
 import type { ProjectGroup } from '../../shared/project/groups/project-group-types'
 import type { Repo } from '../../shared/repository/repo-types'
 import type { Worktree } from '../../shared/worktree/types'
-import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
+import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host/execution-host'
 import {
   createAppStoreModuleMock,
   createDropdownMenuModuleMock,
@@ -51,15 +51,19 @@ vi.mock('@/hooks/useVirtualizedScrollAnchor', () => createVirtualizedScrollAncho
 vi.mock('../../renderer/src/components/sidebar/worktree-list/drag/project-header-drag', () =>
   createProjectHeaderDragModuleMock()
 )
-vi.mock('../../renderer/src/components/sidebar/workspace-card/surface/WorktreeCard', () => createWorktreeCardModuleMock())
+vi.mock('../../renderer/src/components/sidebar/workspace-card/surface/WorktreeCard', () =>
+  createWorktreeCardModuleMock()
+)
 vi.mock('../../renderer/src/components/sidebar/workspace-card/activity/WorktreeCardAgents', () =>
   createWorktreeCardAgentsModuleMock()
 )
-vi.mock('../../renderer/src/components/sidebar/workspace-card/identity/WorktreeTitleInlineRename', () =>
-  createWorktreeTitleInlineRenameModuleMock()
+vi.mock(
+  '../../renderer/src/components/sidebar/workspace-card/identity/WorktreeTitleInlineRename',
+  () => createWorktreeTitleInlineRenameModuleMock()
 )
-vi.mock('../../renderer/src/components/sidebar/workspace-actions/context-menu/WorktreeContextMenu', () =>
-  createWorktreeContextMenuModuleMock()
+vi.mock(
+  '../../renderer/src/components/sidebar/workspace-actions/context-menu/WorktreeContextMenu',
+  () => createWorktreeContextMenuModuleMock()
 )
 vi.mock('@/components/ui/tooltip', () => createTooltipModuleMock())
 vi.mock('@/components/ui/dropdown-menu', () => createDropdownMenuModuleMock())

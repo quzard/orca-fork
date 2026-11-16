@@ -1,5 +1,8 @@
-import { normalizeRuntimePathSeparators } from '../../shared/cross-platform-path'
-import { getExecutionHostLabel, type ExecutionHostId } from '../../shared/execution-host'
+import { normalizeRuntimePathSeparators } from '../../shared/file-access/cross-platform-path'
+import {
+  getExecutionHostLabel,
+  type ExecutionHostId
+} from '../../shared/execution-host/execution-host'
 import { registerAiVaultFolderLabel } from '../../shared/fork-hooks/ai-vault'
 
 const UNKNOWN_LOCATION_LABEL = 'Unknown location'

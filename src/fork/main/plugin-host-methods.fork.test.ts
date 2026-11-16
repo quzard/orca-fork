@@ -3,7 +3,7 @@ import {
   LOCAL_EXECUTION_HOST_ID,
   toRuntimeExecutionHostId,
   toSshExecutionHostId
-} from '../../shared/execution-host'
+} from '../../shared/execution-host/execution-host'
 import { executePluginHostCall } from '../../main/plugins/workers/host-api/plugin-host-methods'
 import type { PluginHostServices } from '../../main/plugins/workers/host-api/plugin-host-method-bindings'
 import {

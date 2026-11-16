@@ -5,7 +5,10 @@ import { DropdownMenuItem } from '../../renderer/src/components/ui/dropdown-menu
 import { Button } from '../../renderer/src/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../../renderer/src/components/ui/tooltip'
 import { forkTranslate } from '../i18n/fork-translate'
-import { getRepoExecutionHostId, getWorktreeExecutionHostId } from '../../shared/execution-host'
+import {
+  getRepoExecutionHostId,
+  getWorktreeExecutionHostId
+} from '../../shared/execution-host/execution-host'
 import { useAppStore } from '../../renderer/src/store'
 import {
   registerHostSectionMenuExtra,

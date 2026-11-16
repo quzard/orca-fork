@@ -1,6 +1,6 @@
 // fork: 创建弹窗的主机和分组。未登记时不改创建请求。
 
-import type { ExecutionHostId } from '../execution-host'
+import type { ExecutionHostId } from '../execution-host/execution-host'
 
 export type ComposerSeed = {
   hostId?: ExecutionHostId

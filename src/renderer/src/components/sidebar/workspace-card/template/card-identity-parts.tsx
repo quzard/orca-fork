@@ -1,7 +1,7 @@
 import React from 'react'
 import { DetachedHeadBadge } from '@/components/DetachedHeadBadge'
 import { useWslHostDistro, WslHostMark } from '@/components/wsl-host-mark/WslHostMark'
-import { getWorktreeExecutionHostId } from '../../../../../../shared/execution-host'
+import { getWorktreeExecutionHostId } from '../../../../../../shared/execution-host/execution-host'
 import { renderWorktreeDirectoryPrefix } from '../../../../../../shared/fork-hooks/sidebar-chrome'
 import { renderRegisteredCardTitleTrailing } from '../../../../../../shared/fork-hooks/sidebar-card-identity'
 import CacheTimer from '../activity/CacheTimer'
@@ -16,6 +16,7 @@ import {
   WorktreeCardRuntimeHostMark,
   WorktreeCardSparseBadge
 } from '../identity/worktree-card-header-items'
+import { WorktreeCardNotificationsMutedBadge } from '../identity/WorktreeCardNotificationsMutedBadge'
 import {
   WorktreeCardConflictBadge,
   WorktreeCardFolderPath,
@@ -146,6 +147,9 @@ export const CARD_IDENTITY_PARTS = {
       hasHoverDetails={props.hasHoverDetails === true}
       directories={card.worktree.sparseDirectories}
     />
+  )),
+  NotificationsMuted: part([], (_props, _children, { worktree }) => (
+    <WorktreeCardNotificationsMutedBadge worktreeId={worktree.id} />
   )),
   DeleteQuickAction: part([], (_props, _children, card) => (
     <WorktreeCardDeleteQuickAction

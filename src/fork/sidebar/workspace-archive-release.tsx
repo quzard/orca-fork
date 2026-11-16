@@ -3,7 +3,10 @@
 import { useAppStore } from '../../renderer/src/store'
 import { getWorktreeOnHostFromState } from '../../renderer/src/store/workspaces/selection/worktree-on-host-selector'
 import { findRepoForHost } from '../../renderer/src/store/repos/repo-host-identity'
-import { getRepoExecutionHostId, type ExecutionHostId } from '../../shared/execution-host'
+import {
+  getRepoExecutionHostId,
+  type ExecutionHostId
+} from '../../shared/execution-host/execution-host'
 import { getRepoIdFromWorktreeId } from '../../shared/worktree/id'
 import {
   forgetWorkspaceArchive,

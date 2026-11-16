@@ -10,7 +10,7 @@ import {
   ALL_EXECUTION_HOSTS_SCOPE,
   LOCAL_EXECUTION_HOST_ID,
   toRuntimeExecutionHostId
-} from '../../shared/execution-host'
+} from '../../shared/execution-host/execution-host'
 import type { AiVaultHostScopeOption } from '../../renderer/src/components/right-sidebar/ai-vault/scope/ai-vault-host-scope'
 import type { AiVaultSessionListGroup } from '../../renderer/src/components/right-sidebar/ai-vault/session-list/ai-vault-session-filters'
 import type * as HostMenu from './host-menu'

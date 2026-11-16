@@ -14,9 +14,12 @@ import { makeTerminalTab } from '../../main/persistence/persistence-session-fixt
 import { manifest } from '../../main/persistence/migrating-orcad-catalog/catalog-commit/persistence-orcad-migration-catalog-fixture'
 import { collectOrcadMigrationSourceCatalog } from '../../main/persistence/migrating-orcad-catalog/source/catalog/orcad-source-catalog'
 import { resolveAgentWorkspaceExecutionHostId } from '../../main/agent-hooks/observations/restored-status-dead-terminal-sweep'
-import { getDefaultPersistedState, getDefaultWorkspaceSession } from '../../shared/constants'
+import {
+  getDefaultPersistedState,
+  getDefaultWorkspaceSession
+} from '../../shared/orca-profiles/constants'
 import type { FolderWorkspace } from '../../shared/folder-workspaces/folder-workspace-types'
-import type { PersistedState } from '../../shared/persisted-state-types'
+import type { PersistedState } from '../../shared/orca-profiles/persisted-state-types'
 import type { ProjectGroup } from '../../shared/project/groups/project-group-types'
 import { getRenderableFolderWorkspaces } from '../../shared/sidebar-list/folders/folder-workspace-lanes'
 import { folderWorkspaceKey } from '../../shared/workspace/identity/workspace-scope'

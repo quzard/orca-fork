@@ -4,7 +4,7 @@
 // reply); a host without those methods serves it through terminal grants.
 import { posix, win32 } from 'node:path'
 import { isBinaryBuffer } from '../../shared/file-preview/binary-buffer'
-import { isWindowsAbsolutePathLike } from '../../shared/cross-platform-path'
+import { isWindowsAbsolutePathLike } from '../../shared/file-access/cross-platform-path'
 import {
   DOC_PREVIEW_FILE_CHANGED_MESSAGE,
   type DocPreviewFileChunk

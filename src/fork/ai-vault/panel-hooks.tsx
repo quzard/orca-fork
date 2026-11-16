@@ -16,7 +16,7 @@ import {
   toRuntimeExecutionHostId,
   type ExecutionHostId,
   type ExecutionHostScope
-} from '../../shared/execution-host'
+} from '../../shared/execution-host/execution-host'
 import type { AiVaultHostScopeOption } from '../../renderer/src/components/right-sidebar/ai-vault/scope/ai-vault-host-scope'
 import type { AiVaultPanelWorkspace } from '../../renderer/src/components/right-sidebar/ai-vault/scope/ai-vault-panel-workspace'
 import type { AiVaultSessionListGroup } from '../../renderer/src/components/right-sidebar/ai-vault/session-list/ai-vault-session-filters'

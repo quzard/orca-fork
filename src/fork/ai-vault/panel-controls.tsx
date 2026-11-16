@@ -9,7 +9,10 @@ import {
   DropdownMenuSubTrigger
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/class-names'
-import { normalizeExecutionHostScope, type ExecutionHostScope } from '../../shared/execution-host'
+import {
+  normalizeExecutionHostScope,
+  type ExecutionHostScope
+} from '../../shared/execution-host/execution-host'
 import type { AiVaultSessionGroup } from '../../shared/ai-vault/session-display/ai-vault-session-filters'
 import { forkTranslate } from '../i18n/fork-translate'
 import { otherVaultHosts, type VaultHostMenu } from './host-menu'

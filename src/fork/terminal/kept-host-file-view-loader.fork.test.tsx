@@ -11,7 +11,7 @@ import {
   registerKeptHostFileViewHooks,
   releaseStaleKeptHostFileReadOnly
 } from './kept-host-file-view'
-import { FLOATING_TERMINAL_WORKTREE_ID } from '../../shared/constants'
+import { FLOATING_TERMINAL_WORKTREE_ID } from '../../shared/workspace/identity/floating-workspace-id'
 
 const mocks = vi.hoisted(() => ({
   findWorkspaceFileRoute: vi.fn(),

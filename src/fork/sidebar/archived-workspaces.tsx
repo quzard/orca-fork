@@ -4,7 +4,10 @@ import { toast } from 'sonner'
 import { forkTranslate } from '../i18n/fork-translate'
 import { Button } from '../../renderer/src/components/ui/button'
 import { Input } from '../../renderer/src/components/ui/input'
-import { getWorktreeExecutionHostId, normalizeExecutionHostId } from '../../shared/execution-host'
+import {
+  getWorktreeExecutionHostId,
+  normalizeExecutionHostId
+} from '../../shared/execution-host/execution-host'
 import type { Repo } from '../../shared/repository/repo-types'
 import { useAppStore } from '../../renderer/src/store'
 import { findRepoForHost } from '../../renderer/src/store/repos/repo-host-identity'

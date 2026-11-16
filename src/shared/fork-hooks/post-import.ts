@@ -1,6 +1,6 @@
 // fork: 添加仓库之后的回调。没有登记时立即返回，不增加 await。
 
-import { getRepoExecutionHostId, type ExecutionHostId } from '../execution-host'
+import { getRepoExecutionHostId, type ExecutionHostId } from '../execution-host/execution-host'
 import type { Repo } from '../repository/repo-types'
 
 export type ForkPostImportPhase = 'registered' | 'handoff'

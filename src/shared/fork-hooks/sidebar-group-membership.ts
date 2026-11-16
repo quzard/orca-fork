@@ -1,5 +1,5 @@
 // fork: optional workspace group id. Unregistered, an omitted field is left as the peer sent it.
-import type { ExecutionHostId } from '../execution-host'
+import type { ExecutionHostId } from '../execution-host/execution-host'
 
 export type SidebarGroupRow = {
   id: string

@@ -1,6 +1,6 @@
 // fork (F038): the desktop SecretStore preflight installs. Unregistered, or when the factory
 // declines, preflight constructs upstream's ElectronSecretStore.
-import type { SecretStore } from '../secret-store'
+import type { SecretStore } from '../secure-storage/secret-store'
 
 let factory: (() => SecretStore | null) | undefined
 

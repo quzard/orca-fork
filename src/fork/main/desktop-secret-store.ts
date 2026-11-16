@@ -2,8 +2,8 @@ import { app } from 'electron'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { guardedSafeStorage } from '../../main/host/safe-storage-availability'
-import { usesIsolatedProfile } from '../../shared/electron-isolated-profile-switches'
-import type { SecretStore } from '../../shared/secret-store'
+import { usesIsolatedProfile } from '../../shared/app-lifecycle/launch/electron-isolated-profile-switches'
+import type { SecretStore } from '../../shared/secure-storage/secret-store'
 import { LOCAL_SECRET_STORAGE, MacosFileSecretStore } from './macos-file-secret-store'
 
 export function usesPackagedMacosFileSecretStore(input: {

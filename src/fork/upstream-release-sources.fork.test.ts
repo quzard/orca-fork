@@ -13,7 +13,7 @@ const GATED_SOURCES = [
   'src/main/updater/releases/updater-release-builds.ts',
   'src/main/updater/releases/updater-release-readiness.ts',
   'src/main/wsl/host-lifecycle/wsl-hosts-policy-live-update.ts',
-  'src/shared/release-channel.ts'
+  'src/shared/updater/release-channel.ts'
 ]
 
 const UPSTREAM_RELEASE_SOURCE =

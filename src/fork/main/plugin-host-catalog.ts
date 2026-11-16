@@ -5,7 +5,7 @@ import {
   LOCAL_EXECUTION_HOST_ID,
   toRuntimeExecutionHostId,
   toSshExecutionHostId
-} from '../../shared/execution-host'
+} from '../../shared/execution-host/execution-host'
 
 export type ForkHostState = 'connected' | 'connecting' | 'disconnected' | 'unknown'
 

@@ -1,6 +1,6 @@
 // fork: 软删除后的本机隐藏。未登记时扫描结果原样返回，不改 isArchived，也不清记录。
 
-import type { ExecutionHostId } from '../execution-host'
+import type { ExecutionHostId } from '../execution-host/execution-host'
 
 export type DurableArchiveRow = {
   id: string

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getDefaultUIState } from '../../shared/constants'
+import { getDefaultUIState } from '../../shared/orca-profiles/constants'
 import { hydrateSidebarGroupBy } from '../../shared/fork-hooks/sidebar-group-mode'
 import { normalizeGroupBy } from '../../main/persistence/applying-settings/ui-selection-normalization'
 import { registerForkModules } from '../register'

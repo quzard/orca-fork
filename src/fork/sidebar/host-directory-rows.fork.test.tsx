@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeExecutionHostId, type ExecutionHostId } from '../../shared/execution-host'
+import {
+  normalizeExecutionHostId,
+  type ExecutionHostId
+} from '../../shared/execution-host/execution-host'
 import type { FolderWorkspace } from '../../shared/folder-workspaces/folder-workspace-types'
 import type { ProjectGroup } from '../../shared/project/groups/project-group-types'
 import type { Repo } from '../../shared/repository/repo-types'
 import type { Worktree } from '../../shared/worktree/types'
-import { getDefaultUIState } from '../../shared/constants'
+import { getDefaultUIState } from '../../shared/orca-profiles/constants'
 import { hydrateSidebarGroupBy } from '../../shared/fork-hooks/sidebar-group-mode'
 import {
   projectGroupDeleteKeepsFolderWorkspaces,

@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { Repo } from '../../shared/repository/repo-types'
 import type { Worktree } from '../../shared/worktree/types'
-import { DEFAULT_REPO_BADGE_COLOR } from '../../shared/constants'
+import { DEFAULT_REPO_BADGE_COLOR } from '../../shared/repository/appearance/repo-badge-color'
 import { registerDurableWorkspaceArchive } from '../../shared/fork-hooks/workspace-durable-archive'
 import { buildRuntimeSessionPlaceholders } from '../../renderer/src/store/terminals/hydration/workspace-terminal-placeholders'
 import { addHydratedSshWorktreePlaceholders } from '../../renderer/src/store/terminals/hydration/workspace-terminal-ssh-placeholders'

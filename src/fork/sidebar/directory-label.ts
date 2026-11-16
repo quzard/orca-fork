@@ -1,6 +1,6 @@
 // Card prefix. Collisions are resolved per host so two hosts can share a basename.
-import { relativePathInsideRoot } from '../../shared/cross-platform-path'
-import type { ExecutionHostId } from '../../shared/execution-host'
+import { relativePathInsideRoot } from '../../shared/file-access/cross-platform-path'
+import type { ExecutionHostId } from '../../shared/execution-host/execution-host'
 import {
   getRepoDisplayLabelKey,
   getRepoDisplayLabelsByPath

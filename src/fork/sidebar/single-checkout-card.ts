@@ -1,5 +1,5 @@
 // 主机目录卡片去掉只重复卡片名字的部分（F054）：目录前缀、主要徽标、分支行和文件夹路径行。
-import { getRuntimePathBasename } from '../../shared/cross-platform-path'
+import { getRuntimePathBasename } from '../../shared/file-access/cross-platform-path'
 import type {
   CardIdentityFacts,
   WorktreeCardIdentityInput,

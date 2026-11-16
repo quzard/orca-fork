@@ -1,7 +1,7 @@
 // F055 `orca repo rm`：命令本身，以及上游 CLI 的 spec、handler 清单和总帮助里的展开行。
 import { describe, expect, it, vi } from 'vitest'
 import type { RuntimeRpcSuccess } from '../../shared/remote-runtime/rpc/runtime-rpc-envelope'
-import { CLI_GLOBAL_FLAGS } from '../../shared/cli-argument-boundary'
+import { CLI_GLOBAL_FLAGS } from '../../shared/cli/cli-argument-boundary'
 import {
   FORK_REPO_HELP_SUMMARY,
   FORK_REPO_HELP_USAGE,

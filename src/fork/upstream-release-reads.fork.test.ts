@@ -31,7 +31,7 @@ import {
   resolveTargetBuild
 } from '../main/updater/releases/updater-release-builds'
 import { FORK_UPSTREAM_RELEASE_BLOCKED, registerForkBuild } from '../shared/fork-hooks/update-feed'
-import { getReleaseNotesUrlForVersion } from '../shared/release-channel'
+import { getReleaseNotesUrlForVersion } from '../shared/updater/release-channel'
 
 async function agentRulesFetches(): Promise<ReturnType<typeof vi.fn>> {
   const userDataPath = mkdtempSync(join(tmpdir(), 'fork-agent-rules-'))

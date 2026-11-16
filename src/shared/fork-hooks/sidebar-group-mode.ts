@@ -1,6 +1,6 @@
 // fork: 侧栏分组模式注册表。内置四种模式不进入表，未注册时查找永远为空。
-import type { ExecutionHostId } from '../execution-host'
-import type { PersistedUIState } from '../persisted-ui-state-types'
+import type { ExecutionHostId } from '../execution-host/execution-host'
+import type { PersistedUIState } from '../orca-profiles/persisted-ui-state-types'
 import type { planSidebarRows } from '../sidebar-list/sidebar-row-plan'
 
 const BUILTIN_GROUP_BY_IDS = new Set(['none', 'workspace-status', 'repo', 'pr-status'])

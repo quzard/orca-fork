@@ -2,7 +2,7 @@
 // isArchived 对不上（没有所属仓库、主机不一致、id 写法变了）时就靠这份记录。
 // 不取消 git worktree 登记，也不删目录。恢复、撤销、同路径新建或导入、硬删除成功时删掉对应记录。
 
-import { normalizeRuntimePathForComparison } from '../../shared/cross-platform-path'
+import { normalizeRuntimePathForComparison } from '../../shared/file-access/cross-platform-path'
 import {
   getFolderWorkspaceWorktreeHostId,
   folderWorkspaceRepoId

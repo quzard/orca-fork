@@ -1,4 +1,4 @@
-import { ALL_EXECUTION_HOSTS_SCOPE } from '../../shared/execution-host'
+import { ALL_EXECUTION_HOSTS_SCOPE } from '../../shared/execution-host/execution-host'
 import { registerAiVaultDefaultHostScope } from '../../shared/fork-hooks/ai-vault'
 import { registerAiVaultListPresentation } from './list-presentation'
 

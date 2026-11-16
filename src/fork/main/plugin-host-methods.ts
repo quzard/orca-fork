@@ -7,7 +7,7 @@ import { PluginHostCallError } from '../../main/plugins/workers/host-api/plugin-
 import { ForkPluginHostCallError } from './plugin-host-call-error'
 import type { PluginHostMethodContext } from '../../main/plugins/workers/host-api/plugin-host-method-bind'
 import { PluginRuntimeRpcError } from '../../main/plugins/runtime/plugin-runtime-rpc'
-import { parseExecutionHostId } from '../../shared/execution-host'
+import { parseExecutionHostId } from '../../shared/execution-host/execution-host'
 import {
   FORK_EXEC_OUTPUT_DEFAULT_BYTES,
   FORK_EXEC_TIMEOUT_DEFAULT_MS,

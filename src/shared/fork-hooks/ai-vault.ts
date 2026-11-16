@@ -1,6 +1,6 @@
 // fork: 历史会话的扫描策略、目录标题和默认主机。未注册时保持上游。
 
-import type { ExecutionHostScope } from '../execution-host'
+import type { ExecutionHostScope } from '../execution-host/execution-host'
 
 export type AiVaultToolIndexPolicy = 'capped' | 'chunk'
 

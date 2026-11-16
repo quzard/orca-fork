@@ -10,7 +10,7 @@ import type { Worktree } from '../../../../../../shared/worktree/types'
 import { getWorktreeHostIdentity } from '../../../../../../shared/worktree/host-qualified-identity'
 import { DeleteWorktreeDirtyChangeHint } from './DeleteWorktreeDirtyChangeHint'
 import { DeleteWorktreeLocalFilesHint } from './DeleteWorktreeLocalFilesHint'
-import type { WorktreeAtRiskLocalFiles } from '../../../../../../shared/worktree/removal/at-risk-local-files'
+import type { DeleteWorktreeLocalFilesState } from './use-delete-worktree-at-risk-local-files'
 import type {
   DeleteWorktreeChangeCheckState,
   DeleteWorktreeDirtyChangePreview
@@ -27,7 +27,7 @@ type DeleteWorktreeLineageNoticeProps = {
   dirtyChangePreviewsByWorktreeId: ReadonlyMap<string, DeleteWorktreeDirtyChangePreview>
   changeCheckStatesByWorktreeId?: ReadonlyMap<string, DeleteWorktreeChangeCheckState>
   folderKeptNotice?: { title: string; body: string } | null
-  atRiskLocalFilesByIdentity?: ReadonlyMap<string, WorktreeAtRiskLocalFiles>
+  atRiskLocalFilesByIdentity?: ReadonlyMap<string, DeleteWorktreeLocalFilesState>
   preserveChildren: boolean
   canPreserveChildren: boolean
   disabled: boolean
@@ -140,7 +140,7 @@ export function DeleteWorktreeLineageNotice({
                         )}
                       />
                       <DeleteWorktreeLocalFilesHint
-                        files={atRiskLocalFilesByIdentity?.get(getWorktreeHostIdentity(child))}
+                        state={atRiskLocalFilesByIdentity?.get(getWorktreeHostIdentity(child))}
                       />
                     </>
                   )}

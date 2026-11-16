@@ -16,7 +16,7 @@ import {
   MOBILE_FILE_READ_MAX_BYTES,
   previewableBinaryByteLimit
 } from '../../main/runtime/files/file-preview-budget'
-import { readLocalFileRange } from '../../main/ipc/filesystem/local-file-range-read'
+import { readLocalFileRange } from '../../main/filesystem/local-file-io/local-file-range-read'
 import {
   readAuthorizedDocPreviewFile,
   readAuthorizedDocPreviewFileChunk

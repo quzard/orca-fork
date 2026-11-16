@@ -1,7 +1,10 @@
 // Cross-group sidebar drop. Same host only; other drops fall through to upstream reorder.
 import { toast } from 'sonner'
-import { getWorktreeExecutionHostId, normalizeExecutionHostId } from '../../shared/execution-host'
-import type { ExecutionHostId } from '../../shared/execution-host'
+import {
+  getWorktreeExecutionHostId,
+  normalizeExecutionHostId
+} from '../../shared/execution-host/execution-host'
+import type { ExecutionHostId } from '../../shared/execution-host/execution-host'
 import { folderWorkspaceToWorktree } from '../../shared/folder-workspaces/folder-workspace-worktree'
 import { getWorktreeHostIdentity } from '../../shared/worktree/host-qualified-identity'
 import { findRepoForHost } from '../../renderer/src/store/repos/repo-host-identity'

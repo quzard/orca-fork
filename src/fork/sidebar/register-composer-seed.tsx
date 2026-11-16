@@ -2,7 +2,10 @@
 import { useAppStore } from '@/store'
 import { getWorktreeOnHostFromState } from '@/store/workspaces/selection/worktree-on-host-selector'
 import { findRepoForHost } from '@/store/repos/repo-host-identity'
-import { getWorktreeExecutionHostId, type ExecutionHostId } from '../../shared/execution-host'
+import {
+  getWorktreeExecutionHostId,
+  type ExecutionHostId
+} from '../../shared/execution-host/execution-host'
 import {
   composerSeedForOpen,
   registerComposerSeedReader,

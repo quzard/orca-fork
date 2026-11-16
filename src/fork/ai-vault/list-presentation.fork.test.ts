@@ -5,7 +5,7 @@ import {
   LOCAL_EXECUTION_HOST_ID,
   toRuntimeExecutionHostId,
   type ExecutionHostId
-} from '../../shared/execution-host'
+} from '../../shared/execution-host/execution-host'
 import { resetAiVaultForkHooksForTests } from '../../shared/fork-hooks/ai-vault'
 import {
   hostHeaderKey,

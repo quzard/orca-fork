@@ -16,7 +16,7 @@ import {
   LOCAL_EXECUTION_HOST_ID,
   toRuntimeExecutionHostId,
   type ExecutionHostId
-} from '../../shared/execution-host'
+} from '../../shared/execution-host/execution-host'
 
 const BUILD_ENV = 'b4f1c2d0-build'
 const GPU_ENV = '91d3e6b2-gpu'
@@ -69,22 +69,31 @@ function scanned(scope: string): AiVaultSession[] {
   return listed
 }
 
-vi.mock('../../renderer/src/components/right-sidebar/ai-vault/scanning/ai-vault-session-refresh', () => ({
-  useAiVaultSessionRefresh: (_scopePaths: readonly string[], scope: string) => ({
-    error: null,
-    loading: false,
-    refresh: vi.fn(),
-    scanResult: { sessions: scanned(scope), issues: [], scannedAt: '2026-10-30T12:00:00.000Z' },
-    sessions: scanned(scope),
-    loadedSessionLimit: null
+vi.mock(
+  '../../renderer/src/components/right-sidebar/ai-vault/scanning/ai-vault-session-refresh',
+  () => ({
+    useAiVaultSessionRefresh: (_scopePaths: readonly string[], scope: string) => ({
+      error: null,
+      loading: false,
+      refresh: vi.fn(),
+      scanResult: { sessions: scanned(scope), issues: [], scannedAt: '2026-10-30T12:00:00.000Z' },
+      sessions: scanned(scope),
+      loadedSessionLimit: null
+    })
   })
-}))
-vi.mock('../../renderer/src/components/right-sidebar/ai-vault/session-actions/ai-vault-session-delete-action', () => ({
-  useAiVaultSessionDeleteAction: () => vi.fn()
-}))
-vi.mock('../../renderer/src/components/right-sidebar/ai-vault/session-list/AiVaultSessionRow', () => ({
-  VaultSessionRow: (props: { session: AiVaultSession }) => <div>{props.session.title}</div>
-}))
+)
+vi.mock(
+  '../../renderer/src/components/right-sidebar/ai-vault/session-actions/ai-vault-session-delete-action',
+  () => ({
+    useAiVaultSessionDeleteAction: () => vi.fn()
+  })
+)
+vi.mock(
+  '../../renderer/src/components/right-sidebar/ai-vault/session-list/AiVaultSessionRow',
+  () => ({
+    VaultSessionRow: (props: { session: AiVaultSession }) => <div>{props.session.title}</div>
+  })
+)
 
 class NoopResizeObserver {
   observe(): void {}
@@ -100,7 +109,9 @@ beforeEach(async () => {
   const { useAppStore } = await import('@/store')
   ;(await import('../register')).registerForkModules()
   ;(await import('../register-renderer')).registerForkRendererModules()
-  AiVaultPanel = (await import('../../renderer/src/components/right-sidebar/ai-vault/panel/AiVaultPanel')).default
+  AiVaultPanel = (
+    await import('../../renderer/src/components/right-sidebar/ai-vault/panel/AiVaultPanel')
+  ).default
   useAppStore.setState({
     runtimeEnvironments: [
       publicRuntimeEnvironment({ id: BUILD_ENV, name: 'build-linux' }),

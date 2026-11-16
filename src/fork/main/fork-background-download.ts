@@ -3,7 +3,7 @@
 // 不弹重启卡片；暂存失败时交还上游的错误状态，用户可以重新检查。
 
 import { isForkBuild } from '../../shared/fork-hooks/update-feed'
-import type { UpdateStatus } from '../../shared/update-status-types'
+import type { UpdateStatus } from '../../shared/updater/update-status-types'
 
 export const FORK_BACKGROUND_DOWNLOAD_FAILURE_LOG =
   '[updater] background download failed; use the update button'

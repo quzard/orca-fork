@@ -1,4 +1,4 @@
-import { normalizeRuntimePathForComparison } from '../../shared/cross-platform-path'
+import { normalizeRuntimePathForComparison } from '../../shared/file-access/cross-platform-path'
 import { mergeExternalWorktreeInboxPaths } from '../../shared/worktree/visibility/external-worktree-inbox'
 
 /** Selected directories that are not the repo's own checkout. */

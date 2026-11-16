@@ -1,9 +1,9 @@
 // fork: deleting a project group keeps its folder workspaces and only ungroups them, as the
 // renderer cascade already does (projectGroupDeleteKeepsFolderWorkspaces). Upstream deletes them
 // with the group, so the next folder list made them vanish (their folders stay on disk).
-import { parseExecutionHostId } from '../../shared/execution-host'
+import { parseExecutionHostId } from '../../shared/execution-host/execution-host'
 import type { FolderWorkspace } from '../../shared/folder-workspaces/folder-workspace-types'
-import type { PersistedState } from '../../shared/persisted-state-types'
+import type { PersistedState } from '../../shared/orca-profiles/persisted-state-types'
 
 /**
  * Runs before the groups leave `state`; the returned step runs after. A kept workspace that the

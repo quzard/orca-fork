@@ -1,5 +1,5 @@
 // Turns a host-directory occurrence plan into sidebar rows.
-import type { ExecutionHostId } from '../../shared/execution-host'
+import type { ExecutionHostId } from '../../shared/execution-host/execution-host'
 import type { ProjectGroup } from '../../shared/project/groups/project-group-types'
 import { getWorktreeHostIdentity } from '../../shared/worktree/host-qualified-identity'
 import type { Worktree } from '../../shared/worktree/types'

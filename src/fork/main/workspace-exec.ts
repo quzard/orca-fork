@@ -4,7 +4,7 @@ import { realpath } from 'node:fs/promises'
 import { homedir, userInfo } from 'node:os'
 import { isAbsolute, resolve } from 'node:path'
 import { InvalidArgumentError } from '../../main/runtime/rpc/core'
-import { isPathInsideOrEqual } from '../../shared/cross-platform-path'
+import { isPathInsideOrEqual } from '../../shared/file-access/cross-platform-path'
 import {
   FORK_EXEC_MINIMAL_PATH,
   FORK_EXEC_STDIN_MAX_BYTES,

@@ -1,7 +1,7 @@
 // Row plan for the host-directory sidebar. Built-in group modes never call this.
 import type { SidebarPlanArgs, SidebarRowPlan } from '../../shared/fork-hooks/sidebar-group-mode'
 import type { WorktreeGroupEntry } from '../../shared/sidebar-list/sections/worktree-group-entry'
-import type { ExecutionHostId } from '../../shared/execution-host'
+import type { ExecutionHostId } from '../../shared/execution-host/execution-host'
 import type { FolderWorkspace } from '../../shared/folder-workspaces/folder-workspace-types'
 import type { ProjectGroup } from '../../shared/project/groups/project-group-types'
 import type { Repo } from '../../shared/repository/repo-types'

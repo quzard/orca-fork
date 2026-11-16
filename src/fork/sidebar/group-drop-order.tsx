@@ -1,5 +1,5 @@
 // Manual-order values a cross-group drop writes. Kept apart from the write plan so each stays small.
-import { normalizeExecutionHostId } from '../../shared/execution-host'
+import { normalizeExecutionHostId } from '../../shared/execution-host/execution-host'
 import { folderWorkspaceToWorktree } from '../../shared/folder-workspaces/folder-workspace-worktree'
 import {
   getWorktreeHostIdentity,

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { ExecutionHostId } from '../../shared/execution-host'
-import { normalizeExecutionHostId } from '../../shared/execution-host'
+import type { ExecutionHostId } from '../../shared/execution-host/execution-host'
+import { normalizeExecutionHostId } from '../../shared/execution-host/execution-host'
 
 const harness = vi.hoisted(() => {
   const order: string[] = []
@@ -53,9 +53,12 @@ vi.mock('../../renderer/src/i18n/i18n', () => ({
   translate: (_key: string, fallback: string) => fallback
 }))
 
-vi.mock('../../renderer/src/components/sidebar/worktree-list/listing/stale-workspace-list-toast', () => ({
-  showWorkspaceListChangedToast: vi.fn()
-}))
+vi.mock(
+  '../../renderer/src/components/sidebar/worktree-list/listing/stale-workspace-list-toast',
+  () => ({
+    showWorkspaceListChangedToast: vi.fn()
+  })
+)
 
 vi.mock('../../renderer/src/lib/workspace/sleep/worktree-sleep-intent', () => ({
   markWorktreeSleepIntent: vi.fn(),

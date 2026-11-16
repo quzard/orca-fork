@@ -4,7 +4,7 @@ import { registerWorkspaceChoiceFormatter } from '../../shared/fork-hooks/sideba
 import { useAppStore } from '../../renderer/src/store'
 import { findRepoForHost } from '../../renderer/src/store/repos/repo-host-identity'
 import { branchName } from '../../renderer/src/lib/source-control/branches/branch-name'
-import { getWorktreeExecutionHostId } from '../../shared/execution-host'
+import { getWorktreeExecutionHostId } from '../../shared/execution-host/execution-host'
 import { directoryLabelForRepo, directoryLabelsForHost } from './directory-label'
 import { resolveSidebarGroupId } from './membership'
 import { hostDirectoryDefaultHostId } from './section-keys'

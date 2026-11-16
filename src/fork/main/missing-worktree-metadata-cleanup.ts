@@ -1,8 +1,8 @@
 // fork: 本地目录已不存在的仓库或工作区，在权威扫描确认路径缺失（ENOENT/ENOTDIR）后自动清理残留会话与元数据。
 import { stat } from 'node:fs/promises'
-import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
+import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host/execution-host'
 import { registerMissingWorktreeMetadataCleanup } from '../../shared/fork-hooks/missing-worktree-metadata'
-import type { PersistedMobileClientTabSelections } from '../../shared/persisted-state-types'
+import type { PersistedMobileClientTabSelections } from '../../shared/orca-profiles/persisted-state-types'
 import {
   hostWorktreeTarget,
   type HostWorktreeTarget

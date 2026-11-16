@@ -1,6 +1,6 @@
 import { net } from 'electron'
 import { isForkBuild } from '../../../shared/fork-hooks/update-feed'
-import type { ChangelogData } from '../../../shared/update-status-types'
+import type { ChangelogData } from '../../../shared/updater/update-status-types'
 import { compareVersions } from './updater-fallback'
 
 type ChangelogEntry = {

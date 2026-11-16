@@ -10,11 +10,15 @@ import {
   getHiddenImportableExternalWorktrees,
   getVisibleNonOrcaWorktrees
 } from '../../../../../../shared/worktree/visibility/external-worktree-inbox'
+<<<<<<< HEAD
 import { relativePathInsideRoot } from '../../../../../../shared/cross-platform-path'
 import {
   hiddenWorktreeMatchesExtra,
   hiddenWorktreeSearchMinimum
 } from '../../../../../../shared/fork-hooks/sidebar-chrome'
+=======
+import { relativePathInsideRoot } from '../../../../../../shared/file-access/cross-platform-path'
+>>>>>>> 41005c96038a55299c5f8d10a1db7d07770ff257
 
 type Props = {
   repo: Repo

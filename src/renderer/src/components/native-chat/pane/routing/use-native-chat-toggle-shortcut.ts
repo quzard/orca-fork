@@ -13,7 +13,7 @@ import {
 import { useAppStore } from '../../../../store/index'
 import type { AgentType } from '../../../../../../shared/agent-status/contracts/agent-status-types'
 import type { TerminalLayoutSnapshot } from '../../../../../../shared/workspace-layout/terminal-tab-types'
-import { resolveNativeChatTabAgentEvidence } from '../../../tab-bar/native-chat-tab-agent-evidence'
+import { resolveNativeChatTabAgentEvidence } from '../../../tab-bar/session-actions/native-chat-tab-agent-evidence'
 import { canToggleNativeChat } from '../../../../../../shared/native-chat/native-chat-availability'
 import { isNativeChatTranscriptLocalReadable } from '../../../../../../shared/native-chat/transcript/messages/native-chat-transcript-readability'
 import { matchesNativeChatToggleShortcut } from './native-chat-shortcut'
@@ -33,17 +33,17 @@ export function resolveNativeChatToggleShortcutDetectedAgent({
 }: {
   terminalTabId: string
   terminalLayout?: TerminalLayoutSnapshot | null
-  agentStatusByPaneKey: Record<string, { agentType?: AgentType }>
+  agentStatusByPaneKey: ReadonlyMap<string, { agentType?: AgentType }>
 }): AgentType | null {
   const activeLeafId = resolveNativeChatActiveLayoutLeafId(terminalLayout)
   if (activeLeafId) {
-    return agentStatusByPaneKey[`${terminalTabId}:${activeLeafId}`]?.agentType ?? null
+    return agentStatusByPaneKey.get(`${terminalTabId}:${activeLeafId}`)?.agentType ?? null
   }
   if (!isNativeChatTabWideFallbackSafe(terminalLayout)) {
     return null
   }
   return (
-    Object.entries(agentStatusByPaneKey).find(([paneKey]) =>
+    Array.from(agentStatusByPaneKey.entries()).find(([paneKey]) =>
       paneKey.startsWith(`${terminalTabId}:`)
     )?.[1].agentType ?? null
   )

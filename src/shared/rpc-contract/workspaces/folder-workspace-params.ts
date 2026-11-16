@@ -5,8 +5,12 @@ import { TaskSourceContextSchema } from '../../work-items/task-source-context-sc
 import { isWorkspaceLinkedItemSourceContextMatch } from '../../workspace-attachments/workspace-linked-item-source-context'
 import { isTuiAgent } from '../../agent-launch/catalog/tui-agent-config'
 import { OptionalFiniteNumber, OptionalString, requiredString } from '../rpc-param-primitives'
+<<<<<<< HEAD
 import { DiffCommentSchema } from '../../diff-comment-schema'
 import { CLEARABLE_SIDEBAR_FIELDS } from '../../fork-hooks/sidebar-field-clear'
+=======
+import { DiffCommentSchema } from '../../file-review/diff-comment-schema'
+>>>>>>> 41005c96038a55299c5f8d10a1db7d07770ff257
 import { sleepingAgentLaunchConfigSchema } from '../../workspace-session/workspace-session-sleeping-agents'
 import { AgentArgs, LaunchPreferences } from '../terminal/agent-session-params'
 import { LaunchSourceParam } from '../agent-launch/launch-source-param'

@@ -1,10 +1,17 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+<<<<<<< HEAD
 import { getAppEnvironment } from '../../../shared/app-environment'
 import { readFetchResponseTextWithinLimit } from '../../../shared/fetch-response-body'
 import type { GlobalSettings } from '../../../shared/global-settings-types'
 import { getVersionChannel, MAIN_RELEASE_REPO } from '../../../shared/release-channel'
 import { isForkBuild } from '../../../shared/fork-hooks/update-feed'
+=======
+import { getAppEnvironment } from '../../../shared/app-lifecycle/app-environment'
+import { readFetchResponseTextWithinLimit } from '../../../shared/network/fetch-response-body'
+import type { GlobalSettings } from '../../../shared/settings/global-settings-types'
+import { getVersionChannel, MAIN_RELEASE_REPO } from '../../../shared/updater/release-channel'
+>>>>>>> 41005c96038a55299c5f8d10a1db7d07770ff257
 import { getMainHttpClient } from '../../network/http-client'
 import { writePluginFileAtomically } from '../../plugins/installation/plugin-atomic-file-write'
 import {

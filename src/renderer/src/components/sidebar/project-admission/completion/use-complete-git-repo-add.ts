@@ -8,8 +8,12 @@ import {
 } from '../dialog/add-repo-existing-workspaces-telemetry'
 import { compareWorktreeDisplayName } from '@/lib/workspace/display/worktree-display-name-order'
 import { finishProjectAddWithDefaultCheckout } from './project-added-default-checkout'
+<<<<<<< HEAD
 import type { ExecutionHostId } from '../../../../../../shared/execution-host'
 import { withForkPostImportHandoff } from '../../../../../../shared/fork-hooks/post-import'
+=======
+import type { ExecutionHostId } from '../../../../../../shared/execution-host/execution-host'
+>>>>>>> 41005c96038a55299c5f8d10a1db7d07770ff257
 import { selectWorktreesByRepo } from '@/store/workspaces/catalog/workspace-record-fields'
 
 export type GitRepoAddOutcome = { importedProjectGroupId?: string }

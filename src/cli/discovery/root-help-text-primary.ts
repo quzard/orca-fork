@@ -107,8 +107,12 @@ export const ROOT_HELP_TEXT_PRIMARY = [
   '  repo list                 List repos registered in Orca',
   '  repo add                  Add a project to Orca by filesystem path',
   '  repo show                 Show one registered repo',
+<<<<<<< HEAD
   FORK_REPO_HELP_SUMMARY,
   '  repo set                  Set whether non-Orca worktrees are shown for a repo',
+=======
+  "  repo set                  Set a repo's non-Orca worktree visibility or browser profile",
+>>>>>>> 41005c96038a55299c5f8d10a1db7d07770ff257
   "  repo hide                 Hide a project from Orca's sidebar",
   "  repo unhide               Show a hidden project in Orca's sidebar again",
   "  repo set-base-ref         Set the repo's default base ref for future worktrees",

@@ -9,8 +9,12 @@ import {
   toRuntimeExecutionHostId,
   type ExecutionHostId,
   type ExecutionHostScope
+<<<<<<< HEAD
 } from '../../../../../../shared/execution-host'
 import { readAiVaultDefaultHostScope } from '../../../../../../shared/fork-hooks/ai-vault'
+=======
+} from '../../../../../../shared/execution-host/execution-host'
+>>>>>>> 41005c96038a55299c5f8d10a1db7d07770ff257
 import type { PublicKnownRuntimeEnvironment } from '../../../../../../shared/remote-runtime/host-catalog/runtime-environments'
 import type { AiVaultSessionResumeTargetState } from '../session-actions/ai-vault-session-resume'
 

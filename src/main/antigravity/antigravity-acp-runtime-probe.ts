@@ -18,8 +18,12 @@ import {
 } from '../node-runtime/managed-runtime-release'
 import type { ProviderProcessExit } from '../provider-process/managed-provider-process'
 import { providerRequestTimeoutOf } from '../provider-process/provider-request-timeout'
+<<<<<<< HEAD
 import { supervisedProviderSpawnFailure } from '../provider-process/provider-spawn-failure-report'
 import { antigravityAcpLinuxArgs } from '../../shared/fork-hooks/antigravity-acp-args'
+=======
+import { providerLaunchFailed } from '../provider-process/provider-executable-missing'
+>>>>>>> 41005c96038a55299c5f8d10a1db7d07770ff257
 import { ANTIGRAVITY_ACP_ENV, scrubAntigravityAcpEnvironment } from './antigravity-acp-environment'
 
 const PROBE_TIMEOUT_MS = 90_000
@@ -115,7 +119,8 @@ async function initializeFromDisposableFolder(
     )
     outcome.failed = true
   }
-  await rm(folder, { recursive: true, force: true })
+  // Windows single-file runtimes can briefly retain DLLs they unpacked into this folder.
+  await rm(folder, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
   return outcome
 }
 
@@ -132,14 +137,11 @@ async function observedStartFailure(
   if (error instanceof AgentModelCatalogProbeError && error.reason === 'timeout') {
     return { kind: 'timeout', timeoutMs }
   }
-  if (!probe.exit || !probe.connection) {
+  if (providerLaunchFailed(error) || !probe.exit || !probe.connection) {
     return null
   }
   const stderr = await probe.connection.stderrTailAfterExit()
-  // A supervisor's spawn report is a missing launch, not the runtime's own exit.
-  return supervisedProviderSpawnFailure(probe.exit.code, stderr)
-    ? null
-    : { kind: 'exit', exit: probe.exit, stderr }
+  return { kind: 'exit', exit: probe.exit, stderr }
 }
 
 /** Initializes from a disposable folder, then runs `check` there within the same deadline; rejects

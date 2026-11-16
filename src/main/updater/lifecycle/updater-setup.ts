@@ -1,14 +1,18 @@
 import { app, powerMonitor } from 'electron'
 import type { BrowserWindow } from 'electron'
+<<<<<<< HEAD
 import { isForkBuild } from '../../../shared/fork-hooks/update-feed'
 import { forkInstallsOnQuit } from '../../../fork/main/fork-background-download'
 import type { ReleaseBuild, ReleaseChannel } from '../../../shared/release-channel'
+=======
+import type { ReleaseBuild, ReleaseChannel } from '../../../shared/updater/release-channel'
+>>>>>>> 41005c96038a55299c5f8d10a1db7d07770ff257
 import type { ReleaseBuildListOptions } from '../releases/updater-release-build-cache'
 import type {
   LinuxPackageInstallInstructions,
   UpdateCheckOptions,
   UpdateStatus
-} from '../../../shared/update-status-types'
+} from '../../../shared/updater/update-status-types'
 import type {
   RemoteServerUpdateInstallResult,
   RemoteServerUpdaterSnapshot,

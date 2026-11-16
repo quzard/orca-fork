@@ -10,8 +10,12 @@ import type { Repo } from '../../../../../../shared/repository/repo-types'
 import {
   getRepoExecutionHostId,
   type ExecutionHostId
+<<<<<<< HEAD
 } from '../../../../../../shared/execution-host'
 import { resolveDeleteProjectGroupRemoveContainedProjects } from '../../../../../../shared/fork-hooks/project-group-delete'
+=======
+} from '../../../../../../shared/execution-host/execution-host'
+>>>>>>> 41005c96038a55299c5f8d10a1db7d07770ff257
 import { refreshFolderProjectGroup } from './project-group-folder-refresh'
 import {
   selectDetectedWorktreesByRepo,

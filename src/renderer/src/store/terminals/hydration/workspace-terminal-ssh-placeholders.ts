@@ -9,8 +9,12 @@ import {
   getRepoExecutionHostId,
   parseExecutionHostId,
   toSshExecutionHostId
+<<<<<<< HEAD
 } from '../../../../../shared/execution-host'
 import { applyRegisteredDurableArchiveToRow } from '../../../../../shared/fork-hooks/workspace-durable-archive'
+=======
+} from '../../../../../shared/execution-host/execution-host'
+>>>>>>> 41005c96038a55299c5f8d10a1db7d07770ff257
 
 type PlaceholderOwner = Pick<Worktree, 'hostId' | 'runtimeOwnerEnvironmentId'>
 

@@ -315,7 +315,7 @@ Linux 上每次启动都在已有的 `--uid=` 后面加上 `--enforce_kernel_ipv
 - 显示名等于短分支名时，详细样式不画分支行：经典样式读到空分支，新样式读到空 identity。紧凑样式在上游已经这样做。
 - 同项目的子工作区缩进在父卡片下面，不画目录前缀。这种行的 `directoryLabel` 是空串，空串仍标明这是主机目录行。
 - 文件夹项目的名字等于目录名时，名字只画一次。第二行只剩同名的文件夹路径（行上没有仓库徽标）时，第二行也去掉。
-- 经典样式卡片的第二行左侧没有内容时，端口和 PR 等指示器画在标题行右侧（仍带 `hover="meta"`）。卡片不画空的第二行，内联智能体行紧贴标题行（`tight: true`）。
+- 经典样式卡片的第二行左侧没有内容时，端口和 PR 等指示器画在标题行右侧（仍带 `hover="meta"`）。卡片不画空的第二行，内联智能体行紧贴标题行（`tight: true`）。上游 #42867 已对新样式这样做（`vars.metaLead`）；fork 只把 `metaIndicators` 改成不分样式都要求 `vars.metaLead`。
 
 原地重命名从卡片上的标题开始。保存另一个名字后名字固定，卡片回到上游的样子。卡片的 `worktree` 不变，菜单和删除仍按真实的 `isMainWorktree` 判断。
 
@@ -347,6 +347,6 @@ Linux 上每次启动都在已有的 `--uid=` 后面加上 `--enforce_kernel_ipv
 
 - 仓库根目录已删除或不再是 Git 仓库时，`scanLocalRepoWorktreesForResolution` 返回权威空列表（`ok: true, worktrees: []`），客户端刷新后移除侧栏里的残留卡片。
 - `git worktree list` 标为 `prunable`（目录已删除但还没跑 `git worktree prune`）且没有 `removalError` 的条目不再算存活路径。
-- 磁盘探测确认路径缺失后，清理前先释放该工作区在本机的空壳 `workspaceSession`、`ui.lastActiveWorktreeId` 和 `mobileClientTabSelections` 引用，避免残留会话键挡住 `pruneSessionlessMissingLocalWorktreeMetadataForRepo`。删除中或删除失败的工作区不清理。
+- 磁盘探测确认路径缺失后，清理前先释放该工作区在本机的空壳 `workspaceSession`、`ui.lastActiveWorktreeId` 和 `mobileClientTabSelections` 引用，避免残留会话键挡住 `pruneSessionlessMissingLocalWorktreeMetadataForRepo`。删除中或删除失败的工作区不清理。上游 #42580 起，扫描后的本地清理也会删掉目录已不存在、只剩会话引用的工作区的会话状态和元数据；fork 仍补上仓库根目录缺失、`prunable` 条目，以及 `ui.lastActiveWorktreeId` / `mobileClientTabSelections` 的释放。
 
 钩子在 `src/shared/fork-hooks/missing-worktree-metadata.ts`，实现在 `src/fork/main/missing-worktree-metadata-cleanup.ts`，由 `register-main.ts` 登记（桌面和 orcad 都生效）。测试是 `src/fork/main/missing-worktree-metadata-cleanup.fork.test.ts`。

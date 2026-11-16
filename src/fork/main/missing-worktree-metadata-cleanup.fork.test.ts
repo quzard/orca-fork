@@ -74,17 +74,20 @@ describe('missing worktree directory metadata cleanup', () => {
     const store = createStore()
     const repo = makeRepo({ id: 'repo-1', path: repoPath })
     store.addRepo(repo)
-    const missingId = `${repo.id}::${join(testState.dir, 'deleted-with-session')}`
+    // Upstream #42580 already drops a missing worktree that only its saved session names; a
+    // prunable git row (folder gone, `git worktree prune` not run) still counts as live upstream.
+    const prunableMissingPath = join(testState.dir, 'deleted-prunable-wt')
+    const missingId = `${repo.id}::${prunableMissingPath}`
     store.setWorktreeMeta(hostWorktreeTarget({ id: missingId, hostId: 'local' }), {
       displayName: 'Deleted'
-    })
-    store.patchWorkspaceSession({
-      activeFileIdByWorktree: { [missingId]: null }
     })
 
     await createQueries(store, repo, async () => ({
       ok: true,
-      worktrees: [gitWorktree(repoPath)]
+      worktrees: [
+        gitWorktree(repoPath),
+        gitWorktree(prunableMissingPath, { isMainWorktree: false, prunable: true })
+      ]
     })).listDetected(repo)
 
     expect(store.getWorktreeMeta(missingId)).toBeDefined()

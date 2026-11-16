@@ -22,8 +22,8 @@ function shellBackedManager(): Parameters<typeof browseSshDirectory>[0] {
     })
     return channel
   }
-  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: browseSshDirectory only calls getConnection(id).exec(command).
-  return { getConnection: () => ({ exec }) } as never
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: browseSshDirectory only calls getConnection(id).execWithClosedStdin(command).
+  return { getConnection: () => ({ execWithClosedStdin: exec }) } as never
 }
 
 const ssh = (path: string) => browseSshDirectory(shellBackedManager(), 'ssh-1', path)

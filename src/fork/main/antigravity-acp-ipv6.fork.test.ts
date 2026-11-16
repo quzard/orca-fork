@@ -1,4 +1,5 @@
 import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -57,6 +58,11 @@ describe('Antigravity ACP on a Linux host without IPv6', () => {
   it.skipIf(process.platform === 'win32')(
     'the install probe spawns with the same Linux arguments',
     async () => {
+      // 上游 #42760 起 provider 经 native/provider-exec 启动；`pnpm test` 先建它，fork 测试这里自己建。
+      execFileSync(process.execPath, [
+        'config/scripts/native-build/posix/build-provider-exec.mjs',
+        '--host-compiler'
+      ])
       vi.stubEnv('ELECTRON_RUN_AS_NODE', '1')
       const signal = new AbortController().signal
       const unregistered = await spawnProbe(signal)

@@ -347,6 +347,6 @@ Linux 上每次启动都在已有的 `--uid=` 后面加上 `--enforce_kernel_ipv
 
 - 仓库根目录已删除或不再是 Git 仓库时，`scanLocalRepoWorktreesForResolution` 返回权威空列表（`ok: true, worktrees: []`），客户端刷新后移除侧栏里的残留卡片。
 - `git worktree list` 标为 `prunable`（目录已删除但还没跑 `git worktree prune`）且没有 `removalError` 的条目不再算存活路径。
-- 磁盘探测确认路径缺失后，清理前先释放该工作区在本机的空壳 `workspaceSession`、`ui.lastActiveWorktreeId` 和 `mobileClientTabSelections` 引用，避免残留会话键挡住 `pruneSessionlessMissingLocalWorktreeMetadataForRepo`。删除中或删除失败的工作区不清理。上游 #42580 起，扫描后的本地清理也会删掉目录已不存在、只剩会话引用的工作区的会话状态和元数据；fork 仍补上仓库根目录缺失、`prunable` 条目，以及 `ui.lastActiveWorktreeId` / `mobileClientTabSelections` 的释放。
+- 磁盘探测确认路径缺失后，清理前先释放该工作区在本机的空壳 `workspaceSession`、`ui.lastActiveWorktreeId` 和 `mobileClientTabSelections` 引用，避免残留会话键挡住 `pruneSessionlessMissingLocalWorktreeMetadataForRepo`。删除中或删除失败的工作区不清理。任一主机分区里还有未保存草稿的工作区也不清理：用上游 #42580 的 `draftedCandidateKeys`（fork 只加了 `export`，参数收窄为两个会话字段），这样它的会话、UI 和手机标签引用都留着，元数据也因此保留。上游 #42580 起，扫描后的本地清理也会删掉目录已不存在、只剩会话引用的工作区的会话状态和元数据；fork 仍补上仓库根目录缺失、`prunable` 条目，以及 `ui.lastActiveWorktreeId` / `mobileClientTabSelections` 的释放。
 
 钩子在 `src/shared/fork-hooks/missing-worktree-metadata.ts`，实现在 `src/fork/main/missing-worktree-metadata-cleanup.ts`，由 `register-main.ts` 登记（桌面和 orcad 都生效）。测试是 `src/fork/main/missing-worktree-metadata-cleanup.fork.test.ts`。

@@ -77,8 +77,8 @@ export function selectLocalWorktreeSessionOwnersForRepo(
 }
 
 /** Which candidate comparison keys hold an unsaved draft in any partition; only candidates' files are read. */
-function draftedCandidateKeys(
-  state: PersistedState,
+export function draftedCandidateKeys(
+  state: Pick<PersistedState, 'workspaceSession' | 'workspaceSessionsByHostId'>,
   candidateKeys: ReadonlySet<string>,
   platform: NodeJS.Platform
 ): Set<string> {

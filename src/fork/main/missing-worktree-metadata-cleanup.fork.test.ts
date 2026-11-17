@@ -11,7 +11,10 @@ import { createStore, makeRepo, testState } from '../../main/persistence/persist
 import type { RuntimeStore } from '../../main/runtime/construction/runtime-store-contract'
 import { scanLocalRepoWorktreesForResolution } from '../../main/runtime/workspaces/catalog/repo-worktree-resolution-scan'
 import { RuntimeManagedWorktreeQueries } from '../../main/runtime/workspaces/catalog/runtime-managed-worktree-queries'
-import { registerMissingWorktreeMetadataCleanupInMain } from './missing-worktree-metadata-cleanup'
+import {
+  prepareMissingLocalWorktreeMetadataPrune,
+  registerMissingWorktreeMetadataCleanupInMain
+} from './missing-worktree-metadata-cleanup'
 
 vi.mock('../../main/ssh/config/ssh-config-parser', () => ({
   loadUserSshConfig: vi.fn(),
@@ -168,5 +171,67 @@ describe('missing worktree directory metadata cleanup', () => {
     expect(result.worktrees).toEqual([])
     expect(store.getWorktreeMeta(mainWorktreeId)).toBeUndefined()
     expect(store.getWorkspaceSession().activeFileIdByWorktree?.[mainWorktreeId]).toBeUndefined()
+  })
+
+  it('keeps a missing workspace that still has an unsaved draft (upstream #42580 draft guard)', async () => {
+    registerMissingWorktreeMetadataCleanupInMain()
+    const store = createStore()
+    const repo = makeRepo({ id: 'repo-1', path: repoPath })
+    store.addRepo(repo)
+    const draftedPath = join(testState.dir, 'deleted-drafted-wt')
+    const draftedId = `${repo.id}::${draftedPath}`
+    const cleanPath = join(testState.dir, 'deleted-clean-wt')
+    const cleanId = `${repo.id}::${cleanPath}`
+    for (const [id, displayName] of [
+      [draftedId, 'DraftedGone'],
+      [cleanId, 'CleanGone']
+    ]) {
+      store.setWorktreeMeta(hostWorktreeTarget({ id, hostId: 'local' }), { displayName })
+    }
+    const draft = {
+      filePath: join(draftedPath, 'notes.md'),
+      relativePath: 'notes.md',
+      worktreeId: draftedId,
+      language: 'markdown',
+      dirtyDraftContent: 'unsaved'
+    }
+    store.patchWorkspaceSession({
+      openFilesByWorktree: { [draftedId]: [draft] },
+      activeFileIdByWorktree: { [draftedId]: null, [cleanId]: null }
+    })
+    store.updateUI({ lastActiveWorktreeId: draftedId })
+
+    const result = await createQueries(store, repo, async () => ({
+      ok: true,
+      worktrees: [gitWorktree(repoPath)]
+    })).listDetected(repo)
+
+    expect(result.authoritative).toBe(true)
+    expect(store.getWorktreeMeta(cleanId)).toBeUndefined()
+    expect(store.getWorktreeMeta(draftedId)?.displayName).toBe('DraftedGone')
+    expect(store.getWorkspaceSession().openFilesByWorktree?.[draftedId]).toEqual([draft])
+    expect(store.getUI().lastActiveWorktreeId).toBe(draftedId)
+  })
+
+  it('skips a workspace whose draft is saved in another host partition', () => {
+    const goneId = `repo-1::${join(testState.dir, 'gone')}`
+    const draftedId = `repo-1::${join(testState.dir, 'drafted')}`
+    const removed: string[] = []
+    const session = (files: Record<string, { dirtyDraftContent?: string }[]>) => ({
+      openFilesByWorktree: files
+    })
+    const store = {
+      removeWorkspaceSessionStateForWorktree: (target: { id: string }) => removed.push(target.id),
+      getWorkspaceSessionHostIds: () => ['local', 'ssh:box'],
+      getWorkspaceSession: (hostId?: string | null) =>
+        hostId === 'ssh:box'
+          ? session({ [draftedId]: [{ dirtyDraftContent: 'unsaved' }] })
+          : session({ [goneId]: [{}] })
+    }
+    prepareMissingLocalWorktreeMetadataPrune(store, [
+      { worktreeId: goneId },
+      { worktreeId: draftedId }
+    ])
+    expect(removed).toEqual([goneId])
   })
 })

@@ -186,7 +186,7 @@ test('host headers and directory groups for this Mac and a managed host; delete 
         const featureCard = card(page, feature.id, 'local')
         await featureCard.click({ button: 'right' })
         await page.getByRole('menuitem', { name: /^Delete/ }).click()
-        const dialog = page.getByRole('dialog', { name: 'Delete', exact: true })
+        const dialog = page.getByRole('dialog', { name: /^Delete .+\?$/ })
         await expect(dialog).toBeVisible()
         const alsoDelete = dialog.getByRole('checkbox', { name: 'Also delete folder' })
         await expect(alsoDelete).not.toBeChecked()

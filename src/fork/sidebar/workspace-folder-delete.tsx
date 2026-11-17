@@ -23,19 +23,19 @@ import { runWorktreeDeletesInParallel } from '../../renderer/src/components/side
 import { forkTranslate } from '../i18n/fork-translate'
 import { removeWorkspaceFromOrca } from './remove-workspace'
 
-type BatchPreviewOverrides = {
+type KeptFolderChangeOverrides = {
   dirtyChangeCountsByWorktreeId?: ReadonlyMap<string, number>
   changeCheckStatesByWorktreeId?: undefined
   atRiskLocalFilesByIdentity?: undefined
 }
 
-/** Batch preview while folders are kept: nothing on disk is lost, so no loss or unchecked line. */
-const KEPT_FOLDER_BATCH_PREVIEW: BatchPreviewOverrides = {
+/** Batch preview and child rows while folders are kept: nothing on disk is lost, so no loss or unchecked line. */
+const KEPT_FOLDER_CHANGES: KeptFolderChangeOverrides = {
   dirtyChangeCountsByWorktreeId: new Map(),
   changeCheckStatesByWorktreeId: undefined,
   atRiskLocalFilesByIdentity: undefined
 }
-const NO_BATCH_PREVIEW_OVERRIDES: BatchPreviewOverrides = {}
+const NO_CHANGE_OVERRIDES: KeptFolderChangeOverrides = {}
 
 /** Same owner lookup upstream's delete uses: by host, and never a guess between same-id repos. */
 function isFolderWorkspace(worktree: Worktree): boolean {
@@ -208,8 +208,8 @@ type FolderDeleteDialogInput = {
 export function useWorkspaceFolderDeleteDialog(input: FolderDeleteDialogInput): {
   description: string
   keepsFolder: boolean
-  /** Spread after upstream's batch preview props; empty unless folders are kept. */
-  batchPreviewOverrides: BatchPreviewOverrides
+  /** Spread after upstream's change props (batch preview, lineage notice); empty unless folders are kept. */
+  keptFolderChangeOverrides: KeptFolderChangeOverrides
   folderOption: ReactNode
   lineageKeptNotice: { title: string; body: string } | null
   /** Confirm while keeping folders: removes the targets from Orca; false when not keeping. */
@@ -260,7 +260,7 @@ export function useWorkspaceFolderDeleteDialog(input: FolderDeleteDialogInput): 
         )
       : input.upstreamDescription,
     keepsFolder,
-    batchPreviewOverrides: keepsFolder ? KEPT_FOLDER_BATCH_PREVIEW : NO_BATCH_PREVIEW_OVERRIDES,
+    keptFolderChangeOverrides: keepsFolder ? KEPT_FOLDER_CHANGES : NO_CHANGE_OVERRIDES,
     folderOption: offered ? (
       <WorkspaceFolderDeleteOption
         checked={deleteFolder}

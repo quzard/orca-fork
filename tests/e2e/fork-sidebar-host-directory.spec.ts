@@ -230,8 +230,9 @@ test('host headers and directory groups for this Mac and a managed host; delete 
         await forkShot(page, testInfo, 'sidebar-ssh-host-restored')
       })
 
+      let second = { id: '', path: '' }
       await test.step('bulk delete shows the uncommitted-changes line only with the folder', async () => {
-        const second = await page.evaluate(async (repoPath) => {
+        second = await page.evaluate(async (repoPath) => {
           const state = window.__store!.getState()
           const repo = state.repos.find((entry) => entry.path === repoPath)
           const created = await state.createWorktree(
@@ -266,6 +267,37 @@ test('host headers and directory groups for this Mac and a managed host; delete 
         await expect(dialog).not.toContainText('uncommitted change')
         await expect(dialog).not.toContainText('will be lost')
         await forkShot(page, testInfo, 'sidebar-bulk-delete-keeps-folders')
+        await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
+        await expect(dialog).toBeHidden()
+      })
+
+      await test.step('child rows show the loss line only with the folder', async () => {
+        writeFileSync(path.join(feature.path, 'README.md'), '# local app\n')
+        await page.evaluate(
+          async ({ child, parent }) => {
+            await window
+              .__store!.getState()
+              .assignWorktreeParent(child, { parentWorktreeId: parent })
+          },
+          { child: second.id, parent: feature.id }
+        )
+        const featureCard = card(page, feature.id, 'local')
+        await featureCard.click()
+        await featureCard.click({ button: 'right' })
+        await page.getByRole('menuitem', { name: /^Delete/ }).click()
+        const dialog = page.getByRole('dialog', { name: /^Delete .+ child workspace\?$/ })
+        await expect(dialog).toBeVisible()
+        const alsoDelete = dialog.getByRole('checkbox', { name: 'Also delete folder' })
+        // Checked first: proves the child's git status loaded before the unchecked assertion.
+        await alsoDelete.click()
+        await expect(dialog).toContainText('1 uncommitted change will be lost', { timeout: 30_000 })
+        await alsoDelete.click()
+        await expect(alsoDelete).not.toBeChecked()
+        await expect(dialog).toContainText('Child workspaces stay on disk')
+        await expect(dialog).not.toContainText('uncommitted change')
+        await expect(dialog).not.toContainText('will be lost')
+        await expect(dialog).not.toContainText('Ignored files')
+        await forkShot(page, testInfo, 'sidebar-lineage-delete-keeps-folders')
         await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
         await expect(dialog).toBeHidden()
       })

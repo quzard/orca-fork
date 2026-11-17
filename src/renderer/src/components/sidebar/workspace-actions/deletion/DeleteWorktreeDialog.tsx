@@ -380,7 +380,7 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
                 dirtyChangeCountsByWorktreeId={dirtyChanges.counts}
                 dirtyChangePreviewsByWorktreeId={dirtyChanges.previews}
                 atRiskLocalFilesByIdentity={atRiskLocalFilesByIdentity}
-                {...folderDelete.batchPreviewOverrides}
+                {...folderDelete.keptFolderChangeOverrides}
               />
             ) : worktree && !folderDelete.keepsFolder ? (
               <DeleteWorktreeChangesSummary
@@ -401,6 +401,7 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
                 dirtyChangeCountsByWorktreeId={dirtyChanges.counts}
                 dirtyChangePreviewsByWorktreeId={dirtyChanges.previews}
                 atRiskLocalFilesByIdentity={atRiskLocalFilesByIdentity}
+                {...folderDelete.keptFolderChangeOverrides}
                 preserveChildren={preserveChildrenSelected}
                 canPreserveChildren={canPreserveChildren}
                 disabled={isDeleting || isSavingForcePreference}

@@ -243,6 +243,29 @@ function showWorktrees(worktrees: Worktree[], modalData: Record<string, unknown>
   }
 }
 
+/** Parent with one dirty child outside its folder, opened as "delete with children". */
+function showParentWithDirtyChild(): void {
+  const parent = makeWorktree('parent', '/srv/wt/project/parent')
+  const child = makeWorktree('child', '/srv/wt/project/child')
+  mocks.state.worktreeLineageById = {
+    [child.id]: {
+      worktreeId: child.id,
+      worktreeInstanceId: child.instanceId ?? '',
+      parentWorktreeId: parent.id,
+      parentWorktreeInstanceId: parent.instanceId ?? '',
+      origin: 'manual',
+      capture: { source: 'manual-action', confidence: 'explicit' },
+      createdAt: 1
+    }
+  }
+  showWorktrees([parent, child], {
+    worktreeId: parent.id,
+    worktreeDeleteIdentities: [identityOf(parent)],
+    lineageDeleteIdentities: [identityOf(child), identityOf(parent)]
+  })
+  mocks.state.gitStatusByWorktree[child.id] = [{ path: 'notes.md', status: 'modified' }]
+}
+
 function text(): string {
   return document.body.textContent ?? ''
 }
@@ -526,6 +549,41 @@ describe('workspace folder delete dialog', () => {
     expect(text()).toContain(HARD_ONE)
     expect(text()).not.toContain(HARD_MANY)
     expect(text()).not.toContain('1 child workspace')
+  })
+
+  it('shows no loss or ignored-files line on child rows while the folder is kept', () => {
+    showParentWithDirtyChild()
+    render(<DeleteWorktreeDialog />)
+
+    expect(text()).toContain('Child workspaces stay on disk')
+    expect(text()).toContain('child')
+    expect(text()).not.toContain('uncommitted change')
+    expect(text()).not.toContain('will be lost')
+    expect(text()).not.toContain('Ignored files')
+  })
+
+  it('shows the child loss line once the folder checkbox is checked', () => {
+    showParentWithDirtyChild()
+    render(<DeleteWorktreeDialog />)
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Also delete folder' }))
+
+    expect(text()).toContain('1 uncommitted change will be lost')
+  })
+
+  it('leaves the kept-children notice alone in both folder modes', () => {
+    showParentWithDirtyChild()
+    render(<DeleteWorktreeDialog />)
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Detach and keep child workspaces' }))
+    const kept = 'Child workspaces will be keptDirect children will become top-level workspaces.'
+
+    expect(text()).toContain(kept)
+    expect(text()).not.toContain('will be lost')
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Also delete folder' }))
+
+    expect(text()).toContain(kept)
+    expect(text()).not.toContain('1 uncommitted change will be lost')
   })
 
   it('hides the folder option and uses the hard-delete sentence during force-delete recovery', () => {

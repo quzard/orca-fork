@@ -3,7 +3,11 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { readCheckedInSkillsSourceCommit } from './sync-skills-source-commit.mjs'
-import { RELEASE_CHECK_ENV, verifyUpstreamRelease } from './upstream-release-published.mjs'
+import {
+  lookupUpstreamReleaseState,
+  RELEASE_CHECK_ENV,
+  verifyUpstreamRelease
+} from './upstream-release-published.mjs'
 
 // 基线 X.Y.Z 是「当前 pin 已经包含其 main 线」的最高上游稳定版。
 // 稳定 tag 在发布分支上，merge-base(tag, upstream/main) 才是 main 上的那个点；
@@ -114,6 +118,53 @@ export function assessCheckedBase(current, aligned, tags, pin, mainlineOf, isAnc
     return `upstream ${aligned.version} (${aligned.tag}) is contained in ${pin} and is newer than package.json ${current}; run node fork/scripts/upstream-aligned-version.mjs --write on the next sync`
   }
   return null
+}
+
+// --write 只升到有已发布正式 release 的 tag：从高到低看比 package.json 新、mainline 已在 pin 里的 tag，
+// 只有 tag、草稿或预发布的跳过（如 v1.4.260）；查不出确定结果就保留当前版本，不写未经确认的版本。
+export function pickReleasedBase(current, tags, pin, mainlineOf, isAncestor, stateOf) {
+  const base = parseStableTag(`v${current}`)
+  if (!base) {
+    throw new Error(`base version must be X.Y.Z, got ${current}`)
+  }
+  const newer = []
+  for (const tag of tags) {
+    const parsed = parseStableTag(tag.name)
+    if (parsed && compareStableCore(parsed.core, base.core) > 0) {
+      newer.push({ ...tag, ...parsed })
+    }
+  }
+  newer.sort((left, right) => compareStableCore(right.core, left.core))
+  const skipped = []
+  for (const tag of newer) {
+    const mainline = mainlineOf(tag)
+    if (!mainline || !isAncestor(mainline, pin)) {
+      continue
+    }
+    let state
+    try {
+      state = stateOf(tag.name)
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error)
+      return {
+        version: current,
+        skipped,
+        warning: `cannot verify the upstream ${tag.name} GitHub release, keeping ${current}: ${reason}`
+      }
+    }
+    if (state === 'published' || state === 'skipped') {
+      return { version: tag.version, tag: tag.name, mainline, skipped, release: state }
+    }
+    skipped.push(`${tag.name} (${state})`)
+  }
+  return {
+    version: current,
+    skipped,
+    warning:
+      skipped.length > 0
+        ? `no newer upstream tag has a published GitHub release (skipped ${skipped.join(', ')}); keeping ${current}`
+        : null
+  }
 }
 
 export function planBaseUpdate(current, aligned) {
@@ -249,7 +300,37 @@ export function applyBaseVersion(repo, mode, options = {}) {
   }
   const plan = planBaseUpdate(current, aligned.version)
   if (mode === 'write' && plan === 'update') {
-    writeFileSync(packagePath, replacePackageVersion(source, current, aligned.version))
+    const picked = pickReleasedBase(current, tags, pin, mainlineOf, isAncestor, (tag) =>
+      lookupUpstreamReleaseState(tag, options)
+    )
+    if (picked.version === current) {
+      return {
+        ...aligned,
+        version: current,
+        tag: `v${current}`,
+        current,
+        plan: 'unchanged',
+        warning: picked.warning
+      }
+    }
+    writeFileSync(packagePath, replacePackageVersion(source, current, picked.version))
+    const notes = [
+      picked.skipped.length > 0
+        ? `skipped upstream tags without a published release: ${picked.skipped.join(', ')}`
+        : '',
+      picked.release === 'skipped'
+        ? `upstream GitHub release check skipped (${RELEASE_CHECK_ENV}=skip)`
+        : ''
+    ].filter(Boolean)
+    return {
+      ...aligned,
+      version: picked.version,
+      tag: picked.tag,
+      mainline: picked.mainline,
+      current,
+      plan,
+      warning: notes.length > 0 ? notes.join('; ') : null
+    }
   }
   return { ...aligned, current, plan, warning: null }
 }
@@ -275,6 +356,8 @@ function main() {
       )
     } else if (mode === 'write' && result.plan === 'update') {
       console.log(`base version ${result.current} -> ${result.version} (${result.tag})`)
+    } else if (mode === 'write' && result.warning) {
+      console.log(`base version kept at ${result.current}`)
     } else if (result.warning) {
       console.log(
         `base version ${result.current} is an upstream release contained in ${result.pin}`

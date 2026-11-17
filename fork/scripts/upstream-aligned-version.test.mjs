@@ -323,4 +323,97 @@ describe('upstream aligned base version', () => {
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('--write skips tags without a published release and keeps the version when it cannot verify', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'orca-ver-write-'))
+    const pin = 'a'.repeat(40)
+    const packagePath = join(dir, 'package.json')
+    const at = (version) =>
+      `{\n  "name": "orca",\n  "version": "${version}",\n  "description": "keep"\n}\n`
+    const releases = {
+      'v1.4.261': publishedRelease('v1.4.261'),
+      'v1.4.260': null,
+      'v1.4.259': publishedRelease('v1.4.259')
+    }
+    const base = {
+      git(args) {
+        if (args[0] === 'rev-parse' && args[1] === '--is-shallow-repository') {
+          return 'false'
+        }
+        throw new Error(`unexpected git ${args.join(' ')}`)
+      },
+      fetchMain() {},
+      pin,
+      readPin: () => pin,
+      remote: 'https://example.invalid/orca.git',
+      tags: [
+        { name: 'v1.4.262', sha: 'b'.repeat(40) },
+        { name: 'v1.4.261', sha: 'c'.repeat(40) },
+        { name: 'v1.4.260', sha: 'd'.repeat(40) },
+        { name: 'v1.4.259', sha: 'e'.repeat(40) }
+      ],
+      mainlineOf: (tag) => (tag.name === 'v1.4.262' ? 'f'.repeat(40) : '1'.repeat(40)),
+      isAncestor: (mainline) => mainline === '1'.repeat(40),
+      env: {}
+    }
+    try {
+      // v1.4.262 is not in the pin; v1.4.261 is a published release.
+      writeFileSync(packagePath, at('1.4.259'))
+      const asked = []
+      const lookup = (tag) => {
+        asked.push(tag)
+        return releases[tag]
+      }
+      const updated = applyBaseVersion(dir, 'write', { ...base, fetchRelease: lookup })
+      assert.equal(updated.version, '1.4.261')
+      assert.equal(JSON.parse(readFileSync(packagePath, 'utf8')).version, '1.4.261')
+      assert.deepEqual(asked, ['v1.4.261'])
+
+      // v1.4.261 is still a draft and v1.4.260 is tag-only: nothing newer than 1.4.259 is released.
+      writeFileSync(packagePath, at('1.4.259'))
+      const drafts = { ...releases, 'v1.4.261': { ...publishedRelease('v1.4.261'), draft: true } }
+      const kept = applyBaseVersion(dir, 'write', { ...base, fetchRelease: (tag) => drafts[tag] })
+      assert.equal(kept.plan, 'unchanged')
+      assert.equal(kept.version, '1.4.259')
+      assert.match(kept.warning, /skipped v1\.4\.261 \(draft\), v1\.4\.260 \(no release/)
+      assert.equal(readFileSync(packagePath, 'utf8'), at('1.4.259'))
+
+      // With v1.4.261 a draft, the tag-only v1.4.260 is skipped too when 1.4.258 is current.
+      writeFileSync(packagePath, at('1.4.258'))
+      const skippedTagOnly = applyBaseVersion(dir, 'write', {
+        ...base,
+        fetchRelease: (tag) => drafts[tag]
+      })
+      assert.equal(skippedTagOnly.version, '1.4.259')
+      assert.match(skippedTagOnly.warning, /v1\.4\.260 \(no release/)
+
+      // A lookup that cannot answer keeps the current version instead of writing an unverified one.
+      writeFileSync(packagePath, at('1.4.259'))
+      const unsure = applyBaseVersion(dir, 'write', {
+        ...base,
+        fetchRelease: () => {
+          throw new Error(
+            'cannot read upstream release v1.4.261: gh failed: offline; curl: HTTP 403'
+          )
+        }
+      })
+      assert.equal(unsure.plan, 'unchanged')
+      assert.match(
+        unsure.warning,
+        /cannot verify the upstream v1\.4\.261 GitHub release, keeping 1\.4\.259/
+      )
+      assert.equal(readFileSync(packagePath, 'utf8'), at('1.4.259'))
+
+      // The explicit escape writes the highest contained tag without asking GitHub.
+      const escaped = applyBaseVersion(dir, 'write', {
+        ...base,
+        env: { ORCA_UPSTREAM_RELEASE_CHECK: 'skip' },
+        fetchRelease: () => assert.fail('skip must not read GitHub')
+      })
+      assert.equal(escaped.version, '1.4.261')
+      assert.match(escaped.warning, /skipped \(ORCA_UPSTREAM_RELEASE_CHECK=skip\)/)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })

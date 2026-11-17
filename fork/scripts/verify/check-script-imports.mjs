@@ -3,8 +3,10 @@
 // the inline node snippets in these shell scripts are not type-checked, so a move only shows up
 // when the LaunchAgent run stops. Checked: `from "./src/..."`, `import("./src/...")`,
 // `require('./src/...')` and `node [--flags] <config|fork|src>/....mjs` paths, relative to the repo root.
+// The CLI also runs check-e2e-imports.mjs, so one gate covers the fork e2e files.
 import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { reportMissingE2eImports } from './check-e2e-imports.mjs'
 
 export const DEFAULT_SCRIPTS = [
   'fork/scripts/mac-auto-update.sh',
@@ -51,8 +53,10 @@ if (process.argv[1] && resolve(process.argv[1]) === import.meta.filename) {
   for (const m of missing) {
     console.error(`${m.script}:${m.line}: ${m.path} does not exist`)
   }
-  if (missing.length > 0) {
+  const missingE2e = reportMissingE2eImports(root)
+  if (missing.length > 0 || missingE2e > 0) {
     process.exit(1)
   }
   console.log('script imports ok')
+  console.log('e2e imports ok')
 }

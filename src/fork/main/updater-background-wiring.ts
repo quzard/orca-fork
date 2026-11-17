@@ -2,7 +2,10 @@
 import { autoUpdater as nativeUpdater } from 'electron'
 import { forkUpdateFeed, type ForkGithubUpdateFeed } from '../../shared/fork-hooks/update-feed'
 import type { UpdaterHandlerContext } from '../../main/updater/updater-handler-context'
-import { isMacInstallerReady, resetMacInstallState } from '../../main/updater/mac-install/updater-mac-install'
+import {
+  isMacInstallerReady,
+  resetMacInstallState
+} from '../../main/updater/mac-install/updater-mac-install'
 import { registerForkInstallerReadyProbe } from './fork-background-download'
 import { createForkUpdateAdapter } from './fork-update-adapter'
 import type { ForkUpdateAdapter } from './fork-update-adapter'

@@ -125,13 +125,19 @@ vi.mock('sonner', () => ({
   toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() }
 }))
 
-vi.mock('../../renderer/src/components/sidebar/workspace-actions/deletion/worktree-delete-execution', () => ({
-  runWorktreeDeletesInParallel: vi.fn(async () => [])
-}))
+vi.mock(
+  '../../renderer/src/components/sidebar/workspace-actions/deletion/worktree-delete-execution',
+  () => ({
+    runWorktreeDeletesInParallel: vi.fn(async () => [])
+  })
+)
 
-vi.mock('../../renderer/src/components/sidebar/worktree-list/listing/stale-workspace-list-toast', () => ({
-  showWorkspaceListChangedToast: vi.fn()
-}))
+vi.mock(
+  '../../renderer/src/components/sidebar/worktree-list/listing/stale-workspace-list-toast',
+  () => ({
+    showWorkspaceListChangedToast: vi.fn()
+  })
+)
 
 import { toast } from 'sonner'
 import { runWorktreeDeletesInParallel } from '../../renderer/src/components/sidebar/workspace-actions/deletion/worktree-delete-execution'

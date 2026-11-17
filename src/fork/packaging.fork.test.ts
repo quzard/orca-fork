@@ -376,7 +376,10 @@ describe('fork packaging', () => {
   it('bundles fork registration into the orcad template entry', () => {
     const entry = readFileSync(resolve('src/main/orcad/host-runtime/orcad-entry.ts'), 'utf8')
     const main = readFileSync(resolve('src/main/orcad/main.ts'), 'utf8')
-    const startup = readFileSync(resolve('src/main/orcad/serve-startup/orcad-command-startup.ts'), 'utf8')
+    const startup = readFileSync(
+      resolve('src/main/orcad/serve-startup/orcad-command-startup.ts'),
+      'utf8'
+    )
     const build = readFileSync(
       resolve('config/scripts/orcad-distribution/server-bundle/orcad-entry-build.mjs'),
       'utf8'

@@ -14,11 +14,14 @@ vi.mock('@/components/ui/tooltip', () => ({
   TooltipContent: ({ children }: { children: React.ReactNode }) => <span>{children}</span>
 }))
 
-vi.mock('../../renderer/src/components/sidebar/workspace-card/identity/WorktreeTitleInlineRename', () => ({
-  WorktreeTitleInlineRename: ({ displayName }: { displayName: string }) => (
-    <span data-card-title="">{displayName}</span>
-  )
-}))
+vi.mock(
+  '../../renderer/src/components/sidebar/workspace-card/identity/WorktreeTitleInlineRename',
+  () => ({
+    WorktreeTitleInlineRename: ({ displayName }: { displayName: string }) => (
+      <span data-card-title="">{displayName}</span>
+    )
+  })
+)
 
 const { CARD_IDENTITY_PARTS } =
   await import('../../renderer/src/components/sidebar/workspace-card/template/card-identity-parts')

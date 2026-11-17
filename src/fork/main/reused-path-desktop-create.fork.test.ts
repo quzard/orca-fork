@@ -34,7 +34,8 @@ vi.mock('../../main/git/worktrees/catalog/worktree-scan-cache', async (importOri
 }))
 vi.mock('../../main/git/worktrees/catalog/worktree-listing', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  listWorktreesStrict: (await import('../../main/ipc/worktrees-test-module-mocks')).listWorktreesMock,
+  listWorktreesStrict: (await import('../../main/ipc/worktrees-test-module-mocks'))
+    .listWorktreesMock,
   describeCreatedWorktree: (await import('../../main/ipc/worktrees-test-module-mocks'))
     .describeCreatedWorktreeMock
 }))
@@ -44,17 +45,17 @@ vi.mock('../../main/git/worktrees/creation/worktree-add', async (importOriginal)
 }))
 vi.mock('../../main/git/worktrees/creation/worktree-sparse-add', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  addSparseWorktree: (await import('../../main/ipc/worktrees-test-module-mocks')).addSparseWorktreeMock
+  addSparseWorktree: (await import('../../main/ipc/worktrees-test-module-mocks'))
+    .addSparseWorktreeMock
 }))
 vi.mock('../../main/git/command-runner/git-exec-file', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  gitExecFileAsync: (await import('../../main/ipc/worktrees-test-module-mocks')).gitExecFileAsyncMock
+  gitExecFileAsync: (await import('../../main/ipc/worktrees-test-module-mocks'))
+    .gitExecFileAsyncMock
 }))
-vi.mock('../../main/git/runner', async () =>
-  (await import('../../main/ipc/worktrees-test-module-mocks')).gitRunnerModuleMock()
-)
 vi.mock('../../main/git/remotes/repo-remote-queries', async () => ({
-  getDefaultRemote: (await import('../../main/ipc/worktrees-test-module-mocks')).getDefaultRemoteMock
+  getDefaultRemote: (await import('../../main/ipc/worktrees-test-module-mocks'))
+    .getDefaultRemoteMock
 }))
 vi.mock('../../main/git/refs/resolution/repo-branch-conflict', async () =>
   (await import('../../main/ipc/worktrees-test-module-mocks')).gitBranchConflictModuleMock()
@@ -71,9 +72,6 @@ vi.mock('../../main/git/repositories/git-username', async (importOriginal) => ({
   resolveLocalGitUsername: (await import('../../main/ipc/worktrees-test-module-mocks'))
     .resolveLocalGitUsernameMock
 }))
-vi.mock('../../main/github/client', async () =>
-  (await import('../../main/ipc/worktrees-test-module-mocks')).githubClientModuleMock()
-)
 vi.mock('../../main/source-control/hosted-review', async () =>
   (await import('../../main/ipc/worktrees-test-module-mocks')).hostedReviewModuleMock()
 )

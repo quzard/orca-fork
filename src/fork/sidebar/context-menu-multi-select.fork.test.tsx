@@ -83,7 +83,9 @@ vi.mock('@/components/sidebar/worktree-list/rows/ProjectGroupNameDialog', () => 
 vi.mock('@/components/sidebar/workspace-actions/parenting/WorktreeParentPickerPopover', () => ({
   WorktreeParentPickerPopover: () => null
 }))
-vi.mock('@/components/sidebar/workspace-actions/open/WorktreeOpenInMenu', () => ({ WorktreeOpenInSubMenu: () => null }))
+vi.mock('@/components/sidebar/workspace-actions/open/WorktreeOpenInMenu', () => ({
+  WorktreeOpenInSubMenu: () => null
+}))
 
 const onMove = vi.fn()
 const onRemove = vi.fn()
@@ -176,9 +178,7 @@ function openProjectGroupSubmenu(): void {
     throw new Error(`project group submenu missing: ${menuLabels().join(' | ')}`)
   }
   act(() => {
-    trigger.dispatchEvent(
-      new PointerEvent('pointermove', { bubbles: true, pointerType: 'mouse' })
-    )
+    trigger.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerType: 'mouse' }))
     trigger.dispatchEvent(
       new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' })
     )

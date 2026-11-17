@@ -11,20 +11,26 @@ import { registerForkModules } from '../register'
 import { registerForkRendererModules } from '../register-renderer'
 
 // No agent sessions at all, as in a profile that never ran one.
-vi.mock('../../renderer/src/components/right-sidebar/ai-vault/scanning/ai-vault-session-refresh', () => ({
-  useAiVaultSessionRefresh: () => ({
-    error: null,
-    loading: false,
-    refresh: vi.fn(),
-    scanResult: null,
-    sessions: [],
-    loadedSessionLimit: null
+vi.mock(
+  '../../renderer/src/components/right-sidebar/ai-vault/scanning/ai-vault-session-refresh',
+  () => ({
+    useAiVaultSessionRefresh: () => ({
+      error: null,
+      loading: false,
+      refresh: vi.fn(),
+      scanResult: null,
+      sessions: [],
+      loadedSessionLimit: null
+    })
   })
-}))
+)
 // The panel's delete action needs the app's confirmation dialog provider.
-vi.mock('../../renderer/src/components/right-sidebar/ai-vault/session-actions/ai-vault-session-delete-action', () => ({
-  useAiVaultSessionDeleteAction: () => vi.fn()
-}))
+vi.mock(
+  '../../renderer/src/components/right-sidebar/ai-vault/session-actions/ai-vault-session-delete-action',
+  () => ({
+    useAiVaultSessionDeleteAction: () => vi.fn()
+  })
+)
 
 let caught: unknown
 class Boundary extends Component<{ children: ReactNode }, { failed: boolean }> {

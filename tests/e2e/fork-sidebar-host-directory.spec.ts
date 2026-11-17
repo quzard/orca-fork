@@ -229,6 +229,46 @@ test('host headers and directory groups for this Mac and a managed host; delete 
         await expect(card(page, seeded.worktreeId, hostId)).toBeVisible({ timeout: 30_000 })
         await forkShot(page, testInfo, 'sidebar-ssh-host-restored')
       })
+
+      await test.step('bulk delete shows the uncommitted-changes line only with the folder', async () => {
+        const second = await page.evaluate(async (repoPath) => {
+          const state = window.__store!.getState()
+          const repo = state.repos.find((entry) => entry.path === repoPath)
+          const created = await state.createWorktree(
+            repo!.id,
+            'fork-feature-two',
+            undefined,
+            'skip'
+          )
+          return { id: created.worktree.id, path: created.worktree.path }
+        }, localRepo)
+        for (const worktreePath of [feature.path, second.path]) {
+          writeFileSync(path.join(worktreePath, 'README.md'), '# local app\nchanged\n')
+        }
+        const featureCard = card(page, feature.id, 'local')
+        const secondCard = card(page, second.id, 'local')
+        await expect(secondCard).toBeVisible({ timeout: 30_000 })
+        await featureCard.click()
+        await secondCard.click({ modifiers: ['ControlOrMeta'] })
+        await secondCard.click({ button: 'right' })
+        await page.getByRole('menuitem', { name: /^Delete/ }).click()
+        const dialog = page.getByRole('dialog', { name: 'Delete 2 workspaces?' })
+        await expect(dialog).toBeVisible()
+        const alsoDelete = dialog.getByRole('checkbox', { name: 'Also delete folder' })
+        // Checked first: proves both git statuses loaded before the unchecked assertion.
+        await alsoDelete.click()
+        await expect(dialog).toContainText('2 uncommitted changes will be lost', {
+          timeout: 30_000
+        })
+        await alsoDelete.click()
+        await expect(alsoDelete).not.toBeChecked()
+        await expect(dialog).toContainText('Workspace folders on disk will not be deleted.')
+        await expect(dialog).not.toContainText('uncommitted change')
+        await expect(dialog).not.toContainText('will be lost')
+        await forkShot(page, testInfo, 'sidebar-bulk-delete-keeps-folders')
+        await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
+        await expect(dialog).toBeHidden()
+      })
     })
   } finally {
     rmSync(localRoot, { recursive: true, force: true })

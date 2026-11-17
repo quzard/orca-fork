@@ -472,6 +472,62 @@ describe('workspace folder delete dialog', () => {
     expect(runWorktreeDeletesInParallel).not.toHaveBeenCalled()
   })
 
+  it('hides the batch uncommitted-changes line until the folder checkbox is checked', () => {
+    const first = makeWorktree('one', '/srv/wt/project/one')
+    const second = makeWorktree('two', '/srv/wt/project/two')
+    showWorktrees([first, second], { worktreeIds: [first.id, second.id] })
+    mocks.state.gitStatusByWorktree = {
+      [first.id]: [{ path: 'a.md', status: 'modified' }],
+      [second.id]: [{ path: 'b.md', status: 'modified' }]
+    }
+    render(<DeleteWorktreeDialog />)
+
+    expect(text()).toContain(SOFT_MANY)
+    expect(text()).not.toContain('uncommitted change')
+    expect(text()).not.toContain('will be lost')
+    expect(text()).not.toContain('couldn’t be fully checked')
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Also delete folder' }))
+
+    expect(text()).toContain('2 uncommitted changes will be lost')
+    expect(text()).not.toContain(SOFT_MANY)
+  })
+
+  it('describes only the parent when the child workspaces are kept', () => {
+    const parent = makeWorktree('parent', '/srv/wt/project/parent')
+    const child = makeWorktree('child', '/srv/wt/project/child')
+    mocks.state.worktreeLineageById = {
+      [child.id]: {
+        worktreeId: child.id,
+        worktreeInstanceId: child.instanceId ?? '',
+        parentWorktreeId: parent.id,
+        parentWorktreeInstanceId: parent.instanceId ?? '',
+        origin: 'manual',
+        capture: { source: 'manual-action', confidence: 'explicit' },
+        createdAt: 1
+      }
+    }
+    showWorktrees([parent, child], {
+      worktreeId: parent.id,
+      worktreeDeleteIdentities: [identityOf(parent)],
+      lineageDeleteIdentities: [identityOf(child), identityOf(parent)]
+    })
+    render(<DeleteWorktreeDialog />)
+    expect(text()).toContain(SOFT_MANY)
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Detach and keep child workspaces' }))
+
+    expect(text()).toContain(SOFT_ONE)
+    expect(text()).not.toContain(SOFT_MANY)
+    expect(text()).not.toContain('Child workspaces stay on disk')
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Also delete folder' }))
+
+    expect(text()).toContain(HARD_ONE)
+    expect(text()).not.toContain(HARD_MANY)
+    expect(text()).not.toContain('1 child workspace')
+  })
+
   it('hides the folder option and uses the hard-delete sentence during force-delete recovery', () => {
     const workspace = makeWorktree('admin', '/srv/wt/project/admin')
     showWorktrees([workspace])

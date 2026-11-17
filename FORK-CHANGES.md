@@ -157,7 +157,7 @@ fork 加的部分，未登记时全部是上游行为：
 
 ## F048 删除工作区默认保留文件夹
 
-删除工作区对话框对 git 工作区（含一次删多个、含子工作区）多一个「同时删除文件夹」勾选，默认不勾。不勾时只从 Orca 移除：复用「从 Orca 移除」的归档（`isArchived: true`），不调用 `git worktree remove`，目录留在磁盘上。勾上之后仍是现在的硬删除，文案也仍是「会从 git 删除并删掉工作区文件夹」，未提交的改动那句警告只在勾上时出现。
+删除工作区对话框对 git 工作区（含一次删多个、含子工作区）多一个「同时删除文件夹」勾选，默认不勾。不勾时只从 Orca 移除：复用「从 Orca 移除」的归档（`isArchived: true`），不调用 `git worktree remove`，目录留在磁盘上。勾上之后仍是现在的硬删除，文案也仍是「会从 git 删除并删掉工作区文件夹」，未提交的改动那句警告只在勾上时出现，单个和一次删多个都一样。
 
 文件夹工作区本来就只删 Orca 里的记录、不删目录，对话框不显示这个勾选，确认仍走原来的路径。
 
@@ -179,7 +179,7 @@ fork 加的部分，未登记时全部是上游行为：
 
 命令行和配对客户端的 `worktree.rm` 不经过这个对话框，仍会硬删除文件夹。
 
-`DeleteWorktreeDialog.tsx` 首行加 `/* oxlint-disable max-lines -- fork: hook call only */`，上游代码都在原位。fork 只有一次 `useWorkspaceFolderDeleteDialog(...)`（`src/fork/sidebar/workspace-folder-delete.tsx`）、两个确认处理函数开头各一个三行提前返回、描述属性、三处「保留文件夹时不显示」条件（未知改动警告、单个工作区的改动 / 未保存摘要 `DeleteWorktreeChangesSummary`、批量预览的未保存数）、子工作区提示的一个属性和勾选框一行（放在错误提示和底栏之间）。上游 #42872 统一确认对话框后，确认按钮写成「Delete workspace」等动作名，「不要再问」是底栏的勾选框。子工作区提示（`DeleteWorktreeLineageNotice.tsx`）把两处 `translate(` 换成 `title.t(` / `body.t(`（`keptLineageText`）：保留文件夹时给出 fork 文案，否则就是上游的 `translate`。行为由 `registerForkWorkspaceFolderDelete` 打开；没登记时没有勾选，确认仍硬删除。子工作区在软删除时只归档，不按硬删除那样先删子级。
+`DeleteWorktreeDialog.tsx` 首行加 `/* oxlint-disable max-lines -- fork: hook call only */`，上游代码都在原位。fork 只有一次 `useWorkspaceFolderDeleteDialog(...)`（`src/fork/sidebar/workspace-folder-delete.tsx`）、两个确认处理函数开头各一个三行提前返回、描述属性、「保留文件夹时不显示」条件（未知改动警告、单个工作区的改动 / 未保存摘要 `DeleteWorktreeChangesSummary`；批量预览的未保存数；批量预览在上游属性后面多一行 `{...folderDelete.batchPreviewOverrides}`，保留时把改动计数、检查状态、被忽略文件换成空的，未提交改动、被忽略文件和「无法完整检查」那几行都不出现）、子工作区提示的一个属性和勾选框一行（放在错误提示和底栏之间）。上游 #42872 统一确认对话框后，确认按钮写成「Delete workspace」等动作名，「不要再问」是底栏的勾选框。子工作区提示（`DeleteWorktreeLineageNotice.tsx`）把两处 `translate(` 换成 `title.t(` / `body.t(`（`keptLineageText`）：保留文件夹时给出 fork 文案，否则就是上游的 `translate`。行为由 `registerForkWorkspaceFolderDelete` 打开；没登记时没有勾选，确认仍硬删除。子工作区在软删除时只归档，不按硬删除那样先删子级。描述和传给钩子的子工作区数跟上游一样按 `deleteAllLineage`：选了「分离并保留子工作区」时，不勾和勾上的描述都只说父工作区。
 
 ## F049 从 Ego Lite 导入 Cookie
 

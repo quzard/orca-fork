@@ -218,9 +218,9 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
     isMainWorktree,
     canForceDelete,
     isBatchDelete,
-    childWorkspaceCount,
+    childWorkspaceCount: deleteAllLineage ? childWorkspaceCount : 0,
     disabled: isDeleting || isSavingForcePreference,
-    upstreamDescription: canDeleteAllLineage ? lineageDeleteDescription : deleteCopy.description,
+    upstreamDescription: deleteAllLineage ? lineageDeleteDescription : deleteCopy.description,
     lineageDeleteIdentities,
     resolveConfirmedTargets,
     closeModal,
@@ -380,6 +380,7 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
                 dirtyChangeCountsByWorktreeId={dirtyChanges.counts}
                 dirtyChangePreviewsByWorktreeId={dirtyChanges.previews}
                 atRiskLocalFilesByIdentity={atRiskLocalFilesByIdentity}
+                {...folderDelete.batchPreviewOverrides}
               />
             ) : worktree && !folderDelete.keepsFolder ? (
               <DeleteWorktreeChangesSummary

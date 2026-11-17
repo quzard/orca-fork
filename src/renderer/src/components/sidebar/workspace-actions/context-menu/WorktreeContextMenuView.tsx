@@ -20,6 +20,7 @@ import { WorktreeStatusMenuItems } from '../../workspace-status/presentation/Wor
 import { WorktreeWslHostStartMenuItem } from '../../workspace-card/host/WorktreeWslHostStartMenuItem'
 import { WorktreeContextMenuOverlays } from './WorktreeContextMenuOverlays'
 import { WorktreeNotificationMuteMenuItem } from './WorktreeNotificationMuteMenuItem'
+import { WslMovedWorkspaceUseHereMenuItem } from '@/components/wsl-move/WslMovedUseHereMenuItem'
 import { WorktreeContextMenuDeleteItems } from './WorktreeContextMenuDeleteItems'
 import {
   WorktreeCopySubMenu,
@@ -210,7 +211,11 @@ export default function WorktreeContextMenuView({ model }: { model: WorktreeCont
               <WorktreeCopySubMenu model={model} />
               <WorktreeLineageSubMenu model={model} />
               <WorktreeProjectGroupSubMenu model={model} />
+<<<<<<< HEAD
               {renderSidebarContextMenu(worktree)}
+=======
+              <WslMovedWorkspaceUseHereMenuItem worktree={worktree} />
+>>>>>>> 38055fea4ac98ab080fd9b84a88ae1f70740688a
             </>
           )}
           {isMultiContext && hasAnyContextLineage ? (

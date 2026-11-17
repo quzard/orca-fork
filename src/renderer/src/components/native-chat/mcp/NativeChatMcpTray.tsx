@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { useTranslate } from '@/i18n/use-translate'
 import { cn } from '@/lib/class-names'
 import { openAppHttpLink } from '@/lib/browser/navigation/app-http-link-open'
@@ -11,7 +11,7 @@ import type { RuntimeClientTarget } from '../../../../../shared/remote-runtime/h
 import type {
   AgentSessionMcpOperation,
   AgentSessionMcpResult
-} from '../../../../../shared/agent-session/agent-session-mcp'
+} from '../../../../../shared/agent-session/options/protocol/agent-session-mcp'
 import {
   createAgentSessionMcpPanelHook,
   type AgentSessionMcpPanelState

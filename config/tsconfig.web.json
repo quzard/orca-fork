@@ -14,10 +14,15 @@
   ],
   "exclude": [
     "../src/renderer/src/components/sidebar/workspace-creation/folder/folder-workspace-composer-submit-host-platform.test.ts",
+<<<<<<< HEAD
     "../src/renderer/src/components/browser-pane/ClientHostedBrowserPagePane.test.tsx",
     "../src/renderer/src/runtime/provider-accounts/observations/provider-account-observation.test-fixture.ts",
     "../src/fork/main/**",
     "../src/fork/**/*.fork.test.ts"
+=======
+    "../src/renderer/src/components/browser-pane/assemble-chrome/client-hosted/ClientHostedBrowserPagePane.test.tsx",
+    "../src/renderer/src/runtime/provider-accounts/observations/provider-account-observation.test-fixture.ts"
+>>>>>>> 38055fea4ac98ab080fd9b84a88ae1f70740688a
   ],
   "compilerOptions": {
     "composite": true,

@@ -11,3 +11,13 @@ describe('upstream aligned base version', () => {
     )
   })
 })
+
+describe('upstream release published check', () => {
+  it('requires a published full GitHub release for the base tag, with an explicit skip', () => {
+    execFileSync(
+      process.execPath,
+      ['--test', resolve('fork/scripts/upstream-release-published.test.mjs')],
+      { stdio: 'inherit' }
+    )
+  })
+})

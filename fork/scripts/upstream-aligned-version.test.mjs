@@ -16,6 +16,13 @@ import {
   stableTagsFromLsRemote
 } from './upstream-aligned-version.mjs'
 
+const publishedRelease = (tag) => ({
+  tag_name: tag,
+  draft: false,
+  prerelease: false,
+  published_at: '2026-01-01T00:00:00Z'
+})
+
 function gitEnv(dir) {
   return {
     ...process.env,
@@ -201,7 +208,8 @@ describe('upstream aligned base version', () => {
         { name: 'v1.4.9', sha: 'c'.repeat(40) }
       ],
       mainlineOf: () => 'e'.repeat(40),
-      isAncestor: () => true
+      isAncestor: () => true,
+      fetchRelease: publishedRelease
     }
     try {
       const updated = applyBaseVersion(dir, 'write', options)
@@ -264,7 +272,8 @@ describe('upstream aligned base version', () => {
         { name: 'v1.4.9', sha: 'c'.repeat(40) }
       ],
       mainlineOf: (tag) => (tag.name === 'v1.4.12' ? beyond : contained),
-      isAncestor: (mainline) => mainline === contained
+      isAncestor: (mainline) => mainline === contained,
+      fetchRelease: publishedRelease
     }
     writeFileSync(
       packagePath,
@@ -283,6 +292,30 @@ describe('upstream aligned base version', () => {
         '{\n  "name": "orca",\n  "version": "1.4.12",\n  "description": "keep"\n}\n'
       )
       assert.throws(() => applyBaseVersion(dir, 'check', base), /overstates the upstream release/)
+      writeFileSync(
+        packagePath,
+        '{\n  "name": "orca",\n  "version": "1.4.10",\n  "description": "keep"\n}\n'
+      )
+      assert.equal(applyBaseVersion(dir, 'check', base).release, 'published')
+      const draft = (tag) => ({ ...publishedRelease(tag), draft: true })
+      assert.throws(
+        () => applyBaseVersion(dir, 'check', { ...base, fetchRelease: draft }),
+        /v1\.4\.10 GitHub release is still a draft/
+      )
+      assert.throws(
+        () => applyBaseVersion(dir, 'check', { ...base, fetchRelease: () => null }),
+        /no published GitHub release/
+      )
+      const skipped = applyBaseVersion(dir, 'check', {
+        ...base,
+        fetchRelease: () => assert.fail('skip must not read GitHub'),
+        env: { ORCA_UPSTREAM_RELEASE_CHECK: 'skip' }
+      })
+      assert.equal(skipped.release, 'skipped')
+      writeFileSync(
+        packagePath,
+        '{\n  "name": "orca",\n  "version": "1.4.12",\n  "description": "keep"\n}\n'
+      )
       assert.equal(JSON.parse(readFileSync(packagePath, 'utf8')).version, '1.4.12')
       assert.throws(() => applyBaseVersion(dir, 'write', base), /backwards from 1.4.12 to 1.4.10/)
       assert.equal(JSON.parse(readFileSync(packagePath, 'utf8')).version, '1.4.12')

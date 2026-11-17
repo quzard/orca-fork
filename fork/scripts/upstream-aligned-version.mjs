@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { readCheckedInSkillsSourceCommit } from './sync-skills-source-commit.mjs'
+import { RELEASE_CHECK_ENV, verifyUpstreamRelease } from './upstream-release-published.mjs'
 
 // 基线 X.Y.Z 是「当前 pin 已经包含其 main 线」的最高上游稳定版。
 // 稳定 tag 在发布分支上，merge-base(tag, upstream/main) 才是 main 上的那个点；
@@ -243,7 +244,8 @@ export function applyBaseVersion(repo, mode, options = {}) {
   const current = JSON.parse(source).version
   if (mode === 'check') {
     const warning = assessCheckedBase(current, aligned, tags, pin, mainlineOf, isAncestor)
-    return { ...aligned, current, plan: warning ? 'update' : 'unchanged', warning }
+    const release = verifyUpstreamRelease(`v${current}`, options)
+    return { ...aligned, current, plan: warning ? 'update' : 'unchanged', warning, release }
   }
   const plan = planBaseUpdate(current, aligned.version)
   if (mode === 'write' && plan === 'update') {
@@ -264,6 +266,9 @@ function main() {
     if (result.warning) {
       console.error(result.warning)
     }
+    if (result.release === 'skipped') {
+      console.error(`upstream GitHub release check skipped (${RELEASE_CHECK_ENV}=skip)`)
+    }
     if (mode === 'print') {
       console.log(
         `${result.version} tag ${result.tag} pin ${result.pin} mainline ${result.mainline} package ${result.current} (${result.plan})`
@@ -276,6 +281,9 @@ function main() {
       )
     } else {
       console.log(`base version unchanged ${result.version} (${result.tag}, pin ${result.pin})`)
+    }
+    if (result.release === 'published') {
+      console.log(`upstream v${result.current} GitHub release is published`)
     }
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error))

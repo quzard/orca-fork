@@ -97,9 +97,21 @@ vi.mock('@/components/ui/dialog', () => ({
     open ? <div>{children}</div> : null,
   DialogContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   DialogDescription: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  DialogFooter: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DialogFooter: ({ start, children }: { start?: ReactNode; children: ReactNode }) => (
+    <div>
+      {start}
+      {children}
+    </div>
+  ),
   DialogHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   DialogTitle: ({ children }: { children: ReactNode }) => <div>{children}</div>
+}))
+
+vi.mock('@/components/ui/dialog-parts', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  DialogCancel: ({ children }: { children?: ReactNode }) => (
+    <button type="button">{children ?? 'Cancel'}</button>
+  )
 }))
 
 vi.mock('@/components/ui/button', () => ({
@@ -235,8 +247,9 @@ function text(): string {
   return document.body.textContent ?? ''
 }
 
-function clickDelete(name: string): void {
-  fireEvent.click(screen.getByRole('button', { name }))
+// The confirm button names the action: "Delete workspace", "Delete 2 workspaces" or "Delete all".
+function clickDelete(): void {
+  fireEvent.click(screen.getByRole('button', { name: /^Delete( |$)/ }))
 }
 
 describe('workspace folder delete before registration', () => {
@@ -257,7 +270,7 @@ describe('workspace folder delete before registration', () => {
     expect(screen.queryByRole('checkbox', { name: 'Also delete folder' })).toBeNull()
     expect(text()).toContain(HARD_ONE)
 
-    clickDelete('Delete')
+    clickDelete()
 
     expect(runWorktreeDeletesInParallel).toHaveBeenCalledWith([workspace], {
       force: true,
@@ -321,7 +334,7 @@ describe('workspace folder delete dialog', () => {
     showWorktrees([workspace])
     render(<DeleteWorktreeDialog />)
 
-    clickDelete('Delete')
+    clickDelete()
 
     await vi.waitFor(() => {
       expect(mocks.state.updateWorktreeMeta).toHaveBeenCalledWith(
@@ -347,7 +360,7 @@ describe('workspace folder delete dialog', () => {
     render(<DeleteWorktreeDialog />)
     fireEvent.click(screen.getByRole('checkbox', { name: 'Also delete folder' }))
 
-    clickDelete('Delete')
+    clickDelete()
 
     expect(runWorktreeDeletesInParallel).toHaveBeenCalledWith([workspace], {
       force: true,
@@ -368,7 +381,7 @@ describe('workspace folder delete dialog', () => {
     expect(text()).toContain(FOLDER_COPY)
     expect(text()).not.toContain(HARD_ONE)
 
-    clickDelete('Delete')
+    clickDelete()
 
     expect(runWorktreeDeletesInParallel).toHaveBeenCalledWith([workspace], {
       force: true,
@@ -387,7 +400,7 @@ describe('workspace folder delete dialog', () => {
     expect(text()).toContain(SOFT_MANY)
     expect(text()).not.toContain(HARD_MANY)
 
-    clickDelete('Delete')
+    clickDelete()
 
     await vi.waitFor(() => {
       expect(mocks.state.updateWorktreeMeta).toHaveBeenCalledTimes(2)
@@ -406,7 +419,7 @@ describe('workspace folder delete dialog', () => {
     showWorktrees([git, folder], { worktreeIds: [git.id, folder.id] })
     render(<DeleteWorktreeDialog />)
 
-    clickDelete('Delete')
+    clickDelete()
 
     await vi.waitFor(() => {
       expect(mocks.state.updateWorktreeMeta).toHaveBeenCalledWith(
@@ -451,7 +464,7 @@ describe('workspace folder delete dialog', () => {
     expect(text()).not.toContain('Child workspaces will be deleted')
     expect(text()).not.toContain(HARD_MANY)
 
-    clickDelete('Delete')
+    clickDelete()
 
     await vi.waitFor(() => {
       expect(mocks.state.updateWorktreeMeta).toHaveBeenCalledTimes(2)
@@ -470,7 +483,7 @@ describe('workspace folder delete dialog', () => {
     expect(screen.queryByRole('checkbox', { name: 'Also delete folder' })).toBeNull()
     expect(text()).toContain(HARD_ONE)
     expect(text()).not.toContain(SOFT_ONE)
-    expect(screen.getByRole('button', { name: 'Delete' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Force delete' })).toBeTruthy()
   })
 
   it('does not warn that unsaved edits will be discarded until the folder checkbox is checked', () => {
@@ -489,11 +502,11 @@ describe('workspace folder delete dialog', () => {
     ]
     render(<DeleteWorktreeDialog />)
 
-    expect(text()).not.toContain('will be discarded')
+    expect(text()).not.toContain('unsaved file')
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Also delete folder' }))
 
-    expect(text()).toContain('will be discarded')
+    expect(text()).toContain('unsaved file')
   })
 
   it('hard-deletes this confirmation when the folder checkbox and always-delete are both on', async () => {
@@ -501,11 +514,8 @@ describe('workspace folder delete dialog', () => {
     showWorktrees([workspace])
     render(<DeleteWorktreeDialog />)
     fireEvent.click(screen.getByRole('checkbox', { name: 'Also delete folder' }))
-    fireEvent.pointerDown(screen.getByRole('button', { name: 'More delete options' }), {
-      button: 0,
-      pointerType: 'mouse'
-    })
-    fireEvent.click(screen.getByRole('menuitem', { name: /^Always delete/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: "Don't ask again" }))
+    clickDelete()
 
     await vi.waitFor(() => {
       expect(runWorktreeDeletesInParallel).toHaveBeenCalledWith([workspace], {

@@ -12,6 +12,7 @@ import { TooltipProvider } from '../../renderer/src/components/ui/tooltip'
 import WorktreeContextMenu from '../../renderer/src/components/sidebar/workspace-actions/context-menu/WorktreeContextMenu'
 import { registerSidebarContextMenu } from '../../shared/fork-hooks/sidebar-chrome'
 import { registerWorktreeMenuGroups } from '../../shared/fork-hooks/worktree-menu-groups'
+import { ConfirmationDialogContext } from '@/components/dismiss/confirmation/confirmation-dialog-context'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
@@ -87,6 +88,7 @@ vi.mock('@/components/sidebar/workspace-actions/open/WorktreeOpenInMenu', () => 
   WorktreeOpenInSubMenu: () => null
 }))
 
+const confirmDialog = vi.fn(async () => true)
 const onMove = vi.fn()
 const onRemove = vi.fn()
 const forkRowAction = vi.fn()
@@ -143,15 +145,17 @@ function openMenu(target: Worktree, selection: readonly Worktree[]): void {
     selection.length > 1 && selection.some((entry) => entry.id === target.id) ? selection : [target]
   act(() => {
     root.render(
-      <TooltipProvider>
-        <WorktreeContextMenu
-          worktree={target}
-          selectedWorktrees={selection}
-          onContextMenuSelect={select}
-        >
-          <div>Card</div>
-        </WorktreeContextMenu>
-      </TooltipProvider>
+      <ConfirmationDialogContext.Provider value={confirmDialog}>
+        <TooltipProvider>
+          <WorktreeContextMenu
+            worktree={target}
+            selectedWorktrees={selection}
+            onContextMenuSelect={select}
+          >
+            <div>Card</div>
+          </WorktreeContextMenu>
+        </TooltipProvider>
+      </ConfirmationDialogContext.Provider>
     )
   })
   act(() => {

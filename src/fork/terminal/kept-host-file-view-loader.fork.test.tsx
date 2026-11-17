@@ -35,7 +35,7 @@ vi.mock('@/store', () => ({
     { getState: mocks.getState }
   )
 }))
-vi.mock('@/lib/file-owner-runtime-target', () => {
+vi.mock('@/lib/files/access/file-owner-runtime-target', () => {
   const target = (runtimeEnvironmentId?: string | null) =>
     runtimeEnvironmentId
       ? { kind: 'environment' as const, environmentId: runtimeEnvironmentId }

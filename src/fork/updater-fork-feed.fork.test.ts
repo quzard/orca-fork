@@ -1,8 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  loadUpdaterModule,
-  warmUpdaterModule
-} from '../main/updater/testing/updater-test-module-loader'
+import { loadUpdaterModule, warmUpdaterModule } from './main/testing/updater-test-module-loader'
 
 const {
   appMock,
@@ -12,13 +9,13 @@ const {
   moduleFactories,
   resetUpdaterMocks
 } = await vi.hoisted(async () =>
-  (await import('../main/updater/testing/updater-test-harness')).createUpdaterMocks()
+  (await import('./main/testing/updater-test-harness')).createUpdaterMocks()
 )
 
 vi.mock('electron', () => moduleFactories.electron())
 vi.mock('electron-updater', () => moduleFactories.electronUpdater())
 vi.mock('../main/updater/electron-updater-loader', () => moduleFactories.electronUpdaterLoader())
-vi.mock('../main/ipc/pty/kill-all', () => moduleFactories.ptyKillAll())
+vi.mock('../main/ipc/pty/provider/kill-all', () => moduleFactories.ptyKillAll())
 vi.mock('../main/updater/linux-package/linux-update-package-type', () =>
   moduleFactories.linuxUpdatePackageType()
 )

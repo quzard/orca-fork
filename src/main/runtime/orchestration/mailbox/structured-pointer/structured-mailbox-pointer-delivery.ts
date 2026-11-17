@@ -1,4 +1,4 @@
-/** Chats queue each message as its own card, one per turn behind work/questions (shown whole, sent as a pointer); terminals keep the PTY pointer lane. */
+/** Chats queue whole mail one per turn behind work/questions; terminals keep the PTY pointer lane. */
 
 import type { MessageRow } from '../../db/orchestration-records'
 import type { OrchestrationDb } from '../../db/orchestration-db'
@@ -13,7 +13,7 @@ import type { StructuredPointerDeliveryDependencies } from './structured-mailbox
 import { structuredMailMessage } from '../structured-mail/structured-mail-source'
 import type { StructuredMailSendRow } from '../../db/messages/structured-mail-send-store'
 import type { QueuedMessageOwed } from '../../../../native-chat/agent-session-journal/queued-messages/queued-message-consume-error'
-import type { AgentMessageSource } from '../../../../../shared/agent-session/agent-session-message-source'
+import type { AgentMessageSource } from '../../../../../shared/agent-session/journal/agent-session-message-source'
 import { StructuredMailboxParking } from '../structured-mail/structured-mailbox-parking'
 import { StructuredMailSettledState } from '../structured-mail/structured-mail-settled-state'
 import * as mailCustody from '../structured-mail/structured-mail-custody'

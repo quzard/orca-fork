@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { listWorktreesMock } from '../../main/ipc/worktrees-test-module-mocks'
-import { handlers, setupWorktreeHandlers, store } from '../../main/ipc/worktrees-test-harness'
+import { listWorktreesMock } from './testing/worktrees-test-module-mocks'
+import { handlers, setupWorktreeHandlers, store } from './testing/worktrees-test-harness'
 import { mergeWorktreeMetaForWrite } from '../../main/persistence/loading-store/worktree-metadata/worktree-meta-write-normalization'
 import { registerReusedPathUnarchive } from '../../shared/fork-hooks/reused-path-unarchive'
 import type { WorktreeMeta } from '../../shared/worktree/meta-types'
@@ -21,120 +21,112 @@ vi.mock('../../main/text-generation/execution/commit-message-agent-environment',
 }))
 
 vi.mock('electron', async () =>
-  (await import('../../main/ipc/worktrees-test-module-mocks')).electronModuleMock()
+  (await import('./testing/worktrees-test-module-mocks')).electronModuleMock()
 )
 vi.mock('../../main/git/worktrees/catalog/worktree-scan-cache', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  listWorktrees: (await import('../../main/ipc/worktrees-test-module-mocks')).listWorktreesMock,
+  listWorktrees: (await import('./testing/worktrees-test-module-mocks')).listWorktreesMock,
   listWorktreesSharedStrictAllowingTrueEmpty: (
-    await import('../../main/ipc/worktrees-test-module-mocks')
+    await import('./testing/worktrees-test-module-mocks')
   ).listWorktreesMock,
-  listWorktreesSharedStrict: (await import('../../main/ipc/worktrees-test-module-mocks'))
+  listWorktreesSharedStrict: (await import('./testing/worktrees-test-module-mocks'))
     .listWorktreesMock
 }))
 vi.mock('../../main/git/worktrees/catalog/worktree-listing', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  listWorktreesStrict: (await import('../../main/ipc/worktrees-test-module-mocks'))
-    .listWorktreesMock,
-  describeCreatedWorktree: (await import('../../main/ipc/worktrees-test-module-mocks'))
+  listWorktreesStrict: (await import('./testing/worktrees-test-module-mocks')).listWorktreesMock,
+  describeCreatedWorktree: (await import('./testing/worktrees-test-module-mocks'))
     .describeCreatedWorktreeMock
 }))
 vi.mock('../../main/git/worktrees/creation/worktree-add', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  addWorktree: (await import('../../main/ipc/worktrees-test-module-mocks')).addWorktreeMock
+  addWorktree: (await import('./testing/worktrees-test-module-mocks')).addWorktreeMock
 }))
 vi.mock('../../main/git/worktrees/creation/worktree-sparse-add', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  addSparseWorktree: (await import('../../main/ipc/worktrees-test-module-mocks'))
-    .addSparseWorktreeMock
+  addSparseWorktree: (await import('./testing/worktrees-test-module-mocks')).addSparseWorktreeMock
 }))
 vi.mock('../../main/git/command-runner/git-exec-file', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  gitExecFileAsync: (await import('../../main/ipc/worktrees-test-module-mocks'))
-    .gitExecFileAsyncMock
+  gitExecFileAsync: (await import('./testing/worktrees-test-module-mocks')).gitExecFileAsyncMock
 }))
 vi.mock('../../main/git/remotes/repo-remote-queries', async () => ({
-  getDefaultRemote: (await import('../../main/ipc/worktrees-test-module-mocks'))
-    .getDefaultRemoteMock
+  getDefaultRemote: (await import('./testing/worktrees-test-module-mocks')).getDefaultRemoteMock
 }))
 vi.mock('../../main/git/refs/resolution/repo-branch-conflict', async () =>
-  (await import('../../main/ipc/worktrees-test-module-mocks')).gitBranchConflictModuleMock()
+  (await import('./testing/worktrees-test-module-mocks')).gitBranchConflictModuleMock()
 )
 vi.mock('../../main/git/refs/resolution/repo-default-base-ref', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  getDefaultBaseRefAsync: (await import('../../main/ipc/worktrees-test-module-mocks'))
+  getDefaultBaseRefAsync: (await import('./testing/worktrees-test-module-mocks'))
     .getBaseRefDefaultMock,
-  resolveDefaultBaseRefWithLocalGit: (await import('../../main/ipc/worktrees-test-module-mocks'))
+  resolveDefaultBaseRefWithLocalGit: (await import('./testing/worktrees-test-module-mocks'))
     .resolveDefaultBaseRefWithLocalGitMock
 }))
 vi.mock('../../main/git/repositories/git-username', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  resolveLocalGitUsername: (await import('../../main/ipc/worktrees-test-module-mocks'))
+  resolveLocalGitUsername: (await import('./testing/worktrees-test-module-mocks'))
     .resolveLocalGitUsernameMock
 }))
 vi.mock('../../main/source-control/hosted-review', async () =>
-  (await import('../../main/ipc/worktrees-test-module-mocks')).hostedReviewModuleMock()
+  (await import('./testing/worktrees-test-module-mocks')).hostedReviewModuleMock()
 )
-vi.mock('../../main/ipc/worktree-symlinks', async () =>
-  (await import('../../main/ipc/worktrees-test-module-mocks')).worktreeSymlinksModuleMock()
+vi.mock('../../main/ipc/worktrees/linked-paths/worktree-symlinks', async () =>
+  (await import('./testing/worktrees-test-module-mocks')).worktreeSymlinksModuleMock()
 )
 vi.mock('../../main/workspace-hooks/hooks', async () =>
-  (await import('../../main/ipc/worktrees-test-module-mocks')).hooksModuleMock()
+  (await import('./testing/worktrees-test-module-mocks')).hooksModuleMock()
 )
 vi.mock('../../main/workspace-hooks/setup-runner-script-text', async (importOriginal) =>
-  (await import('../../main/ipc/worktrees-test-module-mocks')).setupRunnerScriptTextModuleMock(
+  (await import('./testing/worktrees-test-module-mocks')).setupRunnerScriptTextModuleMock(
     (await importOriginal()) as Record<string, unknown>
   )
 )
 vi.mock('../../main/workspace-hooks/worktree-runner-script', async (importOriginal) =>
-  (await import('../../main/ipc/worktrees-test-module-mocks')).worktreeRunnerScriptModuleMock(
+  (await import('./testing/worktrees-test-module-mocks')).worktreeRunnerScriptModuleMock(
     (await importOriginal()) as Record<string, unknown>
   )
 )
 vi.mock('../../main/workspace-hooks/effective-hook-config', async (importOriginal) =>
-  (await import('../../main/ipc/worktrees-test-module-mocks')).effectiveHookConfigModuleMock(
+  (await import('./testing/worktrees-test-module-mocks')).effectiveHookConfigModuleMock(
     (await importOriginal()) as Record<string, unknown>
   )
 )
 vi.mock('../../main/workspace-hooks/setup-hook-env-vars', async (importOriginal) =>
-  (await import('../../main/ipc/worktrees-test-module-mocks')).setupHookEnvVarsModuleMock(
+  (await import('./testing/worktrees-test-module-mocks')).setupHookEnvVarsModuleMock(
     (await importOriginal()) as Record<string, unknown>
   )
 )
-vi.mock('../../main/ipc/worktree-logic', async (importOriginal) =>
-  (await import('../../main/ipc/worktrees-test-module-mocks')).worktreeLogicModuleMock(
+vi.mock('../../main/ipc/worktrees/paths/worktree-logic', async (importOriginal) =>
+  (await import('./testing/worktrees-test-module-mocks')).worktreeLogicModuleMock(
     (await importOriginal()) as Record<string, unknown>
   )
 )
 vi.mock('../../main/pty/history/terminal-history-deletion', async () =>
-  (await import('../../main/ipc/worktrees-test-module-mocks')).terminalHistoryDeletionModuleMock()
+  (await import('./testing/worktrees-test-module-mocks')).terminalHistoryDeletionModuleMock()
 )
 vi.mock('../../main/ports/advertised-url-watcher', async () =>
-  (await import('../../main/ipc/worktrees-test-module-mocks')).advertisedUrlWatcherModuleMock()
+  (await import('./testing/worktrees-test-module-mocks')).advertisedUrlWatcherModuleMock()
 )
 vi.mock('../../main/workspaces/cleanup/workspace-cleanup-scan-snapshot', async () =>
-  (
-    await import('../../main/ipc/worktrees-test-module-mocks')
-  ).workspaceCleanupScanSnapshotModuleMock()
+  (await import('./testing/worktrees-test-module-mocks')).workspaceCleanupScanSnapshotModuleMock()
 )
 vi.mock('../../main/workspaces/space-analysis/workspace-space-analysis-snapshot', async () =>
-  (
-    await import('../../main/ipc/worktrees-test-module-mocks')
-  ).workspaceSpaceAnalysisSnapshotModuleMock()
+  (await import('./testing/worktrees-test-module-mocks')).workspaceSpaceAnalysisSnapshotModuleMock()
 )
 vi.mock('../../main/workspaces/cleanup/workspace-cleanup-removal-snapshot-prune', async () =>
   (
-    await import('../../main/ipc/worktrees-test-module-mocks')
+    await import('./testing/worktrees-test-module-mocks')
   ).workspaceCleanupRemovalSnapshotPruneModuleMock()
 )
 vi.mock('../../main/runtime/workspaces/removal/worktree-teardown', async () =>
-  (await import('../../main/ipc/worktrees-test-module-mocks')).worktreeTeardownModuleMock()
+  (await import('./testing/worktrees-test-module-mocks')).worktreeTeardownModuleMock()
 )
 vi.mock('../../main/ipc/pty/provider/registry', async () =>
-  (await import('../../main/ipc/worktrees-test-module-mocks')).ptyRegistryModuleMock()
+  (await import('./testing/worktrees-test-module-mocks')).ptyRegistryModuleMock()
 )
 vi.mock('../../main/ipc/pty/provider/state-cleanup', async () =>
-  (await import('../../main/ipc/worktrees-test-module-mocks')).ptyStateCleanupModuleMock()
+  (await import('./testing/worktrees-test-module-mocks')).ptyStateCleanupModuleMock()
 )
 
 // Desktop create (worktrees:create): the same assertion the fork kept in upstream's create test.

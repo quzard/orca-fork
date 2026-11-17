@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { mergeWorktree } from '../../main/ipc/worktree-metadata-merge'
+import { mergeWorktree } from '../../main/ipc/worktrees/metadata/worktree-metadata-merge'
 import { mergeWorktreeMetaForWrite } from '../../main/persistence/loading-store/worktree-metadata/worktree-meta-write-normalization'
 import type { WorktreeMeta } from '../../shared/worktree/meta-types'
 import {

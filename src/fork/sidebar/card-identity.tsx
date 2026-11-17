@@ -1,5 +1,5 @@
 // 登记主机目录卡片的名字规则（F054），以及标题后面淡色的分支。
-import { TruncatedSidebarLabel } from '@/components/sidebar/truncated-sidebar-label'
+import { TruncatedSidebarLabel } from '@/components/ui/truncated-sidebar-label'
 import { registerWorktreeCardIdentity } from '../../shared/fork-hooks/sidebar-card-identity'
 import { singleCheckoutCardIdentity, singleCheckoutCardTemplate } from './single-checkout-card'
 

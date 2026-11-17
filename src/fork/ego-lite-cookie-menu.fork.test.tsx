@@ -27,7 +27,7 @@ vi.mock('@/lib/browser/cookies/browser-cookie-import-toast', () => ({
   emitBrowserCookieImportToast: vi.fn()
 }))
 // 上游 #15044 起这一行要确认弹窗；这里只测导入菜单，不需要真的 provider。
-vi.mock('@/components/confirmation-dialog-context', () => ({
+vi.mock('@/components/dismiss/confirmation/confirmation-dialog-context', () => ({
   useConfirmationDialog: () => vi.fn(async () => true)
 }))
 

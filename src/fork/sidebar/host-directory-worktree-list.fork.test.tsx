@@ -47,7 +47,9 @@ vi.mock('@/runtime/ephemeral-vm/vm-create-hidden-checkouts', async () => {
 
 vi.mock('@/store', () => createAppStoreModuleMock())
 vi.mock('@tanstack/react-virtual', () => createReactVirtualModuleMock())
-vi.mock('@/hooks/useVirtualizedScrollAnchor', () => createVirtualizedScrollAnchorModuleMock())
+vi.mock('@/lib/list-interaction/virtualized-scrolling/useVirtualizedScrollAnchor', () =>
+  createVirtualizedScrollAnchorModuleMock()
+)
 vi.mock('../../renderer/src/components/sidebar/worktree-list/drag/project-header-drag', () =>
   createProjectHeaderDragModuleMock()
 )

@@ -3,7 +3,7 @@ import type { HostWorktreeTarget } from '../../shared/worktree/host-qualified-id
 import type { WorktreeMeta } from '../../shared/worktree/meta-types'
 import type { Repo } from '../../shared/repository/repo-types'
 
-vi.mock('../../main/ipc/worktree-symlinks', () => ({
+vi.mock('../../main/ipc/worktrees/linked-paths/worktree-symlinks', () => ({
   createWorktreeCopiedPaths: vi.fn(),
   createWorktreeLinkedPaths: vi.fn(),
   createWorktreeSharedPaths: vi.fn()

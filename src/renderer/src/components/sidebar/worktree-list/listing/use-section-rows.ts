@@ -1,5 +1,5 @@
 /* oxlint-disable max-lines -- fork: hook call only */
-import { selectWslHostsServing } from '../../use-wsl-hosts-enabled'
+import { selectWslHostsServing } from '../../../../runtime/hosts/wsl/use-wsl-hosts-enabled'
 import { useCallback, useMemo, useState } from 'react'
 import { shallow } from 'zustand/shallow'
 import { persistedUIValuesEqual } from '../../../../../../shared/collections/persisted-ui-equality'
@@ -15,6 +15,7 @@ import {
 } from '../../../../../../shared/execution-host/execution-host'
 import { getHostDisplayLabelOverrides } from '../../../../../../shared/execution-host/host-setting-overrides'
 import { planSidebarRows } from '../../../../../../shared/sidebar-list/sidebar-row-plan'
+import { indexHiddenProjects } from '../../../../../../shared/project/catalog/hidden-projects'
 import { createHostScopedRepoOf } from '../../../../../../shared/sidebar-list/feed/sidebar-feed-index'
 import { createSidebarPRGroupReader } from '../grouping/pr-group-key'
 import { useEffectiveCollapsedGroups } from './use-collapsed-groups'
@@ -169,12 +170,14 @@ export function useSidebarSectionRows(args: SectionRowsArgs) {
         hostLabelById,
         defaultHostId,
         pinnedDisplayPolicy: args.pinnedDisplayPolicy,
-        filterRepoIds: args.filterRepoIds
+        filterRepoIds: args.filterRepoIds,
+        hiddenProjects: indexHiddenProjects(repos, defaultHostId)
       }),
     [
       args.groupBy,
       args.sortBy,
       worktrees,
+      repos,
       repoMap,
       repoOfWorktree,
       args.prCache,

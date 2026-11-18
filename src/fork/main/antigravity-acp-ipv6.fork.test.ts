@@ -16,7 +16,7 @@ import {
   antigravityAcpIpv6BypassArgs
 } from './antigravity-acp-ipv6'
 
-const launchInput = { fullAccess: false, pluginDir: null }
+const launchInput = { fullAccess: false, pluginDirs: [] }
 // satisfies 保留实现的零参推断；按规格类型调用才接受启动输入。
 const launchSpec: AcpLaunchSpec = ANTIGRAVITY_LAUNCH_SPEC
 const folders: string[] = []

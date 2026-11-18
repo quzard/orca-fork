@@ -4,7 +4,12 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { test } from 'node:test'
-import { findMissingE2eImports, forkE2eFiles, relativeImports } from './check-e2e-imports.mjs'
+import {
+  e2eFiles,
+  findMissingE2eImports,
+  importsForkCode,
+  relativeImports
+} from './check-e2e-imports.mjs'
 
 const here = import.meta.dirname
 const repo = resolve(here, '../../..')
@@ -19,22 +24,43 @@ const spec = (path) =>
   ].join('\n')
 
 // Same layout as after upstream #43047: execution-host.ts lives in a directory of the same name.
-function fixture(specText) {
+// An upstream spec in a subdirectory imports a fork hook; its own non-fork imports are not checked.
+const nestedSpec = (hookPath) =>
+  ["import '../../../../src/gone'", `import { hook } from '${hookPath}'`, ''].join('\n')
+
+function fixture(specText, hookPath = '../../../../src/shared/fork-hooks/example') {
   const root = mkdtempSync(join(tmpdir(), 'e2e-imports-'))
   mkdirSync(join(root, 'src/shared/execution-host'), { recursive: true })
   writeFileSync(join(root, 'src/shared/execution-host/execution-host.ts'), 'export {}\n')
-  mkdirSync(join(root, 'tests/e2e'), { recursive: true })
+  mkdirSync(join(root, 'src/shared/fork-hooks'), { recursive: true })
+  writeFileSync(join(root, 'src/shared/fork-hooks/example.ts'), 'export const hook = 1\n')
+  mkdirSync(join(root, 'tests/e2e/remote/nested'), { recursive: true })
   writeFileSync(join(root, 'tests/e2e/fork-managed-host-links.ts'), 'export const forkShot = 1\n')
   writeFileSync(join(root, 'tests/e2e/fork-example.spec.ts'), specText)
   writeFileSync(join(root, 'tests/e2e/upstream.spec.ts'), "import '../../src/gone'\n")
+  writeFileSync(join(root, 'tests/e2e/remote/nested/upstream.spec.ts'), nestedSpec(hookPath))
+  writeFileSync(join(root, 'tests/e2e/remote/nested/notes.md'), "import '../../../../src/fork/x'\n")
   return root
 }
 
 const runCli = (root) => spawnSync(process.execPath, [cli, root], { encoding: 'utf8' })
 
-test('the fork e2e files in this repo import only files that exist', () => {
-  assert.ok(forkE2eFiles(repo).length > 0)
+test('every e2e file in this repo imports only fork paths that exist', () => {
+  const files = e2eFiles(repo)
+  assert.ok(files.some((file) => file.startsWith('tests/e2e/fork-')))
+  assert.ok(
+    files.some((file) => file.split('/').length > 3),
+    'subdirectories are scanned'
+  )
   assert.deepEqual(findMissingE2eImports(repo), [])
+})
+
+test('recognizes imports that reach fork code', () => {
+  assert.ok(importsForkCode('../../src/shared/fork-hooks/ai-vault'))
+  assert.ok(importsForkCode('../../../src/fork/sidebar/rows'))
+  assert.ok(importsForkCode('../fork-managed-host-links'))
+  assert.ok(!importsForkCode('./desktop/electron-fixtures/orca-app'))
+  assert.ok(!importsForkCode('../../src/shared/workspace/forked-session'))
 })
 
 test('finds static, side-effect and dynamic relative imports, not packages', () => {
@@ -77,15 +103,38 @@ test('fails on the execution-host path from before upstream moved it', () => {
   }
 })
 
-test('passes on the current execution-host path and skips upstream e2e files', () => {
+test('passes on the current execution-host path and skips non-fork imports of upstream files', () => {
   const root = fixture(spec('../../src/shared/execution-host/execution-host'))
   try {
-    assert.deepEqual(forkE2eFiles(root), [
+    assert.deepEqual(e2eFiles(root), [
       'tests/e2e/fork-example.spec.ts',
-      'tests/e2e/fork-managed-host-links.ts'
+      'tests/e2e/fork-managed-host-links.ts',
+      'tests/e2e/remote/nested/upstream.spec.ts',
+      'tests/e2e/upstream.spec.ts'
     ])
     assert.deepEqual(findMissingE2eImports(root), [])
     assert.equal(runCli(root).status, 0)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('fails when a nested upstream e2e file imports a fork hook that moved', () => {
+  const root = fixture(
+    spec('../../src/shared/execution-host/execution-host'),
+    '../../../../src/shared/fork-hooks/gone'
+  )
+  try {
+    assert.deepEqual(findMissingE2eImports(root), [
+      {
+        file: 'tests/e2e/remote/nested/upstream.spec.ts',
+        line: 2,
+        specifier: '../../../../src/shared/fork-hooks/gone'
+      }
+    ])
+    const result = runCli(root)
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, /remote\/nested\/upstream\.spec\.ts:2: .*fork-hooks\/gone/)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

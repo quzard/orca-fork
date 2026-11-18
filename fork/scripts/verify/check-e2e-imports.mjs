@@ -1,13 +1,17 @@
 #!/usr/bin/env node
-// Fails when a fork e2e file imports a relative path that no longer resolves to a file.
+// Fails when an e2e file imports a fork path that no longer resolves to a file.
 // `pnpm typecheck` does not cover tests/e2e, so an upstream move only shows up when Playwright
-// cannot load the spec. Checked: every relative `from '...'`, `import '...'` and `import('...')` in
-// tests/e2e/fork-*.{ts,tsx,mts,mjs} (fork specs and fork helpers). A directory is not a module.
+// cannot load the spec. Scans every .ts/.tsx/.mts/.mjs under tests/e2e (any depth). A fork file
+// (`fork-*`) has every relative `from '...'`, `import '...'` and `import('...')` checked; any other
+// file has only the ones that reach fork code (src/fork/, src/shared/fork-hooks/, a fork-* file).
+// A directory is not a module.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 
 export const E2E_DIR = 'tests/e2e'
-const FORK_FILE = /^fork-.*\.(?:ts|tsx|mts|mjs)$/
+const SOURCE_FILE = /\.(?:ts|tsx|mts|mjs)$/
+const FORK_FILE = /^fork-/
+const FORK_TARGET = /(?:^|\/)(?:fork|fork-hooks)\/|(?:^|\/)fork-[^/]+$/
 const SPECIFIER = /(?:\bfrom\s+|\bimport\s+|\bimport\(\s*)["'](\.{1,2}\/[^"'\s]+)["']/g
 const SUFFIXES = [
   '',
@@ -42,23 +46,37 @@ export function resolvesToFile(fromFile, specifier) {
   return js !== null && ['.ts', '.tsx', '.mts'].some((ext) => isFile(base.slice(0, js.index) + ext))
 }
 
-export function forkE2eFiles(root) {
-  const dir = join(root, E2E_DIR)
-  if (!existsSync(dir)) {
-    return []
-  }
-  return readdirSync(dir)
-    .filter((name) => FORK_FILE.test(name))
-    .sort()
-    .map((name) => `${E2E_DIR}/${name}`)
+/** Whether a specifier reaches fork code. */
+export const importsForkCode = (specifier) => FORK_TARGET.test(specifier)
+
+function listSources(dir, rel) {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.name === 'node_modules') {
+      return []
+    }
+    const path = `${rel}/${entry.name}`
+    if (entry.isDirectory()) {
+      return listSources(join(dir, entry.name), path)
+    }
+    return SOURCE_FILE.test(entry.name) ? [path] : []
+  })
 }
 
-export function findMissingE2eImports(root, files = forkE2eFiles(root)) {
+/** Every e2e source file, sorted, relative to the repo root. */
+export function e2eFiles(root) {
+  const dir = join(root, E2E_DIR)
+  return existsSync(dir) ? listSources(dir, E2E_DIR).sort() : []
+}
+
+export const isForkE2eFile = (file) => FORK_FILE.test(basename(file))
+
+export function findMissingE2eImports(root, files = e2eFiles(root)) {
   const missing = []
   for (const file of files) {
     const abs = join(root, file)
+    const fork = isForkE2eFile(file)
     for (const ref of relativeImports(readFileSync(abs, 'utf8'))) {
-      if (!resolvesToFile(abs, ref.specifier)) {
+      if ((fork || importsForkCode(ref.specifier)) && !resolvesToFile(abs, ref.specifier)) {
         missing.push({ file, ...ref })
       }
     }

@@ -4,12 +4,13 @@
 // Needs ORCA_E2E_SSH_DOCKER=1 and ORCA_E2E_ORCAD_CONVERT_TEMPLATE (a template built for the Docker host).
 import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { expect, test } from './helpers/orca-app'
+import { expect } from '@stablyai/playwright-test'
+import { test } from './desktop/electron-fixtures/orca-app'
 import {
   launchManagedWorkspace,
   skipUnlessManagedDockerHost,
   withManagedHost
-} from './helpers/orcad-managed-workspace'
+} from './remote/managed-ssh/host-lifecycle/orcad-managed-workspace'
 import { quotePosixShell } from '../../src/shared/shell/launch/shell-argument-quoting'
 import { forkShot, switchUiToEnglish } from './fork-managed-host-links'
 

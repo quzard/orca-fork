@@ -1,10 +1,9 @@
 // Fork e2e support for clicking host-terminal links on a managed SSH host and observing where they open.
 import { mkdirSync } from 'node:fs'
 import path from 'node:path'
-import type { ElectronApplication, Page, TestInfo } from '@stablyai/playwright-test'
-import { expect } from './helpers/orca-app'
-import { selectTerminalTab, waitForPane } from './helpers/orcad-managed-workspace'
-import { openTerminalWorkspaceRootLink } from './helpers/terminal-workspace-root-link'
+import { expect, type ElectronApplication, type Page, type TestInfo } from '@stablyai/playwright-test'
+import { selectTerminalTab, waitForPane } from './remote/managed-ssh/host-lifecycle/orcad-managed-workspace'
+import { openTerminalWorkspaceRootLink } from './terminal/links/terminal-workspace-root-link'
 
 declare global {
   // Main-process record of stubbed shell opens, read back by readDesktopOpens.

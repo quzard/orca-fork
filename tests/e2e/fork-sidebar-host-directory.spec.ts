@@ -6,14 +6,14 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import type { Locator, Page } from '@stablyai/playwright-test'
-import { expect, test } from './helpers/orca-app'
+import { expect, type Locator, type Page } from '@stablyai/playwright-test'
+import { test } from './desktop/electron-fixtures/orca-app'
 import {
   launchConvertedProfile,
   skipUnlessManagedDockerHost,
   withManagedHost
-} from './helpers/orcad-managed-workspace'
-import { dismissTransientAnnouncement } from './helpers/ssh-config-host-picker'
+} from './remote/managed-ssh/host-lifecycle/orcad-managed-workspace'
+import { dismissTransientAnnouncement } from './remote/ssh-hosts/ssh-config-host-picker'
 import { quotePosixShell } from '../../src/shared/shell/launch/shell-argument-quoting'
 import {
   toRuntimeExecutionHostId,

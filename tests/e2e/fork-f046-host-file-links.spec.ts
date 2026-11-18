@@ -3,15 +3,16 @@
 // A file another workspace holds opens there through the host's in-place grant and stays writable.
 // Needs ORCA_E2E_SSH_DOCKER=1 and ORCA_E2E_ORCAD_CONVERT_TEMPLATE (a template built for the Docker host).
 import { rmSync, writeFileSync } from 'node:fs'
-import { expect, test } from './helpers/orca-app'
+import { expect } from '@stablyai/playwright-test'
+import { test } from './desktop/electron-fixtures/orca-app'
 import {
   launchManagedWorkspace,
   openTerminalTab,
   skipUnlessManagedDockerHost,
   withManagedHost
-} from './helpers/orcad-managed-workspace'
+} from './remote/managed-ssh/host-lifecycle/orcad-managed-workspace'
 import { quotePosixShell } from '../../src/shared/shell/launch/shell-argument-quoting'
-import { createPdfFindFixture } from './helpers/pdf-find-fixture'
+import { createPdfFindFixture } from './editor/pdf/pdf-find-fixture'
 import { toRuntimeExecutionHostId } from '../../src/shared/execution-host/execution-host'
 import { folderWorkspaceKey } from '../../src/shared/workspace/identity/workspace-scope'
 import {

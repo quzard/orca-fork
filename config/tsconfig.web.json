@@ -9,8 +9,12 @@
     "../src/main/pi/rpc/options/rpc-model-schema.ts",
     "../src/main/pi/rpc/options/rpc-model-options.ts",
     "../src/shared/**/*",
+<<<<<<< HEAD
     "../src/fork/**/*.ts",
     "../src/fork/**/*.tsx"
+=======
+    "../cloud/packages/connector-contract/src/connect-messages.ts"
+>>>>>>> a22e892395cfdaba4a80021762184f775e505157
   ],
   "exclude": [
     "../src/renderer/src/components/sidebar/workspace-creation/folder/folder-workspace-composer-submit-host-platform.test.ts",

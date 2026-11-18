@@ -46,7 +46,11 @@ import { useAiVaultScanProgress } from '../scanning/ai-vault-scan-progress-store
 import { aiVaultLocalScanKey } from '../../../../../../shared/ai-vault/scanning/ai-vault-local-scan-key'
 import { useAiVaultPanelWorkspace } from '../scope/use-ai-vault-panel-workspace'
 import { useAiVaultPanelQuery } from '../scope/use-ai-vault-panel-query'
+<<<<<<< HEAD
 import { useForkAiVaultGroups, useForkVaultHostMenu } from '../../../../../../fork/ai-vault/panel-hooks'
+=======
+import { useAiVaultGroupRoomRows } from './use-ai-vault-group-room-rows'
+>>>>>>> a22e892395cfdaba4a80021762184f775e505157
 import {
   aiVaultPanelKeyboardRootProps,
   type AiVaultSessionListKeyboard
@@ -234,7 +238,9 @@ export default function AiVaultPanel({
     activeProjectKey,
     sessionProjectById,
     projectLabelByKey,
-    hideEmptySessions
+    hideEmptySessions,
+    // A group room's member rows list once, in the group's home.
+    roomRows: useAiVaultGroupRoomRows()
   })
   const forkList = useForkAiVaultGroups(groups, collapsedGroups, hostMenu, headerAction, workspace)
   const searchHitHostLabels = useMemo(

@@ -14,8 +14,8 @@ import { useWorktreeCardWorkspaceActions } from './use-worktree-card-workspace-a
 import { registeredWorktreeCardIdentity } from '../../../../../../shared/fork-hooks/sidebar-card-identity'
 
 export function useWorktreeCardController(props: ResolvedWorktreeCardProps) {
-  const { worktree, repo } = props
-  const foundation = useWorktreeCardFoundation({ worktree, repo })
+  const { worktree, repo, compactLine } = props
+  const foundation = useWorktreeCardFoundation({ worktree, repo, compactLine })
   const review = useWorktreeCardReviewDetails({
     worktree,
     repo,
@@ -35,7 +35,9 @@ export function useWorktreeCardController(props: ResolvedWorktreeCardProps) {
     prDisplay: review.prDisplay
   })
 
-  const showStatus = foundation.cardProps.includes('status')
+  // A bot's worker line on a disconnected server can't know its live state, so it shows none.
+  const showStatus =
+    foundation.cardProps.includes('status') && !(compactLine && foundation.isRuntimeDisconnected)
   const {
     issue: showIssue,
     linearIssue: showLinearIssue,
@@ -135,7 +137,9 @@ export function useWorktreeCardController(props: ResolvedWorktreeCardProps) {
     showJiraIssue,
     showPR,
     showAutomation,
-    showCli,
+    // A line under its bot: the bot's avatar and its worker's CLI mark only repeat the section.
+    showCli: showCli && !compactLine,
+    showBot: !compactLine,
     showComment,
     showPorts,
     issueDisplay: linked.issueDisplay,

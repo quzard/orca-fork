@@ -1,9 +1,14 @@
 import { ipcMain } from 'electron'
 import type { WorktreeMeta } from '../../../../shared/worktree/meta-types'
+import type { DiffCommentBaseMutation } from '../../../../shared/file-review/diff-comment-mutation'
 import { displayNameUpdatePinsLabel } from '../../../../shared/worktree/metadata/display-name-provenance'
 import { parseExecutionHostId } from '../../../../shared/execution-host/execution-host'
 import { stripOrcaProvenanceMetaUpdates } from '../../../workspaces/removal/worktree-removal-safety'
 import { getRepoIdFromWorktreeId } from '../../../../shared/worktree/id'
+import {
+  isWorkspaceKey,
+  worktreeWorkspaceKey
+} from '../../../../shared/workspace/identity/workspace-scope'
 import { notifyWorktreesChanged } from '../worktree-remote'
 import { parseWorktreeId } from '../paths/worktree-logic'
 import {
@@ -16,7 +21,6 @@ import { applySidebarFieldClearsFromIpcArgs } from '../../../../shared/fork-hook
 import { isRemovedFolderWorkspaceInstance } from '../../../workspaces/catalog/folder-workspace-meta-presence'
 import { resolveWorktreeMetaOwner } from '../../../persistence/host-qualified-worktree-meta'
 import { hostWorktreeTarget } from '../../../../shared/worktree/host-qualified-identity'
-import { worktreeWorkspaceKey } from '../../../../shared/workspace/identity/workspace-scope'
 import type { WorktreeIpcContext } from '../worktree-ipc-context'
 import {
   isWslMoveSourceHost,
@@ -34,7 +38,7 @@ export function registerWorktreeMetadataHandlers(context: WorktreeIpcContext): v
       args: {
         worktreeId: string
         executionHostId?: string
-        updates: Partial<WorktreeMeta>
+        updates: Partial<WorktreeMeta> & DiffCommentBaseMutation
       }
     ) => {
       const executionHostId =
@@ -98,16 +102,31 @@ export function registerWorktreeMetadataHandlers(context: WorktreeIpcContext): v
 
   ipcMain.handle(
     'worktrees:updateLineage',
-    async (_event, args: { worktreeId: string; parentWorktreeId?: string; noParent?: boolean }) => {
+    async (
+      _event,
+      args: {
+        worktreeId: string
+        parentWorktreeId?: string
+        noParent?: boolean
+        ifParentWorkspace?: string
+      }
+    ) => {
+      const condition =
+        typeof args.ifParentWorkspace === 'string'
+          ? { ifParentWorkspace: args.ifParentWorkspace }
+          : {}
       await runtime.updateManagedWorktreeMeta(args.worktreeId, {
         lineage:
           args.noParent === true
-            ? { noParent: true }
+            ? { noParent: true, ...condition }
             : args.parentWorktreeId
-              ? { parentWorktree: `id:${args.parentWorktreeId}` }
+              ? { parentWorktree: `id:${args.parentWorktreeId}`, ...condition }
               : undefined
       })
-      notifyWorktreesChanged(mainWindow, parseWorktreeId(args.worktreeId).repoId)
+      // A folder workspace has no repo; the runtime already announced its folder change.
+      if (!isWorkspaceKey(args.worktreeId)) {
+        notifyWorktreesChanged(mainWindow, parseWorktreeId(args.worktreeId).repoId)
+      }
       return {
         lineage: store.getWorktreeLineage(args.worktreeId) ?? null,
         workspaceLineage: store.getWorkspaceLineage(worktreeWorkspaceKey(args.worktreeId)) ?? null

@@ -209,7 +209,7 @@ macOS 根目录是 `~/Library/Application Support/Citro Labs/ego lite`，`Local 
 - 面板不另显示扫描提示和主机数量：扫描中有上游刷新按钮的转圈和「Scanning sessions」，主机数从主机行就能看出来。
 - 上游文件里：`AiVaultPanel.tsx` 调用 `src/fork/ai-vault/panel-hooks.tsx` 的 `useForkVaultHostMenu`（主机菜单）和 `useForkAiVaultGroups`（主机行、折叠的分组和作为 `headerAction` 传入的全部收起按钮），面板加上这些行后按 max-lines 的算法是 391 行，没到上限，不需要豁免；`AiVaultPanelControls.tsx` 在登记后用 `ForkVaultGroupHeader` 画分组标题，主机菜单末尾一行 `forkOtherVaultHostsMenu`（`src/fork/ai-vault/panel-controls.tsx`）。`registerAiVaultListPresentation` 运行之前两个钩子都原样返回输入。默认主机范围经钩子 `ai-vault.ts` 读（`ai-vault-host-scope.ts` 一行）；完整目录标题经同一个钩子，`src/shared/ai-vault-session-filters.ts` 的 `folderLabel` 先问登记的读取函数。
 - `src/fork/ai-vault/agents-panel-empty-profile.fork.test.tsx` 用空配置渲染整个「Agents」面板，检查不会报 React #185（Maximum update depth exceeded）：fork 代码以前在 zustand 选择器里每次新建数组，`useSyncExternalStore` 一直重渲染，右侧栏崩溃。它在 `act` 里渲染，不用真实时间等待（上游的 ast-grep 门禁不许测试里用真实时间）；选择器每次返回新数组时它仍会报 Maximum update depth exceeded。`agents-panel-multi-host.fork.test.tsx` 用本机加几台托管的 Linux 服务器渲染同一个面板（主机行、折叠、全部收起、主机菜单和选中单台主机后的菜单），钩子行被合并冲掉时会失败。
-- 扫描进程的内存按本机内存计算，下限仍是 384 MiB（`session-scanner-service-spawn.ts` 读 `readAiVaultServiceHeapMiB(384)`）。工具输出按块写入索引，索引版本在上游之上 +1，旧的截断索引会重建。未登记时跟上游，不索引工具输出。策略随扫描进程的 init 消息下发（可选字段 `fork`，未登记时不带），`session-scanner-service-entry.ts` 一行 `applyAiVaultForkServicePolicy`。
+- 扫描进程的内存按本机内存计算，下限是上游的大小：`session-scanner-service-spawn.ts` 读 `readAiVaultServiceHeapMiB(aiVaultServiceHeapMb(...))`，平时是 384 MiB，扫描进程内存耗尽重启后是上游 #43551 抬高的值，取两者中较大的。工具输出按块写入索引，索引版本在上游之上 +1，旧的截断索引会重建。未登记时跟上游，不索引工具输出。策略随扫描进程的 init 消息下发（可选字段 `fork`，未登记时不带），`session-scanner-service-entry.ts` 一行 `applyAiVaultForkServicePolicy`。
 - 启动时浏览器分区的代理改成后台应用，不再挡住第一个窗口。每个分区在排队时同步标成「代理未就绪」，请求守卫会扣住该分区的请求直到代理生效，失败则取消请求，所以不会有请求先走直连。上游的 try/catch 保留，只把等待的那一行换成 `deferStartupProxyWait(...)`。`src/fork/main/startup/browser-session-proxy.fork.test.ts` 验证这一点。
 - 没有另做一份主机扫描缓存。Linux 上用合成会话量过：上游冷扫描已经能在一次扫描里给出列表，热扫描大约 10 毫秒；旧的 150 毫秒提前返回在冷扫描时是空列表。数字记在 [docs/fork/parity/ai-vault.md](docs/fork/parity/ai-vault.md)。
 
@@ -283,11 +283,11 @@ launchd 里签名可能停在 Orca Local Signing 的钥匙串确认上。`--boot
 
 ## F052 没有 IPv6 的 Linux 上启动 Antigravity ACP
 
-Antigravity ACP 仍钉在 1.4.1。这一版的 `agy_acp_server.par` 在 google3 初始化里强制创建 `AF_INET6` socket。内核 `CONFIG_IPV6=n`（关掉 IPv6 的 Docker 容器常见）时进程 `SIGABRT`，安装校验失败，界面是 “Antigravity couldn't start on this host, so it wasn't installed.” 不要求主机打开 IPv6，也不改主机网络说明。
+Antigravity ACP 1.4.1 的 `agy_acp_server.par` 在 google3 初始化里强制创建 `AF_INET6` socket。内核 `CONFIG_IPV6=n`（关掉 IPv6 的 Docker 容器常见）时进程 `SIGABRT`，安装校验失败，界面是 “Antigravity couldn't start on this host, so it wasn't installed.” 不要求主机打开 IPv6，也不改主机网络说明。
 
 Linux 上每次启动都在已有的 `--uid=` 后面加上 `--enforce_kernel_ipv6_support=false`。安装校验（`probeAntigravityAcpServer`）和正式会话（`ANTIGRAVITY_LAUNCH_SPEC.args`，登录也走这里）都展开同一个钩子。macOS 和 Windows 不追加。未登记时 Linux 仍只有 `--uid=`。
 
-钩子 `src/shared/fork-hooks/antigravity-acp-args.ts`。参数在 `src/fork/main/antigravity-acp-ipv6.ts`，由 `register-main.ts` 登记，桌面和 orcad 都有：SSH 远端的安装和会话在那台主机的 orcad 上启动。1.4.2 到 1.4.5 会在会话开始时往工作区写 `skills/system/run-workflow/SKILL.md`，不升 pin。测试不跑官方二进制，用假服务器核对 argv。
+钩子 `src/shared/fork-hooks/antigravity-acp-args.ts`。参数在 `src/fork/main/antigravity-acp-ipv6.ts`，由 `register-main.ts` 登记，桌面和 orcad 都有：SSH 远端的安装和会话在那台主机的 orcad 上启动。上游 #43938 已把 pin 升到 1.5.0；1.5.0 在 `CONFIG_IPV6=n` 的 Linux 上是否仍需要这个参数、是否仍接受它，还没在这样的主机上试过，参数先保留。测试不跑官方二进制，用假服务器核对 argv。
 
 ## F053 插件复用已配对的 Orca 服务器
 

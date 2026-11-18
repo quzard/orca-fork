@@ -5,7 +5,7 @@
 // src/fork/tsconfig-boundaries.fork.test.ts runs it with the fork tests, ahead of tsc.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
-import { parse as parseJsonc } from 'jsonc-parser'
+import { parse as parseJsonc, printParseErrorCode } from 'jsonc-parser'
 
 const ROOT = resolve(import.meta.dirname, '../..')
 const CONFIG_DIR = join(ROOT, 'config')
@@ -30,9 +30,20 @@ export function globToRegExp(glob) {
   return new RegExp(`^${source}(?:/.*)?$`)
 }
 
+// tsconfig files are JSONC: upstream comments them. jsonc-parser recovers from syntax errors
+// instead of throwing, so a broken tsconfig would otherwise pass the check with partial data.
+export function parseTsconfig(text, label) {
+  const errors = []
+  const config = parseJsonc(text, errors, { allowTrailingComma: true })
+  if (errors.length > 0) {
+    const detail = errors.map((e) => `${printParseErrorCode(e.error)} at offset ${e.offset}`)
+    throw new Error(`${label} is not valid JSONC: ${detail.join(', ')}`)
+  }
+  return config
+}
+
 export function readProject(file, name) {
-  // tsconfig files are JSONC: upstream comments them.
-  const load = (path) => parseJsonc(readFileSync(path, 'utf8'))
+  const load = (path) => parseTsconfig(readFileSync(path, 'utf8'), relative(ROOT, path))
   let config = load(join(CONFIG_DIR, file))
   let include = config.include
   let exclude = config.exclude

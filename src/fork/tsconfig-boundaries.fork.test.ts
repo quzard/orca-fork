@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { globToRegExp, readForkProjects, violations } from './tsconfig-boundaries.mjs'
+import {
+  globToRegExp,
+  parseTsconfig,
+  readForkProjects,
+  violations
+} from './tsconfig-boundaries.mjs'
 
 describe('fork files stay inside their TypeScript projects', () => {
   const projects = readForkProjects()
@@ -16,5 +21,20 @@ describe('fork files stay inside their TypeScript projects', () => {
     const node = projects[0]!
     const fake = { ...node, include: [...node.include, globToRegExp('src/fork/**/*.tsx')] }
     expect(violations(fake).some((entry) => entry.includes('src/renderer/'))).toBe(true)
+  })
+
+  it('throws on a tsconfig with a syntax error instead of reading part of it', () => {
+    const broken = '{\n  // comment\n  "include": ["src/fork/**/*.ts"\n  "exclude": []\n}\n'
+    expect(() => parseTsconfig(broken, 'config/tsconfig.broken.json')).toThrow(
+      /config\/tsconfig\.broken\.json is not valid JSONC: CommaExpected/
+    )
+    expect(() => parseTsconfig('{ "include": [', 'config/tsconfig.cut.json')).toThrow(
+      /not valid JSONC/
+    )
+  })
+
+  it('still reads comments and trailing commas', () => {
+    const text = '{\n  // upstream comment\n  "include": ["src/**/*.ts",],\n}\n'
+    expect(parseTsconfig(text, 'config/tsconfig.ok.json')).toEqual({ include: ['src/**/*.ts'] })
   })
 })

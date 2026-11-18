@@ -40,6 +40,7 @@ const mocks = vi.hoisted(() => {
     runtimeEnvironments: [] as { id: string; name: string }[],
     runtimeStatusByEnvironmentId: new Map(),
     gitStatusByWorktree: {} as Record<string, { path: string; status: 'modified' }[]>,
+    gitStatusReadErrorByWorktree: {} as Record<string, string>,
     setGitStatus: vi.fn(),
     deleteStateByWorktreeId: {} as Record<
       string,

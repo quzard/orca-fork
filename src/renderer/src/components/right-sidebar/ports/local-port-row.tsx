@@ -14,7 +14,6 @@ import {
 } from '@/components/ui/context-menu'
 import type { WorkspacePort } from '../../../../../shared/workspace/ports/workspace-ports'
 import { useTranslate } from '@/i18n/use-translate'
-import { ForkPortForward } from '../../../../../fork/ports/workspace-port-forward'
 
 const LOCAL_PORT_MENU_CONTENT_CLASS =
   '!rounded-md !border-border/60 !bg-popover !text-popover-foreground !shadow-[0_10px_24px_rgba(0,0,0,0.18)] !backdrop-blur-none'
@@ -150,7 +149,6 @@ export function LocalPortRow({
         </ContextMenuTrigger>
         <TooltipProvider>
           <div className="flex items-center gap-0.5 can-hover:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-            <ForkPortForward.RowButton port={port} />
             {onOpenInBrowser && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -241,7 +239,6 @@ export function LocalPortRow({
         <ContextMenuLabel
           className={LOCAL_PORT_MENU_LABEL_CLASS}
         >{`:${port.port}`}</ContextMenuLabel>
-        <ForkPortForward.MenuItem port={port} className={LOCAL_PORT_MENU_ITEM_CLASS} />
         {onOpenInBrowser && (
           <ContextMenuItem
             className={LOCAL_PORT_MENU_ITEM_CLASS}

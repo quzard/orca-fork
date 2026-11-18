@@ -13,7 +13,6 @@ import {
   registerRemovedWorkspaceArchiveRelease
 } from '../shared/fork-hooks/workspace-durable-archive'
 import { registerForkRendererModules as registerAiVaultRendererModules } from './ai-vault/register-renderer'
-import { enableWorkspacePortForward } from './ports/workspace-port-forward-flag'
 import { registerArchivedWorkspaceSlot } from './sidebar/archived-workspaces'
 import {
   releaseDurableArchiveForWorkspace,
@@ -100,7 +99,6 @@ export function registerForkRendererModules(): void {
   registerPostImportHook((details) =>
     import('./import/apply-post-import').then((module) => module.applyForkPostImport(details))
   )
-  enableWorkspacePortForward()
   registerAiVaultRendererModules()
 }
 

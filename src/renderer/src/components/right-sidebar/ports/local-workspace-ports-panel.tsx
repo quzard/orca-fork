@@ -28,7 +28,6 @@ import { useQuietPortScan } from '@/lib/workspace-ports/use-quiet-port-scan'
 import { LocalPortSection } from './local-port-section'
 import { LocalPortDetailsDialog } from './local-port-details-dialog'
 import { SshForwardedPortsSection } from './ssh-forwarded-ports-section'
-import { ForkPortForward } from '../../../../../fork/ports/workspace-port-forward'
 import { SshPortForwardDialog, type PortForwardDialogState } from './ssh-port-forward-dialog'
 import { portForwardKey, portForwardRemoteHost } from './port-forward-remote-host'
 import type { PortForwardEntry } from '../../../../../shared/remote-runtime/ssh/ssh-types'
@@ -369,7 +368,6 @@ export function LocalWorkspacePortsPanel({
         )}
 
       <LocalPortDetailsDialog port={detailsPort} onClose={() => setDetailsPort(null)} />
-      <ForkPortForward.Dialog targetId={sshForwardTargetId} />
       {/* Stays mounted across workspace switches; the open dialog keeps its pinned target. */}
       <SshPortForwardDialog
         state={forwardDialog}

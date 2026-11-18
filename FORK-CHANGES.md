@@ -110,11 +110,11 @@ fork 代码统一用 `src/fork/i18n/fork-translate.tsx` 的 `forkTranslate` 翻�
 
 三个上游文件各一行调用：`reattach-grid-fit.ts` 在上游的 `await fit.completion` 之后调用 `notifyTerminalReconnectFit(...)`，`session-reconcile-dispose.ts` 的可见恢复调用 `notifyTerminalPaneShown(session)`，`connect-pane-pty.ts` 在 `installPtyInputForward` 之后调用 `holdDesktopResizeDuringTuiRepaint(session)`。读当前载荷、停放模型、可见性和挡住同尺寸 fit 的逻辑在 `src/shared/fork-hooks/terminal-lifecycle.ts`，通知在 fit 完成后的下一个微任务里判断载荷是否仍是当前的。脉冲在 `src/fork/terminal/reconnect-tui-pulse.ts`，由 `register-renderer.tsx` 登记。未登记时三处调用的结果与上游相同。
 
-## F021 / F043 用 Cursor、VS Code 或 Zed 打开远端工作区（Open in 由上游 #33877 覆盖）
+## F021 / F043 用 Cursor、VS Code 或 Zed 打开远端工作区（Open in 由上游 #33877 覆盖，端口 Forward 由上游 #43733 覆盖）
 
 上游 [stablyai/orca#33877](https://github.com/stablyai/orca/pull/33877)（修 #30593）用 CLI 参数打开直接 SSH，以及文件就在这台机器上、经 SSH 到达的托管或配对服务器。Cursor 是 `cursor --new-window --remote ssh-remote+<authority> <path>`，VS Code 系是 `--remote ssh-remote+…`，Zed 是 `ssh://` URL。菜单是否可点由上游 `getExternalEditorOpenCapability` 和 `getWorkspaceEditorSshHost` 决定：编辑器是 Cursor、VS Code 或 Zed；托管侧认 `orcadDeployment` 或 `sshAccess` 上的 `sshTargetId`（临时 `runtime-ssh-` 目标不算），并且工作区文件在这台服务器上。主进程再用 `isEditorSshHostForOwner` 核对主机、代次和围栏。fork 不改这条打开路径。Cursor 跟 Zed 一样，在打开方式里配置之后才出现。托管服务器再经自己的 SSH 访问的工作区，以及所有者还没落到这台机器上的路径，跟上游一样保持拒绝。
 
-剩下的 fork 只有托管工作区的端口行：渲染进程登记后，每个检测到的端口有 Forward，打开已有的转发对话框，填上该端口、主机 `localhost` 和进程名。未登记时没有这个按钮。已有的 Forwarded 区不变。实现在 `src/fork/ports/workspace-port-forward.tsx`：端口面板渲染一个 fork 对话框槽位（`local-workspace-ports-panel.tsx` 两行），有 SSH 转发目标时发布一个打开函数；行的悬停按钮和右键菜单各渲染一个槽位读它（`local-port-row.tsx` 三行）。行和分区不多传参数，`local-port-section.tsx` 与上游一致。
+托管工作区端口行上的 Forward 也由上游覆盖（[stablyai/orca#43733](https://github.com/stablyai/orca/pull/43733)）：上游给受管 SSH 工作区每个检测到的端口加了 Forward（悬停按钮和右键菜单），打开已有的转发对话框并预填端口，连接未就绪或已转发时不显示。fork 的端口行槽位和 `src/fork/ports/` 已删掉，`local-port-row.tsx` 与 `local-workspace-ports-panel.tsx` 回到上游。
 
 ## F022 软链目录上的 Cursor 会话（已移除）
 

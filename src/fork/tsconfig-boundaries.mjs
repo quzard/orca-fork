@@ -5,6 +5,7 @@
 // src/fork/tsconfig-boundaries.fork.test.ts runs it with the fork tests, ahead of tsc.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
+import { parse as parseJsonc } from 'jsonc-parser'
 
 const ROOT = resolve(import.meta.dirname, '../..')
 const CONFIG_DIR = join(ROOT, 'config')
@@ -30,7 +31,8 @@ export function globToRegExp(glob) {
 }
 
 export function readProject(file, name) {
-  const load = (path) => JSON.parse(readFileSync(path, 'utf8'))
+  // tsconfig files are JSONC: upstream comments them.
+  const load = (path) => parseJsonc(readFileSync(path, 'utf8'))
   let config = load(join(CONFIG_DIR, file))
   let include = config.include
   let exclude = config.exclude

@@ -26,14 +26,14 @@ Upstream [stablyai/orca#33877](https://github.com/stablyai/orca/pull/33877) cove
 - [ ] Cursor appears in Open in only after it is configured, same as Zed.
 - [ ] The file manager on an SSH workspace stays refused.
 
-## F043 Managed-server remote open and per-port forward
+## F043 Managed-server remote open and per-port forward (upstream #33877, #43733)
 
-Open in for a server reached over SSH is upstream #33877. The remaining fork behavior is the per-port Forward button.
+Open in for a server reached over SSH is upstream #33877. The per-port Forward button is upstream #43733; the fork adds nothing to the ports panel.
 
 - [ ] A workspace whose files sit on a managed or paired server enables the same remote rows. The SSH target comes from `orcadDeployment` or `sshAccess` and is not an ephemeral `runtime-ssh-` id. Upstream `getWorkspaceEditorSshHost` decides this.
 - [ ] A workspace that server reaches through its own SSH host stays refused. There is no fork environment-to-SSH map and no fork route adjuster.
-- [ ] After renderer registration, each detected port row on that workspace has Forward. It opens the existing forward dialog with that remote port, host `localhost`, and the port's process name.
-- [ ] Before registration, those rows have no Forward button. The existing Forwarded section is unchanged.
+- [ ] On a connected managed SSH workspace, each detected port row has exactly one Forward. It opens the existing forward dialog for that port.
+- [ ] Forward is hidden while the SSH connection is not connected and on a port that is already forwarded; Forwarded › Add still works.
 
 ## F041 Plain-directory terminal lifecycle
 

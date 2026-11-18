@@ -1,6 +1,6 @@
 // fork: skill installs clone this upstream commit; a fork build's own commit is not on
 // stablyai/orca. fork/scripts/sync-skills-source-commit.mjs rewrites it after each sync.
-export const FORK_SKILLS_SOURCE_COMMIT = '38055fea4ac98ab080fd9b84a88ae1f70740688a'
+export const FORK_SKILLS_SOURCE_COMMIT = 'a22e892395cfdaba4a80021762184f775e505157'
 
 /** Upstream's renderer reads ORCA_BUILD_COMMIT only to pin skill installs, so it gets the base. */
 export function forkRendererDefines(): Record<string, string> {

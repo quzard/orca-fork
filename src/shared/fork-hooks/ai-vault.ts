@@ -20,8 +20,9 @@ export function registerAiVaultServiceHeap(resolve: () => number): void {
   serviceHeapMiB = resolve
 }
 
+/** Upstream's heap (raised after an out-of-memory exit) stays the floor under the fork's size. */
 export function readAiVaultServiceHeapMiB(fallback: number): number {
-  return serviceHeapMiB ? serviceHeapMiB() : fallback
+  return serviceHeapMiB ? Math.max(serviceHeapMiB(), fallback) : fallback
 }
 
 export function setAiVaultForkServicePolicy(next: AiVaultForkServicePolicy | undefined): void {

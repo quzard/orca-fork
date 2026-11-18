@@ -32,6 +32,9 @@ describe('scan policy', () => {
     expect(readAiVaultServiceHeapMiB(384)).toBe(384)
     registerAiVaultServiceHeap(() => aiVaultServiceHeapMiB(16 * GIB))
     expect(readAiVaultServiceHeapMiB(384)).toBe(2048)
+    // After an out-of-memory exit upstream raises its own size; a smaller fork size does not undo it.
+    registerAiVaultServiceHeap(() => aiVaultServiceHeapMiB(2 * GIB))
+    expect(readAiVaultServiceHeapMiB(512)).toBe(512)
   })
 
   it('indexes a whole tool result in chunks and bumps the schema', async () => {

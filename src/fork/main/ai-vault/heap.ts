@@ -6,7 +6,17 @@ const HEAP_CAP_MIB = 2048
 const HEAP_RESERVE_MIB = 2048
 const BYTES_PER_MIB = 1024 * 1024
 
-export function aiVaultServiceHeapMiB(totalMemBytes = totalmem()): number {
+// 容器或 cgroup 限制比物理内存小时按限制算；constrainedMemory() 为 0 表示没有限制或未知。
+export function aiVaultMemoryBytes(
+  totalMemBytes = totalmem(),
+  constrainedBytes = process.constrainedMemory()
+): number {
+  return Number.isFinite(constrainedBytes) && constrainedBytes > 0
+    ? Math.min(totalMemBytes, constrainedBytes)
+    : totalMemBytes
+}
+
+export function aiVaultServiceHeapMiB(totalMemBytes = aiVaultMemoryBytes()): number {
   const totalMiB = Math.floor(totalMemBytes / BYTES_PER_MIB)
   const quarter = Math.floor(totalMiB / 4)
   const reserved = totalMiB - HEAP_RESERVE_MIB

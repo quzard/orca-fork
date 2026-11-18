@@ -36,7 +36,10 @@ import {
   requestLocalAiVaultScan,
   type LocalAiVaultScanProgressHandle
 } from '../scan-lifecycle/ai-vault-local-scan-progress'
-import { aiVaultForkServiceInit, readAiVaultServiceHeapMiB } from '../../../shared/fork-hooks/ai-vault'
+import {
+  aiVaultForkServiceInit,
+  readAiVaultServiceHeapMiB
+} from '../../../shared/fork-hooks/ai-vault'
 
 const AI_VAULT_SERVICE_HEAP_MB = 384
 const AI_VAULT_SERVICE_HEAP_AFTER_OOM_MB = 1024

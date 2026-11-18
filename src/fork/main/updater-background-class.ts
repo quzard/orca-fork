@@ -1,6 +1,7 @@
 // fork: the fork's updater methods, as a class between upstream's UpdaterDownloadInstall and
 // UpdaterSetup, so they read the updater's protected state without living in upstream files.
 import { UpdaterDownloadInstall } from '../../main/updater/lifecycle/updater-download-install'
+import type { UpdateCheckVariant } from '../../main/updater/lifecycle/updater-types'
 import {
   FORK_BACKGROUND_CHECK_FAILURE_LOG,
   armForkBackgroundDownload,
@@ -8,8 +9,19 @@ import {
   forkBackgroundDownloadFollowUp,
   planForkCheckFailure
 } from './fork-background-download'
+import { pinForkUpdateFeed } from './updater-background-wiring'
 
 export abstract class ForkBackgroundUpdates extends UpdaterDownloadInstall {
+  /** A fork build pins its own release feed before upstream resolves a release tag. */
+  protected override async pinDefaultReleaseFeed(
+    variant: UpdateCheckVariant = 'default'
+  ): Promise<'ready' | 'not-available'> {
+    if (pinForkUpdateFeed(this.getAutoUpdater())) {
+      return 'ready'
+    }
+    return super.pinDefaultReleaseFeed(variant)
+  }
+
   /** A failed check must not drop a downloaded or staging fork update. */
   protected keepForkStagedUpdate(userInitiated?: boolean): boolean {
     const plan = planForkCheckFailure(this.currentStatus.state, Boolean(userInitiated), {

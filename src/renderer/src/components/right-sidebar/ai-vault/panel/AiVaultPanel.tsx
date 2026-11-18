@@ -46,7 +46,10 @@ import { useAiVaultScanProgress } from '../scanning/ai-vault-scan-progress-store
 import { aiVaultLocalScanKey } from '../../../../../../shared/ai-vault/scanning/ai-vault-local-scan-key'
 import { useAiVaultPanelWorkspace } from '../scope/use-ai-vault-panel-workspace'
 import { useAiVaultPanelQuery } from '../scope/use-ai-vault-panel-query'
-import { useForkAiVaultGroups, useForkVaultHostMenu } from '../../../../../../fork/ai-vault/panel-hooks'
+import {
+  useForkAiVaultGroups,
+  useForkVaultHostMenu
+} from '../../../../../../fork/ai-vault/panel-hooks'
 import { useAiVaultGroupRoomRows } from './use-ai-vault-group-room-rows'
 import {
   aiVaultPanelKeyboardRootProps,
